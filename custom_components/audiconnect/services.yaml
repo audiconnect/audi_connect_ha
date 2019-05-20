@@ -1,0 +1,11 @@
+# Describes the format for available services for audiconnect
+
+refresh_vehicle_data:
+  description: >
+    Request an update of the state from the vehicle, as opposed to the normal update 
+    mechanism, which only retrieves data from the servers.
+  fields:
+    vin:
+      description: >
+        The vehicle identification number (VIN) of the vehicle, 17 characters
+      example: WBANXXXXXX1234567
