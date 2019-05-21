@@ -12,8 +12,8 @@ assistant configuration at `<config dir>/custom_components`.
 Add the following to your `<config dir>/configuration.yaml` file.
 ```yaml
 audiconnect:
-    username: <username to volkswagen carnet>
-    password: <password to volkswagen carnet>
+    username: <username to audiconnect>
+    password: <password to audiconnect>
     scan_interval: 
         minutes: 2
     name:
