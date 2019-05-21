@@ -24,15 +24,15 @@ Configuration Variables
 -----------------------
 **username**
 
-- (string)(Required)The username associated with your Volvo On Call account.
+- (string)(Required)The username associated with your Audi Connect account.
 
 **password**
 
-- (string)(Required)The password for your given Volvo On Call account.
+- (string)(Required)The password for your given Audi Connect account.
 
 **region**
 
-- (string)(Optional)The region where the Volvo is registered. Needs to be set for users in North America or China.
+- (string)(Optional)The region where the Audi is registered. Needs to be set for users in North America or China.
 
 **name**
 
