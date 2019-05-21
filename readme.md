@@ -44,7 +44,7 @@ Configuration Variables
 
 **scan_interval**
 
-- specify in minutes how often to fetch status data from carnet (optional, default 5 min, minimum 1 min)
+- specify in minutes how often to fetch status data from Audi Connect (optional, default 10 min, minimum 1 min)
 
 **name**
 
