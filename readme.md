@@ -49,3 +49,10 @@ Configuration Variables
 **name**
 
 - set a friendly name of your car you can use the name setting as in confiugration example.
+
+Services
+--------
+
+**refresh_vehicle_data**
+
+The normal update procedure retrieves the data from the servers and does not directly interact with the vehicle. This service triggers an update request from the vehicle. When the data is retrieved successfully, the data in Home Assistant is automatically updated. The service requires a vin as parameter. 
