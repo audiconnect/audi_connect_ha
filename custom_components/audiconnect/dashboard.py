@@ -249,10 +249,14 @@ def create_instruments():
         Sensor(attr="max_charge_current", name="Max charge current", icon="mdi:current-ac", unit=None),
         Sensor(attr="engine_type1", name="Engine 1", icon="mdi:engine", unit=None),
         Sensor(attr="engine_type2", name="Engine 2", icon="mdi:engine", unit=None),
+        Sensor(attr="tank_level", name="Tank level", icon="mdi:gas-station", unit="%"),
         BinarySensor(attr="parking_light", name="Parking light", device_class="safety"),
         BinarySensor(attr="any_window_open", name="Windows", device_class="window"),
         BinarySensor(attr="any_door_unlocked", name="Doors", device_class="lock"),
-        BinarySensor(attr="trunk_unlocked", name="Trunk", device_class="lock")
+        BinarySensor(attr="any_door_open", name="Doors", device_class="door"),
+        BinarySensor(attr="trunk_unlocked", name="Trunk", device_class="lock"),
+        BinarySensor(attr="trunk_open", name="Trunk", device_class="door"),
+        BinarySensor(attr="hood_open", name="Hood", device_class="door")
     ]
 
 class Dashboard:

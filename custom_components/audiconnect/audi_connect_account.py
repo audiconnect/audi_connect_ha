@@ -8,7 +8,7 @@ import voluptuous as vol
 _LOGGER = logging.getLogger(__name__)
 
 from audiapi.API import API
-from audiapi.Services import VehicleService, LogonService, CarService, CarFinderService, VehicleStatusReportService, RequestStatus, PreTripClimaService
+from audiapi.Services import VehicleService, LogonService, CarService, CarFinderService, VehicleStatusReportService, RequestStatus, PreTripClimaService 
 
 class ChargerService(VehicleService):
     def get_charger(self):
@@ -24,15 +24,24 @@ class AudiConnectAccount:
 
         self.api = API()
         self.username = username
+        self.loggedin = False
 
-        self.logon_service = LogonService(self.api)
-        if not self.logon_service.restore_token():
-            self.logon_service.login(username, password)
+        try:
+            self.logon_service = LogonService(self.api)
+            self.logon_service.login(username, password, False)
+            self.loggedin = True
+        except Exception as exception:
+            _LOGGER.error("Error logging into Audi API")
+            _LOGGER.error(exception)
 
         self.vehicles = []
         self._update_listeners = []
 
     async def update(self, *_):
+
+        if not self.loggedin: 
+            return
+
         """Update the state of all vehicles.
         Notify all listeners about the update.
         """
@@ -103,8 +112,8 @@ class AudiConnectVehicle:
             finder_service = CarFinderService(self.api, self.vehicle)
             position = finder_service.find()["findCarResponse"]         
             self.vehicle.state["position"] = { 
-                "latitude": position["Position"]["carCoordinate"]["latitude"],  
-                "longitude": position["Position"]["carCoordinate"]["longitude"],
+                "latitude": '{:f}'.format(position["Position"]["carCoordinate"]["latitude"] / 1000000),  
+                "longitude": '{:f}'.format(position["Position"]["carCoordinate"]["longitude"] / 1000000),
                 "timestamp": datetime.strptime(position["Position"]["timestampCarSentUTC"], '%Y-%m-%dT%H:%M:%S%z'),
                 "parktime": datetime.strptime(position["parkingTimeUTC"], '%Y-%m-%dT%H:%M:%S%z')
             }
@@ -271,6 +280,18 @@ class AudiConnectVehicle:
         if check and self.parseToFloat(check): return True
 
     @property
+    def tank_level(self):
+        if self.tank_level_supported:
+            check = self.vehicle.state.get("TANK_LEVEL_IN_PERCENTAGE")
+            return self.parseToFloat(check)
+
+    @property
+    def tank_level_supported(self):
+        """Return true if tank_level is supported"""
+        check = self.vehicle.state.get("TANK_LEVEL_IN_PERCENTAGE")
+        if check and self.parseToFloat(check): return True
+
+    @property
     def position(self):
         """Return position."""
         if self.position_supported:
@@ -333,6 +354,24 @@ class AudiConnectVehicle:
             return not (checkLeftFront == "2" and checkLeftRear == "2" and checkRightFront == "2" and checkRightRear == "2")
   
     @property
+    def any_door_open_supported(self):
+        checkLeftFront = self.vehicle.state.get('OPEN_STATE_LEFT_FRONT_DOOR')
+        checkLeftRear = self.vehicle.state.get('OPEN_STATE_LEFT_REAR_DOOR')
+        checkRightFront = self.vehicle.state.get('OPEN_STATE_RIGHT_FRONT_DOOR')
+        checkRightRear = self.vehicle.state.get('OPEN_STATE_RIGHT_REAR_DOOR')
+        if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
+            return True
+
+    @property
+    def any_door_open(self):
+        if self.any_door_open_supported:
+            checkLeftFront = self.vehicle.state.get('OPEN_STATE_LEFT_FRONT_DOOR')
+            checkLeftRear = self.vehicle.state.get('OPEN_STATE_LEFT_REAR_DOOR')
+            checkRightFront = self.vehicle.state.get('OPEN_STATE_RIGHT_FRONT_DOOR')
+            checkRightRear = self.vehicle.state.get('OPEN_STATE_RIGHT_REAR_DOOR')
+            return not (checkLeftFront == "3" and checkLeftRear == "3" and checkRightFront == "3" and checkRightRear == "3")
+  
+    @property
     def trunk_unlocked(self):
         if self.trunk_unlocked_supported:
             check = self.vehicle.state.get("LOCK_STATE_TRUNK_LID")
@@ -344,11 +383,29 @@ class AudiConnectVehicle:
         if check: 
             return True
 
-                #     self.vehicle.state["maxChargeCurrent"] = result["charger"]["settings"]["maxChargeCurrent"]["content"]
-                # except Exception:
-                #     pass
-                # try:
-                #     self.vehicle.state["chargingState"] = result["charger"]["status"]["chargingStatusData"]["chargingState"]["content"]
+    @property
+    def trunk_open(self):
+        if self.trunk_open_supported:
+            check = self.vehicle.state.get("OPEN_STATE_TRUNK_LID")
+            return check != "3"
+
+    @property
+    def trunk_open_supported(self):
+        check = self.vehicle.state.get("OPEN_STATE_TRUNK_LID")
+        if check: 
+            return True
+
+    @property
+    def hood_open(self):
+        if self.hood_open_supported:
+            check = self.vehicle.state.get("OPEN_STATE_HOOD")
+            return check != "3"
+
+    @property
+    def hood_open_supported(self):
+        check = self.vehicle.state.get("OPEN_STATE_HOOD")
+        if check: 
+            return True
 
     @property
     def charging_state(self):
