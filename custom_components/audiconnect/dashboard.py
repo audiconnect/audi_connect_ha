@@ -234,10 +234,29 @@ class Position(Instrument):
             str(pt.astimezone(tz=None)) if pt else None            
         )
 
+class LastUpdate(Instrument):
+    def __init__(self):
+        super().__init__(
+            component="sensor", attr="last_update_time", name="Last Update", icon="mdi:time")
+
+    @property
+    def is_mutable(self):
+        return False
+
+    @property
+    def str_state(self):
+        ts = super().state
+        return str(ts.astimezone(tz=None)) if ts else None
+
+    @property
+    def state(self):
+        val = super().state
+        return val
+
 def create_instruments():
     return [
         Position(),
-        Sensor(attr="last_update_time", name="Last Update", icon="mdi:time", unit=None),
+        LastUpdate(),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
         Sensor(attr="service_inspection_time", name="Service inspection time", icon="mdi:room-service-outline", unit="days"),
