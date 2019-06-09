@@ -135,7 +135,7 @@ class AudiConnectVehicle:
             result = chargerService.get_charger()
             if result:
                 try:
-                    self.vehicle.state["maxChargeCurrent"] = result["charger"]["settings"]["maxChargeCurrent"]["content"]
+                    self.vehicle.state["maxChargeCurrent"] = result["charger"]["settings"]["maxChargeCurrent"]
                 except Exception:
                     pass
                 try:
@@ -148,6 +148,18 @@ class AudiConnectVehicle:
                     pass
                 try:
                     self.vehicle.state["engineTypeSecondEngine"] = result["charger"]["status"]["cruisingRangeStatusData"]["engineTypeSecondEngine"]["content"]
+                except Exception:
+                    pass
+                try:
+                    self.vehicle.state["stateOfCharge"] = result["charger"]["status"]["batteryStatusData"]["stateOfCharge"]["content"]
+                except Exception:
+                    pass
+                try:
+                    self.vehicle.state["remainingChargingTime"] = result["charger"]["status"]["batteryStatusData"]["remainingChargingTime"]["content"]
+                except Exception:
+                    pass
+                try:
+                    self.vehicle.state["plugState"] = result["charger"]["status"]["plugStatusData"]["plugState"]["content"]
                 except Exception:
                     pass
 
@@ -239,6 +251,17 @@ class AudiConnectVehicle:
     def oil_level_supported(self):
         check = self.vehicle.state.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
         if check and self.parseToFloat(check):
+            return True
+            
+    @property
+    def sun_roof(self):
+        if self.sun_roof_supported:
+            return self.vehicle.state.get("STATE_SUN_ROOF_MOTOR_COVER")
+
+    @property
+    def sun_roof_supported(self):
+        check = self.vehicle.state.get("STATE_SUN_ROOF_MOTOR_COVER")
+        if check:
             return True
 
     @property
@@ -423,12 +446,12 @@ class AudiConnectVehicle:
     def max_charge_current(self):
         """Return max charge current"""
         if self.max_charge_current_supported:
-            return self.vehicle.state.get('maxChargeCurrent')
+            return self.parseToFloat(self.vehicle.state.get('maxChargeCurrent'))
 
     @property
     def max_charge_current_supported(self):
         check = self.vehicle.state.get('maxChargeCurrent')
-        if check: 
+        if check and self.parseToFloat(check): 
             return True
 
     @property
@@ -455,6 +478,42 @@ class AudiConnectVehicle:
         if check: 
             return True
 
+    @property
+    def state_of_charge(self):
+        """Return state of charge"""
+        if self.state_of_charge_supported:
+            return self.parseToFloat(self.vehicle.state.get('stateOfCharge'))
+
+    @property
+    def state_of_charge_supported(self):
+        check = self.vehicle.state.get('stateOfCharge')
+        if check and self.parseToFloat(check): 
+            return True
+
+    @property
+    def remaining_charging_time(self):
+        """Return remaining charging time"""
+        if self.remaining_charging_time_supported:
+            return self.parseToFloat(self.vehicle.state.get('remainingChargingTime'))
+
+    @property
+    def remaining_charging_time_supported(self):
+        check = self.vehicle.state.get('remainingChargingTime')
+        if check and self.parseToFloat(check): 
+            return True
+
+    @property
+    def plug_state(self):
+        """Return plug state"""
+        if self.plug_state_supported:
+            return self.vehicle.state.get('plugState')
+
+    @property
+    def plug_state_supported(self):
+        check = self.vehicle.state.get('plugState')
+        if check: 
+            return True
+
     def refresh_vehicle_data(self):
         try:
             status_service = VehicleStatusReportService(self.api, self.vehicle)
@@ -471,7 +530,6 @@ class AudiConnectVehicle:
         
         except Exception:
             pass
-
 
     # def get_status(self, timeout = 10):
     #     """Check status from call"""
