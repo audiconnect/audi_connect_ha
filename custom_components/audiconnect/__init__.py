@@ -74,7 +74,15 @@ RESOURCES = [
      'parking_light',
      'any_window_open',
      'any_door_unlocked',
-     'trunk_unlocked'
+     'any_door_open',
+     'trunk_unlocked',
+     'trunk_open',
+     'hood_open',
+     'tank_level',
+     'state_of_charge',
+     'remaining_charging_time',
+     'plug_state', 
+     'sun_roof'
 ]
 
 CONFIG_SCHEMA = vol.Schema({
@@ -133,6 +141,7 @@ async def async_setup(hass, config):
                     config))
 
     async def update(now):
+
         """Update status from the online service."""
         try:
             if not await connection.update():
@@ -152,18 +161,18 @@ async def async_setup(hass, config):
     def refresh_vehicle_data(service):
         """Start thread to trigger update from car."""
         def do_trigger_vehicle_refresh():
-            vin = service.data.get(ATTR_VIN)
+            vin = service.data.get(ATTR_VIN).lower()
 
             try:
-                vehicle = [v for v in connection.vehicles if v.vin == vin][0]
+                vehicle = [v for v in connection.vehicles if v.vin.lower() == vin]
 
-                if vehicle:
-                    request_id = vehicle.refresh_vehicle_data()
+                if vehicle and len(vehicle) > 0:
+                    request_id = vehicle[0].refresh_vehicle_data()
 
                     for attempt in range(MAX_RESPONSE_ATTEMPTS):
                         asyncio.run_coroutine_threadsafe(asyncio.sleep(REQUEST_STATUS_SLEEP), hass.loop).result()
 
-                        status = vehicle.get_status_from_update(request_id)
+                        status = vehicle[0].get_status_from_update(request_id)
 
                         if status == RequestStatus.SUCCESS:
                             asyncio.run_coroutine_threadsafe(update(utcnow()), hass.loop).result()

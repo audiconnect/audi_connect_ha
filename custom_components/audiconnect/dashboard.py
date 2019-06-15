@@ -238,6 +238,7 @@ class LastUpdate(Instrument):
     def __init__(self):
         super().__init__(
             component="sensor", attr="last_update_time", name="Last Update", icon="mdi:time")
+        self.unit = None
 
     @property
     def is_mutable(self):
