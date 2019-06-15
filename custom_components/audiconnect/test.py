@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import getopt
+import time
 
 from audiapi.Services import LockUnlockService, RemoteTripStatisticsService, RequestStatus
 
@@ -33,6 +34,7 @@ async def main(argv):
         sys.exit()
 
     account = AudiConnectAccount (user, password)
+
     await account.update()
 
     for vehicle in account.vehicles:
@@ -40,7 +42,7 @@ async def main(argv):
         dashboard = Dashboard(vehicle)
         for instrument in dashboard.instruments:
             print(str(instrument), instrument.str_state)
-
+        
 if __name__ == '__main__':
     task = main(sys.argv[1:])
     res = asyncio.get_event_loop().run_until_complete( task )

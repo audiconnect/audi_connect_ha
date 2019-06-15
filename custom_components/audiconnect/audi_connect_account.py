@@ -24,20 +24,26 @@ class AudiConnectAccount:
 
         self.api = API()
         self.username = username
+        self.password = password
         self.loggedin = False
 
+        self.login()
+
+        self.vehicles = []
+        self._update_listeners = []
+
+    def login(self):
         try:
             self.logon_service = LogonService(self.api)
-            self.logon_service.login(username, password, False)
+            self.logon_service.login(self.username, self.password, False)
             self.loggedin = True
         except Exception as exception:
             _LOGGER.error("Error logging into Audi API")
             _LOGGER.error(exception)
 
-        self.vehicles = []
-        self._update_listeners = []
-
     async def update(self, *_):
+        if not self.loggedin:
+            self.login()
 
         if not self.loggedin: 
             return
@@ -69,6 +75,8 @@ class AudiConnectAccount:
             for listener in self._update_listeners:
                 listener()
             
+            self.loggedin = False
+
             return True
 
         except IOError as exception:
@@ -84,6 +92,7 @@ class AudiConnectVehicle:
         self.registered = vehicle.registered
 
     def update(self):
+        self.vehicle.state = {}
         self.updateVehicleStatusReport()
         self.updateVehicleDetails()
         self.updateVehiclePosition()
@@ -96,16 +105,16 @@ class AudiConnectVehicle:
             status = status_service.get_stored_vehicle_data()
             self.vehicle.state = {status.data_fields[i].name: status.data_fields[i].value for i in range(0, len(status.data_fields))}
             self.vehicle.state["last_update_time"] = datetime.strptime(status.data_fields[0].send_time, '%Y-%m-%dT%H:%M:%S')
-        except Exception:
-            pass
+        except Exception as exception:
+            _LOGGER.error(str(exception).rstrip('\n'))
 
     def updateVehicleDetails(self):
         try:
             car_service = CarService(self.api)
             details = car_service.get_vehicle_data(self.vehicle)
             self.vehicle.state["model"] = details["getVehicleDataResponse"]["VehicleSpecification"]["ModelCoding"]["@name"]
-        except Exception:
-            pass
+        except Exception as exception:
+            _LOGGER.error(str(exception).rstrip('\n'))
 
     def updateVehiclePosition(self):
         try:
@@ -118,8 +127,8 @@ class AudiConnectVehicle:
                 "parktime": datetime.strptime(position["parkingTimeUTC"], '%Y-%m-%dT%H:%M:%S%z')
             }
 
-        except Exception:
-            pass
+        except Exception as exception:
+            _LOGGER.error(str(exception).rstrip('\n'))
 
     # def updateVehicleClimater(self):
     #     try:
@@ -135,7 +144,7 @@ class AudiConnectVehicle:
             result = chargerService.get_charger()
             if result:
                 try:
-                    self.vehicle.state["maxChargeCurrent"] = result["charger"]["settings"]["maxChargeCurrent"]
+                    self.vehicle.state["maxChargeCurrent"] = result["charger"]["settings"]["maxChargeCurrent"]["content"]
                 except Exception:
                     pass
                 try:
@@ -163,8 +172,8 @@ class AudiConnectVehicle:
                 except Exception:
                     pass
 
-        except Exception:
-            pass
+        except Exception as exception:
+            _LOGGER.error(str(exception).rstrip('\n'))
 
     def parseToInt(self, val: str):
         try:
