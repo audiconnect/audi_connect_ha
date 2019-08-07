@@ -237,7 +237,7 @@ class Position(Instrument):
 class LastUpdate(Instrument):
     def __init__(self):
         super().__init__(
-            component="sensor", attr="last_update_time", name="Last Update", icon="mdi:time")
+            component="sensor", attr="last_update_time", name="Last Update", icon="mdi:update")
         self.unit = None
 
     @property
@@ -276,9 +276,9 @@ def create_instruments():
         Sensor(attr="sun_roof", name="Sun roof", icon="mdi:weather-sunny", unit=None),
         BinarySensor(attr="parking_light", name="Parking light", device_class="safety"),
         BinarySensor(attr="any_window_open", name="Windows", device_class="window"),
-        BinarySensor(attr="any_door_unlocked", name="Doors", device_class="lock"),
-        BinarySensor(attr="any_door_open", name="Doors", device_class="door"),
-        BinarySensor(attr="trunk_unlocked", name="Trunk", device_class="lock"),
+        BinarySensor(attr="any_door_unlocked", name="Door Lock", device_class="lock"),
+        BinarySensor(attr="any_door_open", name="Door", device_class="door"),
+        BinarySensor(attr="trunk_unlocked", name="Trunk Lock", device_class="lock"),
         BinarySensor(attr="trunk_open", name="Trunk", device_class="door"),
         BinarySensor(attr="hood_open", name="Hood", device_class="door")
     ]
