@@ -484,7 +484,7 @@ class AudiConnectVehicle:
     @property
     def engine_type2_supported(self):
         check = self.vehicle.state.get('engineTypeSecondEngine')
-        if check: 
+        if check and check != 'unsupported':
             return True
 
     @property
@@ -503,6 +503,8 @@ class AudiConnectVehicle:
     def remaining_charging_time(self):
         """Return remaining charging time"""
         if self.remaining_charging_time_supported:
+            if self.vehicle.state.get('remainingChargingTime') == 65535:
+                return 'N/A'
             return self.parseToFloat(self.vehicle.state.get('remainingChargingTime'))
 
     @property
