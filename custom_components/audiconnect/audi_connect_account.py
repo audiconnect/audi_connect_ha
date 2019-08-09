@@ -491,7 +491,7 @@ class AudiConnectVehicle:
     @property
     def engine_type1_supported(self):
         check = self.vehicle.state.get('engineTypeFirstEngine')
-        if check: 
+        if check and check != 'unsupported': 
             return True
 
     @property
@@ -503,7 +503,7 @@ class AudiConnectVehicle:
     @property
     def engine_type2_supported(self):
         check = self.vehicle.state.get('engineTypeSecondEngine')
-        if check: 
+        if check and check != 'unsupported': 
             return True
 
     @property
