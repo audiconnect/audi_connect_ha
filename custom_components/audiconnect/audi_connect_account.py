@@ -210,60 +210,60 @@ class AudiConnectVehicle:
     def service_inspection_time(self):
         """Return time left for service inspection"""
         if self.service_inspection_time_supported:
-            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION"))
+            return -int(self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION"))
 
     @property
     def service_inspection_time_supported(self):
         check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION")
-        if check and self.parseToFloat(check):
+        if check and self.parseToInt(check):
             return True
 
     @property
     def service_inspection_distance(self):
         """Return distance left for service inspection"""
         if self.service_inspection_distance_supported:
-            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION"))
+            return -int(self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION"))
 
     @property
     def service_inspection_distance_supported(self):
         check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
-        if check and self.parseToFloat(check):
+        if check and self.parseToInt(check):
             return True
 
     @property
     def oil_change_time(self):
         """Return time left for oil change"""
         if self.oil_change_time_supported:
-            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE"))
+            return -int(self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE"))
 
     @property
     def oil_change_time_supported(self):
         check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE")
-        if check and self.parseToFloat(check):
+        if check and self.parseToInt(check):
             return True
 
     @property
     def oil_change_distance(self):
         """Return distance left for oil change"""
         if self.oil_change_distance_supported:
-            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE"))
+            return -int(self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE"))
 
     @property
     def oil_change_distance_supported(self):
         check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE")
-        if check and self.parseToFloat(check):
+        if check and self.parseToInt(check):
             return True
 
     @property
     def oil_level(self):
         """Return oil level percentage"""
         if self.oil_level_supported:
-            return float(self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
+            return int(self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
 
     @property
     def oil_level_supported(self):
         check = self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
-        if check and self.parseToFloat(check):
+        if check and self.parseToInt(check):
             return True
             
     @property
@@ -296,37 +296,37 @@ class AudiConnectVehicle:
     def mileage(self):
         if self.mileage_supported:
             check = self.vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
-            return self.parseToFloat(check)
+            return self.parseToInt(check)
 
     @property
     def mileage_supported(self):
         """Return true if mileage is supported"""
         check = self.vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
-        if check and self.parseToFloat(check): return True
+        if check and self.parseToInt(check): return True
 
     @property
     def range(self):
         if self.range_supported:
             check = self.vehicle.fields.get("TOTAL_RANGE")
-            return self.parseToFloat(check)
+            return self.parseToInt(check)
 
     @property
     def range_supported(self):
         """Return true if range is supported"""
         check = self.vehicle.fields.get("TOTAL_RANGE")
-        if check and self.parseToFloat(check): return True
+        if check and self.parseToInt(check): return True
 
     @property
     def tank_level(self):
         if self.tank_level_supported:
             check = self.vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
-            return self.parseToFloat(check)
+            return self.parseToInt(check)
 
     @property
     def tank_level_supported(self):
         """Return true if tank_level is supported"""
         check = self.vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
-        if check and self.parseToFloat(check): return True
+        if check and self.parseToInt(check): return True
 
     @property
     def position(self):
