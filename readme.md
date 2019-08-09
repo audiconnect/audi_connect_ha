@@ -4,8 +4,10 @@ Description
 ------------
 The `audiconnect` component offers integration with the Audi connect cloud service and offers presence detection as well as sensors such as range, mileage, and fuel level.
 
+Note that certain functions may require special permissions from Audi, such as the position update via GPS. 
+
 Configuration
-------------
+-------------
 To use the `audiconnect` component in your installation, copy this repository into your home 
 assistant configuration at `<config dir>/custom_components`.
 
@@ -32,7 +34,7 @@ Configuration Variables
 
 **region**
 
-- (string)(Optional)The region where the Audi is registered. Needs to be set for users in North America or China.
+- (string)(Optional)The region where the Audi is registered. Note that this component currently does not work for users in North America (US) or China (CN). Until someone is able to get it running, the region parameter can be ommited. 
 
 **name**
 

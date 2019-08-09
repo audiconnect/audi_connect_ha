@@ -116,8 +116,8 @@ class Sensor(Instrument):
             return val
 
 class BinarySensor(Instrument):
-    def __init__(self, attr, name, device_class):
-        super().__init__(component="binary_sensor", attr=attr, name=name)
+    def __init__(self, attr, name, device_class, icon=None):
+        super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
 
     @property
@@ -237,7 +237,7 @@ class Position(Instrument):
 class LastUpdate(Instrument):
     def __init__(self):
         super().__init__(
-            component="sensor", attr="last_update_time", name="Last Update", icon="mdi:time")
+            component="sensor", attr="last_update_time", name="Last Update", icon="mdi:update")
         self.unit = None
 
     @property
@@ -273,8 +273,9 @@ def create_instruments():
         Sensor(attr="state_of_charge", name="State of charge", icon="mdi:ev-station", unit="%"),
         Sensor(attr="remaining_charging_time", name="Remaining charge time", icon="mdi:battery-charging", unit=None),
         Sensor(attr="plug_state", name="Plug state", icon="mdi:power-plug", unit=None),
-        Sensor(attr="sun_roof", name="Sun roof", icon="mdi:weather-sunny", unit=None),
-        BinarySensor(attr="parking_light", name="Parking light", device_class="safety"),
+        Sensor(attr='doors_trunk_status', name='Doors/trunk state', icon="mdi:car-door", unit=None),
+        BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
+        BinarySensor(attr="parking_light", name="Parking light", device_class="safety", icon="mdi:lightbulb"),
         BinarySensor(attr="any_window_open", name="Windows", device_class="window"),
         BinarySensor(attr="any_door_unlocked", name="Doors", device_class="lock"),
         BinarySensor(attr="any_door_open", name="Doors", device_class="door"),

@@ -90,9 +90,9 @@ class AudiConnectVehicle:
         self.vehicle = vehicle
         self.vin = vehicle.vin
         self.registered = vehicle.registered
+        self.vehicle.state = {}
 
     def update(self):
-        self.vehicle.state = {}
         self.updateVehicleStatusReport()
         self.updateVehicleDetails()
         self.updateVehiclePosition()
@@ -103,7 +103,7 @@ class AudiConnectVehicle:
         try:
             status_service = VehicleStatusReportService(self.api, self.vehicle)
             status = status_service.get_stored_vehicle_data()
-            self.vehicle.state = {status.data_fields[i].name: status.data_fields[i].value for i in range(0, len(status.data_fields))}
+            self.vehicle.fields = {status.data_fields[i].name: status.data_fields[i].value for i in range(0, len(status.data_fields))}
             self.vehicle.state["last_update_time"] = datetime.strptime(status.data_fields[0].send_time, '%Y-%m-%dT%H:%M:%S')
         except Exception as exception:
             _LOGGER.error(str(exception).rstrip('\n'))
@@ -119,13 +119,17 @@ class AudiConnectVehicle:
     def updateVehiclePosition(self):
         try:
             finder_service = CarFinderService(self.api, self.vehicle)
-            position = finder_service.find()["findCarResponse"]         
-            self.vehicle.state["position"] = { 
-                "latitude": '{:f}'.format(position["Position"]["carCoordinate"]["latitude"] / 1000000),  
-                "longitude": '{:f}'.format(position["Position"]["carCoordinate"]["longitude"] / 1000000),
-                "timestamp": datetime.strptime(position["Position"]["timestampCarSentUTC"], '%Y-%m-%dT%H:%M:%S%z'),
-                "parktime": datetime.strptime(position["parkingTimeUTC"], '%Y-%m-%dT%H:%M:%S%z')
-            }
+            resp = finder_service.find();
+            if resp.get("findCarResponse") is not None:
+                position = resp["findCarResponse"]
+            
+            if position.get("Position") is not None and position["Position"].get("carCoordinate") is not None and position["Position"].get("timestampCarSentUTC") is not None and position.get("parkingTimeUTC") is not None:
+                self.vehicle.state["position"] = { 
+                    "latitude": '{:f}'.format(position["Position"]["carCoordinate"]["latitude"] / 1000000),  
+                    "longitude": '{:f}'.format(position["Position"]["carCoordinate"]["longitude"] / 1000000),
+                    "timestamp": datetime.strptime(position["Position"]["timestampCarSentUTC"], '%Y-%m-%dT%H:%M:%S%z'),
+                    "parktime": datetime.strptime(position["parkingTimeUTC"], '%Y-%m-%dT%H:%M:%S%z')
+                }
 
         except Exception as exception:
             _LOGGER.error(str(exception).rstrip('\n'))
@@ -206,11 +210,11 @@ class AudiConnectVehicle:
     def service_inspection_time(self):
         """Return time left for service inspection"""
         if self.service_inspection_time_supported:
-            return -float(self.vehicle.state.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION"))
+            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION"))
 
     @property
     def service_inspection_time_supported(self):
-        check = self.vehicle.state.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION")
+        check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION")
         if check and self.parseToFloat(check):
             return True
 
@@ -218,11 +222,11 @@ class AudiConnectVehicle:
     def service_inspection_distance(self):
         """Return distance left for service inspection"""
         if self.service_inspection_distance_supported:
-            return -float(self.vehicle.state.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION"))
+            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION"))
 
     @property
     def service_inspection_distance_supported(self):
-        check = self.vehicle.state.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
+        check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
         if check and self.parseToFloat(check):
             return True
 
@@ -230,11 +234,11 @@ class AudiConnectVehicle:
     def oil_change_time(self):
         """Return time left for oil change"""
         if self.oil_change_time_supported:
-            return -float(self.vehicle.state.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE"))
+            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE"))
 
     @property
     def oil_change_time_supported(self):
-        check = self.vehicle.state.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE")
+        check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE")
         if check and self.parseToFloat(check):
             return True
 
@@ -242,11 +246,11 @@ class AudiConnectVehicle:
     def oil_change_distance(self):
         """Return distance left for oil change"""
         if self.oil_change_distance_supported:
-            return -float(self.vehicle.state.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE"))
+            return -float(self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE"))
 
     @property
     def oil_change_distance_supported(self):
-        check = self.vehicle.state.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE")
+        check = self.vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE")
         if check and self.parseToFloat(check):
             return True
 
@@ -254,73 +258,74 @@ class AudiConnectVehicle:
     def oil_level(self):
         """Return oil level percentage"""
         if self.oil_level_supported:
-            return float(self.vehicle.state.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
+            return float(self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
 
     @property
     def oil_level_supported(self):
-        check = self.vehicle.state.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
+        check = self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
         if check and self.parseToFloat(check):
             return True
             
     @property
     def sun_roof(self):
         if self.sun_roof_supported:
-            return self.vehicle.state.get("STATE_SUN_ROOF_MOTOR_COVER")
+            res = self.vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+            return res == "2"
 
     @property
     def sun_roof_supported(self):
-        check = self.vehicle.state.get("STATE_SUN_ROOF_MOTOR_COVER")
-        if check:
+        check = self.vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+        if check and check != "0":
             return True
 
     @property
     def parking_light(self):
         """Return true if parking light is on"""
         if self.parking_light_supported:
-            check = self.vehicle.state.get("LIGHT_STATUS")
-            return check == 2
+            check = self.vehicle.fields.get("LIGHT_STATUS")
+            return check != "2"
 
     @property
     def parking_light_supported(self):
         """Return true if parking light is supported"""
-        check = self.vehicle.state.get("LIGHT_STATUS")
+        check = self.vehicle.fields.get("LIGHT_STATUS")
         if check:
             return True
 
     @property
     def mileage(self):
         if self.mileage_supported:
-            check = self.vehicle.state.get("UTC_TIME_AND_KILOMETER_STATUS")
+            check = self.vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
             return self.parseToFloat(check)
 
     @property
     def mileage_supported(self):
         """Return true if mileage is supported"""
-        check = self.vehicle.state.get("UTC_TIME_AND_KILOMETER_STATUS")
+        check = self.vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
         if check and self.parseToFloat(check): return True
 
     @property
     def range(self):
         if self.range_supported:
-            check = self.vehicle.state.get("TOTAL_RANGE")
+            check = self.vehicle.fields.get("TOTAL_RANGE")
             return self.parseToFloat(check)
 
     @property
     def range_supported(self):
         """Return true if range is supported"""
-        check = self.vehicle.state.get("TOTAL_RANGE")
+        check = self.vehicle.fields.get("TOTAL_RANGE")
         if check and self.parseToFloat(check): return True
 
     @property
     def tank_level(self):
         if self.tank_level_supported:
-            check = self.vehicle.state.get("TANK_LEVEL_IN_PERCENTAGE")
+            check = self.vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
             return self.parseToFloat(check)
 
     @property
     def tank_level_supported(self):
         """Return true if tank_level is supported"""
-        check = self.vehicle.state.get("TANK_LEVEL_IN_PERCENTAGE")
+        check = self.vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
         if check and self.parseToFloat(check): return True
 
     @property
@@ -351,91 +356,105 @@ class AudiConnectVehicle:
     @property
     def any_window_open_supported(self):
         """Return true if window state is supported"""
-        checkLeftFront = self.vehicle.state.get('STATE_LEFT_FRONT_WINDOW')
-        checkLeftRear = self.vehicle.state.get('STATE_LEFT_REAR_WINDOW')
-        checkRightFront = self.vehicle.state.get('STATE_RIGHT_FRONT_WINDOW')
-        checkRightRear = self.vehicle.state.get('STATE_RIGHT_REAR_WINDOW')
+        checkLeftFront = self.vehicle.fields.get('STATE_LEFT_FRONT_WINDOW')
+        checkLeftRear = self.vehicle.fields.get('STATE_LEFT_REAR_WINDOW')
+        checkRightFront = self.vehicle.fields.get('STATE_RIGHT_FRONT_WINDOW')
+        checkRightRear = self.vehicle.fields.get('STATE_RIGHT_REAR_WINDOW')
         if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
             return True
 
     @property
     def any_window_open(self):
         if self.any_window_open_supported:
-            checkLeftFront = self.vehicle.state.get('STATE_LEFT_FRONT_WINDOW')
-            checkLeftRear = self.vehicle.state.get('STATE_LEFT_REAR_WINDOW')
-            checkRightFront = self.vehicle.state.get('STATE_RIGHT_FRONT_WINDOW')
-            checkRightRear = self.vehicle.state.get('STATE_RIGHT_REAR_WINDOW')
+            checkLeftFront = self.vehicle.fields.get('STATE_LEFT_FRONT_WINDOW')
+            checkLeftRear = self.vehicle.fields.get('STATE_LEFT_REAR_WINDOW')
+            checkRightFront = self.vehicle.fields.get('STATE_RIGHT_FRONT_WINDOW')
+            checkRightRear = self.vehicle.fields.get('STATE_RIGHT_REAR_WINDOW')
             return not (checkLeftFront == "3" and checkLeftRear == "3" and checkRightFront == "3" and checkRightRear == "3")
 
     @property
     def any_door_unlocked_supported(self):
-        checkLeftFront = self.vehicle.state.get('LOCK_STATE_LEFT_FRONT_DOOR')
-        checkLeftRear = self.vehicle.state.get('LOCK_STATE_LEFT_REAR_DOOR')
-        checkRightFront = self.vehicle.state.get('LOCK_STATE_RIGHT_FRONT_DOOR')
-        checkRightRear = self.vehicle.state.get('LOCK_STATE_RIGHT_REAR_DOOR')
+        checkLeftFront = self.vehicle.fields.get('LOCK_STATE_LEFT_FRONT_DOOR')
+        checkLeftRear = self.vehicle.fields.get('LOCK_STATE_LEFT_REAR_DOOR')
+        checkRightFront = self.vehicle.fields.get('LOCK_STATE_RIGHT_FRONT_DOOR')
+        checkRightRear = self.vehicle.fields.get('LOCK_STATE_RIGHT_REAR_DOOR')
         if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
             return True
 
     @property
     def any_door_unlocked(self):
         if self.any_door_unlocked_supported:
-            checkLeftFront = self.vehicle.state.get('LOCK_STATE_LEFT_FRONT_DOOR')
-            checkLeftRear = self.vehicle.state.get('LOCK_STATE_LEFT_REAR_DOOR')
-            checkRightFront = self.vehicle.state.get('LOCK_STATE_RIGHT_FRONT_DOOR')
-            checkRightRear = self.vehicle.state.get('LOCK_STATE_RIGHT_REAR_DOOR')
+            checkLeftFront = self.vehicle.fields.get('LOCK_STATE_LEFT_FRONT_DOOR')
+            checkLeftRear = self.vehicle.fields.get('LOCK_STATE_LEFT_REAR_DOOR')
+            checkRightFront = self.vehicle.fields.get('LOCK_STATE_RIGHT_FRONT_DOOR')
+            checkRightRear = self.vehicle.fields.get('LOCK_STATE_RIGHT_REAR_DOOR')
             return not (checkLeftFront == "2" and checkLeftRear == "2" and checkRightFront == "2" and checkRightRear == "2")
   
     @property
     def any_door_open_supported(self):
-        checkLeftFront = self.vehicle.state.get('OPEN_STATE_LEFT_FRONT_DOOR')
-        checkLeftRear = self.vehicle.state.get('OPEN_STATE_LEFT_REAR_DOOR')
-        checkRightFront = self.vehicle.state.get('OPEN_STATE_RIGHT_FRONT_DOOR')
-        checkRightRear = self.vehicle.state.get('OPEN_STATE_RIGHT_REAR_DOOR')
+        checkLeftFront = self.vehicle.fields.get('OPEN_STATE_LEFT_FRONT_DOOR')
+        checkLeftRear = self.vehicle.fields.get('OPEN_STATE_LEFT_REAR_DOOR')
+        checkRightFront = self.vehicle.fields.get('OPEN_STATE_RIGHT_FRONT_DOOR')
+        checkRightRear = self.vehicle.fields.get('OPEN_STATE_RIGHT_REAR_DOOR')
         if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
             return True
 
     @property
     def any_door_open(self):
         if self.any_door_open_supported:
-            checkLeftFront = self.vehicle.state.get('OPEN_STATE_LEFT_FRONT_DOOR')
-            checkLeftRear = self.vehicle.state.get('OPEN_STATE_LEFT_REAR_DOOR')
-            checkRightFront = self.vehicle.state.get('OPEN_STATE_RIGHT_FRONT_DOOR')
-            checkRightRear = self.vehicle.state.get('OPEN_STATE_RIGHT_REAR_DOOR')
+            checkLeftFront = self.vehicle.fields.get('OPEN_STATE_LEFT_FRONT_DOOR')
+            checkLeftRear = self.vehicle.fields.get('OPEN_STATE_LEFT_REAR_DOOR')
+            checkRightFront = self.vehicle.fields.get('OPEN_STATE_RIGHT_FRONT_DOOR')
+            checkRightRear = self.vehicle.fields.get('OPEN_STATE_RIGHT_REAR_DOOR')
             return not (checkLeftFront == "3" and checkLeftRear == "3" and checkRightFront == "3" and checkRightRear == "3")
-  
+    
+    @property
+    def doors_trunk_status_supported(self):
+        return self.any_door_open_supported and self.any_door_unlocked_supported and self.trunk_open_supported and self.trunk_unlocked_supported
+ 
+    @property
+    def doors_trunk_status(self):
+        if self.any_door_open_supported and self.any_door_unlocked_supported and self.trunk_open_supported and self.trunk_unlocked_supported:
+            if self.any_door_open or self.trunk_open:
+                return "Open"
+            elif self.any_door_unlocked or self.trunk_unlocked:
+                return "Closed"
+            else:
+                return "Locked"
+
     @property
     def trunk_unlocked(self):
         if self.trunk_unlocked_supported:
-            check = self.vehicle.state.get("LOCK_STATE_TRUNK_LID")
+            check = self.vehicle.fields.get("LOCK_STATE_TRUNK_LID")
             return check != "2"
 
     @property
     def trunk_unlocked_supported(self):
-        check = self.vehicle.state.get("LOCK_STATE_TRUNK_LID")
+        check = self.vehicle.fields.get("LOCK_STATE_TRUNK_LID")
         if check: 
             return True
 
     @property
     def trunk_open(self):
         if self.trunk_open_supported:
-            check = self.vehicle.state.get("OPEN_STATE_TRUNK_LID")
+            check = self.vehicle.fields.get("OPEN_STATE_TRUNK_LID")
             return check != "3"
 
     @property
     def trunk_open_supported(self):
-        check = self.vehicle.state.get("OPEN_STATE_TRUNK_LID")
+        check = self.vehicle.fields.get("OPEN_STATE_TRUNK_LID")
         if check: 
             return True
 
     @property
     def hood_open(self):
         if self.hood_open_supported:
-            check = self.vehicle.state.get("OPEN_STATE_HOOD")
+            check = self.vehicle.fields.get("OPEN_STATE_HOOD")
             return check != "3"
 
     @property
     def hood_open_supported(self):
-        check = self.vehicle.state.get("OPEN_STATE_HOOD")
+        check = self.vehicle.fields.get("OPEN_STATE_HOOD")
         if check: 
             return True
 
@@ -503,7 +522,11 @@ class AudiConnectVehicle:
     def remaining_charging_time(self):
         """Return remaining charging time"""
         if self.remaining_charging_time_supported:
-            return self.parseToFloat(self.vehicle.state.get('remainingChargingTime'))
+            res = self.parseToInt(self.vehicle.state.get('remainingChargingTime'))
+            if res == 65535:
+                return "n/a"
+            else:
+                return "%02d:%02d" % divmod(res, 60)
 
     @property
     def remaining_charging_time_supported(self):
