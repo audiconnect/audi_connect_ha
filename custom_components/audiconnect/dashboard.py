@@ -277,9 +277,9 @@ def create_instruments():
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(attr="parking_light", name="Parking light", device_class="safety", icon="mdi:lightbulb"),
         BinarySensor(attr="any_window_open", name="Windows", device_class="window"),
-        BinarySensor(attr="any_door_unlocked", name="Doors", device_class="lock"),
+        BinarySensor(attr="any_door_unlocked", name="Doors lock", device_class="lock"),
         BinarySensor(attr="any_door_open", name="Doors", device_class="door"),
-        BinarySensor(attr="trunk_unlocked", name="Trunk", device_class="lock"),
+        BinarySensor(attr="trunk_unlocked", name="Trunk lock", device_class="lock"),
         BinarySensor(attr="trunk_open", name="Trunk", device_class="door"),
         BinarySensor(attr="hood_open", name="Hood", device_class="door")
     ]
