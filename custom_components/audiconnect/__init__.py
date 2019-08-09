@@ -82,7 +82,8 @@ RESOURCES = [
      'state_of_charge',
      'remaining_charging_time',
      'plug_state', 
-     'sun_roof'
+     'sun_roof',
+     'doors_trunk_status'
 ]
 
 CONFIG_SCHEMA = vol.Schema({
