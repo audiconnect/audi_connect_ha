@@ -6,7 +6,7 @@ import asyncio
 
 import voluptuous as vol
 
-from audiapi.Services import RequestStatus
+from audiapi.Services import Service, RequestStatus
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
@@ -103,6 +103,8 @@ CONFIG_SCHEMA = vol.Schema({
 
 async def async_setup(hass, config):
     """Set up the Audi Connect component."""
+    if config[DOMAIN].get(CONF_REGION):
+      Service.COUNTRY = config[DOMAIN].get(CONF_REGION)
 
     from .audi_connect_account import AudiConnectAccount
     connection = AudiConnectAccount(
