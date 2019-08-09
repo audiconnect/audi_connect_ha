@@ -258,12 +258,12 @@ class AudiConnectVehicle:
     def oil_level(self):
         """Return oil level percentage"""
         if self.oil_level_supported:
-            return int(self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
+            return float(self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
 
     @property
     def oil_level_supported(self):
         check = self.vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
-        if check and self.parseToInt(check):
+        if check and self.parseToFloat(check):
             return True
             
     @property
