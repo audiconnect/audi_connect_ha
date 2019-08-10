@@ -60,7 +60,7 @@ COMPONENTS = {
 RESOURCES = [
      'position',
      'last_update_time',
-     'mileage'
+     'mileage',
      'range',
      'service_inspection_time',
      'service_inspection_distance',
