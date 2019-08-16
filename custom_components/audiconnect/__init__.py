@@ -36,9 +36,6 @@ CONF_REGION = 'region'
 CONF_SERVICE_URL = 'service_url'
 CONF_MUTABLE = 'mutable'
 
-MAX_RESPONSE_ATTEMPTS = 10
-REQUEST_STATUS_SLEEP = 5
-
 ATTR_VIN = 'vin'
 REFRESH_VEHICLE_DATA_FAILED_EVENT = 'refresh_vehicle_data_failed'
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = 'refresh_vehicle_data_completed'
@@ -167,25 +164,15 @@ async def async_setup(hass, config):
             vin = service.data.get(ATTR_VIN).lower()
 
             try:
-                vehicle = [v for v in connection.vehicles if v.vin.lower() == vin]
+                result = connection.refresh_vehicle_data(vin, hass.loop)
 
-                if vehicle and len(vehicle) > 0:
-                    request_id = vehicle[0].refresh_vehicle_data()
+                if result:
+                    asyncio.run_coroutine_threadsafe(update(utcnow()), hass.loop).result()
 
-                    for attempt in range(MAX_RESPONSE_ATTEMPTS):
-                        asyncio.run_coroutine_threadsafe(asyncio.sleep(REQUEST_STATUS_SLEEP), hass.loop).result()
-
-                        status = vehicle[0].get_status_from_update(request_id)
-
-                        if status == RequestStatus.SUCCESS:
-                            asyncio.run_coroutine_threadsafe(update(utcnow()), hass.loop).result()
-
-                            hass.bus.fire(
-                                "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT), {
-                                    'vin': vin
-                                })
-
-                            return
+                    hass.bus.fire(
+                        "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT), {
+                            'vin': vin
+                        })
 
             except Exception:
                 _LOGGER.exception("Error refreshing vehicle data %s", vin)

@@ -2,10 +2,14 @@ import json
 import time
 from datetime import timedelta, datetime
 import logging
+import asyncio
 
 import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
+
+MAX_RESPONSE_ATTEMPTS = 10
+REQUEST_STATUS_SLEEP = 5
 
 from audiapi.API import API
 from audiapi.Services import VehicleService, LogonService, CarService, CarFinderService, VehicleStatusReportService, RequestStatus, PreTripClimaService 
@@ -83,6 +87,27 @@ class AudiConnectAccount:
             _LOGGER.error("Error updating the vehicle state")
             _LOGGER.exception(exception)
 
+    def refresh_vehicle_data(self, vin, loop):
+        if not self.loggedin:
+            self.login()
+
+        if not self.loggedin: 
+            return
+
+        vehicle = [v for v in self.vehicles if v.vin.lower() == vin]
+
+        if vehicle and len(vehicle) > 0:
+            request_id = vehicle[0].refresh_vehicle_data()
+
+            for attempt in range(MAX_RESPONSE_ATTEMPTS):
+                asyncio.run_coroutine_threadsafe(asyncio.sleep(REQUEST_STATUS_SLEEP), loop).result()
+
+                status = vehicle[0].get_status_from_update(request_id)
+
+                if status == RequestStatus.SUCCESS:
+                    return True
+
+        return False
 
 class AudiConnectVehicle:
     def __init__(self, api: API, vehicle) -> None:
