@@ -145,7 +145,7 @@ async def async_setup(hass, config):
         """Update status from the online service."""
         try:
             if not await connection.update():
-                _LOGGER.warning("Could not query server")
+                _LOGGER.debug("Could not query server")
                 return False
 
             for vehicle in connection.vehicles:
@@ -160,11 +160,11 @@ async def async_setup(hass, config):
 
     def refresh_vehicle_data(service):
         """Start thread to trigger update from car."""
-        def do_trigger_vehicle_refresh():
+        async def do_trigger_vehicle_refresh():
             vin = service.data.get(ATTR_VIN).lower()
 
             try:
-                result = connection.refresh_vehicle_data(vin, hass.loop)
+                result = await connection.refresh_vehicle_data(vin, hass.loop)
 
                 if result:
                     asyncio.run_coroutine_threadsafe(update(utcnow()), hass.loop).result()
