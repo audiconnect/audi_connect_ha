@@ -61,7 +61,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self.loggedin: 
-            return
+            return False
 
         """Update the state of all vehicles.
         Notify all listeners about the update.
@@ -97,13 +97,14 @@ class AudiConnectAccount:
         except IOError as exception:
             # _LOGGER.error("Error updating the vehicle state")
             _LOGGER.exception(exception)
+            return False
 
     async def refresh_vehicle_data(self, vin, loop):
         if not self.loggedin:
             await self.login()
 
         if not self.loggedin: 
-            return
+            return False
 
         vehicle = [v for v in self.vehicles if v.vin.lower() == vin]
 
