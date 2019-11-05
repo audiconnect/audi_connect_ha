@@ -11,8 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 
-from audiapi.API import API
 from audiapi.Services import VehicleService, LogonService, CarService, CarFinderService, VehicleStatusReportService, RequestStatus, PreTripClimaService 
+from audiconnect.audi_api import AudiAPI
 
 class ChargerService(VehicleService):
     def get_charger(self):
@@ -26,13 +26,13 @@ class AudiConnectAccount:
 
     def __init__(self, username: str, password: str) -> None:
 
-        self.api = API()
+        self.api = AudiAPI()
         self.username = username
         self.password = password
         self.loggedin = False
 
-        self.connect_retries = 5
-        self.connect_delay = 30
+        self.connect_retries = 3
+        self.connect_delay = 10
 
         self.vehicles = []
         self._update_listeners = []
@@ -122,7 +122,7 @@ class AudiConnectAccount:
         return False
 
 class AudiConnectVehicle:
-    def __init__(self, api: API, vehicle) -> None:
+    def __init__(self, api: AudiAPI, vehicle) -> None:
         self.api = api
         self.vehicle = vehicle
         self.vin = vehicle.vin
@@ -163,7 +163,7 @@ class AudiConnectVehicle:
     def updateVehiclePosition(self):
         try:
             finder_service = CarFinderService(self.api, self.vehicle)
-            resp = finder_service.find();
+            resp = finder_service.find()
             if resp.get("findCarResponse") is not None:
                 position = resp["findCarResponse"]
             

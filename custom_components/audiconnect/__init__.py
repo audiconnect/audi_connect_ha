@@ -21,7 +21,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util.dt import utcnow
 
-from .dashboard import Dashboard
+from audiconnect.dashboard import Dashboard
 
 DOMAIN = 'audiconnect'
 
