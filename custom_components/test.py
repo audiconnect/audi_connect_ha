@@ -5,12 +5,11 @@ import time
 
 from audiapi.Services import LockUnlockService, RemoteTripStatisticsService, RequestStatus
 
-from audi_connect_account import AudiConnectAccount
-from dashboard import Dashboard
+from audiconnect.audi_connect_account import AudiConnectAccount
+from audiconnect.dashboard import Dashboard
 
 def printHelp():
     print('test.py --user <username> --password <password>')
-
 
 async def main(argv):
     user = ''
