@@ -12,7 +12,7 @@ MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 
 from audiapi.Services import VehicleService, LogonService, CarService, CarFinderService, VehicleStatusReportService, RequestStatus, PreTripClimaService 
-from audiconnect.audi_api import AudiAPI
+from .audi_api import AudiAPI
 
 class ChargerService(VehicleService):
     def get_charger(self):
