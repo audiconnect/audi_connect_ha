@@ -11,22 +11,15 @@ _LOGGER = logging.getLogger(__name__)
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 
-from audiapi.Services import VehicleService, LogonService, CarService, CarFinderService, VehicleStatusReportService, RequestStatus, PreTripClimaService 
+from .audi_services import AudiLogonService, AudiCarService, AudiCarFinderService, AudiVehicleStatusReportService, AudiChargerService, RequestStatus 
 from .audi_api import AudiAPI
-
-class ChargerService(VehicleService):
-    def get_charger(self):
-        return self._api.get(self.url('/vehicles/{vin}/charger'))
-
-    def _get_path(self):
-        return 'bs/batterycharge/v1'
 
 class AudiConnectAccount:
     """Representation of an Audi Connect Account."""
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, session, username: str, password: str) -> None:
 
-        self.api = AudiAPI()
+        self.api = AudiAPI(session)
         self.username = username
         self.password = password
         self.loggedin = False
@@ -39,16 +32,16 @@ class AudiConnectAccount:
 
     async def login(self):
         for i in range(self.connect_retries):
-            self.loggedin = self.try_login(i == self.connect_retries-1)
+            self.loggedin = await self.try_login(i == self.connect_retries-1)
             if self.loggedin is True:
                 break
 
             await asyncio.sleep(self.connect_delay)
 
-    def try_login(self, logError):
+    async def try_login(self, logError):
         try:
-            self.logon_service = LogonService(self.api)
-            self.logon_service.login(self.username, self.password, False)
+            self.logon_service = AudiLogonService(self.api)
+            await self.logon_service.login(self.username, self.password, False)
             return True
         except Exception as exception:
             if logError is True:
@@ -72,17 +65,17 @@ class AudiConnectAccount:
         try:
             if len(self.vehicles) > 0:
                 for vehicle in self.vehicles:
-                    vehicle.update()
+                    await vehicle.update()
 
             else:
-                car_service = CarService(self.api)
-                vehicles_response = car_service.get_vehicles()
+                car_service = AudiCarService(self.api)
+                vehicles_response = await car_service.get_vehicles()
                 vehicles = vehicles_response.vehicles
                 self.vehicles = []
                 for vehicle in vehicles:
                     try:
                         audiVehicle = AudiConnectVehicle(self.api, vehicle)
-                        audiVehicle.update()
+                        await audiVehicle.update()
                         self.vehicles.append(audiVehicle)
                     except Exception:
                         pass
@@ -95,7 +88,6 @@ class AudiConnectAccount:
             return True
 
         except IOError as exception:
-            # _LOGGER.error("Error updating the vehicle state")
             _LOGGER.exception(exception)
             return False
 
@@ -109,12 +101,12 @@ class AudiConnectAccount:
         vehicle = [v for v in self.vehicles if v.vin.lower() == vin]
 
         if vehicle and len(vehicle) > 0:
-            request_id = vehicle[0].refresh_vehicle_data()
+            request_id = await vehicle[0].refresh_vehicle_data()
 
             for attempt in range(MAX_RESPONSE_ATTEMPTS):
-                asyncio.run_coroutine_threadsafe(asyncio.sleep(REQUEST_STATUS_SLEEP), loop).result()
+                await asyncio.sleep(REQUEST_STATUS_SLEEP)
 
-                status = vehicle[0].get_status_from_update(request_id)
+                status = await vehicle[0].get_status_from_update(request_id)
 
                 if status == RequestStatus.SUCCESS:
                     return True
@@ -130,40 +122,40 @@ class AudiConnectVehicle:
         self.vehicle.state = {}
         self.logged_errors = set()
 
-    def update(self):
-        self.updateVehicleStatusReport()
-        self.updateVehicleDetails()
-        self.updateVehiclePosition()
+    async def update(self):
+        await self.updateVehicleStatusReport()
+        await self.updateVehicleDetails()
+        await self.updateVehiclePosition()
         # self.updateVehicleClimater()
-        self.updateVehicleCharger()
+        await self.updateVehicleCharger()
 
-    def logExceptionOnce(self, exception):
-        err = str(exception).rstrip('\n')
+    def logExceptionOnce(self, exception, message):
+        err = message + ": " + str(exception).rstrip('\n')
         if not err in self.logged_errors:
             self.logged_errors.add(err)
             _LOGGER.error(err)
 
-    def updateVehicleStatusReport(self):
+    async def updateVehicleStatusReport(self):
         try:
-            status_service = VehicleStatusReportService(self.api, self.vehicle)
-            status = status_service.get_stored_vehicle_data()
+            status_service = AudiVehicleStatusReportService(self.api, self.vehicle)
+            status = await status_service.get_stored_vehicle_data()
             self.vehicle.fields = {status.data_fields[i].name: status.data_fields[i].value for i in range(0, len(status.data_fields))}
             self.vehicle.state["last_update_time"] = datetime.strptime(status.data_fields[0].send_time, '%Y-%m-%dT%H:%M:%S')
         except Exception as exception:
-            self.logExceptionOnce(exception)
+            self.logExceptionOnce(exception, "Unable to obtain the vehicle status report of {}".format(self.vehicle.vin))
 
-    def updateVehicleDetails(self):
+    async def updateVehicleDetails(self):
         try:
-            car_service = CarService(self.api)
-            details = car_service.get_vehicle_data(self.vehicle)
+            car_service = AudiCarService(self.api)
+            details = await car_service.get_vehicle_data(self.vehicle)
             self.vehicle.state["model"] = details["getVehicleDataResponse"]["VehicleSpecification"]["ModelCoding"]["@name"]
         except Exception as exception:
-            self.logExceptionOnce(exception)
+            self.logExceptionOnce(exception, "Unable to obtain the vehicle model of {}".format(self.vehicle.vin))
 
-    def updateVehiclePosition(self):
+    async def updateVehiclePosition(self):
         try:
-            finder_service = CarFinderService(self.api, self.vehicle)
-            resp = finder_service.find()
+            finder_service = AudiCarFinderService(self.api, self.vehicle)
+            resp = await finder_service.find()
             if resp.get("findCarResponse") is not None:
                 position = resp["findCarResponse"]
             
@@ -171,12 +163,12 @@ class AudiConnectVehicle:
                 self.vehicle.state["position"] = { 
                     "latitude": '{:f}'.format(position["Position"]["carCoordinate"]["latitude"] / 1000000),  
                     "longitude": '{:f}'.format(position["Position"]["carCoordinate"]["longitude"] / 1000000),
-                    "timestamp": datetime.strptime(position["Position"]["timestampCarSentUTC"], '%Y-%m-%dT%H:%M:%S%z'),
-                    "parktime": datetime.strptime(position["parkingTimeUTC"], '%Y-%m-%dT%H:%M:%S%z')
+                    "timestamp": position["Position"]["timestampCarSentUTC"],
+                    "parktime": position["parkingTimeUTC"]
                 }
 
         except Exception as exception:
-            self.logExceptionOnce(exception)
+            self.logExceptionOnce(exception, "Unable to update the vehicle position of {}".format(self.vehicle.vin))
 
     # def updateVehicleClimater(self):
     #     try:
@@ -186,10 +178,10 @@ class AudiConnectVehicle:
     #     except Exception:
     #         pass
 
-    def updateVehicleCharger(self):
+    async def updateVehicleCharger(self):
         try:
-            chargerService = ChargerService(self.api, self.vehicle)
-            result = chargerService.get_charger()
+            chargerService = AudiChargerService(self.api, self.vehicle)
+            result = await chargerService.get_charger()
             if result:
                 try:
                     self.vehicle.state["maxChargeCurrent"] = result["charger"]["settings"]["maxChargeCurrent"]["content"]
@@ -221,7 +213,7 @@ class AudiConnectVehicle:
                     pass
 
         except Exception as exception:
-            self.logExceptionOnce(exception)
+            self.logExceptionOnce(exception, "Unable to obtain the vehicle charger state for {}".format(self.vehicle.vin))
 
     def parseToInt(self, val: str):
         try:
@@ -234,10 +226,6 @@ class AudiConnectVehicle:
             return float(val)
         except ValueError:
             return None
-
-    # def add_update_listener(self, listener):
-    #     """Add a listener for update notifications."""
-    #     self._update_listeners.append(listener)
 
     @property
     def last_update_time(self):
@@ -590,31 +578,19 @@ class AudiConnectVehicle:
         if check: 
             return True
 
-    def refresh_vehicle_data(self):
+    async def refresh_vehicle_data(self):
         try:
-            status_service = VehicleStatusReportService(self.api, self.vehicle)
-            res = status_service.request_current_vehicle_data()
+            status_service = AudiVehicleStatusReportService(self.api, self.vehicle)
+            res = await status_service.request_current_vehicle_data()
             return res.request_id
         
         except Exception:
             pass
 
-    def get_status_from_update(self, request_id):
+    async def get_status_from_update(self, request_id):
         try:
-            status_service = VehicleStatusReportService(self.api, self.vehicle)
-            return status_service.get_request_status(request_id).status
+            status_service = AudiVehicleStatusReportService(self.api, self.vehicle)
+            return await status_service.get_request_status(request_id).status
         
         except Exception:
             pass
-
-    # def get_status(self, timeout = 10):
-    #     """Check status from call"""
-    #     retry_counter = 0
-    #     while retry_counter < timeout:
-    #         resp = self.call('-/emanager/get-notifications', data='dummy')
-    #         data = resp.get('actionNotificationList', {})
-    #         if data:
-    #             return data
-    #         time.sleep(1)
-    #         retry_counter += 1
-    #     return False

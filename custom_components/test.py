@@ -8,6 +8,8 @@ from audiapi.Services import LockUnlockService, RemoteTripStatisticsService, Req
 from audiconnect.audi_connect_account import AudiConnectAccount
 from audiconnect.dashboard import Dashboard
 
+from aiohttp import ClientSession
+
 def printHelp():
     print('test.py --user <username> --password <password>')
 
@@ -32,15 +34,16 @@ async def main(argv):
         printHelp()
         sys.exit()
 
-    account = AudiConnectAccount (user, password)
+    async with ClientSession() as session:
+        account = AudiConnectAccount (session, user, password)
 
-    await account.update()
+        await account.update()
 
-    for vehicle in account.vehicles:
+        for vehicle in account.vehicles:
 
-        dashboard = Dashboard(vehicle)
-        for instrument in dashboard.instruments:
-            print(str(instrument), instrument.str_state)
+            dashboard = Dashboard(vehicle)
+            for instrument in dashboard.instruments:
+                print(str(instrument), instrument.str_state)
         
 if __name__ == '__main__':
     task = main(sys.argv[1:])

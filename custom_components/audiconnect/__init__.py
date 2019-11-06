@@ -22,6 +22,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util.dt import utcnow
 
 from .dashboard import Dashboard
+from .audi_connect_account import AudiConnectAccount
 
 DOMAIN = 'audiconnect'
 
@@ -99,12 +100,14 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 async def async_setup(hass, config):
+    session = async_get_clientsession(hass)
+
     """Set up the Audi Connect component."""
     if config[DOMAIN].get(CONF_REGION):
       Service.COUNTRY = config[DOMAIN].get(CONF_REGION)
 
-    from .audi_connect_account import AudiConnectAccount
     connection = AudiConnectAccount(
+        session=session,
         username=config[DOMAIN].get(CONF_USERNAME),
         password=config[DOMAIN].get(CONF_PASSWORD))
 
