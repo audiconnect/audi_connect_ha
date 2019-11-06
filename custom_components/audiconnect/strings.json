@@ -1,0 +1,18 @@
+{
+  "config": {
+    "title": "Audi Connect",
+    "step": {
+      "user": {
+        "title": "Please fill in your information",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_credentials": "Login error, please check your username and password",
+      "invalid_username": "Invalid username"
+    }
+  }
+}
