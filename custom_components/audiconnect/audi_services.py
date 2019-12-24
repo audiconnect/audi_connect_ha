@@ -1,154 +1,187 @@
-from audiapi.API import Token
-from audiapi.model.CurrentVehicleDataResponse import CurrentVehicleDataResponse
-from audiapi.model.RequestStatus import RequestStatus
-from audiapi.model.Vehicle import VehiclesResponse, Vehicle
-from audiapi.model.VehicleDataResponse import VehicleDataResponse
+from abc import abstractmethod, ABCMeta
+import json
 
-from audiapi.Services import VehicleService, Service
+from .audi_models import CurrentVehicleDataResponse, RequestStatus, VehicleDataResponse, VehiclesResponse, Vehicle
+from .audi_api import AudiAPI
 
-class AudiChargerService(VehicleService):
-    async def get_charger(self):
-        return await self._api.get(self.url('/vehicles/{vin}/charger'))
+from hashlib import sha512
 
-    def _get_path(self):
-        return 'bs/batterycharge/v1'
+class AudiService:
+ 
+    def __init__(self, api: AudiAPI, country: str, spin: str):
+        self._api = api
+        self._country = country
+        self._type = "Audi"
+        self._spin = spin
 
-class AudiCarFinderService(VehicleService):
-    """
-    Requires special permissions - might be for rental car companies
-    """
+        if self._country is None:
+            self._country = "DE"
 
-    async def find(self):
-        """
-        Returns the position of the car
-        """
-        return await self._api.get(self.url('/vehicles/{vin}/position'))
+    async def login(self, user: str, password: str, persist_token: bool = True):
+        await self.login_request(user, password)
 
-    def _get_path(self):
-        return 'bs/cf/v1'
+    async def request_current_vehicle_data(self, vin: str):
+        self._api.use_token(self.vwToken)
+        data = await self._api.post("https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(type=self._type, country=self._country, vin=vin))
+        return CurrentVehicleDataResponse(data)
 
+    async def get_request_status(self, vin: str, request_id: str):
+        self._api.use_token(self.vwToken)
+        data = await self._api.get("https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(type=self._type, country=self._country, vin=vin, requestId=request_id))
+        return RequestStatus(data)
 
-class AudiCarService(Service):
+    async def get_stored_vehicle_data(self, vin: str):
+        self._api.use_token(self.vwToken)
+        data = await self._api.get("https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/status".format(type=self._type, country=self._country, vin=vin))
+        return VehicleDataResponse(data)
+
+    async def get_charger(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get("https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger".format(type=self._type, country=self._country, vin=vin))
+
+    async def get_climater(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get("https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater".format(type=self._type, country=self._country, vin=vin))
+
+    async def get_stored_position(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get("https://msg.volkswagen.de/fs-car/bs/cf/v1/{type}/{country}/vehicles/{vin}/position".format(type=self._type, country=self._country, vin=vin))
+
+    async def get_operations_list(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get("https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/operationlist/v3/vehicles/" + vin)
+
+    async def get_timer(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get("https://msg.volkswagen.de/fs-car/bs/departuretimer/v1/{type}/{country}/vehicles/{vin}/timer".format(type="Audi", country="DE", vin=vin))
+ 
     async def get_vehicles(self):
-        """
-        Returns all cars registered for the current account
+        self._api.use_token(self.vwToken)
+        return await self._api.get("https://msg.volkswagen.de/fs-car/usermanagement/users/v1/{type}/{country}/vehicles".format(type=self._type, country=self._country))
 
-        :return: VehiclesResponse
-        :rtype: VehiclesResponse
-        """
-
-        data = await self._api.get(self.url('/vehicles'))
+    async def get_vehicle_information(self):
+        self._api.use_token(self.audiToken)
+        data = await self._api.get("https://msg.audi.de/myaudi/vehicle-management/v1/vehicles")
         response = VehiclesResponse()
         response.parse(data)
         return response
 
-    async def get_vehicle_data(self, vehicle: Vehicle):
-        """
-        Returns the vehicle data for the given vehicle
+    async def _get_security_token(self, vin: str, action: str):
+        # Challenge
+        headers = {
+			"User-Agent": "okhttp/3.7.0",
+			"X-App-Version": '3.14.0',
+			"X-App-Name": 'myAudi',
+            "Accept": "application/json",
+            "Authorization": "Bearer " + self.vwToken.get('access_token')
+		}
 
-        :param vehicle: Vehicle with CSID
-        :return: Vehicle data
-        """
-        return await self._api.get(self.url('/vehicle/{csid}'.format(csid=vehicle.csid)))
+        body = await self._api.request('GET', "https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/authorization/v2/vehicles/" + vin + "/services/" + action + "/security-pin-auth-requested", headers=headers, data=None)
+        secToken = body["securityPinAuthInfo"]["securityToken"]
+        challenge = body["securityPinAuthInfo"]["securityPinTransmission"]["challenge"]
 
-    def _get_path(self):
-        return 'myaudi/carservice/v2'
+        # Response
+        securityPinHash = self._generate_security_pin_hash(challenge)
+        data = {
+		    "securityPinAuthentication": {
+			    "securityPin": {
+			        "challenge": challenge,
+				    "securityPinHash": securityPinHash
+			    },
+			    "securityToken": secToken
+			}
+		}
 
-class AudiLogonService(Service):
-    """
-    General API logon service
-    """
+        headers = {
+			"User-Agent": "okhttp/3.7.0",
+            'Content-Type': 'application/json',
+			"X-App-Version": '3.14.0',
+			"X-App-Name": 'myAudi',
+            "Accept": "application/json",
+            "Authorization": "Bearer " + self.vwToken.get('access_token')
+		}
 
-    async def login(self, user: str, password: str, persist_token: bool = True):
-        """
-        Creates a new session using the given credentials
+        body = await self._api.request('POST', 'https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/authorization/v2/security-pin-auth-completed', headers=headers, data=json.dumps(data))
+        return body["securityToken"]        
 
-        :param user: User
-        :param password: Password
-        :param persist_token: True if the token should be persisted in the file system after login
-        """
-        token = await self.__login_request(user, password)
-        self._api.use_token(token)
-        if persist_token:
-            token.persist()
+    def _GetVehicleActionHeader(self, content_type: str, security_token: str):
+        headers = {
+			"User-Agent": "okhttp/3.7.0",
+			"Host": "msg.volkswagen.de",
+			"X-App-Version": '3.14.0',
+			"X-App-Name": 'myAudi',
+            "Authorization": "Bearer " + self.vwToken.get('access_token'),
+			"Accept-charset": "UTF-8",
+			"Content-Type": content_type,
+			"Accept": "application/json, application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml,application/vnd.volkswagenag.com-error-v1+xml,application/vnd.vwg.mbb.genericError_v1_0_2+xml, application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml,application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml,*/*",
+		}
 
-    def restore_token(self):
-        """
-        Tries to restore the latest persisted auth token
+        if security_token != None:
+            headers["x-mbbSecToken"] = security_token
 
-        :return: True if token could be restored
-        :rtype: bool
-        """
-        token = Token.load()
-        if token is None or not token.valid():
-            return False
-        self._api.use_token(token)
-        return True
+        return headers
 
-    async def __login_request(self, user: str, password: str):
-        """
-        Requests a login token for the given user
+    async def set_vehicle_lock(self, vin: str, lock: bool):
+        security_token = await self._get_security_token(vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK"))
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<rluAction xmlns="http://audi.de/connect/rlu">\n   <action>{action}</action>\n</rluAction>'.format(action="lock" if lock else "unlock")
+        headers = self._GetVehicleActionHeader("application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token)
+        return await self._api.request('POST', "https://msg.volkswagen.de/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(type=self._type, country=self._country, vin=vin), headers=headers, data=data)
 
-        :param user: User
-        :param password: Password
-        :return: Token
-        :rtype: Token
-        """
-        data = {'grant_type': 'password',
+    async def set_pre_heater(self, vin: str, activate: bool):
+        security_token = await self._get_security_token(vin, "rheating_v1/operations/P_QSACT")
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<performAction xmlns="http://audi.de/connect/rs">\n   <quickstart>\n      <active>{action}</active>\n   </quickstart>\n</performAction>'.format(action="true" if activate else "false")
+        headers = self._GetVehicleActionHeader("application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token)
+        return await self._api.request('POST', "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(type=self._type, country=self._country, vin=vin), headers=headers, data=data)
+    
+    async def set_battery_charger(self, vin: str, start: bool):
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<action>\n   <type>{action}</type>\n</action>'.format(action="start" if start else "stop")
+        headers = self._GetVehicleActionHeader("application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml", None)
+        return await self._api.request('POST', "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions".format(type=self._type, country=self._country, vin=vin), headers=headers, data=data)
+
+    async def set_climatisation(self, vin: str, start: bool):
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<action>\n   <type>{action}</type>\n</action>'.format(action="startClimatisation" if start else "stopClimatisation")
+        headers = self._GetVehicleActionHeader("application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None)
+        return await self._api.request('POST', "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(type=self._type, country=self._country, vin=vin), headers=headers, data=data)
+    
+    async def set_window_heating(self, vin: str, start: bool):
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<action>\n   <type>{action}</type>\n</action>'.format(action="startWindowHeating" if start else "stopWindowHeating")
+        headers = self._GetVehicleActionHeader("application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None)
+        return await self._api.request('POST', "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(type=self._type, country=self._country, vin=vin), headers=headers, data=data)
+    
+    async def login_request(self, user: str, password: str):
+        # Get Audi Token
+        self._api.use_token(None)
+        data = {'client_id': 'mmiconnect_android',
+                'scope': 'openid profile email mbb offline_access mbbuserid myaudi selfservice:read selfservice:write',
+                'response_type': 'token id_token',
+                'grant_type': 'password',
                 'username': user,
                 'password': password}
-        reply = await self._api.post(self.url('/token'), data, use_json=False)
-        return Token.parse(reply)
 
-    def _get_path(self):
-        return 'core/auth/v1'
+        self.audiToken = await self._api.post('https://id.audi.com/v1/token', data, use_json=False)
 
-class AudiVehicleStatusReportService(VehicleService):
-    """
-    General status of the vehicle
-    """
+        # Get VW Token
+        data = { 'grant_type':'id_token', 'token': self.audiToken.get('id_token'), 'scope': 'sc2:fal' }
 
-    async def get_request_status(self, request_id: str):
-        """
-        Returns the status of the request with the given ID
+        headers = {
+				"User-Agent": "okhttp/3.7.0",
+				"X-App-Version": '3.14.0',
+				"X-App-Name": 'myAudi',
+				"X-Client-Id": '77869e21-e30a-4a92-b016-48ab7d3db1d8',
+				'Host': "mbboauth-1d.prd.ece.vwg-connect.com"
+		}
 
-        :param request_id: Request ID
-        :return: RequestStatus
-        :rtype: RequestStatus
-        """
-        data = await self._api.get(self.url('/vehicles/{vin}/requests/{request_id}/jobstatus', request_id=request_id))
-        return RequestStatus(data)
+        self.vwToken = await self._api.request('POST', 'https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth/mobile/oauth2/v1/token', headers=headers, data=data)
 
-    async def get_requested_current_vehicle_data(self, request_id: str):
-        """
-        Returns the vehicle report of the request with the given ID
+    def _to_byte_array(self, hexString):
+        result = []
+        for i in range(0, len(hexString), 2):
+            result.append(int(hexString[i:i+2], 16))
+            
+        return result
 
-        :param request_id: Request ID
-        :return: VehicleDataResponse
-        :rtype: VehicleDataResponse
-        """
-        data = await self._api.get(self.url('/vehicles/{vin}/requests/{request_id}/status', request_id=request_id))
-        return VehicleDataResponse(data)
-
-    async def request_current_vehicle_data(self):
-        """
-        Requests the latest report data from the vehicle
-
-        :return: CurrentVehicleDataResponse
-        :rtype: CurrentVehicleDataResponse
-        """
-        data = await self._api.post(self.url('/vehicles/{vin}/requests'))
-        return CurrentVehicleDataResponse(data)
-
-    async def get_stored_vehicle_data(self):
-        """
-        Returns the last vehicle data received
-
-        :return: VehicleDataResponse
-        :rtype: VehicleDataResponse
-        """
-        data = await self._api.get(self.url('/vehicles/{vin}/status'))
-        return VehicleDataResponse(data)
-
-    def _get_path(self):
-        return 'bs/vsr/v1'
+    def _generate_security_pin_hash(self, challenge):
+        pin = self._to_byte_array(self._spin)
+        byteChallenge = self._to_byte_array(challenge)
+        b = bytes(pin + byteChallenge)
+        return sha512(b).hexdigest().upper()

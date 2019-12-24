@@ -11,13 +11,14 @@ from audiconnect.dashboard import Dashboard
 from aiohttp import ClientSession
 
 def printHelp():
-    print('test.py --user <username> --password <password>')
+    print('test.py --user <username> --password <password> --spin <spin>')
 
 async def main(argv):
     user = ''
     password = ''
+    spin = ''
     try:
-        opts, args = getopt.getopt(argv,"hu:p:",["user=","password="])
+        opts, args = getopt.getopt(argv,"hu:p:s:",["user=","password=","spin="])
     except getopt.GetoptError:
         printHelp()
         sys.exit(2)
@@ -29,19 +30,21 @@ async def main(argv):
             user = arg
         elif opt in ("-p", "--password"):
             password = arg
+        elif opt in ("-s", "--spin"):
+            spin = arg
 
     if (user == '' or password == ''):
         printHelp()
         sys.exit()
 
     async with ClientSession() as session:
-        account = AudiConnectAccount (session, user, password)
+        account = AudiConnectAccount (session, user, password, "DE", spin)
 
-        await account.update()
+        await account.update(None)
 
-        for vehicle in account.vehicles:
+        for vehicle in account._vehicles:
 
-            dashboard = Dashboard(vehicle)
+            dashboard = Dashboard(account, vehicle)
             for instrument in dashboard.instruments:
                 print(str(instrument), instrument.str_state)
         

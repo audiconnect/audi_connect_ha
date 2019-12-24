@@ -9,3 +9,18 @@ refresh_vehicle_data:
       description: >
         The vehicle identification number (VIN) of the vehicle, 17 characters
       example: WBANXXXXXX1234567
+
+execute_vehicle_action:
+  description: >
+    Request an update of the state from the vehicle, as opposed to the normal update 
+    mechanism, which only retrieves data from the servers.
+  fields:
+    vin:
+      description: >
+        The vehicle identification number (VIN) of the vehicle, 17 characters
+      example: WBANXXXXXX1234567
+    action:
+      description: >
+        The action to be executed. Possible choices, depending on subscription options, include 'lock', 'unlock', 
+        'start_climatisation', 'stop_climatisation, 'start_preheater', 'stop_preheater, 'start_window_heating', 'stop_window_heating'
+      example: lock
