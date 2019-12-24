@@ -3,10 +3,13 @@
     "title": "Audi Connect",
     "step": {
       "user": {
-        "title": "Please fill in your information",
+        "title": "Please fill in the information of your Audi Connect account",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "spin": "S-PIN",
+          "region": "Region",
+          "scan_interval": "Scan interval"
         }
       }
     },

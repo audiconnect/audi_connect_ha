@@ -1,11 +1,9 @@
 {
   "domain": "audiconnect",
   "name": "Audi Connect",
-  "config_flow": false,
+  "config_flow": true,
   "documentation": "https://www.home-assistant.io/components/audiconnect",
-  "requirements": [
-      "audiapi==1.0.1"
-  ],
+  "requirements": [],
   "dependencies": [],
   "codeowners": ["@arjenvrh"]
 }

@@ -7,11 +7,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class Instrument:
     def __init__(self, component, attr, name, icon=None):
-        self.attr = attr
-        self.component = component
-        self.name = name
-        self.vehicle = None
-        self.icon = icon
+        self._attr = attr
+        self._component = component
+        self._name = name
+        self._connection = None
+        self._vehicle = None
+        self._icon = icon
 
     def __repr__(self):
         return self.full_name
@@ -28,10 +29,11 @@ class Instrument:
 
     @property
     def slug_attr(self):
-        return self.camel2slug(self.attr.replace(".", "_"))
+        return self.camel2slug(self._attr.replace(".", "_"))
 
-    def setup(self, vehicle, mutable=True, **config):
-        self.vehicle = vehicle
+    def setup(self, connection, vehicle, mutable=True, **config):
+        self._connection = connection
+        self._vehicle = vehicle
 
         if not mutable and self.is_mutable:
             _LOGGER.info("Skipping %s because mutable", self)
@@ -42,7 +44,7 @@ class Instrument:
                 "%s (%s:%s) is not supported",
                 self,
                 type(self).__name__,
-                self.attr,
+                self._attr,
             )
             return False
 
@@ -53,12 +55,48 @@ class Instrument:
         return True
 
     @property
+    def component(self):
+        return self._component
+
+    @property
+    def icon(self):
+        return self._icon
+        
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def attr(self):
+        return self._attr
+
+    @property
     def vehicle_name(self):
-        return self.vehicle.vin
+        return self._vehicle.title
 
     @property
     def full_name(self):
-        return "%s %s" % (self.vehicle_name, self.name)
+        return "%s %s" % (self.vehicle_name, self._name)
+
+    @property
+    def vehicle_model(self):
+        return self._vehicle.model
+
+    @property
+    def vehicle_model_year(self):
+        return self._vehicle.model_year
+
+    @property
+    def vehicle_model_family(self):
+        return self._vehicle.model_family
+
+    @property
+    def vehicle_vin(self):
+        return self._vehicle.vin
+
+    @property
+    def vehicle_csid(self):
+        return self._vehicle.csid
 
     @property
     def is_mutable(self):
@@ -66,10 +104,10 @@ class Instrument:
 
     @property
     def is_supported(self):
-        supported = self.attr + "_supported"
-        if hasattr(self.vehicle, supported):
-            return getattr(self.vehicle, supported)
-        if hasattr(self.vehicle, self.attr):
+        supported = self._attr + "_supported"
+        if hasattr(self._vehicle, supported):
+            return getattr(self._vehicle, supported)
+        if hasattr(self._vehicle, self._attr):
             return True
         return False
 
@@ -79,9 +117,9 @@ class Instrument:
 
     @property
     def state(self):
-        if hasattr(self.vehicle, self.attr):
-            return getattr(self.vehicle, self.attr)
-        return self.vehicle.get_attr(self.attr)
+        if hasattr(self._vehicle, self._attr):
+            return getattr(self._vehicle, self._attr)
+        return self._vehicle.get_attr(self._attr)
 
     @property
     def attributes(self):
@@ -135,7 +173,7 @@ class BinarySensor(Instrument):
         if self.device_class == "lock":
             return "Unlocked" if self.state else "Locked"
         if self.state is None:
-            _LOGGER.error("Can not encode state %s:%s", self.attr, self.state)
+            _LOGGER.error("Can not encode state %s:%s", self._attr, self.state)
             return "?"
         return "On" if self.state else "Off"
 
@@ -168,17 +206,17 @@ class Lock(Instrument):
 
     @property
     def state(self):
-        return self.vehicle.is_locked
+        return self._vehicle.doors_trunk_status == 'Locked'
 
     @property
     def is_locked(self):
         return self.state
 
     async def lock(self):
-        await self.vehicle.lock()
+        await self._connection.set_vehicle_lock(self.vehicle_vin, True)
 
     async def unlock(self):
-        await self.vehicle.unlock()
+        await self._connection.set_vehicle_lock(self.vehicle_vin, False)
 
 
 class Switch(Instrument):
@@ -216,8 +254,8 @@ class Position(Instrument):
     def state(self):
         state = super().state or {}
         return (
-            state.get("latitude", "?"),
-            state.get("longitude", "?"),
+            state.get("latitude", None),
+            state.get("longitude", None),
             state.get("timestamp", None),
             state.get("parktime", None)
         )
@@ -228,8 +266,8 @@ class Position(Instrument):
         ts = state.get("timestamp")
         pt = state.get("parktime")
         return (
-            state.get("latitude", "?"),
-            state.get("longitude", "?"),
+            state.get("latitude", None),
+            state.get("longitude", None),
             str(ts.astimezone(tz=None)) if ts else None,
             str(pt.astimezone(tz=None)) if pt else None            
         )
@@ -258,6 +296,8 @@ def create_instruments():
     return [
         Position(),
         LastUpdate(),
+        Lock(),
+        Sensor(attr="model", name="Model", icon="mdi:speedometer", unit=None),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
         Sensor(attr="service_inspection_time", name="Service inspection time", icon="mdi:room-service-outline", unit="days"),
@@ -285,10 +325,10 @@ def create_instruments():
     ]
 
 class Dashboard:
-    def __init__(self, vehicle, **config):
+    def __init__(self, connection, vehicle, **config):
         _LOGGER.debug("Setting up dashboard with config :%s", config)
         self.instruments = [
             instrument
             for instrument in create_instruments()
-            if instrument.setup(vehicle, **config)
+            if instrument.setup(connection, vehicle, **config)
         ]

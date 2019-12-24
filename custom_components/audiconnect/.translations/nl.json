@@ -1,0 +1,29 @@
+{
+    "config": {
+        "abort": {
+            "invalid_credentials": "Ongeldige gebruikersgegevens",
+            "user_already_configured": "Account is al geconfigureerd"
+        },
+        "create_entry": {
+        },
+        "error": {
+            "invalid_credentials": "Ongeldige gebruikersgegevens",
+            "invalid_username": "Ongeldige gebruikersnaam",
+            "unexpected": "Onverwachte fout bij communicatie met de Audi Connect server",
+            "user_already_configured": "Account is al geconfigureerd"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": "Wachtwoord",
+                    "username": "Gebruikersnaam",
+                    "spin": "S-PIN",
+                    "region": "Regio",
+                    "scan_interval": "Update interval"
+                },
+                "title": "Audi Connect accountgegevens"
+            }
+        },
+        "title": "Audi Connect"
+    }
+}
