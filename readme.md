@@ -1,17 +1,44 @@
 Audiconnect integration for home assistant
 ============================================================
+
+[![GitHub Activity][commits-shield]][commits]
+[![License][license-shield]](LICENSE.md)
+
+[![hacs][hacsbadge]](hacs)
+![Project Maintenance][maintenance-shield]
+[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
+
 Description
 ------------
 The `audiconnect` component offers integration with the Audi connect cloud service and offers presence detection, sensors such as range, mileage, and fuel level, and provides car actions such as locking/unlocking and setting the pre-heater.
 
 Note that certain functions may require special permissions from Audi, such as the position update via GPS. 
 
-Credits go to the guys at the ioBroker VW-Connect forum, which were able to figure out how the API and the pin hashing works, and to davidgiga1993 of the original AudiAPI Python package on which some of this code is loosely based.
+Credits go to the guys at the ioBroker VW-Connect forum, which were able to figure out how the API and the pin hashing works, and to davidgiga1993 of the original [AudiAPI](https://github.com/davidgiga1993/AudiAPI) Python package on which some of this code is loosely based.
+
+Installation
+------------
+
+There are two ways this integration can be installed into [Home Assistant](https://www.home-assistant.io).
+
+The easiest way is to install the integration using [HACS](https://hacs.xyz).
+
+Alternatively, installation can be done manually by copying the files in this repository into the custom_components directory in the HA configuration directory:
+1. Open the configuration directory of your HA configuration.
+2. If you do not have a custom_components directory, you need to create it.
+3. In the custom_components directory create a new folder called audiconnect.
+4. Copy all the files from the custom_components/audiconnect/ directory in this repository into the audiconnect directory.
+5. Restart Home Assistant
+6. Add the integration to Home Assistant (see `Configuration`)
 
 Configuration
 -------------
-To use the `audiconnect` component in your installation, copy this repository into your home 
-assistant configuration at `<config dir>/custom_components`. After restarting HA, the Audi Integration can be added from Configurations/Integrations. 
+
+Configuration is done through the Home Assistant UI.
+
+To add the integration, go to `Configuration->Integrations`, click `+` and search for `Audi Connect`
+
+![Configuration](ha_config.png)
 
 Configuration Variables
 -----------------------
@@ -60,7 +87,7 @@ Example Lovelace Card
 
 Below is an example Lovelace Card summarizing some of the sensors this Home Assistant addon provides. 
 
-![Example Lovelace Card](https://raw.githubusercontent.com/arjenvrh/audi_connect_ha/master/card_example.png)
+![Example Lovelace Card](card_example.png)
 
 The card requires the following mods:
 - https://github.com/thomasloven/lovelace-card-mod
@@ -172,3 +199,12 @@ The card uses the following code in ui-lovelace.yaml.
             height: 4em
             transform: none
 ```
+
+[buymecoffee]: https://buymeacoff.ee/arjenvrh
+[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
+[commits-shield]: https://img.shields.io/github/commit-activity/y/arjenvrh/audi_connect_ha?style=for-the-badge
+[commits]: https://github.com/arjenvrh/audi_connect_ha/commits/master
+[hacs]: https://github.com/custom-components/hacs
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/arjenvrh/audi_connect_ha?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-Arjen%20van%20Rhijn%20%40arjenvrh-blue.svg?style=for-the-badge
