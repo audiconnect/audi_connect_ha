@@ -42,9 +42,8 @@ class AudiDeviceTracker(TrackerEntity):
     def __init__(self, instrument):
         """Set up Locative entity."""
         self._unsub_dispatcher = None
+        self._instrument = instrument
         self._state = instrument.state
-        self._vehicle_name = instrument.vehicle_name
-        self._name = 'audi_{}'.format(slugify(instrument.vehicle_name))
 
     @property
     def icon(self):
@@ -63,8 +62,10 @@ class AudiDeviceTracker(TrackerEntity):
 
     @property
     def name(self):
-        """Return the name of the device."""
-        return self._name
+        """Return full name of the entity."""
+        return '{} {}'.format(
+            self._vehicle_name,
+            self._entity_name)
 
     @property
     def should_poll(self):
@@ -78,12 +79,14 @@ class AudiDeviceTracker(TrackerEntity):
 
     async def async_added_to_hass(self):
         """Register state update callback."""
+        await super().async_added_to_hass()
         self._unsub_dispatcher = async_dispatcher_connect(
             self.hass, TRACKER_UPDATE, self._async_receive_data
         )
 
     async def async_will_remove_from_hass(self):
         """Clean up after entity before removal."""
+        await super().async_will_remove_from_hass()
         self._unsub_dispatcher()
 
     @callback
@@ -95,3 +98,39 @@ class AudiDeviceTracker(TrackerEntity):
         self._state = instrument.state
 
         self.async_write_ha_state()
+
+    @property
+    def _entity_name(self):
+        return self._instrument.name
+
+    @property
+    def _vehicle_name(self):
+        return self._instrument.vehicle_name
+
+    @property
+    def unique_id(self):
+        return self._instrument.full_name
+
+    @property
+    def device_info(self):
+       return {
+            "identifiers": {(DOMAIN, self._instrument.vehicle_name)},
+            "manufacturer": "Audi",
+            "name": self._vehicle_name,
+            "device_type": "device_tracker",
+        }
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes."""
+        return dict(self._instrument.attributes,
+                    model='{}/{}'.format(
+                        self._instrument.vehicle_model,
+                        self._instrument.vehicle_name),
+                    model_year=self._instrument.vehicle_model_year,
+                    model_family=self._instrument.vehicle_model_family,
+                    title=self._instrument.vehicle_name,
+                    csid=self._instrument.vehicle_csid,
+                    vin=self._instrument.vehicle_vin)
+
+    
