@@ -33,7 +33,7 @@ class AudiAPI:
             print(url)
             with async_timeout.timeout(TIMEOUT):
                 async with self._session.request(method, url, headers=headers, data=data) as response:
-                    print(response)
+                    # print(response)
                     if response.status == 200 or response.status == 202:
                         return await response.json(loads=json_loads)
                     else:
