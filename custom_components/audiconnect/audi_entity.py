@@ -1,7 +1,11 @@
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 
 from .const import DOMAIN, SIGNAL_STATE_UPDATED
+
 
 class AudiEntity(Entity):
     """Base class for all entities."""
@@ -17,8 +21,8 @@ class AudiEntity(Entity):
     async def async_added_to_hass(self):
         """Register update dispatcher."""
         async_dispatcher_connect(
-            self.hass, SIGNAL_STATE_UPDATED,
-            self.async_schedule_update_ha_state)
+            self.hass, SIGNAL_STATE_UPDATED, self.async_schedule_update_ha_state
+        )
 
     @property
     def icon(self):
@@ -36,9 +40,7 @@ class AudiEntity(Entity):
     @property
     def name(self):
         """Return full name of the entity."""
-        return '{} {}'.format(
-            self._vehicle_name,
-            self._entity_name)
+        return "{} {}".format(self._vehicle_name, self._entity_name)
 
     @property
     def should_poll(self):
@@ -53,15 +55,17 @@ class AudiEntity(Entity):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        return dict(self._instrument.attributes,
-                    model='{}/{}'.format(
-                        self._instrument.vehicle_model,
-                        self._instrument.vehicle_name),
-                    model_year=self._instrument.vehicle_model_year,
-                    model_family=self._instrument.vehicle_model_family,
-                    title=self._instrument.vehicle_name,
-                    csid=self._instrument.vehicle_csid,
-                    vin=self._instrument.vehicle_vin)
+        return dict(
+            self._instrument.attributes,
+            model="{}/{}".format(
+                self._instrument.vehicle_model, self._instrument.vehicle_name
+            ),
+            model_year=self._instrument.vehicle_model_year,
+            model_family=self._instrument.vehicle_model_family,
+            title=self._instrument.vehicle_name,
+            csid=self._instrument.vehicle_csid,
+            vin=self._instrument.vehicle_vin,
+        )
 
     @property
     def unique_id(self):
@@ -69,7 +73,7 @@ class AudiEntity(Entity):
 
     @property
     def device_info(self):
-       return {
+        return {
             "identifiers": {(DOMAIN, self._instrument.vehicle_name)},
             "manufacturer": "Audi",
             "name": self._vehicle_name,

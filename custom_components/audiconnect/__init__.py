@@ -5,27 +5,55 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util.dt import utcnow
 from homeassistant import config_entries
-from homeassistant.const import CONF_NAME, CONF_PASSWORD, CONF_RESOURCES, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.const import (
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_RESOURCES,
+    CONF_SCAN_INTERVAL,
+    CONF_USERNAME,
+    CONF_UNIT_SYSTEM_METRIC,
+    CONF_UNIT_SYSTEM_IMPERIAL
+)
 
 from .audi_account import AudiAccount
 from .audi_services import AudiService
 
-from .const import DOMAIN, CONF_REGION, CONF_MUTABLE, DEFAULT_UPDATE_INTERVAL, MIN_UPDATE_INTERVAL, RESOURCES, COMPONENTS
+from .const import (
+    DOMAIN,
+    CONF_REGION,
+    CONF_MUTABLE,
+    DEFAULT_UPDATE_INTERVAL,
+    MIN_UPDATE_INTERVAL,
+    RESOURCES,
+    COMPONENTS,
+)
 
-CONFIG_SCHEMA = vol.Schema({
-    DOMAIN: vol.Schema({
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_SCAN_INTERVAL, default=timedelta(minutes=DEFAULT_UPDATE_INTERVAL)):
-            vol.All(cv.time_period, vol.Clamp(min=timedelta(minutes=MIN_UPDATE_INTERVAL))),
-        vol.Optional(CONF_NAME, default={}):
-            cv.schema_with_slug_keys(cv.string),
-        vol.Optional(CONF_RESOURCES): vol.All(
-            cv.ensure_list, [vol.In(RESOURCES)]),
-        vol.Optional(CONF_REGION): cv.string,
-        vol.Optional(CONF_MUTABLE, default=True): cv.boolean,
-    })
-}, extra=vol.ALLOW_EXTRA)
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_USERNAME): cv.string,
+                vol.Required(CONF_PASSWORD): cv.string,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=timedelta(minutes=DEFAULT_UPDATE_INTERVAL),
+                ): vol.All(
+                    cv.time_period,
+                    vol.Clamp(min=timedelta(minutes=MIN_UPDATE_INTERVAL)),
+                ),
+                vol.Optional(CONF_NAME, default={}): cv.schema_with_slug_keys(
+                    cv.string
+                ),
+                vol.Optional(CONF_RESOURCES): vol.All(
+                    cv.ensure_list, [vol.In(RESOURCES)]
+                ),
+                vol.Optional(CONF_REGION): cv.string,
+                vol.Optional(CONF_MUTABLE, default=True): cv.boolean,
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 
 async def async_setup(hass, config):
@@ -52,21 +80,25 @@ async def async_setup(hass, config):
     )
 
     return True
- 
+
 
 async def async_setup_entry(hass, config_entry):
     """Set up this integration using UI."""
-    
+
     if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = {}       
+        hass.data[DOMAIN] = {}
 
     """Set up the Audi Connect component."""
     hass.data[DOMAIN]["devices"] = set()
 
     account = config_entry.data.get(CONF_USERNAME)
 
+    unit_system = "metric"
+    if hass.config.units.name == CONF_UNIT_SYSTEM_IMPERIAL:
+        unit_system = "imperial"
+
     if account not in hass.data[DOMAIN]:
-        data = hass.data[DOMAIN][account] = AudiAccount(hass, config_entry)
+        data = hass.data[DOMAIN][account] = AudiAccount(hass, config_entry, unit_system=unit_system)
         data.init_connection()
     else:
         data = hass.data[DOMAIN][account]
@@ -80,7 +112,9 @@ async def async_unload_entry(hass, config_entry):
     data = hass.data[DOMAIN][account]
 
     for component in COMPONENTS:
-        await hass.config_entries.async_forward_entry_unload(data.config_entry, component)
+        await hass.config_entries.async_forward_entry_unload(
+            data.config_entry, component
+        )
 
     del hass.data[DOMAIN][account]
 

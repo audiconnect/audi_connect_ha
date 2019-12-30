@@ -15,29 +15,36 @@ TIMEOUT = 10
 
 _LOGGER = logging.getLogger(__name__)
 
-class AudiAPI:    
-    def __init__(self, session, proxy=None):      
+
+class AudiAPI:
+    def __init__(self, session, proxy=None):
         self.__token = None
         self._session = session
         if proxy is not None:
-            self.__proxy = {'http': proxy,
-                            'https': proxy}
+            self.__proxy = {"http": proxy, "https": proxy}
         else:
             self.__proxy = None
 
-    def use_token(self, token):      
+    def use_token(self, token):
         self.__token = token
 
     async def request(self, method, url, data, headers, **kwargs):
         try:
-            print(url)
+            # print(url)
             with async_timeout.timeout(TIMEOUT):
-                async with self._session.request(method, url, headers=headers, data=data) as response:
+                async with self._session.request(
+                    method, url, headers=headers, data=data
+                ) as response:
                     # print(response)
                     if response.status == 200 or response.status == 202:
                         return await response.json(loads=json_loads)
                     else:
-                        raise ClientResponseError(response.request_info, response.history, status=response.status, message=response.reason)
+                        raise ClientResponseError(
+                            response.request_info,
+                            response.history,
+                            status=response.status,
+                            message=response.reason,
+                        )
         except TimeoutError:
             raise TimeoutError("Timeout error")
         except Exception:
@@ -62,15 +69,16 @@ class AudiAPI:
     def __get_headers(self):
         data = {
             "User-Agent": "okhttp/3.7.0",
-			"X-App-Version": '3.14.0',
-			"X-App-Name": 'myAudi',
-			"X-Market": "de_DE",
-			'Accept': "application/json, application/vnd.vwg.mbb.vehicleDataDetail_v2_1_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml",
+            "X-App-Version": "3.14.0",
+            "X-App-Name": "myAudi",
+            "X-Market": "de_DE",
+            "Accept": "application/json, application/vnd.vwg.mbb.vehicleDataDetail_v2_1_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml",
         }
         if self.__token != None:
-            data['Authorization'] = "Bearer " + self.__token.get('access_token')
+            data["Authorization"] = "Bearer " + self.__token.get("access_token")
 
         return data
+
 
 def obj_parser(obj):
     """Parse datetime."""
@@ -80,6 +88,7 @@ def obj_parser(obj):
         except (TypeError, ValueError):
             pass
     return obj
+
 
 def json_loads(s):
     return json.loads(s, object_hook=obj_parser)

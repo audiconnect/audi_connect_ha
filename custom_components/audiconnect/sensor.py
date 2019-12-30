@@ -8,9 +8,10 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_platform(
-        hass, config, async_add_entities, discovery_info=None):
+
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Old way."""
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     sensors = []
@@ -23,6 +24,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             sensors.append(AudiSensor(config_vehicle, sensor))
 
     async_add_entities(sensors, True)
+
 
 class AudiSensor(AudiEntity):
     """Representation of a Audi sensor."""

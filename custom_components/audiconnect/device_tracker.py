@@ -2,7 +2,10 @@
 import logging
 
 from homeassistant.components.device_tracker import SOURCE_TYPE_GPS
-from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.util import slugify
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.core import callback
@@ -12,8 +15,10 @@ from .const import DOMAIN, SIGNAL_STATE_UPDATED, TRACKER_UPDATE
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_scanner(hass, config, async_see, discovery_info=None):
-    """Old way."""  
+    """Old way."""
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     async def see_vehicle(instrument):
@@ -35,6 +40,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             async_dispatcher_send(hass, TRACKER_UPDATE, device_tracker)
 
     return True
+
 
 class AudiDeviceTracker(TrackerEntity):
     """Represent a tracked device."""
@@ -63,9 +69,7 @@ class AudiDeviceTracker(TrackerEntity):
     @property
     def name(self):
         """Return full name of the entity."""
-        return '{} {}'.format(
-            self._vehicle_name,
-            self._entity_name)
+        return "{} {}".format(self._vehicle_name, self._entity_name)
 
     @property
     def should_poll(self):
@@ -113,7 +117,7 @@ class AudiDeviceTracker(TrackerEntity):
 
     @property
     def device_info(self):
-       return {
+        return {
             "identifiers": {(DOMAIN, self._instrument.vehicle_name)},
             "manufacturer": "Audi",
             "name": self._vehicle_name,
@@ -123,14 +127,15 @@ class AudiDeviceTracker(TrackerEntity):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        return dict(self._instrument.attributes,
-                    model='{}/{}'.format(
-                        self._instrument.vehicle_model,
-                        self._instrument.vehicle_name),
-                    model_year=self._instrument.vehicle_model_year,
-                    model_family=self._instrument.vehicle_model_family,
-                    title=self._instrument.vehicle_name,
-                    csid=self._instrument.vehicle_csid,
-                    vin=self._instrument.vehicle_vin)
+        return dict(
+            self._instrument.attributes,
+            model="{}/{}".format(
+                self._instrument.vehicle_model, self._instrument.vehicle_name
+            ),
+            model_year=self._instrument.vehicle_model_year,
+            model_family=self._instrument.vehicle_model_family,
+            title=self._instrument.vehicle_name,
+            csid=self._instrument.vehicle_csid,
+            vin=self._instrument.vehicle_vin,
+        )
 
-    
