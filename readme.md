@@ -3,6 +3,7 @@ Audiconnect integration for home assistant
 
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE.md)
+[![Code Style][blackbadge]][black]
 
 [![hacs][hacsbadge]](hacs)
 ![Project Maintenance][maintenance-shield]
@@ -26,7 +27,7 @@ The easiest way is to install the integration using [HACS](https://hacs.xyz).
 Alternatively, installation can be done manually by copying the files in this repository into the custom_components directory in the HA configuration directory:
 1. Open the configuration directory of your HA configuration.
 2. If you do not have a custom_components directory, you need to create it.
-3. In the custom_components directory create a new folder called audiconnect.
+3. In the custom_components directory create a new directory called audiconnect.
 4. Copy all the files from the custom_components/audiconnect/ directory in this repository into the audiconnect directory.
 5. Restart Home Assistant
 6. Add the integration to Home Assistant (see `Configuration`)
@@ -201,10 +202,12 @@ The card uses the following code in ui-lovelace.yaml.
 ```
 
 [buymecoffee]: https://buymeacoff.ee/arjenvrh
-[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
+[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20beer-donate-yellow.svg?style=for-the-badge
 [commits-shield]: https://img.shields.io/github/commit-activity/y/arjenvrh/audi_connect_ha?style=for-the-badge
 [commits]: https://github.com/arjenvrh/audi_connect_ha/commits/master
 [hacs]: https://github.com/custom-components/hacs
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/arjenvrh/audi_connect_ha?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-Arjen%20van%20Rhijn%20%40arjenvrh-blue.svg?style=for-the-badge
+[blackbadge]: https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge
+[black]: https://github.com/ambv/black

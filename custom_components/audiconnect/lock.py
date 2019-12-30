@@ -10,9 +10,9 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_platform(
-        hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Old way."""
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
 
@@ -25,6 +25,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             sensors.append(AudiLock(config_vehicle, lock))
 
     async_add_entities(sensors)
+
 
 class AudiLock(AudiEntity, LockDevice):
     """Represents a car lock."""

@@ -20,6 +20,10 @@ Pull requests are the best way to propose changes to the codebase.
 By contributing, you agree that your contributions will be licensed under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. 
 Feel free to contact the maintainers if that's a concern.
 
+## Coding Style
+
+This project uses [black](https://github.com/ambv/black) to ensure the code follows a consistent style.
+
 ## Report bugs using Github's issues
 
 GitHub issues are used to track public bugs. Report a bug by [opening a new issue](../../issues/new/choose)
