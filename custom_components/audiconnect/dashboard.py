@@ -132,9 +132,9 @@ class Sensor(Instrument):
 
     def configurate(self, unit_system=None, **config):
         if self.unit and unit_system == "imperial" and "km" in self.unit:
-            self.unit = "mil"
+            self.unit = "mi"
             self.convert = True
-        elif self.unit and unit_system == "metric" and "mil" in self.unit:
+        elif self.unit and unit_system == "metric" and "mi" in self.unit:
             self.unit = "km"
             self.convert = True
 
@@ -152,7 +152,7 @@ class Sensor(Instrument):
     @property
     def state(self):
         val = super().state
-        if val and self.unit and "mil" in self.unit and self.convert == True:
+        if val and self.unit and "mi" in self.unit and self.convert == True:
             return round(val / 1.609344)
         elif val and self.unit and "km" in self.unit and self.convert == True:
             return round(val * 1.609344)
