@@ -1,7 +1,3 @@
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE.md)
-[![Code Style][blackbadge]][black]
-
 [![hacs][hacsbadge]](hacs)
 ![Project Maintenance][maintenance-shield]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
@@ -42,7 +38,7 @@ Configuration Variables
 [commits-shield]: https://img.shields.io/github/commit-activity/y/arjenvrh/audi_connect_ha?style=for-the-badge
 [commits]: https://github.com/arjenvrh/audi_connect_ha/commits/master
 [hacs]: https://github.com/custom-components/hacs
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/arjenvrh/audi_connect_ha?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-Arjen%20van%20Rhijn%20%40arjenvrh-blue.svg?style=for-the-badge
 [blackbadge]: https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge
