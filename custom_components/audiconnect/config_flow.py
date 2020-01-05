@@ -47,7 +47,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._username = user_input[CONF_USERNAME]
             self._password = user_input[CONF_PASSWORD]
-            self._spin = user_input[CONF_SPIN]
+            self._spin = user_input.get(CONF_SPIN)
             self._region = user_input.get(CONF_REGION)
             self._scan_interval = user_input[CONF_SCAN_INTERVAL]
 
