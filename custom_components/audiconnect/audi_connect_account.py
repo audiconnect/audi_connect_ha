@@ -810,11 +810,11 @@ class AudiConnectVehicle:
 
     @property
     def climatisation_state(self):
-        if self.max_charge_current_supported:
+        if self.climatisation_state_supported:
             return self._vehicle.state.get("climatisationState")
 
     @property
-    def max_climatisation_state_supported(self):
+    def climatisation_state_supported(self):
         check = self._vehicle.state.get("climatisationState")
         if check:
             return True
