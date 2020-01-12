@@ -369,6 +369,12 @@ def create_instruments():
             icon="mdi:car-door",
             unit=None,
         ),
+        Sensor(
+            attr="climatisation_state", 
+            name="Climatisation state", 
+            icon="mdi:air-conditioner", 
+            unit=None,
+        ),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(
             attr="parking_light",
