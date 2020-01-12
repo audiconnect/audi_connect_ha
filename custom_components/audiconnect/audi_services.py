@@ -233,8 +233,8 @@ class AudiService:
         )
 
     async def set_climatisation(self, vin: str, start: bool):
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<action>\n   <type>{action}</type>\n</action>'.format(
-            action="startClimatisation" if start else "stopClimatisation"
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
+            input="\n<action>\n   <type>startClimatisation</type>\n   <settings>\n      <heaterSource>electric</heaterSource>\n   </settings>\n</action>" if start else "\n<action>\n   <type>stopClimatisation</type>\n</action>"
         )
         headers = self._GetVehicleActionHeader(
             "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None
