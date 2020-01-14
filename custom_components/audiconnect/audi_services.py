@@ -201,9 +201,11 @@ class AudiService:
         security_token = await self._get_security_token(
             vin, "rheating_v1/operations/P_QSACT"
         )
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<performAction xmlns="http://audi.de/connect/rs">\n   <quickstart>\n      <active>{action}</active>\n   </quickstart>\n</performAction>'.format(
-            action="true" if activate else "false"
+
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
+            input='\n<performAction xmlns="http://audi.de/connect/rs">\n   <quickstart>\n      <active>true</active>\n   </quickstart>\n</performAction>' if activate else '\n<performAction xmlns="http://audi.de/connect/rs">\n   <quickstop>\n      <active>false</active>\n   </quickstop>\n</performAction>'
         )
+
         headers = self._GetVehicleActionHeader(
             "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
         )
