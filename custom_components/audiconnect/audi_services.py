@@ -21,6 +21,7 @@ FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
 REQUEST_FAILED = "request_failed"
 
+
 class AudiService:
     def __init__(self, api: AudiAPI, country: str, spin: str):
         self._api = api
@@ -266,11 +267,10 @@ class AudiService:
         )
 
     async def set_climatisation(self, vin: str, start: bool):
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-            input="<action><type>startClimatisation</type></action>"
-            if start
-            else "<action><type>stopClimatisation</type></action>"
-        )
+        if start:
+            data = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><action><type>startClimatisation</type><settings><heaterSource>electric</heaterSource></settings></action>'
+        else:
+            data = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><action><type>stopClimatisation</type></action>'
 
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml;charset=utf-8", None
@@ -303,6 +303,7 @@ class AudiService:
         data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
             action="startWindowHeating" if start else "stopWindowHeating"
         )
+
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None
         )
