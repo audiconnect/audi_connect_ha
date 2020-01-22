@@ -3,15 +3,23 @@ import json
 
 from .audi_models import (
     CurrentVehicleDataResponse,
-    RequestStatus,
     VehicleDataResponse,
     VehiclesResponse,
     Vehicle,
 )
 from .audi_api import AudiAPI
+from .util import to_byte_array, get_attr
 
 from hashlib import sha512
+import asyncio
 
+MAX_RESPONSE_ATTEMPTS = 10
+REQUEST_STATUS_SLEEP = 10
+
+SUCCEEDED = "succeeded"
+FAILED = "failed"
+REQUEST_SUCCESSFUL = "request_successful"
+REQUEST_FAILED = "request_failed"
 
 class AudiService:
     def __init__(self, api: AudiAPI, country: str, spin: str):
@@ -26,29 +34,43 @@ class AudiService:
     async def login(self, user: str, password: str, persist_token: bool = True):
         await self.login_request(user, password)
 
+    async def refresh_vehicle_data(self, vin: str):
+        try:
+            res = await self.request_current_vehicle_data(vin.upper())
+            request_id = res.request_id
+
+            checkUrl = "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
+                type=self._type,
+                country=self._country,
+                vin=vin.upper(),
+                requestId=request_id,
+            )
+
+            await self.check_request_succeeded(
+                checkUrl,
+                "refresh vehicle data",
+                REQUEST_SUCCESSFUL,
+                REQUEST_FAILED,
+                "requestStatusResponse.status",
+            )
+
+        except Exception:
+            pass
+
     async def request_current_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.post(
             "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             )
         )
         return CurrentVehicleDataResponse(data)
-
-    async def get_request_status(self, vin: str, request_id: str):
-        self._api.use_token(self.vwToken)
-        data = await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
-                type=self._type, country=self._country, vin=vin, requestId=request_id
-            )
-        )
-        return RequestStatus(data)
 
     async def get_stored_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.get(
             "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/status".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             )
         )
         return VehicleDataResponse(data)
@@ -57,7 +79,7 @@ class AudiService:
         self._api.use_token(self.vwToken)
         return await self._api.get(
             "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             )
         )
 
@@ -65,7 +87,7 @@ class AudiService:
         self._api.use_token(self.vwToken)
         return await self._api.get(
             "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             )
         )
 
@@ -73,7 +95,7 @@ class AudiService:
         self._api.use_token(self.vwToken)
         return await self._api.get(
             "https://msg.volkswagen.de/fs-car/bs/cf/v1/{type}/{country}/vehicles/{vin}/position".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             )
         )
 
@@ -81,14 +103,14 @@ class AudiService:
         self._api.use_token(self.vwToken)
         return await self._api.get(
             "https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/operationlist/v3/vehicles/"
-            + vin
+            + vin.upper()
         )
 
     async def get_timer(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
             "https://msg.volkswagen.de/fs-car/bs/departuretimer/v1/{type}/{country}/vehicles/{vin}/timer".format(
-                type="Audi", country="DE", vin=vin
+                type="Audi", country=self._country, vin=vin.upper()
             )
         )
 
@@ -122,7 +144,7 @@ class AudiService:
         body = await self._api.request(
             "GET",
             "https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/authorization/v2/vehicles/"
-            + vin
+            + vin.upper()
             + "/services/"
             + action
             + "/security-pin-auth-requested",
@@ -161,7 +183,7 @@ class AudiService:
         )
         return body["securityToken"]
 
-    def _GetVehicleActionHeader(self, content_type: str, security_token: str):
+    def _get_vehicle_action_header(self, content_type: str, security_token: str):
         headers = {
             "User-Agent": "okhttp/3.7.0",
             "Host": "msg.volkswagen.de",
@@ -182,19 +204,130 @@ class AudiService:
         security_token = await self._get_security_token(
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
         )
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<rluAction xmlns="http://audi.de/connect/rlu">\n   <action>{action}</action>\n</rluAction>'.format(
+        data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
             action="lock" if lock else "unlock"
         )
-        headers = self._GetVehicleActionHeader(
+        headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
         )
-        return await self._api.request(
+        res = await self._api.request(
             "POST",
             "https://msg.volkswagen.de/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
             data=data,
+        )
+
+        checkUrl = "https://msg.volkswagen.de/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            requestId=res["rluActionResponse"]["requestId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "lock vehicle" if lock else "unlock vehicle",
+            REQUEST_SUCCESSFUL,
+            REQUEST_FAILED,
+            "requestStatusResponse.status",
+        )
+
+    async def set_battery_charger(self, vin: str, start: bool):
+        data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
+            action="start" if start else "stop"
+        )
+        headers = self._get_vehicle_action_header(
+            "application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml", None
+        )
+        res = await self._api.request(
+            "POST",
+            "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions".format(
+                type=self._type, country=self._country, vin=vin.upper()
+            ),
+            headers=headers,
+            data=data,
+        )
+
+        checkUrl = "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            actionid=res["action"]["actionId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "start charger" if start else "stop charger",
+            SUCCEEDED,
+            FAILED,
+            "action.actionState",
+        )
+
+    async def set_climatisation(self, vin: str, start: bool):
+        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
+            input="<action><type>startClimatisation</type></action>"
+            if start
+            else "<action><type>stopClimatisation</type></action>"
+        )
+
+        headers = self._get_vehicle_action_header(
+            "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml;charset=utf-8", None
+        )
+        res = await self._api.request(
+            "POST",
+            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                type=self._type, country=self._country, vin=vin.upper()
+            ),
+            headers=headers,
+            data=data,
+        )
+
+        checkUrl = "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            actionid=res["action"]["actionId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "start climatisation" if start else "stop climatisation",
+            SUCCEEDED,
+            FAILED,
+            "action.actionState",
+        )
+
+    async def set_window_heating(self, vin: str, start: bool):
+        data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
+            action="startWindowHeating" if start else "stopWindowHeating"
+        )
+        headers = self._get_vehicle_action_header(
+            "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None
+        )
+        res = await self._api.request(
+            "POST",
+            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                type=self._type, country=self._country, vin=vin.upper()
+            ),
+            headers=headers,
+            data=data,
+        )
+
+        checkUrl = "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            actionid=res["action"]["actionId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "start window heating" if start else "stop window heating",
+            SUCCEEDED,
+            FAILED,
+            "action.actionState",
         )
 
     async def set_pre_heater(self, vin: str, activate: bool):
@@ -203,68 +336,46 @@ class AudiService:
         )
 
         data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-            input='\n<performAction xmlns="http://audi.de/connect/rs">\n   <quickstart>\n      <active>true</active>\n   </quickstart>\n</performAction>' if activate else '\n<performAction xmlns="http://audi.de/connect/rs">\n   <quickstop>\n      <active>false</active>\n   </quickstop>\n</performAction>'
+            input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
+            if activate
+            else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
         )
 
-        headers = self._GetVehicleActionHeader(
+        headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
         )
-        return await self._api.request(
+        await self._api.request(
             "POST",
             "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
-                type=self._type, country=self._country, vin=vin
+                type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
             data=data,
         )
 
-    async def set_battery_charger(self, vin: str, start: bool):
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<action>\n   <type>{action}</type>\n</action>'.format(
-            action="start" if start else "stop"
-        )
-        headers = self._GetVehicleActionHeader(
-            "application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml", None
-        )
-        return await self._api.request(
-            "POST",
-            "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions".format(
-                type=self._type, country=self._country, vin=vin
-            ),
-            headers=headers,
-            data=data,
-        )
+    async def check_request_succeeded(
+        self, url: str, action: str, successCode: str, failedCode: str, path: str
+    ):
 
-    async def set_climatisation(self, vin: str, start: bool):
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-            input="\n<action>\n   <type>startClimatisation</type>\n   <settings>\n      <heaterSource>electric</heaterSource>\n   </settings>\n</action>" if start else "\n<action>\n   <type>stopClimatisation</type>\n</action>"
-        )
-        headers = self._GetVehicleActionHeader(
-            "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None
-        )
-        return await self._api.request(
-            "POST",
-            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                type=self._type, country=self._country, vin=vin
-            ),
-            headers=headers,
-            data=data,
-        )
+        for _ in range(MAX_RESPONSE_ATTEMPTS):
+            await asyncio.sleep(REQUEST_STATUS_SLEEP)
 
-    async def set_window_heating(self, vin: str, start: bool):
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>\n<action>\n   <type>{action}</type>\n</action>'.format(
-            action="startWindowHeating" if start else "stopWindowHeating"
-        )
-        headers = self._GetVehicleActionHeader(
-            "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml", None
-        )
-        return await self._api.request(
-            "POST",
-            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                type=self._type, country=self._country, vin=vin
-            ),
-            headers=headers,
-            data=data,
-        )
+            self._api.use_token(self.vwToken)
+            res = await self._api.get(url)
+
+            status = get_attr(res, path)
+
+            if status is None or (failedCode is not None and status == failedCode):
+                raise Exception(
+                    "Cannot {action}, return code '{code}'".format(
+                        action=action, code=status
+                    )
+                )
+
+            if status == successCode:
+                return
+
+        raise Exception("Cannot {action}, operation timed out".format(action=action))
 
     async def login_request(self, user: str, password: str):
         # Get Audi Token
@@ -304,15 +415,9 @@ class AudiService:
             data=data,
         )
 
-    def _to_byte_array(self, hexString):
-        result = []
-        for i in range(0, len(hexString), 2):
-            result.append(int(hexString[i : i + 2], 16))
-
-        return result
-
     def _generate_security_pin_hash(self, challenge):
-        pin = self._to_byte_array(self._spin)
-        byteChallenge = self._to_byte_array(challenge)
+        pin = to_byte_array(self._spin)
+        byteChallenge = to_byte_array(challenge)
         b = bytes(pin + byteChallenge)
         return sha512(b).hexdigest().upper()
+
