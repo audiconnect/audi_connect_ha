@@ -72,7 +72,8 @@ class AudiAPI:
             "X-App-Version": "3.14.0",
             "X-App-Name": "myAudi",
             "X-Market": "de_DE",
-            "Accept": "application/json, application/vnd.vwg.mbb.vehicleDataDetail_v2_1_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml",
+            "Accept": "application/json"
+            # "Accept": "application/json, application/vnd.vwg.mbb.vehicleDataDetail_v2_1_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml",
         }
         if self.__token != None:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")

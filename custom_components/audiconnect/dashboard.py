@@ -127,16 +127,16 @@ class Instrument:
 class Sensor(Instrument):
     def __init__(self, attr, name, icon, unit):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
-        self.unit = unit
-        self.convert = False
+        self._unit = unit
+        self._convert = False
 
     def configurate(self, unit_system=None, **config):
-        if self.unit and unit_system == "imperial" and "km" in self.unit:
-            self.unit = "mi"
-            self.convert = True
-        elif self.unit and unit_system == "metric" and "mi" in self.unit:
-            self.unit = "km"
-            self.convert = True
+        if self._unit and unit_system == "imperial" and "km" in self._unit:
+            self._unit = "mi"
+            self._convert = True
+        elif self._unit and unit_system == "metric" and "mi" in self._unit:
+            self._unit = "km"
+            self._convert = True
 
     @property
     def is_mutable(self):
@@ -152,12 +152,20 @@ class Sensor(Instrument):
     @property
     def state(self):
         val = super().state
-        if val and self.unit and "mi" in self.unit and self.convert == True:
+        if val and self._unit and "mi" in self._unit and self._convert == True:
             return round(val / 1.609344)
-        elif val and self.unit and "km" in self.unit and self.convert == True:
+        elif val and self._unit and "km" in self._unit and self._convert == True:
             return round(val * 1.609344)
         else:
             return val
+
+    @property
+    def unit(self):
+        supported = self._attr + "_unit"
+        if hasattr(self._vehicle, supported):
+            return getattr(self._vehicle, supported)
+
+        return self._unit
 
 
 class BinarySensor(Instrument):
@@ -310,7 +318,7 @@ def create_instruments():
         Position(),
         LastUpdate(),
         Lock(),
-        Sensor(attr="model", name="Model", icon="mdi:speedometer", unit=None),
+        Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
         Sensor(
@@ -347,8 +355,39 @@ def create_instruments():
             icon="mdi:current-ac",
             unit="A",
         ),
-        Sensor(attr="engine_type1", name="Engine 1", icon="mdi:engine", unit=None),
-        Sensor(attr="engine_type2", name="Engine 2", icon="mdi:engine", unit=None),
+        Sensor(
+            attr="primary_engine_type",
+            name="Primary engine type",
+            icon="mdi:engine",
+            unit=None,
+        ),
+        Sensor(
+            attr="secondary_engine_type",
+            name="Secondary engine type",
+            icon="mdi:engine",
+            unit=None,
+        ),
+        Sensor(
+            attr="primary_engine_range",
+            name="Primary engine range",
+            icon="mdi:gas-station-outline",
+            unit="km",
+        ),
+        Sensor(
+            attr="secondary_engine_range",
+            name="Secondary engine range",
+            icon="mdi:gas-station-outline",
+            unit="km",
+        ),
+        Sensor(
+            attr="charging_power", name="Charging power", icon="mdi:flash", unit="kW"
+        ),
+        Sensor(
+            attr="actual_charge_rate",
+            name="Charging rate",
+            icon="mdi:electron-framework",
+            unit=None,
+        ),
         Sensor(attr="tank_level", name="Tank level", icon="mdi:gas-station", unit="%"),
         Sensor(
             attr="state_of_charge",
@@ -370,9 +409,9 @@ def create_instruments():
             unit=None,
         ),
         Sensor(
-            attr="climatisation_state", 
-            name="Climatisation state", 
-            icon="mdi:air-conditioner", 
+            attr="climatisation_state",
+            name="Climatisation state",
+            icon="mdi:air-conditioner",
             unit=None,
         ),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),

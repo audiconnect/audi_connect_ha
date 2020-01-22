@@ -3,19 +3,34 @@ import time
 from datetime import timedelta, datetime
 import logging
 import asyncio
+from typing import List
 
 from asyncio import TimeoutError
 from aiohttp import ClientResponseError
 
 import voluptuous as vol
+from abc import ABC, abstractmethod
 
 _LOGGER = logging.getLogger(__name__)
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 
-from .audi_services import AudiService, RequestStatus
+from .audi_services import AudiService
 from .audi_api import AudiAPI
+from .util import log_exception, get_attr, parse_int, parse_float
+
+ACTION_LOCK = "lock"
+ACTION_CLIMATISATION = "climatisation"
+ACTION_CHARGER = "charger"
+ACTION_WINDOW_HEATING = "window_heating"
+ACTION_PRE_HEATER = "pre_heater"
+
+
+class AudiConnectObserver(ABC):
+    @abstractmethod
+    async def handle_notification(self, vin: str, action: str) -> None:
+        pass
 
 
 class AudiConnectAccount:
@@ -39,6 +54,15 @@ class AudiConnectAccount:
 
         self._vehicles = []
         self._audi_vehicles = []
+
+        self._observers: List[AudiConnectObserver] = []
+
+    def add_observer(self, observer: AudiConnectObserver) -> None:
+        self._observers.append(observer)
+
+    async def notify(self, vin: str, action: str) -> None:
+        for observer in self._observers:
+            await observer.handle_notification(vin, action)
 
     async def login(self):
         for i in range(self._connect_retries):
@@ -131,47 +155,94 @@ class AudiConnectAccount:
     async def refresh_vehicle_data(self, vin: str):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return False
+            return
 
-        request_id = await vehicle.refresh_vehicle_data()
-
-        for _ in range(MAX_RESPONSE_ATTEMPTS):
-            await asyncio.sleep(REQUEST_STATUS_SLEEP)
-
-            status = await vehicle.get_status_from_update(request_id)
-
-            if status == RequestStatus.SUCCESS:
-                return True
-
-        return False
+        try:
+            await self._audi_service.refresh_vehicle_data(vin)
+        except Exception as exception:
+            log_exception(
+                exception, "Unable to refresh vehicle data of {}".format(vin),
+            )
 
     async def set_vehicle_lock(self, vin: str, lock: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return False
+            return
 
-        return await vehicle.set_vehicle_lock(lock)
+        try:
+            await self._audi_service.set_vehicle_lock(vin, lock)
+            await self.notify(vin, ACTION_LOCK)
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to {action} data of {vin}".format(
+                    action="lock" if lock else "unlock", vin=vin
+                ),
+            )
 
     async def set_vehicle_climatisation(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return False
+            return
 
-        return await vehicle.set_climatisation(activate)
+        try:
+            await self._audi_service.set_climatisation(vin, activate)
+            await self.notify(vin, ACTION_CLIMATISATION)
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to {action} climatisation of {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
 
-    async def set_vehicle_pre_heater(self, vin: str, activate: bool):
+    async def set_battery_charger(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return False
+            return
 
-        return await vehicle.set_pre_heater(activate)
+        try:
+            await self._audi_service.set_battery_charger(vin, activate)
+            await self.notify(vin, ACTION_CHARGER)
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to {action} charger of {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
 
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return False
+            return
 
-        return await vehicle.set_window_heating(activate)
+        try:
+            await self._audi_service.set_window_heating(vin, activate)
+            await self.notify(vin, ACTION_WINDOW_HEATING)
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to {action} window heating of {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
+    async def set_vehicle_pre_heater(self, vin: str, activate: bool):
+        vehicle = await self.login_and_get_vehicle(vin)
+        if vehicle is None:
+            return
+
+        try:
+            await self._audi_service.set_pre_heater(vin, activate)
+            await self.notify(vin, ACTION_PRE_HEATER)
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to {action} pre-heater of {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
 
 
 class AudiConnectVehicle:
@@ -224,27 +295,23 @@ class AudiConnectVehicle:
 
     async def update(self):
         try:
-            await self.call_update(self.updateVehicleStatusReport, 3)
-            await self.call_update(self.updateVehiclePosition, 3)
-            await self.call_update(self.updateVehicleClimater, 3)
-            await self.call_update(self.updateVehicleCharger, 3)
+            await self.call_update(self.update_vehicle_statusreport, 3)
+            await self.call_update(self.update_vehicle_position, 3)
+            await self.call_update(self.update_vehicle_climater, 3)
+            await self.call_update(self.update_vehicle_charger, 3)
         except Exception as exception:
-            self.logException(
+            log_exception(
                 exception,
                 "Unable to update vehicle data of {}".format(self._vehicle.vin),
             )
 
-    def logExceptionOnce(self, exception, message):
+    def log_exception_once(self, exception, message):
         err = message + ": " + str(exception).rstrip("\n")
         if not err in self._logged_errors:
             self._logged_errors.add(err)
             _LOGGER.error(err)
 
-    def logException(self, exception, message):
-        err = message + ": " + str(exception).rstrip("\n")
-        _LOGGER.error(err)
-
-    async def updateVehicleStatusReport(self):
+    async def update_vehicle_statusreport(self):
         if not self.support_status_report:
             return
 
@@ -257,27 +324,28 @@ class AudiConnectVehicle:
             self._vehicle.state["last_update_time"] = datetime.strptime(
                 status.data_fields[0].send_time, "%Y-%m-%dT%H:%M:%S"
             )
+
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
                 self.support_status_report = False
             else:
-                self.logExceptionOnce(
+                self.log_exception_once(
                     resp_exception,
                     "Unable to obtain the vehicle status report of {}".format(
                         self._vehicle.vin
                     ),
                 )
         except Exception as exception:
-            self.logExceptionOnce(
+            self.log_exception_once(
                 exception,
                 "Unable to obtain the vehicle status report of {}".format(
                     self._vehicle.vin
                 ),
             )
 
-    async def updateVehiclePosition(self):
+    async def update_vehicle_position(self):
         if not self.support_position:
             return
 
@@ -291,11 +359,11 @@ class AudiConnectVehicle:
                 and position["Position"].get("carCoordinate") is not None
             ):
                 self._vehicle.state["position"] = {
-                    "latitude": position["Position"]["carCoordinate"]["latitude"]
+                    "latitude": get_attr(position, "Position.carCoordinate.latitude")
                     / 1000000,
-                    "longitude": position["Position"]["carCoordinate"]["longitude"]
+                    "longitude": get_attr(position, "Position.carCoordinate.longitude")
                     / 1000000,
-                    "timestamp": position["Position"].get("timestampCarSentUTC"),
+                    "timestamp": get_attr(position, "Position.timestampCarSentUTC"),
                     "parktime": position.get("parkingTimeUTC"),
                 }
 
@@ -305,31 +373,29 @@ class AudiConnectVehicle:
             if resp_exception.status == 403 or resp_exception.status == 502:
                 self.support_position = False
             else:
-                self.logExceptionOnce(
+                self.log_exception_once(
                     resp_exception,
                     "Unable to update the vehicle position of {}".format(
                         self._vehicle.vin
                     ),
                 )
         except Exception as exception:
-            self.logExceptionOnce(
+            self.log_exception_once(
                 exception,
                 "Unable to update the vehicle position of {}".format(self._vehicle.vin),
             )
 
-    async def updateVehicleClimater(self):
+    async def update_vehicle_climater(self):
         if not self.support_climater:
             return
 
         try:
             result = await self._audi_service.get_climater(self._vehicle.vin)
             if result:
-                try:
-                    self._vehicle.state["climatisationState"] = result["climater"][
-                        "status"
-                    ]["climatisationStatusData"]["climatisationState"]["content"]
-                except Exception:
-                    pass
+                self._vehicle.state["climatisationState"] = get_attr(
+                    result,
+                    "climater.status.climatisationStatusData.climatisationState.content",
+                )
 
         except TimeoutError:
             raise
@@ -337,69 +403,74 @@ class AudiConnectVehicle:
             if resp_exception.status == 403 or resp_exception.status == 502:
                 self.support_climater = False
             else:
-                self.logExceptionOnce(
+                self.log_exception_once(
                     resp_exception,
                     "Unable to obtain the vehicle climatisation state for {}".format(
                         self._vehicle.vin
                     ),
                 )
         except Exception as exception:
-            self.logExceptionOnce(
+            self.log_exception_once(
                 exception,
                 "Unable to obtain the vehicle climatisation state for {}".format(
                     self._vehicle.vin
                 ),
             )
 
-    async def updateVehicleCharger(self):
+    async def update_vehicle_charger(self):
         if not self.support_charger:
             return
 
         try:
             result = await self._audi_service.get_charger(self._vehicle.vin)
             if result:
-                try:
-                    self._vehicle.state["maxChargeCurrent"] = result["charger"][
-                        "settings"
-                    ]["maxChargeCurrent"]["content"]
-                except Exception:
-                    pass
-                try:
-                    self._vehicle.state["chargingState"] = result["charger"]["status"][
-                        "chargingStatusData"
-                    ]["chargingState"]["content"]
-                except Exception:
-                    pass
-                try:
-                    self._vehicle.state["engineTypeFirstEngine"] = result["charger"][
-                        "status"
-                    ]["cruisingRangeStatusData"]["engineTypeFirstEngine"]["content"]
-                except Exception:
-                    pass
-                try:
-                    self._vehicle.state["engineTypeSecondEngine"] = result["charger"][
-                        "status"
-                    ]["cruisingRangeStatusData"]["engineTypeSecondEngine"]["content"]
-                except Exception:
-                    pass
-                try:
-                    self._vehicle.state["stateOfCharge"] = result["charger"]["status"][
-                        "batteryStatusData"
-                    ]["stateOfCharge"]["content"]
-                except Exception:
-                    pass
-                try:
-                    self._vehicle.state["remainingChargingTime"] = result["charger"][
-                        "status"
-                    ]["batteryStatusData"]["remainingChargingTime"]["content"]
-                except Exception:
-                    pass
-                try:
-                    self._vehicle.state["plugState"] = result["charger"]["status"][
-                        "plugStatusData"
-                    ]["plugState"]["content"]
-                except Exception:
-                    pass
+                self._vehicle.state["maxChargeCurrent"] = get_attr(
+                    result, "charger.settings.maxChargeCurrent.content"
+                )
+
+                self._vehicle.state["chargingState"] = get_attr(
+                    result, "charger.status.chargingStatusData.chargingState.content"
+                )
+                self._vehicle.state["actualChargeRate"] = get_attr(
+                    result, "charger.status.chargingStatusData.actualChargeRate.content"
+                )
+                self._vehicle.state["actualChargeRateUnit"] = get_attr(
+                    result, "charger.status.chargingStatusData.chargeRateUnit.content"
+                )
+                self._vehicle.state["chargingPower"] = get_attr(
+                    result, "charger.status.chargingStatusData.chargingPower.content"
+                )
+
+                self._vehicle.state["engineTypeFirstEngine"] = get_attr(
+                    result,
+                    "charger.status.cruisingRangeStatusData.engineTypeFirstEngine.content",
+                )
+                self._vehicle.state["engineTypeSecondEngine"] = get_attr(
+                    result,
+                    "charger.status.cruisingRangeStatusData.engineTypeSecondEngine.content",
+                )
+                self._vehicle.state["hybridRange"] = get_attr(
+                    result, "charger.status.cruisingRangeStatusData.hybridRange.content"
+                )
+                self._vehicle.state["primaryEngineRange"] = get_attr(
+                    result,
+                    "charger.status.cruisingRangeStatusData.primaryEngineRange.content",
+                )
+                self._vehicle.state["secondaryEngineRange"] = get_attr(
+                    result,
+                    "charger.status.cruisingRangeStatusData.secondaryEngineRange.content",
+                )
+
+                self._vehicle.state["stateOfCharge"] = get_attr(
+                    result, "charger.status.batteryStatusData.stateOfCharge.content"
+                )
+                self._vehicle.state["remainingChargingTime"] = get_attr(
+                    result,
+                    "charger.status.batteryStatusData.remainingChargingTime.content",
+                )
+                self._vehicle.state["plugState"] = get_attr(
+                    result, "charger.status.plugStatusData.plugState.content"
+                )
 
         except TimeoutError:
             raise
@@ -407,31 +478,19 @@ class AudiConnectVehicle:
             if resp_exception.status == 403 or resp_exception.status == 502:
                 self.support_charger = False
             else:
-                self.logExceptionOnce(
+                self.log_exception_once(
                     resp_exception,
                     "Unable to obtain the vehicle charger state for {}".format(
                         self._vehicle.vin
                     ),
                 )
         except Exception as exception:
-            self.logExceptionOnce(
+            self.log_exception_once(
                 exception,
                 "Unable to obtain the vehicle charger state for {}".format(
                     self._vehicle.vin
                 ),
             )
-
-    def parseToInt(self, val: str):
-        try:
-            return int(val)
-        except ValueError:
-            return None
-
-    def parseToFloat(self, val: str):
-        try:
-            return float(val)
-        except ValueError:
-            return None
 
     @property
     def last_update_time(self):
@@ -455,7 +514,7 @@ class AudiConnectVehicle:
     @property
     def service_inspection_time_supported(self):
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
@@ -469,7 +528,7 @@ class AudiConnectVehicle:
     @property
     def service_inspection_distance_supported(self):
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
@@ -483,7 +542,7 @@ class AudiConnectVehicle:
     @property
     def oil_change_time_supported(self):
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
@@ -497,7 +556,7 @@ class AudiConnectVehicle:
     @property
     def oil_change_distance_supported(self):
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
@@ -509,7 +568,7 @@ class AudiConnectVehicle:
     @property
     def oil_level_supported(self):
         check = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
-        if check and self.parseToFloat(check):
+        if check and parse_float(check):
             return True
 
     @property
@@ -542,39 +601,39 @@ class AudiConnectVehicle:
     def mileage(self):
         if self.mileage_supported:
             check = self._vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
-            return self.parseToInt(check)
+            return parse_int(check)
 
     @property
     def mileage_supported(self):
         """Return true if mileage is supported"""
         check = self._vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
     def range(self):
         if self.range_supported:
             check = self._vehicle.fields.get("TOTAL_RANGE")
-            return self.parseToInt(check)
+            return parse_int(check)
 
     @property
     def range_supported(self):
         """Return true if range is supported"""
         check = self._vehicle.fields.get("TOTAL_RANGE")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
     def tank_level(self):
         if self.tank_level_supported:
             check = self._vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
-            return self.parseToInt(check)
+            return parse_int(check)
 
     @property
     def tank_level_supported(self):
         """Return true if tank_level is supported"""
         check = self._vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
-        if check and self.parseToInt(check):
+        if check and parse_int(check):
             return True
 
     @property
@@ -736,35 +795,104 @@ class AudiConnectVehicle:
     def max_charge_current(self):
         """Return max charge current"""
         if self.max_charge_current_supported:
-            return self.parseToFloat(self._vehicle.state.get("maxChargeCurrent"))
+            return parse_float(self._vehicle.state.get("maxChargeCurrent"))
 
     @property
     def max_charge_current_supported(self):
         check = self._vehicle.state.get("maxChargeCurrent")
-        if check and self.parseToFloat(check):
+        if check and parse_float(check):
             return True
 
     @property
-    def engine_type1(self):
-        """Return engine type 1"""
-        if self.engine_type1_supported:
+    def actual_charge_rate(self):
+        """Return actual charge rate"""
+        if self.actual_charge_rate_supported:
+            return parse_int(self._vehicle.state.get("actualChargeRate"))
+
+    @property
+    def actual_charge_rate_supported(self):
+        check = self._vehicle.state.get("actualChargeRate")
+        if check and parse_int(check):
+            return True
+
+    @property
+    def actual_charge_rate_unit(self):
+        if self.actual_charge_rate_supported:
+            res = self._vehicle.state.get("actualChargeRateUnit")
+            if res:
+                return res.replace("_per_", "/")
+
+            return res
+
+    @property
+    def charging_power(self):
+        """Return charging power"""
+        if self.charging_power_supported:
+            return parse_int(self._vehicle.state.get("chargingPower")) / 1000
+
+    @property
+    def charging_power_supported(self):
+        check = self._vehicle.state.get("chargingPower")
+        if check and parse_int(check):
+            return True
+
+    @property
+    def primary_engine_type(self):
+        """Return primary engine type"""
+        if self.primary_engine_type_supported:
             return self._vehicle.state.get("engineTypeFirstEngine")
 
     @property
-    def engine_type1_supported(self):
+    def primary_engine_type_supported(self):
         check = self._vehicle.state.get("engineTypeFirstEngine")
         if check and check != "unsupported":
             return True
 
     @property
-    def engine_type2(self):
-        """Return engine type 2"""
-        if self.engine_type2_supported:
+    def secondary_engine_type(self):
+        """Return secondary engine type"""
+        if self.secondary_engine_type_supported:
             return self._vehicle.state.get("engineTypeSecondEngine")
 
     @property
-    def engine_type2_supported(self):
+    def secondary_engine_type_supported(self):
         check = self._vehicle.state.get("engineTypeSecondEngine")
+        if check and check != "unsupported":
+            return True
+
+    @property
+    def primary_engine_range(self):
+        """Return primary engine range"""
+        if self.primary_engine_range_supported:
+            return self._vehicle.state.get("primaryEngineRange")
+
+    @property
+    def primary_engine_range_supported(self):
+        check = self._vehicle.state.get("primaryEngineRange")
+        if check and check != "unsupported":
+            return True
+
+    @property
+    def secondary_engine_range(self):
+        """Return secondary engine range"""
+        if self.secondary_engine_range_supported:
+            return self._vehicle.state.get("secondaryEngineRange")
+
+    @property
+    def secondary_engine_range_supported(self):
+        check = self._vehicle.state.get("secondaryEngineRange")
+        if check and check != "unsupported":
+            return True
+
+    @property
+    def hybrid_range(self):
+        """Return hybrid range"""
+        if self.hybrid_range_supported:
+            return self._vehicle.state.get("hybridRange")
+
+    @property
+    def hybrid_range_supported(self):
+        check = self._vehicle.state.get("hybridRange")
         if check and check != "unsupported":
             return True
 
@@ -772,19 +900,19 @@ class AudiConnectVehicle:
     def state_of_charge(self):
         """Return state of charge"""
         if self.state_of_charge_supported:
-            return self.parseToFloat(self._vehicle.state.get("stateOfCharge"))
+            return parse_float(self._vehicle.state.get("stateOfCharge"))
 
     @property
     def state_of_charge_supported(self):
         check = self._vehicle.state.get("stateOfCharge")
-        if check and self.parseToFloat(check):
+        if check and parse_float(check):
             return True
 
     @property
     def remaining_charging_time(self):
         """Return remaining charging time"""
         if self.remaining_charging_time_supported:
-            res = self.parseToInt(self._vehicle.state.get("remainingChargingTime"))
+            res = parse_int(self._vehicle.state.get("remainingChargingTime"))
             if res == 65535:
                 return "n/a"
             else:
@@ -793,7 +921,7 @@ class AudiConnectVehicle:
     @property
     def remaining_charging_time_supported(self):
         check = self._vehicle.state.get("remainingChargingTime")
-        if check and self.parseToFloat(check):
+        if check and parse_float(check):
             return True
 
     @property
@@ -813,7 +941,6 @@ class AudiConnectVehicle:
         if self.climatisation_state_supported:
             return self._vehicle.state.get("climatisationState")
 
-
     @property
     def climatisation_state_supported(self):
         check = self._vehicle.state.get("climatisationState")
@@ -825,47 +952,3 @@ class AudiConnectVehicle:
         return (
             self.doors_trunk_status_supported and self._audi_service._spin is not None
         )
-
-    async def set_vehicle_lock(self, lock: bool):
-        try:
-            await self._audi_service.set_vehicle_lock(self._vehicle.vin, lock)
-        except Exception:
-            pass
-
-    async def set_pre_heater(self, activate: bool):
-        try:
-            await self._audi_service.set_pre_heater(self._vehicle.vin, activate)
-        except Exception:
-            pass
-
-    async def set_climatisation(self, start: bool):
-        try:
-            await self._audi_service.set_climatisation(self._vehicle.vin, start)
-        except Exception:
-            pass
-
-    async def set_window_heating(self, start: bool):
-        try:
-            await self._audi_service.set_window_heating(self._vehicle.vin, start)
-        except Exception:
-            pass
-
-    async def refresh_vehicle_data(self):
-        try:
-            res = await self._audi_service.request_current_vehicle_data(
-                self._vehicle.vin
-            )
-            return res.request_id
-
-        except Exception:
-            pass
-
-    async def get_status_from_update(self, request_id):
-        try:
-            res = await self._audi_service.get_request_status(
-                self._vehicle.vin, request_id
-            )
-            return res.status
-
-        except Exception:
-            pass

@@ -21,7 +21,7 @@ from homeassistant.const import (
 )
 
 from .dashboard import Dashboard
-from .audi_connect_account import AudiConnectAccount
+from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
 from .audi_models import VehicleData
 
 from .const import (
@@ -51,7 +51,7 @@ SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
 _LOGGER = logging.getLogger(__name__)
 
 
-class AudiAccount:
+class AudiAccount(AudiConnectObserver):
     def __init__(self, hass, config_entry, unit_system: str):
         """Initialize the component state."""
         self.hass = hass
@@ -83,6 +83,8 @@ class AudiAccount:
             self.execute_vehicle_action,
             schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
         )
+
+        self.connection.add_observer(self)
 
     def is_enabled(self, attr):
         return True
@@ -186,6 +188,10 @@ class AudiAccount:
                 await self.connection.set_vehicle_climatisation(vin, True)
             if action == "stop_climatisation":
                 await self.connection.set_vehicle_climatisation(vin, False)
+            if action == "start_charger":
+                await self.connection.set_battery_charger(vin, True)
+            if action == "stop_charger":
+                await self.connection.set_battery_charger(vin, False)
             if action == "start_preheater":
                 await self.connection.set_vehicle_pre_heater(vin, True)
             if action == "stop_preheater":
@@ -195,18 +201,16 @@ class AudiAccount:
             if action == "stop_window_heating":
                 await self.connection.set_vehicle_window_heating(vin, False)
 
-            # we wait 10 seconds, then we trigger an update...
-            await asyncio.sleep(10)
-            await self._refresh_vehicle_data(vin)
-
         except Exception:
             _LOGGER.exception(
                 "Error executing vehicle action %s for vehicle %s", action, vin
             )
             pass
 
+    async def handle_notification(self, vin: str, action: str) -> None:
+        await self._refresh_vehicle_data(vin)
+
     async def refresh_vehicle_data(self, service):
-        """Start thread to trigger update from car."""
         vin = service.data.get(CONF_VIN).lower()
         await self._refresh_vehicle_data(vin)
 
@@ -214,7 +218,7 @@ class AudiAccount:
         try:
             result = await self.connection.refresh_vehicle_data(vin)
 
-            if result:
+            if result == True:
                 await self.update(utcnow())
 
                 self.hass.bus.fire(

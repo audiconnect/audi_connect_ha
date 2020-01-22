@@ -77,11 +77,16 @@ Executes a given action in the vehicle. The service takes a vin and an action as
 - unlock 
 - start_climatisation
 - stop_climatisation
+- start_charger
+- stop_charger
 - start_preheater
 - stop_preheater
 - start_window_heating
 - stop_window_heating 
+
 Note that certain action require the S-PIN to be defined in the configuration. 
+
+When the action was successfully performed, an update request from the vehicle is automatically triggered. 
 
 Example Lovelace Card
 ---------------------
@@ -102,10 +107,10 @@ The card uses the following code in ui-lovelace.yaml.
         image: /local/pictures/audi_sq7.jpeg
         style: | 
           ha-card {
-            border-radius: 10px
-            border: solid 1px rgba(100,100,100,0.3)
-            box-shadow: 3px 3px rgba(0,0,0,0.4)
-            overflow: hidden
+            border-radius: 10px;
+            border: solid 1px rgba(100,100,100,0.3);
+            box-shadow: 3px 3px rgba(0,0,0,0.4);
+            overflow: hidden;
           } 
         elements:
         - type: image
