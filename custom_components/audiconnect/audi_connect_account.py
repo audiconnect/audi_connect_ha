@@ -95,14 +95,7 @@ class AudiConnectAccount:
         if not self._loggedin:
             return False
 
-        """Update the state of all vehicles.
-        Notify all listeners about the update.
-        """
-        _LOGGER.debug(
-            "Updating vehicle state for account %s, notifying %d listeners",
-            self._username,
-            len(self._update_listeners),
-        )
+        """Update the state of all vehicles."""
         try:
             if len(self._audi_vehicles) > 0:
                 for vehicle in self._audi_vehicles:
@@ -155,10 +148,20 @@ class AudiConnectAccount:
     async def refresh_vehicle_data(self, vin: str):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return
+            return False
 
         try:
+            _LOGGER.debug(
+                "Sending command to refresh data to vehicle {vin}".format(vin=vin)
+            )
+
             await self._audi_service.refresh_vehicle_data(vin)
+
+            _LOGGER.debug(
+                "Successfully refreshed data of vehicle {vin}".format(vin=vin)
+            )
+
+            return True
         except Exception as exception:
             log_exception(
                 exception, "Unable to refresh vehicle data of {}".format(vin),
@@ -167,15 +170,31 @@ class AudiConnectAccount:
     async def set_vehicle_lock(self, vin: str, lock: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return
+            return False
 
         try:
+            _LOGGER.debug(
+                "Sending command to {action} to vehicle {vin}".format(
+                    action="lock" if lock else "unlock", vin=vin
+                ),
+            )
+
             await self._audi_service.set_vehicle_lock(vin, lock)
+
+            _LOGGER.debug(
+                "Successfully {action} vehicle {vin}".format(
+                    action="locked" if lock else "unlocked", vin=vin
+                ),
+            )
+
             await self.notify(vin, ACTION_LOCK)
+
+            return True
+
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to {action} data of {vin}".format(
+                "Unable to {action} {vin}".format(
                     action="lock" if lock else "unlock", vin=vin
                 ),
             )
@@ -183,15 +202,31 @@ class AudiConnectAccount:
     async def set_vehicle_climatisation(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return
+            return False
 
         try:
+            _LOGGER.debug(
+                "Sending command to {action} climatisation to vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
             await self._audi_service.set_climatisation(vin, activate)
+
+            _LOGGER.debug(
+                "Successfully {action} climatisation of vehicle {vin}".format(
+                    action="started" if activate else "stopped", vin=vin
+                ),
+            )
+
             await self.notify(vin, ACTION_CLIMATISATION)
+
+            return True
+
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to {action} climatisation of {vin}".format(
+                "Unable to {action} climatisation of vehicle {vin}".format(
                     action="start" if activate else "stop", vin=vin
                 ),
             )
@@ -199,15 +234,31 @@ class AudiConnectAccount:
     async def set_battery_charger(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return
+            return False
 
         try:
+            _LOGGER.debug(
+                "Sending command to {action} charger to vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
             await self._audi_service.set_battery_charger(vin, activate)
+
+            _LOGGER.debug(
+                "Successfully {action} charger of vehicle {vin}".format(
+                    action="started" if activate else "stopped", vin=vin
+                ),
+            )
+
             await self.notify(vin, ACTION_CHARGER)
+
+            return True
+
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to {action} charger of {vin}".format(
+                "Unable to {action} charger of vehicle {vin}".format(
                     action="start" if activate else "stop", vin=vin
                 ),
             )
@@ -215,15 +266,31 @@ class AudiConnectAccount:
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return
+            return False
 
         try:
+            _LOGGER.debug(
+                "Sending command to {action} window heating to vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
             await self._audi_service.set_window_heating(vin, activate)
+
+            _LOGGER.debug(
+                "Successfully {action} window heating of vehicle {vin}".format(
+                    action="started" if activate else "stopped", vin=vin
+                ),
+            )
+
             await self.notify(vin, ACTION_WINDOW_HEATING)
+
+            return True
+
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to {action} window heating of {vin}".format(
+                "Unable to {action} window heating of vehicle {vin}".format(
                     action="start" if activate else "stop", vin=vin
                 ),
             )
@@ -231,15 +298,31 @@ class AudiConnectAccount:
     async def set_vehicle_pre_heater(self, vin: str, activate: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:
-            return
+            return False
 
         try:
+            _LOGGER.debug(
+                "Sending command to {action} pre-heater to vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
             await self._audi_service.set_pre_heater(vin, activate)
+
+            _LOGGER.debug(
+                "Successfully {action} pre-heater of vehicle {vin}".format(
+                    action="started" if activate else "stopped", vin=vin
+                ),
+            )
+
             await self.notify(vin, ACTION_PRE_HEATER)
+
+            return True
+
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to {action} pre-heater of {vin}".format(
+                "Unable to {action} pre-heater of vehicle {vin}".format(
                     action="start" if activate else "stop", vin=vin
                 ),
             )

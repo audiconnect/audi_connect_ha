@@ -156,7 +156,6 @@ class AudiAccount(AudiConnectObserver):
         """Update status from the online service."""
         try:
             if not await self.connection.update(None):
-                _LOGGER.debug("Could not query server")
                 return False
 
             self.discover_vehicles(
@@ -179,33 +178,26 @@ class AudiAccount(AudiConnectObserver):
         vin = service.data.get(CONF_VIN).lower()
         action = service.data.get(CONF_ACTION).lower()
 
-        try:
-            if action == "lock":
-                await self.connection.set_vehicle_lock(vin, True)
-            if action == "unlock":
-                await self.connection.set_vehicle_lock(vin, False)
-            if action == "start_climatisation":
-                await self.connection.set_vehicle_climatisation(vin, True)
-            if action == "stop_climatisation":
-                await self.connection.set_vehicle_climatisation(vin, False)
-            if action == "start_charger":
-                await self.connection.set_battery_charger(vin, True)
-            if action == "stop_charger":
-                await self.connection.set_battery_charger(vin, False)
-            if action == "start_preheater":
-                await self.connection.set_vehicle_pre_heater(vin, True)
-            if action == "stop_preheater":
-                await self.connection.set_vehicle_pre_heater(vin, False)
-            if action == "start_window_heating":
-                await self.connection.set_vehicle_window_heating(vin, True)
-            if action == "stop_window_heating":
-                await self.connection.set_vehicle_window_heating(vin, False)
-
-        except Exception:
-            _LOGGER.exception(
-                "Error executing vehicle action %s for vehicle %s", action, vin
-            )
-            pass
+        if action == "lock":
+            await self.connection.set_vehicle_lock(vin, True)
+        if action == "unlock":
+            await self.connection.set_vehicle_lock(vin, False)
+        if action == "start_climatisation":
+            await self.connection.set_vehicle_climatisation(vin, True)
+        if action == "stop_climatisation":
+            await self.connection.set_vehicle_climatisation(vin, False)
+        if action == "start_charger":
+            await self.connection.set_battery_charger(vin, True)
+        if action == "stop_charger":
+            await self.connection.set_battery_charger(vin, False)
+        if action == "start_preheater":
+            await self.connection.set_vehicle_pre_heater(vin, True)
+        if action == "stop_preheater":
+            await self.connection.set_vehicle_pre_heater(vin, False)
+        if action == "start_window_heating":
+            await self.connection.set_vehicle_window_heating(vin, True)
+        if action == "stop_window_heating":
+            await self.connection.set_vehicle_window_heating(vin, False)
 
     async def handle_notification(self, vin: str, action: str) -> None:
         await self._refresh_vehicle_data(vin)
@@ -215,20 +207,18 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
-        try:
-            result = await self.connection.refresh_vehicle_data(vin)
+        res = await self.connection.refresh_vehicle_data(vin)
 
-            if result == True:
-                await self.update(utcnow())
+        if res == True:
+            await self.update(utcnow())
 
-                self.hass.bus.fire(
-                    "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
-                    {"vin": vin},
-                )
+            self.hass.bus.fire(
+                "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
+                {"vin": vin},
+            )
 
-        except Exception:
+        else:
             _LOGGER.exception("Error refreshing vehicle data %s", vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT), {"vin": vin}
             )
-

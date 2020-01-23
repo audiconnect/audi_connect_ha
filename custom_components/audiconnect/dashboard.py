@@ -41,12 +41,12 @@ class Instrument:
             return False
 
         if not self.is_supported:
-            _LOGGER.debug(
-                "%s (%s:%s) is not supported", self, type(self).__name__, self._attr,
-            )
+            # _LOGGER.debug(
+            #     "%s (%s:%s) is not supported", self, type(self).__name__, self._attr,
+            # )
             return False
 
-        _LOGGER.debug("%s is supported", self)
+        # _LOGGER.debug("%s is supported", self)
 
         self.configurate(**config)
 
@@ -432,7 +432,6 @@ def create_instruments():
 
 class Dashboard:
     def __init__(self, connection, vehicle, **config):
-        _LOGGER.debug("Setting up dashboard with config :%s", config)
         self.instruments = [
             instrument
             for instrument in create_instruments()
