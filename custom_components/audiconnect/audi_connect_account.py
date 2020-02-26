@@ -11,6 +11,9 @@ from aiohttp import ClientResponseError
 import voluptuous as vol
 from abc import ABC, abstractmethod
 
+from .skoda_api import SkodaAPI
+from .skoda_services import SkodaService
+
 _LOGGER = logging.getLogger(__name__)
 
 MAX_RESPONSE_ATTEMPTS = 10
@@ -40,8 +43,8 @@ class AudiConnectAccount:
         self, session, username: str, password: str, country: str, spin: str
     ) -> None:
 
-        self._api = AudiAPI(session)
-        self._audi_service = AudiService(self._api, country, spin)
+        self._api = SkodaAPI(session)
+        self._audi_service = SkodaService(self._api, country, spin)
 
         self._username = username
         self._password = password

@@ -1,17 +1,14 @@
-from abc import abstractmethod, ABCMeta
+import asyncio
 import json
+from hashlib import sha512
 
+from .audi_api import AudiAPI
 from .audi_models import (
     CurrentVehicleDataResponse,
     VehicleDataResponse,
     VehiclesResponse,
-    Vehicle,
 )
-from .audi_api import AudiAPI
 from .util import to_byte_array, get_attr
-
-from hashlib import sha512
-import asyncio
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
@@ -23,10 +20,16 @@ REQUEST_FAILED = "request_failed"
 
 
 class AudiService:
+    TYPE = "Audi"
+    COMMON_HEADERS = {
+        "User-Agent": "okhttp/3.7.0",
+        "X-App-Version": "3.14.0",
+        "X-App-Name": "myAudi"}
+
     def __init__(self, api: AudiAPI, country: str, spin: str):
         self._api = api
         self._country = country
-        self._type = "Audi"
+        self._type = self.TYPE
         self._spin = spin
 
         if self._country is None:
@@ -135,12 +138,11 @@ class AudiService:
     async def _get_security_token(self, vin: str, action: str):
         # Challenge
         headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "X-App-Version": "3.14.0",
-            "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
         }
+
+        headers.update(self.COMMON_HEADERS)
 
         body = await self._api.request(
             "GET",
@@ -168,13 +170,12 @@ class AudiService:
         }
 
         headers = {
-            "User-Agent": "okhttp/3.7.0",
             "Content-Type": "application/json",
-            "X-App-Version": "3.14.0",
-            "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
         }
+
+        headers.update(self.COMMON_HEADERS)
 
         body = await self._api.request(
             "POST",
@@ -186,15 +187,14 @@ class AudiService:
 
     def _get_vehicle_action_header(self, content_type: str, security_token: str):
         headers = {
-            "User-Agent": "okhttp/3.7.0",
             "Host": "msg.volkswagen.de",
-            "X-App-Version": "3.14.0",
-            "X-App-Name": "myAudi",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
             "Accept-charset": "UTF-8",
             "Content-Type": content_type,
             "Accept": "application/json, application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml,application/vnd.volkswagenag.com-error-v1+xml,application/vnd.vwg.mbb.genericError_v1_0_2+xml, application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml,application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml,*/*",
         }
+
+        headers.update(self.COMMON_HEADERS)
 
         if security_token != None:
             headers["x-mbbSecToken"] = security_token
@@ -345,7 +345,7 @@ class AudiService:
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
         )
-        await self._api.request(
+        res = await self._api.request(
             "POST",
             "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
                 type=self._type, country=self._country, vin=vin.upper()
@@ -354,8 +354,23 @@ class AudiService:
             data=data,
         )
 
+        checkUrl = "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            requestId=res["performActionResponse"]["requestId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "start preheater" if activate else "stop preheater",
+            REQUEST_SUCCESSFUL,
+            "request_fail",
+            "requestStatusResponse.status",
+        )
+
     async def check_request_succeeded(
-        self, url: str, action: str, successCode: str, failedCode: str, path: str
+            self, url: str, action: str, successCode: str, failedCode: str, path: str
     ):
 
         for _ in range(MAX_RESPONSE_ATTEMPTS):
@@ -368,8 +383,8 @@ class AudiService:
 
             if status is None or (failedCode is not None and status == failedCode):
                 raise Exception(
-                    "Cannot {action}, return code '{code}'".format(
-                        action=action, code=status
+                    "Cannot {action}, return code '{code}'. Full result: {res}".format(
+                        action=action, code=status, res=res
                     )
                 )
 
@@ -402,12 +417,11 @@ class AudiService:
         }
 
         headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "X-App-Version": "3.14.0",
-            "X-App-Name": "myAudi",
             "X-Client-Id": "77869e21-e30a-4a92-b016-48ab7d3db1d8",
             "Host": "mbboauth-1d.prd.ece.vwg-connect.com",
         }
+
+        headers.update(self.COMMON_HEADERS)
 
         self.vwToken = await self._api.request(
             "POST",
@@ -421,4 +435,3 @@ class AudiService:
         byteChallenge = to_byte_array(challenge)
         b = bytes(pin + byteChallenge)
         return sha512(b).hexdigest().upper()
-
