@@ -16,7 +16,7 @@ REQUEST_STATUS_SLEEP = 10
 SUCCEEDED = "succeeded"
 FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
-REQUEST_FAILED = "request_failed"
+REQUEST_FAILED = "request_fail"
 
 
 class AudiService:
@@ -193,13 +193,13 @@ class AudiService:
         )
         return body["securityToken"]
 
-    def _get_vehicle_action_header(self, content_type: str, security_token: str):
+    def _get_vehicle_action_header(self, content_type: str, security_token: str = None):
         headers = {
             "Host": "msg.volkswagen.de",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
-            "Accept-charset": "UTF-8",
+            "Accept-Charset": "utf-8",
             "Content-Type": content_type,
-            "Accept": "application/json, application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml,application/vnd.volkswagenag.com-error-v1+xml,application/vnd.vwg.mbb.genericError_v1_0_2+xml, application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml,application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml,*/*",
+            "Accept": "application/json,*/*",
         }
 
         headers.update(self.COMMON_HEADERS)
@@ -340,29 +340,14 @@ class AudiService:
         )
 
     async def set_pre_heater(self, vin: str, activate: bool):
-        security_token = await self._get_security_token(
-            vin, "rheating_v1/operations/P_QSACT"
-        )
+        security_token = await self._get_security_token(vin, "rheating_v1/operations/P_QSACT") if activate else None
 
-        data = {
-            "performAction": {
-                "quickstart": {
-                    "startMode": "heating",
-                    "active": True,
-                    "climatisationDuration": 30
-                }
-            }
-        } if activate else {
-            "performAction": {
-                "quickstart": {
-                    "active": False
-                }
-            }
-        }
+        data = '{"performAction":{"quickstart":{"startMode":"heating","active":true,"climatisationDuration":30}}}' \
+            if activate else '{"performAction":{"quickstop":{"active":false}}}'
 
         headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_2+json", security_token
-        )
+            "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_2+json",
+            security_token)
 
         res = await self._api.request(
             "POST",
@@ -370,7 +355,7 @@ class AudiService:
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
-            data=json.dumps(data),
+            data=data,
         )
 
         checkUrl = "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
@@ -384,7 +369,7 @@ class AudiService:
             checkUrl,
             "start preheater" if activate else "stop preheater",
             REQUEST_SUCCESSFUL,
-            "request_fail",
+            REQUEST_FAILED,
             "requestStatusResponse.status",
         )
 

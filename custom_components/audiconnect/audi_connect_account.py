@@ -1098,11 +1098,6 @@ class AudiConnectVehicle:
             return True
 
     @property
-    def preheater_state(self):
-        if self.preheater_state_supported:
-            return self._vehicle.state.get("preheaterState")
-
-    @property
     def preheater_state_supported(self):
         check = self._vehicle.state.get("preheaterState")
         if check:

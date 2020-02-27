@@ -131,10 +131,10 @@ class Sensor(Instrument):
         self._convert = False
 
     def configurate(self, unit_system=None, **config):
-        if self._unit and unit_system == "imperial" and "km" in self._unit:
+        if self._unit and unit_system == "imperial" and "km" == self._unit:
             self._unit = "mi"
             self._convert = True
-        elif self._unit and unit_system == "metric" and "mi" in self._unit:
+        elif self._unit and unit_system == "metric" and "mi" == self._unit:
             self._unit = "km"
             self._convert = True
 
@@ -414,14 +414,8 @@ def create_instruments():
             icon="mdi:air-conditioner",
             unit=None,
         ),
-        Sensor(
-            attr="preheater_state",
-            name="Preheater state",
-            icon="mdi:air-conditioner",
-            unit=None,
-        ),
-        BinarySensor(attr="preheater_active", name="Preheater active", device_class="heat"),
-        Sensor(attr="preheater_duration", name="Preheater duration", icon="mdi:clock", unit="min"),
+        BinarySensor(attr="preheater_active", name="Preheater active", device_class=None, icon="mdi:air-conditioner"),
+        Sensor(attr="preheater_duration", name="Preheater duration", icon="mdi:clock-outline", unit="min"),
         Sensor(attr="preheater_remaining", name="Preheater remaining", icon="mdi:clock", unit="min"),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(
