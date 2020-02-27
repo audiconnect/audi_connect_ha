@@ -95,6 +95,14 @@ class AudiService:
             )
         )
 
+    async def get_preheater(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get(
+            "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+                type=self._type, country=self._country, vin=vin.upper()
+            )
+        )
+
     async def get_stored_position(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
@@ -336,22 +344,33 @@ class AudiService:
             vin, "rheating_v1/operations/P_QSACT"
         )
 
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-            input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
-            if activate
-            else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
-        )
+        data = {
+            "performAction": {
+                "quickstart": {
+                    "startMode": "heating",
+                    "active": True,
+                    "climatisationDuration": 30
+                }
+            }
+        } if activate else {
+            "performAction": {
+                "quickstart": {
+                    "active": False
+                }
+            }
+        }
 
         headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
+            "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_2+json", security_token
         )
+
         res = await self._api.request(
             "POST",
             "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
-            data=data,
+            data=json.dumps(data),
         )
 
         checkUrl = "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(

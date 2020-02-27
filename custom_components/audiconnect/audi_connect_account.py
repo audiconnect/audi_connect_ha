@@ -343,6 +343,7 @@ class AudiConnectVehicle:
         self.support_status_report = True
         self.support_position = True
         self.support_climater = True
+        self.support_preheater = True
         self.support_charger = True
 
     @property
@@ -384,6 +385,7 @@ class AudiConnectVehicle:
             await self.call_update(self.update_vehicle_statusreport, 3)
             await self.call_update(self.update_vehicle_position, 3)
             await self.call_update(self.update_vehicle_climater, 3)
+            await self.call_update(self.update_vehicle_preheater, 3)
             await self.call_update(self.update_vehicle_charger, 3)
         except Exception as exception:
             log_exception(
@@ -499,6 +501,38 @@ class AudiConnectVehicle:
             self.log_exception_once(
                 exception,
                 "Unable to obtain the vehicle climatisation state for {}".format(
+                    self._vehicle.vin
+                ),
+            )
+
+    async def update_vehicle_preheater(self):
+        if not self.support_preheater:
+            return
+
+        try:
+            result = await self._audi_service.get_preheater(self._vehicle.vin)
+            if result:
+                self._vehicle.state["preheaterState"] = get_attr(
+                    result,
+                    "statusResponse",
+                )
+
+        except TimeoutError:
+            raise
+        except ClientResponseError as resp_exception:
+            if resp_exception.status == 403 or resp_exception.status == 502:
+                self.support_preheater = False
+            else:
+                self.log_exception_once(
+                    resp_exception,
+                    "Unable to obtain the vehicle preheater state for {}".format(
+                        self._vehicle.vin
+                    ),
+                )
+        except Exception as exception:
+            self.log_exception_once(
+                exception,
+                "Unable to obtain the vehicle preheater state for {}".format(
                     self._vehicle.vin
                 ),
             )
@@ -668,6 +702,36 @@ class AudiConnectVehicle:
         check = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
         if check and check != "0":
             return True
+
+    @property
+    def preheater_active(self):
+        if self.preheater_active_supported:
+            res = self._vehicle.state["preheaterState"].get('climatisationStateReport').get('climatisationState')
+            return res != "off"
+
+    @property
+    def preheater_active_supported(self):
+        return self.preheater_state_supported
+
+    @property
+    def preheater_duration(self):
+        if self.preheater_duration_supported:
+            res = self._vehicle.state["preheaterState"].get('climatisationStateReport').get('climatisationDuration')
+            return parse_int(res)
+
+    @property
+    def preheater_duration_supported(self):
+        return self.preheater_state_supported
+
+    @property
+    def preheater_remaining_supported(self):
+        return self.preheater_state_supported
+
+    @property
+    def preheater_remaining(self):
+        if self.preheater_remaining_supported:
+            res = self._vehicle.state["preheaterState"].get('climatisationStateReport').get('remainingClimateTime')
+            return parse_int(res)
 
     @property
     def parking_light(self):
@@ -1030,6 +1094,17 @@ class AudiConnectVehicle:
     @property
     def climatisation_state_supported(self):
         check = self._vehicle.state.get("climatisationState")
+        if check:
+            return True
+
+    @property
+    def preheater_state(self):
+        if self.preheater_state_supported:
+            return self._vehicle.state.get("preheaterState")
+
+    @property
+    def preheater_state_supported(self):
+        check = self._vehicle.state.get("preheaterState")
         if check:
             return True
 
