@@ -1,15 +1,12 @@
-import json
-import time
-from datetime import timedelta, datetime
-import logging
 import asyncio
+import logging
+from abc import ABC, abstractmethod
+from asyncio import TimeoutError
+from datetime import datetime
+from enum import Enum
 from typing import List
 
-from asyncio import TimeoutError
 from aiohttp import ClientResponseError
-
-import voluptuous as vol
-from abc import ABC, abstractmethod
 
 from .skoda_api import SkodaAPI
 from .skoda_services import SkodaService
@@ -20,7 +17,6 @@ MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 
 from .audi_services import AudiService
-from .audi_api import AudiAPI
 from .util import log_exception, get_attr, parse_int, parse_float
 
 ACTION_LOCK = "lock"
@@ -30,9 +26,18 @@ ACTION_WINDOW_HEATING = "window_heating"
 ACTION_PRE_HEATER = "pre_heater"
 
 
+class NotifyType(Enum):
+    NOTIFY_STARTED = "started"
+    NOTIFY_COMPLETED = "completed"
+    NOTIFY_FAILED = "failed"
+
+    def get_value(self):
+        return self.value
+
+
 class AudiConnectObserver(ABC):
     @abstractmethod
-    async def handle_notification(self, vin: str, action: str) -> None:
+    async def handle_notification(self, vin: str, action: str, notify_type: NotifyType) -> None:
         pass
 
 
@@ -40,7 +45,7 @@ class AudiConnectAccount:
     """Representation of an Audi Connect Account."""
 
     def __init__(
-        self, session, username: str, password: str, country: str, spin: str
+            self, session, username: str, password: str, country: str, spin: str
     ) -> None:
 
         self._api = SkodaAPI(session)
@@ -63,9 +68,9 @@ class AudiConnectAccount:
     def add_observer(self, observer: AudiConnectObserver) -> None:
         self._observers.append(observer)
 
-    async def notify(self, vin: str, action: str) -> None:
+    async def notify(self, vin: str, action: str, notify_type: NotifyType = NotifyType.NOTIFY_COMPLETED) -> None:
         for observer in self._observers:
-            await observer.handle_notification(vin, action)
+            await observer.handle_notification(vin, action, notify_type)
 
     async def login(self):
         for i in range(self._connect_retries):
@@ -310,15 +315,22 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self._audi_service.set_pre_heater(vin, activate)
+            await self.notify(vin, ACTION_PRE_HEATER, NotifyType.NOTIFY_STARTED)
 
-            _LOGGER.debug(
-                "Successfully {action} pre-heater of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
-            )
-
-            await self.notify(vin, ACTION_PRE_HEATER)
+            try:
+                await self._audi_service.set_pre_heater(vin, activate)
+                _LOGGER.debug(
+                    "Successfully {action} pre-heater of vehicle {vin}".format(
+                        action="started" if activate else "stopped", vin=vin
+                    ),
+                )
+                await self.notify(vin, ACTION_PRE_HEATER, NotifyType.NOTIFY_COMPLETED)
+            except Exception as exception:
+                log_exception(
+                    exception, "Unable to start preheater of {}".format(vin),
+                )
+                await self.notify(vin, ACTION_PRE_HEATER, NotifyType.NOTIFY_FAILED)
+                raise
 
             return True
 
@@ -443,14 +455,14 @@ class AudiConnectVehicle:
                 position = resp["findCarResponse"]
 
             if (
-                position.get("Position") is not None
-                and position["Position"].get("carCoordinate") is not None
+                    position.get("Position") is not None
+                    and position["Position"].get("carCoordinate") is not None
             ):
                 self._vehicle.state["position"] = {
                     "latitude": get_attr(position, "Position.carCoordinate.latitude")
-                    / 1000000,
+                                / 1000000,
                     "longitude": get_attr(position, "Position.carCoordinate.longitude")
-                    / 1000000,
+                                 / 1000000,
                     "timestamp": get_attr(position, "Position.timestampCarSentUTC"),
                     "parktime": position.get("parkingTimeUTC"),
                 }
@@ -817,10 +829,10 @@ class AudiConnectVehicle:
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
             return not (
-                checkLeftFront == "3"
-                and checkLeftRear == "3"
-                and checkRightFront == "3"
-                and checkRightRear == "3"
+                    checkLeftFront == "3"
+                    and checkLeftRear == "3"
+                    and checkRightFront == "3"
+                    and checkRightRear == "3"
             )
 
     @property
@@ -840,10 +852,10 @@ class AudiConnectVehicle:
             checkRightFront = self._vehicle.fields.get("LOCK_STATE_RIGHT_FRONT_DOOR")
             checkRightRear = self._vehicle.fields.get("LOCK_STATE_RIGHT_REAR_DOOR")
             return not (
-                checkLeftFront == "2"
-                and checkLeftRear == "2"
-                and checkRightFront == "2"
-                and checkRightRear == "2"
+                    checkLeftFront == "2"
+                    and checkLeftRear == "2"
+                    and checkRightFront == "2"
+                    and checkRightRear == "2"
             )
 
     @property
@@ -863,28 +875,28 @@ class AudiConnectVehicle:
             checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
             checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
             return not (
-                checkLeftFront == "3"
-                and checkLeftRear == "3"
-                and checkRightFront == "3"
-                and checkRightRear == "3"
+                    checkLeftFront == "3"
+                    and checkLeftRear == "3"
+                    and checkRightFront == "3"
+                    and checkRightRear == "3"
             )
 
     @property
     def doors_trunk_status_supported(self):
         return (
-            self.any_door_open_supported
-            and self.any_door_unlocked_supported
-            and self.trunk_open_supported
-            and self.trunk_unlocked_supported
+                self.any_door_open_supported
+                and self.any_door_unlocked_supported
+                and self.trunk_open_supported
+                and self.trunk_unlocked_supported
         )
 
     @property
     def doors_trunk_status(self):
         if (
-            self.any_door_open_supported
-            and self.any_door_unlocked_supported
-            and self.trunk_open_supported
-            and self.trunk_unlocked_supported
+                self.any_door_open_supported
+                and self.any_door_unlocked_supported
+                and self.trunk_open_supported
+                and self.trunk_unlocked_supported
         ):
             if self.any_door_open or self.trunk_open:
                 return "Open"
@@ -1106,5 +1118,5 @@ class AudiConnectVehicle:
     @property
     def lock_supported(self):
         return (
-            self.doors_trunk_status_supported and self._audi_service._spin is not None
+                self.doors_trunk_status_supported and self._audi_service._spin is not None
         )

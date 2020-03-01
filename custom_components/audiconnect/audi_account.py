@@ -1,47 +1,39 @@
 import logging
 from datetime import timedelta
-import threading
-import asyncio
-import voluptuous as vol
 
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.util.dt import utcnow
+import voluptuous as vol
 from homeassistant.const import (
-    CONF_NAME,
     CONF_PASSWORD,
-    CONF_RESOURCES,
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_send,
+)
+from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.util.dt import utcnow
 
-from .dashboard import Dashboard
-from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
+from .audi_connect_account import AudiConnectAccount, AudiConnectObserver, NotifyType
 from .audi_models import VehicleData
-
 from .const import (
     DOMAIN,
     CONF_VIN,
     CONF_ACTION,
     CONF_REGION,
     CONF_SPIN,
-    CONF_MUTABLE,
-    DEFAULT_UPDATE_INTERVAL,
-    MIN_UPDATE_INTERVAL,
     SIGNAL_STATE_UPDATED,
     TRACKER_UPDATE,
     COMPONENTS,
 )
+from .dashboard import Dashboard
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
+NOTIFY_EVENT = "notify"
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
-SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema({vol.Required(CONF_VIN): cv.string,})
+SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema({vol.Required(CONF_VIN): cv.string, })
 
 SERVICE_EXECUTE_VEHICLE_ACTION = "execute_vehicle_action"
 SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
@@ -68,7 +60,7 @@ class AudiAccount(AudiConnectObserver):
             username=self.config_entry.data.get(CONF_USERNAME),
             password=self.config_entry.data.get(CONF_PASSWORD),
             country=self.config_entry.data.get(CONF_REGION),
-            spin=self.config_entry.data.get(CONF_SPIN),
+            spin=self.config_entry.data.get(CONF_SPIN)
         )
 
         self.hass.services.async_register(
@@ -108,10 +100,10 @@ class AudiAccount(AudiConnectObserver):
                 )
 
                 for instrument in (
-                    instrument
-                    for instrument in dashboard.instruments
-                    if instrument._component in COMPONENTS
-                    and self.is_enabled(instrument.slug_attr)
+                        instrument
+                        for instrument in dashboard.instruments
+                        if instrument._component in COMPONENTS
+                           and self.is_enabled(instrument.slug_attr)
                 ):
 
                     if instrument._component == "sensor":
@@ -199,7 +191,11 @@ class AudiAccount(AudiConnectObserver):
         if action == "stop_window_heating":
             await self.connection.set_vehicle_window_heating(vin, False)
 
-    async def handle_notification(self, vin: str, action: str) -> None:
+    async def handle_notification(self, vin: str, action: str, notify_type: NotifyType) -> None:
+        self.hass.bus.fire(
+            "{}_{}".format(DOMAIN, NOTIFY_EVENT),
+            {"action": action, "type": notify_type.get_value(), "vin": vin},
+        )
         await self._refresh_vehicle_data(vin)
 
     async def refresh_vehicle_data(self, service):
