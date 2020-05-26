@@ -167,6 +167,8 @@ class AudiConnectAccount:
                 exception, "Unable to refresh vehicle data of {}".format(vin),
             )
 
+            return False
+
     async def set_vehicle_lock(self, vin: str, lock: bool):
         vehicle = await self.login_and_get_vehicle(vin)
         if vehicle is None:

@@ -14,10 +14,8 @@ from audiconnect.dashboard import Dashboard
 
 from aiohttp import ClientSession
 
-
 def printHelp():
     print("test.py --user <username> --password <password> --spin <spin>")
-
 
 async def main(argv):
     user = ""
