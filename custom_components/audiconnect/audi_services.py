@@ -36,27 +36,23 @@ class AudiService:
         await self.login_request(user, password)
 
     async def refresh_vehicle_data(self, vin: str):
-        try:
-            res = await self.request_current_vehicle_data(vin.upper())
-            request_id = res.request_id
+        res = await self.request_current_vehicle_data(vin.upper())
+        request_id = res.request_id
 
-            checkUrl = "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-                requestId=request_id,
-            )
+        checkUrl = "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            requestId=request_id,
+        )
 
-            await self.check_request_succeeded(
-                checkUrl,
-                "refresh vehicle data",
-                REQUEST_SUCCESSFUL,
-                REQUEST_FAILED,
-                "requestStatusResponse.status",
-            )
-
-        except Exception:
-            pass
+        await self.check_request_succeeded(
+            checkUrl,
+            "refresh vehicle data",
+            REQUEST_SUCCESSFUL,
+            REQUEST_FAILED,
+            "requestStatusResponse.status",
+        )
 
     async def request_current_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)

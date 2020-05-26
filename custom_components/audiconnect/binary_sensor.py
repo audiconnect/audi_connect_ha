@@ -1,7 +1,7 @@
 """Support for Audi Connect sensors."""
 import logging
 
-from homeassistant.components.binary_sensor import DEVICE_CLASSES, BinarySensorDevice
+from homeassistant.components.binary_sensor import DEVICE_CLASSES, BinarySensorEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
@@ -27,7 +27,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(sensors)
 
 
-class AudiSensor(AudiEntity, BinarySensorDevice):
+class AudiSensor(AudiEntity, BinarySensorEntity):
     """Representation of an Audi sensor."""
 
     @property
