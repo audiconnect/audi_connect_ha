@@ -15,6 +15,7 @@ class CurrentVehicleDataResponse:
         self.request_id = data["requestId"]
         self.vin = data["vin"]
 
+
 class VehicleDataResponse:
     def __init__(self, data):
         self.data_fields = []
