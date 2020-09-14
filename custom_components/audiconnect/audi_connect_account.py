@@ -164,7 +164,8 @@ class AudiConnectAccount:
             return True
         except Exception as exception:
             log_exception(
-                exception, "Unable to refresh vehicle data of {}".format(vin),
+                exception,
+                "Unable to refresh vehicle data of {}".format(vin),
             )
 
             return False

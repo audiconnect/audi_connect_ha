@@ -41,7 +41,11 @@ from .const import (
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_vehicle_data_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_vehicle_data_completed"
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
-SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema({vol.Required(CONF_VIN): cv.string,})
+SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VIN): cv.string,
+    }
+)
 
 SERVICE_EXECUTE_VEHICLE_ACTION = "execute_vehicle_action"
 SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(

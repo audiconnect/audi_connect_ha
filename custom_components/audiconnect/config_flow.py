@@ -96,7 +96,9 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         ] = int
 
         return self.async_show_form(
-            step_id="user", data_schema=vol.Schema(data_schema), errors=errors,
+            step_id="user",
+            data_schema=vol.Schema(data_schema),
+            errors=errors,
         )
 
     async def async_step_import(self, user_input):
