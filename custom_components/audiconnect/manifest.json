@@ -3,7 +3,7 @@
   "name": "Audi Connect",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/components/audiconnect",
-  "requirements": [],
+  "requirements": ["beautifulsoup4"],
   "dependencies": [],
   "codeowners": ["@arjenvrh"]
 }

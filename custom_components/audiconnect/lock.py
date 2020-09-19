@@ -1,7 +1,7 @@
 """Support for Audi Connect locks."""
 import logging
 
-from homeassistant.components.lock import LockDevice
+from homeassistant.components.lock import LockEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
@@ -27,7 +27,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(sensors)
 
 
-class AudiLock(AudiEntity, LockDevice):
+class AudiLock(AudiEntity, LockEntity):
     """Represents a car lock."""
 
     @property

@@ -138,4 +138,3 @@ class AudiDeviceTracker(TrackerEntity):
             csid=self._instrument.vehicle_csid,
             vin=self._instrument.vehicle_vin,
         )
-
