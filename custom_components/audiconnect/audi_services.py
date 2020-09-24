@@ -413,8 +413,52 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    # 13.09.2020 New login taken from https://github.com/davidgiga1993/AudiAPI/issues/13
     async def login_request(self, user: str, password: str):
+        if self._country.upper() == "US":
+            await self.login_request_v1(user, password)
+        else:
+            await self.login_request_v2(user, password)
+
+    async def login_request_v1(self, user: str, password: str):
+        # Get Audi Token
+        self._api.use_token(None)
+        data = {
+            "client_id": "mmiconnect_android",
+            "scope": "openid profile email mbb offline_access mbbuserid myaudi selfservice:read selfservice:write",
+            "response_type": "token id_token",
+            "grant_type": "password",
+            "username": user,
+            "password": password,
+        }
+
+        self.audiToken = await self._api.post(
+            "https://id.audi.com/v1/token", data, use_json=False
+        )
+
+        # Get VW Token
+        data = {
+            "grant_type": "id_token",
+            "token": self.audiToken.get("id_token"),
+            "scope": "sc2:fal",
+        }
+
+        headers = {
+            "User-Agent": "okhttp/3.7.0",
+            "X-App-Version": "3.14.0",
+            "X-App-Name": "myAudi",
+            "X-Client-Id": "77869e21-e30a-4a92-b016-48ab7d3db1d8",
+            "Host": "mbboauth-1d.prd.ece.vwg-connect.com",
+        }
+
+        self.vwToken = await self._api.request(
+            "POST",
+            "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth/mobile/oauth2/v1/token",
+            headers=headers,
+            data=data,
+        )
+
+    # 13.09.2020 New login taken from https://github.com/davidgiga1993/AudiAPI/issues/13
+    async def login_request_v2(self, user: str, password: str):
         self._api.use_token(None)
 
         # OpenID Configuration
