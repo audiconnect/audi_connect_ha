@@ -438,7 +438,7 @@ def create_instruments():
             icon="mdi:air-conditioner",
             unit=None,
         ),
-        Sensor(attr="preheater_duration", name="Preheater duration", icon="mdi:clock", unit="Min"),
+        Sensor(attr="preheater_duration", name="Preheater runtime", icon="mdi:clock", unit="Min"),
         Sensor(attr="preheater_remaining", name="Preheater remaining", icon="mdi:clock", unit="Min"),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(
