@@ -234,7 +234,6 @@ class Lock(Instrument):
     async def unlock(self):
         await self._connection.set_vehicle_lock(self.vehicle_vin, False)
 
-
 class Switch(Instrument):
     def __init__(self, attr, name, icon):
         super().__init__(component="switch", attr=attr, name=name, icon=icon)
@@ -255,7 +254,30 @@ class Switch(Instrument):
 
     def turn_off(self):
         pass
+		
+class Preheater(Instrument):
+    def __init__(self):
+        super().__init__(component="switch", attr="preheater_active", name="Preheater", icon="mdi:radiator")
 
+    @property
+    def is_mutable(self):
+        return True
+
+    @property
+    def str_state(self):
+        return "On" if self.state else "Off"
+
+    def is_on(self):
+        return self.state
+
+					  
+			
+
+    async def turn_on(self):
+        await self._connection.set_vehicle_pre_heater(self.vehicle_vin, True)
+
+    async def turn_off(self):
+        await self._connection.set_vehicle_pre_heater(self.vehicle_vin, False)
 
 class Position(Instrument):
     def __init__(self):
@@ -318,6 +340,7 @@ def create_instruments():
         Position(),
         LastUpdate(),
         Lock(),
+        Preheater(),
         Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
@@ -414,6 +437,10 @@ def create_instruments():
             icon="mdi:air-conditioner",
             unit=None,
         ),
+        Sensor(attr="preheater_state", name="Preheater state", icon="mdi:air-conditioner", unit=None),
+        Sensor(attr="preheater_duration", name="Preheater duration", icon="mdi:clock", unit="minutes"),
+        Sensor(attr="preheater_remaining", name="Preheater remaining", icon="mdi:clock", unit="minutes"),
+        BinarySensor(attr="preheater_active", name="Preheater active", device_class="heat"),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(
             attr="parking_light",
