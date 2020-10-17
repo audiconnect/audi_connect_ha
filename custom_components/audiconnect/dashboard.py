@@ -234,6 +234,7 @@ class Lock(Instrument):
     async def unlock(self):
         await self._connection.set_vehicle_lock(self.vehicle_vin, False)
 
+
 class Switch(Instrument):
     def __init__(self, attr, name, icon):
         super().__init__(component="switch", attr=attr, name=name, icon=icon)
