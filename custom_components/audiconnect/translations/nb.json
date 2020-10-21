@@ -1,7 +1,7 @@
 {
     "config": {
         "abort": {
-            "invalid_credentials": "Ugyldige legitimasjon",
+            "invalid_credentials": "Ugyldige innloggingsopplysninger",
             "user_already_configured": "Kontoen er allerede konfigurert"
         },
         "create_entry": {
