@@ -107,6 +107,21 @@ class AudiService:
         )
         return CurrentVehicleDataResponse(data)
 
+    async def get_preheater(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get(
+            "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+                type=self._type, country=self._country, vin=vin.upper()
+            )
+        )
+        
+    async def get_preheater(self, vin: str):
+        self._api.use_token(self.vwToken)
+        return await self._api.get(
+            "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+                type=self._type, country=self._country, vin=vin.upper()
+            )
+        )     
     async def get_stored_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.get(

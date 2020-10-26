@@ -255,7 +255,30 @@ class Switch(Instrument):
 
     def turn_off(self):
         pass
+		
+class Preheater(Instrument):
+    def __init__(self):
+        super().__init__(component="switch", attr="preheater_active", name="Preheater", icon="mdi:radiator")
 
+    @property
+    def is_mutable(self):
+        return True
+
+    @property
+    def str_state(self):
+        return "On" if self.state else "Off"
+
+    def is_on(self):
+        return self.state
+
+					  
+			
+
+    async def turn_on(self):
+        await self._connection.set_vehicle_pre_heater(self.vehicle_vin, True)
+
+    async def turn_off(self):
+        await self._connection.set_vehicle_pre_heater(self.vehicle_vin, False)
 
 class Position(Instrument):
     def __init__(self):
@@ -318,6 +341,7 @@ def create_instruments():
         Position(),
         LastUpdate(),
         Lock(),
+        Preheater(),
         Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
@@ -414,6 +438,8 @@ def create_instruments():
             icon="mdi:air-conditioner",
             unit=None,
         ),
+        Sensor(attr="preheater_duration", name="Preheater runtime", icon="mdi:clock", unit="Min"),
+        Sensor(attr="preheater_remaining", name="Preheater remaining", icon="mdi:clock", unit="Min"),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(
             attr="parking_light",
