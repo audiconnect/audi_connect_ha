@@ -1,5 +1,10 @@
 from abc import abstractmethod, ABCMeta
 import json
+import uuid
+import base64
+import os
+import math
+from time import strftime, gmtime
 
 from .audi_models import (
     CurrentVehicleDataResponse,
@@ -10,7 +15,7 @@ from .audi_models import (
 from .audi_api import AudiAPI
 from .util import to_byte_array, get_attr
 
-from hashlib import sha512
+from hashlib import sha256, sha512
 import asyncio
 
 from urllib.parse import urlparse, parse_qs
@@ -467,15 +472,18 @@ class AudiService:
         )
         authorization_endpoint = openIdConfig.get("authorization_endpoint")
 
+        state = str(uuid.uuid4())
+        nonce = str(uuid.uuid4())
+
         # Authorization code
         query_params = {
-            "response_type": "code",
+            "response_type": "token id_token",
             "client_id": CLIENT_ID,
             "redirect_uri": "myaudi:///",
             "scope": "address profile badge birthdate birthplace nationalIdentifier nationality profession email "
             "vin phone nickname name picture mbb gallery openid",
-            "state": "7f8260b5-682f-4db8-b171-50a5189a1c08",
-            "nonce": "583b9af2-7799-4c72-9cb0-e6c0f42b87b3",
+            "state": state,
+            "nonce": nonce,
             "prompt": "login",
             "ui_locales": "en-US en",
         }
@@ -496,42 +504,26 @@ class AudiService:
 
         sso_url = reply.get_location()
         sso_reply = await self._api.get(sso_url, raw_reply=True, allow_redirects=False)
-
         consent_url = BrowserLoginResponse(sso_reply, sso_url).get_location()
         consent_reply = await self._api.get(
             consent_url, raw_reply=True, allow_redirects=False
         )
-
         success_url = BrowserLoginResponse(consent_reply, consent_url).get_location()
         success_reply = await self._api.get(
             success_url, raw_reply=True, allow_redirects=False
         )
-
-        my_audi_callback_url = success_reply.headers.get("location")
-        query_strings = parse_qs(urlparse(my_audi_callback_url).query)
-        login_code = query_strings["code"][0]
-
-        # Get Token
-        data = {
-            "client_id": CLIENT_ID,
-            "grant_type": "authorization_code",
-            "response_type": "token id_token",
-            "code": login_code,
-            "redirect_uri": "myaudi:///",
-        }
-        reply = await self._api.post(
-            "https://app-api.my.audi.com/myaudiappidk/v1/token",
-            data=data,
-            use_json=False,
+        query_strings = parse_qs(
+            urlparse(success_reply.headers.get("location")).fragment
         )
-        app_idk_token = reply
+        access_token = query_strings["access_token"][0]
+        id_token = query_strings["id_token"][0]
 
         # Get the Audi Token
         data = {
             "config": "myaudi",
             "grant_type": "id_token",
             "stage": "live",
-            "token": app_idk_token.get("access_token"),
+            "token": access_token,
         }
         reply = await self._api.post(
             "https://app-api.live-my.audi.com/azs/v1/token", data=data
@@ -542,7 +534,7 @@ class AudiService:
         data = {
             "grant_type": "id_token",
             "scope": "sc2:fal",
-            "token": app_idk_token.get("id_token"),
+            "token": id_token,
         }
         headers = {"X-Client-ID": XCLIENT_ID}
         reply = await self._api.post(
