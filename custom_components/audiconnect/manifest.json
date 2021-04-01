@@ -5,5 +5,6 @@
   "documentation": "https://www.home-assistant.io/components/audiconnect",
   "requirements": ["beautifulsoup4"],
   "dependencies": [],
-  "codeowners": ["@arjenvrh"]
+  "codeowners": ["@arjenvrh"],
+  "version": "2021.1.1"
 }
