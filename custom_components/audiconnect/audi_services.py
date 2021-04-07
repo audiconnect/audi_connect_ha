@@ -72,6 +72,8 @@ class AudiService:
         self._country = country
         self._type = "Audi"
         self._spin = spin
+        self._homeRegion = {}
+        self._homeRegionSetter = {}
 
         if self._country is None:
             self._country = "DE"
@@ -83,7 +85,8 @@ class AudiService:
         res = await self.request_current_vehicle_data(vin.upper())
         request_id = res.request_id
 
-        checkUrl = "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
+        checkUrl = "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
+            homeRegion=await self._get_home_region(vin.upper()),
             type=self._type,
             country=self._country,
             vin=vin.upper(),
@@ -101,7 +104,8 @@ class AudiService:
     async def request_current_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.post(
-            "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
+            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -110,7 +114,8 @@ class AudiService:
     async def get_preheater(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -118,14 +123,16 @@ class AudiService:
     async def get_preheater(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )     
     async def get_stored_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/status".format(
+            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/status".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -134,7 +141,8 @@ class AudiService:
     async def get_charger(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger".format(
+            "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -142,7 +150,8 @@ class AudiService:
     async def get_climater(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater".format(
+            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -150,7 +159,8 @@ class AudiService:
     async def get_stored_position(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/cf/v1/{type}/{country}/vehicles/{vin}/position".format(
+            "{homeRegion}/fs-car/bs/cf/v1/{type}/{country}/vehicles/{vin}/position".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -165,7 +175,8 @@ class AudiService:
     async def get_timer(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/bs/departuretimer/v1/{type}/{country}/vehicles/{vin}/timer".format(
+            "{homeRegion}/fs-car/bs/departuretimer/v1/{type}/{country}/vehicles/{vin}/timer".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
@@ -187,6 +198,46 @@ class AudiService:
         response.parse(data)
         return response
 
+    async def get_vehicle_data(self, vin: str):
+        self._api.use_token(self.vwToken)
+        data = await self._api.get(
+            "{homeRegion}/fs-car/vehicleMgmt/vehicledata/v2/{type}/{country}/vehicles/{vin}/".format(
+                homeRegion=await self._get_home_region(vin.upper()),
+                type=self._type, country=self._country, vin=vin.upper()
+            )
+        )
+
+    async def _fill_home_region(self, vin: str):         
+        self._homeRegion[vin] = "https://msg.volkswagen.de"
+        self._homeRegionSetter[vin] = "https://mal-1a.prd.ece.vwg-connect.com"
+
+        try:
+            self._api.use_token(self.vwToken)
+            res = await self._api.get("https://mal-1a.prd.ece.vwg-connect.com/api/cs/vds/v1/vehicles/{vin}/homeRegion".format(vin=vin))
+            if res != None and res.get("homeRegion") != None and res["homeRegion"].get("baseUri") != None and res["homeRegion"]["baseUri"].get("content") != None:
+                uri = res["homeRegion"]["baseUri"]["content"]
+                if uri != "https://mal-1a.prd.ece.vwg-connect.com/api":
+                    self._homeRegionSetter[vin] = uri.split("/api")[0]
+                    self._homeRegion[vin] = self._homeRegionSetter[vin].replace("mal-", "fal-")
+        except Exception:
+            pass
+
+    async def _get_home_region(self, vin: str):
+        if self._homeRegion.get(vin) != None:
+            return self._homeRegion[vin]
+
+        await self._fill_home_region(vin)
+            
+        return self._homeRegion[vin]
+
+    async def _get_home_region_setter(self, vin: str):
+        if self._homeRegionSetter.get(vin) != None:
+            return self._homeRegionSetter[vin]
+
+        await self._fill_home_region(vin)
+            
+        return self._homeRegionSetter[vin]
+
     async def _get_security_token(self, vin: str, action: str):
         # Challenge
         headers = {
@@ -199,7 +250,7 @@ class AudiService:
 
         body = await self._api.request(
             "GET",
-            "https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/authorization/v2/vehicles/"
+            "{homeRegionSetter}/api/rolesrights/authorization/v2/vehicles/".format(homeRegionSetter=await self._get_home_region_setter(vin.upper()))
             + vin.upper()
             + "/services/"
             + action
@@ -233,7 +284,7 @@ class AudiService:
 
         body = await self._api.request(
             "POST",
-            "https://mal-1a.prd.ece.vwg-connect.com/api/rolesrights/authorization/v2/security-pin-auth-completed",
+            "{homeRegionSetter}/api/rolesrights/authorization/v2/security-pin-auth-completed".format(homeRegionSetter=await self._get_home_region_setter(vin.upper())),
             headers=headers,
             data=json.dumps(data),
         )
@@ -268,14 +319,16 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "https://msg.volkswagen.de/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(
+            "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
             data=data,
         )
 
-        checkUrl = "https://msg.volkswagen.de/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
+        checkUrl = "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
+            homeRegion=await self._get_home_region(vin.upper()),
             type=self._type,
             country=self._country,
             vin=vin.upper(),
@@ -299,14 +352,16 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions".format(
+            "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
             data=data,
         )
 
-        checkUrl = "https://msg.volkswagen.de/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
+        checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
+            homeRegion=await self._get_home_region(vin.upper()),
             type=self._type,
             country=self._country,
             vin=vin.upper(),
@@ -332,14 +387,16 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
             data=data,
         )
 
-        checkUrl = "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+            homeRegion=await self._get_home_region(vin.upper()),
             type=self._type,
             country=self._country,
             vin=vin.upper(),
@@ -364,14 +421,16 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
             data=data,
         )
 
-        checkUrl = "https://msg.volkswagen.de/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+            homeRegion=await self._get_home_region(vin.upper()),
             type=self._type,
             country=self._country,
             vin=vin.upper(),
@@ -402,7 +461,8 @@ class AudiService:
         )
         await self._api.request(
             "POST",
-            "https://msg.volkswagen.de/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
+            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
+                homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type, country=self._country, vin=vin.upper()
             ),
             headers=headers,
