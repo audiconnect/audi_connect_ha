@@ -132,23 +132,12 @@ class AudiConnectAccount:
                 except Exception:
                     pass
 
-    async def login_and_get_vehicle(self, vin: str):
+    async def refresh_vehicle_data(self, vin: str):
         if not self._loggedin:
             await self.login()
 
         if not self._loggedin:
-            return None
-
-        vehicle = [v for v in self._vehicles if v.vin.lower() == vin.lower()]
-        if vehicle and len(vehicle) > 0:
-            return vehicle[0]
-
-        return None
-
-    async def refresh_vehicle_data(self, vin: str):
-        vehicle = await self.login_and_get_vehicle(vin)
-        if vehicle is None:
-            return False
+            return False 
 
         try:
             _LOGGER.debug(
@@ -171,9 +160,11 @@ class AudiConnectAccount:
             return False
 
     async def set_vehicle_lock(self, vin: str, lock: bool):
-        vehicle = await self.login_and_get_vehicle(vin)
-        if vehicle is None:
-            return False
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False 
 
         try:
             _LOGGER.debug(
@@ -203,9 +194,11 @@ class AudiConnectAccount:
             )
 
     async def set_vehicle_climatisation(self, vin: str, activate: bool):
-        vehicle = await self.login_and_get_vehicle(vin)
-        if vehicle is None:
-            return False
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False 
 
         try:
             _LOGGER.debug(
@@ -235,9 +228,11 @@ class AudiConnectAccount:
             )
 
     async def set_battery_charger(self, vin: str, activate: bool):
-        vehicle = await self.login_and_get_vehicle(vin)
-        if vehicle is None:
-            return False
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False 
 
         try:
             _LOGGER.debug(
@@ -267,9 +262,11 @@ class AudiConnectAccount:
             )
 
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
-        vehicle = await self.login_and_get_vehicle(vin)
-        if vehicle is None:
-            return False
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False 
 
         try:
             _LOGGER.debug(
@@ -299,9 +296,11 @@ class AudiConnectAccount:
             )
 
     async def set_vehicle_pre_heater(self, vin: str, activate: bool):
-        vehicle = await self.login_and_get_vehicle(vin)
-        if vehicle is None:
-            return False
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False 
 
         try:
             _LOGGER.debug(
