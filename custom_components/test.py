@@ -1,7 +1,6 @@
 import sys
 import asyncio
 import getopt
-import time
 
 from audiconnect.audi_connect_account import AudiConnectAccount
 from audiconnect.dashboard import Dashboard
@@ -10,15 +9,16 @@ from aiohttp import ClientSession
 
 
 def printHelp():
-    print("test.py --user <username> --password <password> --spin <spin>")
+    print("test.py --user <username> --password <password> --spin <spin> --country <region>")
 
 
 async def main(argv):
     user = ""
     password = ""
     spin = ""
+    country = ""
     try:
-        opts, _ = getopt.getopt(argv, "hu:p:s:", ["user=", "password=", "spin="])
+        opts, _ = getopt.getopt(argv, "hu:p:s:r:", ["user=", "password=", "spin=", "country="])
     except getopt.GetoptError:
         printHelp()
         sys.exit(2)
@@ -32,13 +32,15 @@ async def main(argv):
             password = arg
         elif opt in ("-s", "--spin"):
             spin = arg
+        elif opt in ("-r", "--country"):
+            country = arg
 
     if user == "" or password == "":
         printHelp()
         sys.exit()
 
     async with ClientSession() as session:
-        account = AudiConnectAccount(session, user, password, "DE", spin)
+        account = AudiConnectAccount(session, user, password, country, spin)
 
         await account.update(None)
 
@@ -49,5 +51,5 @@ async def main(argv):
 
 
 if __name__ == "__main__":
-    task = main(sys.argv[1:])
+    task = main(main(sys.argv[1:]))
     res = asyncio.get_event_loop().run_until_complete(task)
