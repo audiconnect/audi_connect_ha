@@ -120,17 +120,18 @@ class AudiConnectAccount:
             return False
 
     async def add_or_update_vehicle(self, vehicle, vinlist):
-        if vinlist is None or vehicle.vin.lower() in vinlist:
-            vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
-            if len(vupd) > 0:
-                await vupd[0].update()
-            else:
-                try:
-                    audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
-                    await audiVehicle.update()
-                    self._vehicles.append(audiVehicle)
-                except Exception:
-                    pass
+        if vehicle.vin is not None:
+            if vinlist is None or vehicle.vin.lower() in vinlist:
+                vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
+                if len(vupd) > 0:
+                    await vupd[0].update()
+                else:
+                    try:
+                        audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
+                        await audiVehicle.update()
+                        self._vehicles.append(audiVehicle)
+                    except Exception:
+                        pass
 
     async def refresh_vehicle_data(self, vin: str):
         if not self._loggedin:
