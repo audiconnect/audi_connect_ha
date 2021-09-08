@@ -35,7 +35,6 @@ FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
 REQUEST_FAILED = "request_failed"
 
-CLIENT_ID = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
 XCLIENT_ID = "77869e21-e30a-4a92-b016-48ab7d3db1d8"
 
 
@@ -493,67 +492,27 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    async def login_request(self, user: str, password: str):
-        if self._country.upper() == "US":
-            await self.login_request_v1(user, password)
-        else:
-            await self.login_request_v2(user, password)
-
-    async def login_request_v1(self, user: str, password: str):
-        # Get Audi Token
-        self._api.use_token(None)
-        data = {
-            "client_id": "mmiconnect_android",
-            "scope": "openid profile email mbb offline_access mbbuserid myaudi selfservice:read selfservice:write",
-            "response_type": "token id_token",
-            "grant_type": "password",
-            "username": user,
-            "password": password,
-        }
-
-        self.audiToken = await self._api.post(
-            "https://id.audi.com/v1/token", data, use_json=False
-        )
-
-        # Get VW Token
-        data = {
-            "grant_type": "id_token",
-            "token": self.audiToken.get("id_token"),
-            "scope": "sc2:fal",
-        }
-
-        headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "X-App-Version": "3.14.0",
-            "X-App-Name": "myAudi",
-            "X-Client-Id": "77869e21-e30a-4a92-b016-48ab7d3db1d8",
-            "Host": "mbboauth-1d.prd.ece.vwg-connect.com",
-        }
-
-        self.vwToken = await self._api.request(
-            "POST",
-            "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth/mobile/oauth2/v1/token",
-            headers=headers,
-            data=data,
-        )
-
     # 13.09.2020 New login taken from https://github.com/davidgiga1993/AudiAPI/issues/13
-    async def login_request_v2(self, user: str, password: str):
+    async def login_request(self, user: str, password: str):
         self._api.use_token(None)
 
         # OpenID Configuration
-        openIdConfig = await self._api.get(
-            "https://app-api.live-my.audi.com/myaudiappidk/v1/openid-configuration"
-        )
-        authorization_endpoint = openIdConfig.get("authorization_endpoint")
+        if self._country.upper() == "US":
+            configuration_endpoint = "https://app-api.live-my.audi.com/myaudiappidk/v1/na/openid-configuration"
+            client_id = "7c6b4634-f0c5-488b-a78f-b1a65414fb90@apps_vw-dilab_com"
+        else:
+            configuration_endpoint = "https://app-api.live-my.audi.com/myaudiappidk/v1/openid-configuration"
+            client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
 
-        state = str(uuid.uuid4())
-        nonce = str(uuid.uuid4())
+        openid_configuration = await self._api.get(configuration_endpoint)
+        authorization_endpoint = openid_configuration.get("authorization_endpoint")
 
         # Authorization code
+        state = str(uuid.uuid4())
+        nonce = str(uuid.uuid4())
         query_params = {
             "response_type": "token id_token",
-            "client_id": CLIENT_ID,
+            "client_id": client_id,
             "redirect_uri": "myaudi:///",
             "scope": "address profile badge birthdate birthplace nationalIdentifier nationality profession email "
             "vin phone nickname name picture mbb gallery openid",
@@ -562,7 +521,6 @@ class AudiService:
             "prompt": "login",
             "ui_locales": "en-US en",
         }
-
         reply = await self._api.get(
             authorization_endpoint,
             raw_reply=True,
@@ -574,6 +532,7 @@ class AudiService:
         reply = await self._emulate_browser(
             BrowserLoginResponse(reply, authorization_endpoint), {"email": user}
         )
+
         # Submit the password
         reply = await self._emulate_browser(reply, {"password": password})
 
