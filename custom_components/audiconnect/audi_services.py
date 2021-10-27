@@ -498,7 +498,7 @@ class AudiService:
 
         # OpenID Configuration
         if self._country.upper() == "US":
-            configuration_endpoint = "https://app-api.live-my.audi.com/myaudiappidk/v1/na/openid-configuration"
+            configuration_endpoint = "https://idkproxy-service.apps.na.vwapps.io/v1/na/openid-configuration"
             client_id = "7c6b4634-f0c5-488b-a78f-b1a65414fb90@apps_vw-dilab_com"
         else:
             configuration_endpoint = "https://idkproxy-service.apps.emea.vwapps.io/v1/emea/openid-configuration"
