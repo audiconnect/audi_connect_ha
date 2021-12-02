@@ -140,7 +140,7 @@ class VehiclesResponse:
         self.blacklisted_vins = 0
 
     def parse(self, data):
-        for item in data.get("vehicles"):
+        for item in data.get("userVehicles"):
             vehicle = Vehicle()
             vehicle.parse(item)
             self.vehicles.append(vehicle)
