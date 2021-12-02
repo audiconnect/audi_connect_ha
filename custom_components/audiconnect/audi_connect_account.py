@@ -46,6 +46,7 @@ class AudiConnectAccount:
         self._username = username
         self._password = password
         self._loggedin = False
+        self._logintime = time.time()
 
         self._connect_retries = 3
         self._connect_delay = 10
@@ -68,6 +69,7 @@ class AudiConnectAccount:
         for i in range(self._connect_retries):
             self._loggedin = await self.try_login(i == self._connect_retries - 1)
             if self._loggedin is True:
+                self._logintime = time.time()
                 break
 
             if i < self._connect_retries - 1:
@@ -95,6 +97,12 @@ class AudiConnectAccount:
         if not self._loggedin:
             return False
 
+        #
+        elapsed_sec = time.time() - self._logintime
+        if await self._audi_service.refresh_token_if_necessary(elapsed_sec):
+            # Store current timestamp when refresh was performed and successful
+            self._logintime = time.time()
+
         """Update the state of all vehicles."""
         try:
             if len(self._audi_vehicles) > 0:
@@ -111,11 +119,14 @@ class AudiConnectAccount:
             for listener in self._update_listeners:
                 listener()
 
-            self._loggedin = False
+            # TR/2021-12-01: do not set to False as refresh_token is used
+            # self._loggedin = False
 
             return True
 
         except IOError as exception:
+            # Force a re-login in case of failure/exception
+            self._loggedin = False
             _LOGGER.exception(exception)
             return False
 
@@ -124,11 +135,13 @@ class AudiConnectAccount:
             if vinlist is None or vehicle.vin.lower() in vinlist:
                 vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
                 if len(vupd) > 0:
-                    await vupd[0].update()
+                    if await vupd[0].update() is False:
+                        self._loggedin = False
                 else:
                     try:
                         audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
-                        await audiVehicle.update()
+                        if await audiVehicle.update() is False:
+                            self._loggedin = False
                         self._vehicles.append(audiVehicle)
                     except Exception:
                         pass
@@ -138,7 +151,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self._loggedin:
-            return False 
+            return False
 
         try:
             _LOGGER.debug(
@@ -165,7 +178,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self._loggedin:
-            return False 
+            return False
 
         try:
             _LOGGER.debug(
@@ -199,7 +212,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self._loggedin:
-            return False 
+            return False
 
         try:
             _LOGGER.debug(
@@ -233,7 +246,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self._loggedin:
-            return False 
+            return False
 
         try:
             _LOGGER.debug(
@@ -267,7 +280,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self._loggedin:
-            return False 
+            return False
 
         try:
             _LOGGER.debug(
@@ -301,7 +314,7 @@ class AudiConnectAccount:
             await self.login()
 
         if not self._loggedin:
-            return False 
+            return False
 
         try:
             _LOGGER.debug(
@@ -339,6 +352,7 @@ class AudiConnectVehicle:
         self._vehicle.state = {}
         self._vehicle.fields = {}
         self._logged_errors = set()
+        self._no_error = False
 
         self.support_status_report = True
         self.support_position = True
@@ -382,11 +396,14 @@ class AudiConnectVehicle:
 
     async def update(self):
         try:
+            self._no_error = True
             await self.call_update(self.update_vehicle_statusreport, 3)
             await self.call_update(self.update_vehicle_position, 3)
             await self.call_update(self.update_vehicle_climater, 3)
             await self.call_update(self.update_vehicle_charger, 3)
             await self.call_update(self.update_vehicle_preheater, 3)
+            # Return True on success, False on error
+            return self._no_error
         except Exception as exception:
             log_exception(
                 exception,
@@ -394,6 +411,7 @@ class AudiConnectVehicle:
             )
 
     def log_exception_once(self, exception, message):
+        self._no_error = False
         err = message + ": " + str(exception).rstrip("\n")
         if not err in self._logged_errors:
             self._logged_errors.add(err)
@@ -417,6 +435,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
+                _LOGGER.error(
+                    "support_status_report set to False: {status}".format(
+                        status=resp_exception.status
+                    )
+                )
                 self.support_status_report = False
             else:
                 self.log_exception_once(
@@ -459,6 +482,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
+                _LOGGER.error(
+                    "support_position set to False: {status}".format(
+                        status=resp_exception.status
+                    )
+                )
                 self.support_position = False
             else:
                 self.log_exception_once(
@@ -489,6 +517,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
+                _LOGGER.error(
+                    "support_climater set to False: {status}".format(
+                        status=resp_exception.status
+                    )
+                )
                 self.support_climater = False
             else:
                 self.log_exception_once(
@@ -521,6 +554,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
+                _LOGGER.error(
+                    "support_preheater set to False: {status}".format(
+                        status=resp_exception.status
+                    )
+                )
                 self.support_preheater = False
             else:
                 self.log_exception_once(
@@ -596,6 +634,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
+                _LOGGER.error(
+                    "support_charger set to False: {status}".format(
+                        status=resp_exception.status
+                    )
+                )
                 self.support_charger = False
             else:
                 self.log_exception_once(
