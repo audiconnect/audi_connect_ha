@@ -51,5 +51,5 @@ async def main(argv):
 
 
 if __name__ == "__main__":
-    task = main(main(sys.argv[1:]))
+    task = main(sys.argv[1:])
     res = asyncio.get_event_loop().run_until_complete(task)
