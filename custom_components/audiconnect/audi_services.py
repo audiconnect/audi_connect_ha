@@ -242,7 +242,7 @@ class AudiService:
             "Content-Type": "application/json; charset=utf-8",
         }
         req_data = {
-            "query": "query vehicleList {\n  userVehicles {\n    vin\n    mappingVin\n    csid\n    commissionNumber\n    type\n    devicePlatform\n    mbbConnect\n    userRole {\n      role\n    }\n    vehicle {\n      classification {\n        driveTrain\n      }\n    }\n    nickname\n  }\n}"
+            "query": "query vehicleList {\n userVehicles {\n vin\n mappingVin\n vehicle { core { modelYear\n }\n media { shortName\n longName }\n }\n csid\n commissionNumber\n type\n devicePlatform\n mbbConnect\n userRole {\n role\n }\n vehicle {\n classification {\n driveTrain\n }\n }\n nickname\n }\n}"
         }
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
