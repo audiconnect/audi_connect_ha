@@ -130,7 +130,7 @@ class Vehicle:
         if data.get("vehicle") is not None and data.get("vehicle").get("core") is not None:
             self.model_year = data.get("vehicle").get("core").get("modelYear")
         if data.get("nickname") is not None and len(data.get("nickname")) > 0:
-            self.title = nickname
+            self.title = data.get("nickname")
         elif data.get("vehicle") is not None and data.get("vehicle").get("media") is not None:
             self.title = data.get("vehicle").get("media").get("shortName")
 
