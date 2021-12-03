@@ -42,6 +42,7 @@ class AudiAPI:
         headers: Dict[str, str] = None,
         raw_reply: bool = False,
         raw_contents: bool = False,
+        rsp_wtxt: bool = False,
         **kwargs
     ):
         try:
@@ -51,6 +52,9 @@ class AudiAPI:
                 ) as response:
                     if raw_reply:
                         return response
+                    if rsp_wtxt:
+                        txt = await response.text()
+                        return response, txt
                     elif raw_contents:
                         return await response.read()
                     elif response.status == 200 or response.status == 202:
@@ -70,21 +74,13 @@ class AudiAPI:
             raise
 
     async def get(
-        self,
-        url,
-        data=None,
-        raw_reply: bool = False,
-        raw_contents: bool = False,
-        headers: Dict[str, str] = None,
-        **kwargs
+        self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs
     ):
         full_headers = self.__get_headers()
-        if headers is not None:
-            full_headers.update(headers)
         r = await self.request(
             METH_GET,
             url,
-            data,
+            data=None,
             headers=full_headers,
             raw_reply=raw_reply,
             raw_contents=raw_contents,
