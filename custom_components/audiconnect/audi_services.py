@@ -21,7 +21,6 @@ from hashlib import sha256, sha512
 import hmac
 import asyncio
 
-import urllib.parse
 from urllib.parse import urlparse, parse_qs, urlencode
 
 import requests
@@ -89,7 +88,7 @@ class AudiService:
 
     def get_hidden_html_input_form_data(self, response, form_data: Dict[str, str]):
         # Now parse the html body and extract the target url, csfr token and other required parameters
-        html = BeautifulSoup(response.content, "html.parser")
+        html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
 
         form_inputs = html.find_all("input", attrs={"type": "hidden"})
@@ -101,7 +100,7 @@ class AudiService:
 
     def get_post_url(self, response, url):
         # Now parse the html body and extract the target url, csfr token and other required parameters
-        html = BeautifulSoup(response.content, "html.parser")
+        html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
 
         # Extract the target url
@@ -245,12 +244,15 @@ class AudiService:
         req_data = {
             "query": "query vehicleList {\n  userVehicles {\n    vin\n    mappingVin\n    csid\n    commissionNumber\n    type\n    devicePlatform\n    mbbConnect\n    userRole {\n      role\n    }\n    vehicle {\n      classification {\n        driveTrain\n      }\n    }\n    nickname\n  }\n}"
         }
-        req_rsp = requests.post(
+        req_rsp, rep_rsptxt = await self._api.request(
+            "POST",
             "https://app-api.live-my.audi.com/vgql/v1/graphql",
+            json.dumps(req_data),
             headers=headers,
-            data=json.dumps(req_data),
+            allow_redirects=False,
+            rsp_wtxt = True,
         )
-        vins = json.loads(req_rsp.content)
+        vins = json.loads(rep_rsptxt)
         if "data" not in vins:
             raise Exception("Invalid json in get_vehicle_information")
 
@@ -581,18 +583,17 @@ class AudiService:
                 "scope": "sc2:fal",
                 # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
             }
-            encoded_mbboauth_refresh_data = urlencode(
-                mbboauth_refresh_data, encoding="utf-8"
-            ).replace("+", "%20")
-            mbboauth_refresh_rsp = requests.post(
+            encoded_mbboauth_refresh_data = urlencode(mbboauth_refresh_data, encoding="utf-8").replace("+", "%20")
+            mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
+                "POST",
                 self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
+                encoded_mbboauth_refresh_data,
                 headers=headers,
-                data=encoded_mbboauth_refresh_data,
                 allow_redirects=False,
+                rsp_wtxt = True,
             )
-            mbboauth_refresh_json = json.loads(mbboauth_refresh_rsp.content)
-
-            self.vwToken = mbboauth_refresh_json
+            # this code is the old "vwToken"
+            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
             return True
 
         except Exception as exception:
@@ -605,14 +606,12 @@ class AudiService:
         self._api.set_xclient_id(None)
         self.xclientId = None
 
-        # Session for all requests
-        idkproxy_session = requests.Session()
-
         # get markets
-        markets_rsp = idkproxy_session.get(
-            "https://content.app.my.audi.com/service/mobileapp/configurations/markets"
+        markets_json = await self._api.request(
+            "GET",
+            "https://content.app.my.audi.com/service/mobileapp/configurations/markets",
+            None,
         )
-        markets_json = markets_rsp.json()
         if (
             self._country.upper()
             not in markets_json["countries"]["countrySpecifications"]
@@ -637,8 +636,7 @@ class AudiService:
             client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
 
         # get market config
-        marketcfg_rsp = idkproxy_session.get(marketcfg_url)
-        marketcfg_json = marketcfg_rsp.json()
+        marketcfg_json = await self._api.request("GET", marketcfg_url, None)
 
         authorizationServerBaseURLLive = "https://aazsproxy-service.apps.emea.vwapps.io"
         if "authorizationServerBaseURLLive" in marketcfg_json:
@@ -650,8 +648,7 @@ class AudiService:
             self.mbbOAuthBaseURL = marketcfg_json["mbbOAuthBaseURLLive"]
 
         # get openId config
-        openidcfg_rsp = idkproxy_session.get(openidcfg_url)
-        openidcfg_json = openidcfg_rsp.json()
+        openidcfg_json = await self._api.request("GET", openidcfg_url, None)
 
         authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
         if "authorization_endpoint" in openidcfg_json:
@@ -701,56 +698,72 @@ class AudiService:
             "code_challenge_method": code_challenge_method,
             "ui_locales": "de-de de",
         }
-        idk_rsp = idkproxy_session.get(
-            authorization_endpoint, headers=headers, params=idk_data
+        idk_rsp, idk_rsptxt = await self._api.request(
+            "GET",
+            authorization_endpoint,
+            None,
+            headers=headers,
+            params=idk_data,
+            rsp_wtxt = True,
         )
 
         # form_data with email
-        submit_data = self.get_hidden_html_input_form_data(idk_rsp, {"email": user})
-        submit_url = self.get_post_url(idk_rsp, authorization_endpoint)
+        submit_data = self.get_hidden_html_input_form_data(idk_rsptxt, {"email": user})
+        submit_url = self.get_post_url(idk_rsptxt, authorization_endpoint)
         # send email
-        email_rsp = idkproxy_session.post(
+        email_rsp, email_rsptxt = await self._api.request(
+            "POST",
             submit_url,
+            submit_data,
             headers=headers,
-            data=submit_data,
             cookies=idk_rsp.cookies,
             allow_redirects=True,
+            rsp_wtxt = True,
         )
 
         # form_data with password
-        submit_data = self.get_hidden_html_input_form_data(
-            email_rsp, {"password": password}
-        )
-        submit_url = self.get_post_url(email_rsp, submit_url)
+        submit_data = self.get_hidden_html_input_form_data(email_rsptxt, {"password": password})
+        submit_url = self.get_post_url(email_rsptxt, submit_url)
         # send password
-        pw_rsp = idkproxy_session.post(
+        pw_rsp, pw_rsptxt = await self._api.request(
+            "POST",
             submit_url,
+            submit_data,
             headers=headers,
-            data=submit_data,
             cookies=idk_rsp.cookies,
             allow_redirects=False,
+            rsp_wtxt = True,
         )
 
         # forward1 after pwd
-        fwd1_rsp = idkproxy_session.get(
+        fwd1_rsp, fwd1_rsptxt = await self._api.request(
+            "GET",
             pw_rsp.headers["Location"],
+            None,
             headers=headers,
             cookies=idk_rsp.cookies,
             allow_redirects=False,
+            rsp_wtxt = True,
         )
         # forward2 after pwd
-        fwd2_rsp = idkproxy_session.get(
+        fwd2_rsp, fwd2_rsptxt = await self._api.request(
+            "GET",
             fwd1_rsp.headers["Location"],
+            None,
             headers=headers,
             cookies=idk_rsp.cookies,
             allow_redirects=False,
+            rsp_wtxt = True,
         )
         # get tokens
-        codeauth_rsp = idkproxy_session.get(
+        codeauth_rsp, codeauth_rsptxt = await self._api.request(
+            "GET",
             fwd2_rsp.headers["Location"],
+            None,
             headers=headers,
             cookies=fwd2_rsp.cookies,
             allow_redirects=False,
+            rsp_wtxt = True,
         )
         authcode_parsed = urlparse(
             codeauth_rsp.headers["Location"][len("myaudi:///?") :]
@@ -787,13 +800,15 @@ class AudiService:
         }
         # IDK token request
         encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace("+","%20")
-        bearer_token_rsp = idkproxy_session.post(
+        bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
+            "POST",
             token_endpoint,
+            encoded_tokenreq_data,
             headers=headers,
-            data=encoded_tokenreq_data,
             allow_redirects=False,
+            rsp_wtxt = True,
         )
-        bearer_token_json = json.loads(bearer_token_rsp.content)
+        bearer_token_json = json.loads(bearer_token_rsptxt)
 
         # AZS token
         headers = {
@@ -810,13 +825,15 @@ class AudiService:
             "stage": "live",
             "config": "myaudi",
         }
-        azs_token_rsp = idkproxy_session.post(
+        azs_token_rsp, azs_token_rsptxt = await self._api.request(
+            "POST",
             authorizationServerBaseURLLive + "/token",
+            json.dumps(asz_req_data),
             headers=headers,
-            data=json.dumps(asz_req_data),
             allow_redirects=False,
+            rsp_wtxt = True,
         )
-        azs_token_json = json.loads(azs_token_rsp.content)
+        azs_token_json = json.loads(azs_token_rsptxt)
         self.audiToken = azs_token_json
 
         # mbboauth client register
@@ -834,13 +851,15 @@ class AudiService:
             "appVersion": "4.5.0",
             "appId": "de.myaudi.mobile.assistant",
         }
-        mbboauth_client_reg_rsp = idkproxy_session.post(
+        mbboauth_client_reg_rsp, mbboauth_client_reg_rsptxt = await self._api.request(
+            "POST",
             self.mbbOAuthBaseURL + "/mobile/register/v1",
+            json.dumps(mbboauth_reg_data),
             headers=headers,
-            data=json.dumps(mbboauth_reg_data),
             allow_redirects=False,
+            rsp_wtxt = True,
         )
-        mbboauth_client_reg_json = json.loads(mbboauth_client_reg_rsp.content)
+        mbboauth_client_reg_json = json.loads(mbboauth_client_reg_rsptxt)
         self.xclientId = mbboauth_client_reg_json["client_id"]
         self._api.set_xclient_id(self.xclientId)
 
@@ -858,13 +877,15 @@ class AudiService:
             "scope": "sc2:fal",
         }
         encoded_mbboauth_auth_data = urlencode(mbboauth_auth_data, encoding="utf-8").replace("+","%20")
-        mbboauth_auth_rsp = idkproxy_session.post(
+        mbboauth_auth_rsp, mbboauth_auth_rsptxt = await self._api.request(
+            "POST",
             self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
+            encoded_mbboauth_auth_data,
             headers=headers,
-            data=encoded_mbboauth_auth_data,
             allow_redirects=False,
+            rsp_wtxt = True,
         )
-        mbboauth_auth_json = json.loads(mbboauth_auth_rsp.content)
+        mbboauth_auth_json = json.loads(mbboauth_auth_rsptxt)
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
 
@@ -883,16 +904,17 @@ class AudiService:
             # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
         }
         encoded_mbboauth_refresh_data = urlencode(mbboauth_refresh_data, encoding="utf-8").replace("+","%20")
-        mbboauth_refresh_rsp = idkproxy_session.post(
+        mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
+            "POST",
             self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
+            encoded_mbboauth_refresh_data,
             headers=headers,
-            data=encoded_mbboauth_refresh_data,
             allow_redirects=False,
             cookies=mbboauth_client_reg_rsp.cookies,
+            rsp_wtxt = True,
         )
-        mbboauth_refresh_json = json.loads(mbboauth_refresh_rsp.content)
         # this code is the old "vwToken"
-        self.vwToken = mbboauth_refresh_json
+        self.vwToken = json.loads(mbboauth_refresh_rsptxt)
 
     def _generate_security_pin_hash(self, challenge):
         pin = to_byte_array(self._spin)
