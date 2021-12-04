@@ -21,6 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 class AudiAPI:
     def __init__(self, session, proxy=None):
         self.__token = None
+        self.__xclientid = None
         self._session = session
         if proxy is not None:
             self.__proxy = {"http": proxy, "https": proxy}
@@ -30,6 +31,9 @@ class AudiAPI:
     def use_token(self, token):
         self.__token = token
 
+    def set_xclient_id(self, xclientid):
+        self.__xclientid = xclientid
+
     async def request(
         self,
         method,
@@ -38,6 +42,7 @@ class AudiAPI:
         headers: Dict[str, str] = None,
         raw_reply: bool = False,
         raw_contents: bool = False,
+        rsp_wtxt: bool = False,
         **kwargs
     ):
         try:
@@ -47,6 +52,9 @@ class AudiAPI:
                 ) as response:
                     if raw_reply:
                         return response
+                    if rsp_wtxt:
+                        txt = await response.text()
+                        return response, txt
                     elif raw_contents:
                         return await response.read()
                     elif response.status == 200 or response.status == 202:
@@ -115,15 +123,16 @@ class AudiAPI:
 
     def __get_headers(self):
         data = {
-            "User-Agent": "okhttp/3.7.0",
-            "X-App-Version": "3.14.0",
+            "Accept": "application/json",
+            "Accept-Charset": "utf-8",
+            "X-App-Version": "4.5.0",
             "X-App-Name": "myAudi",
-            "X-Market": "de_DE",
-            "Accept": "application/json"
-            # "Accept": "application/json, application/vnd.vwg.mbb.vehicleDataDetail_v2_1_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml",
+            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
         }
         if self.__token != None:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")
+        if self.__xclientid != None:
+            data["X-Client-ID"] = "Bearer " + self.__xclientid
 
         return data
 
