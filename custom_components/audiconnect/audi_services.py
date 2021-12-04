@@ -621,22 +621,20 @@ class AudiService:
             self._country.upper()
         ]["defaultLanguage"]
 
-        # OpenID Configuration
-        if self._country.upper() == "US":
-            configuration_endpoint = (
-                "https://idkproxy-service.apps.na.vwapps.io/v1/na/openid-configuration"
-            )
-            client_id = "7c6b4634-f0c5-488b-a78f-b1a65414fb90@apps_vw-dilab_com"
-            raise Exception("untested")
-        else:
-            marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.5.1".format(
-                c=self._country, l=self._language
-            )
-            openidcfg_url = "https://idkproxy-service.apps.emea.vwapps.io/v1/emea/openid-configuration"
-            client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
+        # Dynamic configuration URLs
+        marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.5.1".format(
+            c=self._country, l=self._language
+        )
+        openidcfg_url = "https://idkproxy-service.apps.{0}.vwapps.io/v1/{0}/openid-configuration".format(
+           "na" if self._country.upper() == "US" else "emea")
 
         # get market config
         marketcfg_json = await self._api.request("GET", marketcfg_url, None)
+
+        # use dynamic config from marketcfg
+        client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
+        if "idkClientIDAndroidLive" in marketcfg_json:
+            client_id = marketcfg_json["idkClientIDAndroidLive"]
 
         authorizationServerBaseURLLive = "https://aazsproxy-service.apps.emea.vwapps.io"
         if "authorizationServerBaseURLLive" in marketcfg_json:
@@ -650,6 +648,7 @@ class AudiService:
         # get openId config
         openidcfg_json = await self._api.request("GET", openidcfg_url, None)
 
+        # use dynamic config from openId config
         authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
         if "authorization_endpoint" in openidcfg_json:
             authorization_endpoint = openidcfg_json["authorization_endpoint"]
