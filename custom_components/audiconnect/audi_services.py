@@ -88,7 +88,7 @@ class AudiService:
             self._country = "DE"
 
     def get_hidden_html_input_form_data(self, response, form_data: Dict[str, str]):
-        # Now parse the html body and extract the target url, csfr token and other required parameters
+        # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
 
@@ -100,7 +100,7 @@ class AudiService:
         return form_data
 
     def get_post_url(self, response, url):
-        # Now parse the html body and extract the target url, csfr token and other required parameters
+        # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
 
@@ -271,7 +271,6 @@ class AudiService:
         )
 
     async def get_tripdata(self, vin: str, kind: str):
-        _LOGGER.error("start get_tripdata")
         self._api.use_token(self.vwToken)
 
         # read tripdata
@@ -288,7 +287,7 @@ class AudiService:
             "type": "list",
             "from": "1970-01-01T00:00:00Z",
             # "from":(datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "to": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "to": (datetime.utcnow() + timedelta(minutes=90)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         data = await self._api.request(
             "GET",
@@ -979,7 +978,7 @@ class AudiService:
         login_location = reply.get_location()
         page_reply = await self._api.get(login_location, raw_contents=True)
 
-        # Now parse the html body and extract the target url, csfr token and other required parameters
+        # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(page_reply, "html.parser")
         form_tag = html.find("form")
 
