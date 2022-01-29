@@ -395,21 +395,29 @@ class AudiConnectVehicle:
                 raise
 
     async def update(self):
+        info = ""
         try:
             self._no_error = True
+            info = "statusreport"
             await self.call_update(self.update_vehicle_statusreport, 3)
+            info = "shortterm"
             await self.call_update(self.update_vehicle_shortterm, 3)
+            info = "longterm"
             await self.call_update(self.update_vehicle_longterm, 3)
+            info = "position"
             await self.call_update(self.update_vehicle_position, 3)
+            info = "climater"
             await self.call_update(self.update_vehicle_climater, 3)
+            info = "charger"
             await self.call_update(self.update_vehicle_charger, 3)
+            info = "preheater"
             await self.call_update(self.update_vehicle_preheater, 3)
             # Return True on success, False on error
             return self._no_error
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to update vehicle data of {}".format(self._vehicle.vin),
+                "Unable to update vehicle data {} of {}".format(info, self._vehicle.vin),
             )
 
     def log_exception_once(self, exception, message):
@@ -600,9 +608,11 @@ class AudiConnectVehicle:
                 self._vehicle.state["chargingState"] = get_attr(
                     result, "charger.status.chargingStatusData.chargingState.content"
                 )
-                self._vehicle.state["actualChargeRate"] = float(get_attr(
+                self._vehicle.state["actualChargeRate"] = get_attr(
                     result, "charger.status.chargingStatusData.actualChargeRate.content"
-                )) / 10
+                )
+                if self._vehicle.state["actualChargeRate"] is not None:
+                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"]) / 10
                 self._vehicle.state["actualChargeRateUnit"] = get_attr(
                     result, "charger.status.chargingStatusData.chargeRateUnit.content"
                 )
