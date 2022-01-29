@@ -4,6 +4,7 @@ import uuid
 import base64
 import os
 import math
+import re
 import logging
 from time import strftime, gmtime
 from datetime import datetime
@@ -721,8 +722,18 @@ class AudiService:
         )
 
         # form_data with password
-        submit_data = self.get_hidden_html_input_form_data(email_rsptxt, {"password": password})
-        submit_url = self.get_post_url(email_rsptxt, submit_url)
+        # 2022-01-29: new HTML response uses a js two build the html form data + button.
+        #             Therefore it's not possible to extract hmac and other form data. 
+        #             --> extract hmac from embedded js snippet.
+        regex_res = re.findall("\"hmac\"\s*:\s*\"[0-9a-fA-F]+\"", email_rsptxt)
+        if regex_res:
+           submit_url = submit_url.replace("identifier", "authenticate")
+           submit_data["hmac"] = regex_res[0].split(":")[1].strip('"')
+           submit_data["password"] = password
+        else:
+           submit_data = self.get_hidden_html_input_form_data(email_rsptxt, {"password": password})
+           submit_url = self.get_post_url(email_rsptxt, submit_url)
+
         # send password
         pw_rsp, pw_rsptxt = await self._api.request(
             "POST",
