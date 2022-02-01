@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -255,7 +256,8 @@ class Switch(Instrument):
 
     def turn_off(self):
         pass
-		
+
+
 class Preheater(Instrument):
     def __init__(self):
         super().__init__(component="switch", attr="preheater_active", name="Preheater", icon="mdi:radiator")
@@ -271,14 +273,12 @@ class Preheater(Instrument):
     def is_on(self):
         return self.state
 
-					  
-			
-
     async def turn_on(self):
         await self._connection.set_vehicle_pre_heater(self.vehicle_vin, True)
 
     async def turn_off(self):
         await self._connection.set_vehicle_pre_heater(self.vehicle_vin, False)
+
 
 class Position(Instrument):
     def __init__(self):
@@ -311,6 +311,43 @@ class Position(Instrument):
         )
 
 
+class TripData(Instrument):
+    def __init__(self, attr, name):
+        super().__init__(component="sensor", attr=attr, name=name)
+        self.unit = None
+
+    @property
+    def is_mutable(self):
+        return False
+
+    @property
+    def str_state(self):
+        val = super().state
+        txt = ""
+
+        if val["averageElectricEngineConsumption"] is not None:
+            txt = "{}{}_kWh__".format(txt, val["averageElectricEngineConsumption"])
+
+        if val["averageFuelConsumption"] is not None:
+            txt = "{}{}_ltr__".format(txt, val["averageFuelConsumption"])
+
+        return "{}{}_kmh__{}:{:02d}h_({}_m)__{}_km__{}-{}_km".format(
+            txt,
+            val["averageSpeed"],
+            int(val["traveltime"] / 60),
+            val["traveltime"] % 60,
+            val["traveltime"],
+            val["mileage"],
+            val["startMileage"],
+            val["overallMileage"],
+        )
+
+    @property
+    def state(self):
+        val = super().state
+        return val
+
+
 class LastUpdate(Instrument):
     def __init__(self):
         super().__init__(
@@ -328,7 +365,9 @@ class LastUpdate(Instrument):
     @property
     def str_state(self):
         ts = super().state
-        return str(ts.astimezone(tz=None)) if ts else None
+        if type(ts) == datetime:
+           return str(ts.astimezone(tz=None)) if ts else None
+        return ts
 
     @property
     def state(self):
@@ -340,6 +379,10 @@ def create_instruments():
     return [
         Position(),
         LastUpdate(),
+        TripData(attr="shortterm_current", name="ShortTerm Trip Data"),
+        TripData(attr="shortterm_reset", name="ShortTerm Trip User Reset"),
+        TripData(attr="longterm_current", name="LongTerm Trip Data"),
+        TripData(attr="longterm_reset", name="LongTerm Trip User Reset"),
         Lock(),
         Preheater(),
         Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
@@ -372,6 +415,12 @@ def create_instruments():
             name="Charging state",
             icon="mdi:car-battery",
             unit=None,
+        ),
+        Sensor(
+            attr="charging_mode", name="Charging mode", icon=None, unit=None
+        ),
+        Sensor(
+            attr="energy_flow", name="Energy flow", icon=None, unit=None
         ),
         Sensor(
             attr="max_charge_current",
@@ -437,6 +486,12 @@ def create_instruments():
             name="Climatisation state",
             icon="mdi:air-conditioner",
             unit=None,
+        ),
+        Sensor(
+            attr="outdoor_temperature",
+            name="Outdoor Temperature",
+            icon="mdi:mdiTemperatureCelsius",
+            unit="°C",
         ),
         Sensor(attr="preheater_duration", name="Preheater runtime", icon="mdi:clock", unit="Min"),
         Sensor(attr="preheater_remaining", name="Preheater remaining", icon="mdi:clock", unit="Min"),
