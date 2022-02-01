@@ -132,7 +132,7 @@ class AudiAPI:
         if self.__token != None:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")
         if self.__xclientid != None:
-            data["X-Client-ID"] = "Bearer " + self.__xclientid
+            data["X-Client-ID"] = self.__xclientid
 
         return data
 

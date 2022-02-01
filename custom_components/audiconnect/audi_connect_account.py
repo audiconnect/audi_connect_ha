@@ -395,19 +395,29 @@ class AudiConnectVehicle:
                 raise
 
     async def update(self):
+        info = ""
         try:
             self._no_error = True
+            info = "statusreport"
             await self.call_update(self.update_vehicle_statusreport, 3)
+            info = "shortterm"
+            await self.call_update(self.update_vehicle_shortterm, 3)
+            info = "longterm"
+            await self.call_update(self.update_vehicle_longterm, 3)
+            info = "position"
             await self.call_update(self.update_vehicle_position, 3)
+            info = "climater"
             await self.call_update(self.update_vehicle_climater, 3)
+            info = "charger"
             await self.call_update(self.update_vehicle_charger, 3)
+            info = "preheater"
             await self.call_update(self.update_vehicle_preheater, 3)
             # Return True on success, False on error
             return self._no_error
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to update vehicle data of {}".format(self._vehicle.vin),
+                "Unable to update vehicle data {} of {}".format(info, self._vehicle.vin),
             )
 
     def log_exception_once(self, exception, message):
@@ -427,9 +437,7 @@ class AudiConnectVehicle:
                 status.data_fields[i].name: status.data_fields[i].value
                 for i in range(0, len(status.data_fields))
             }
-            self._vehicle.state["last_update_time"] = datetime.strptime(
-                status.data_fields[0].send_time, "%Y-%m-%dT%H:%M:%S"
-            )
+            self._vehicle.state["last_update_time"] = status.data_fields[0].send_time
 
         except TimeoutError:
             raise
@@ -475,7 +483,9 @@ class AudiConnectVehicle:
                     "longitude": get_attr(position, "Position.carCoordinate.longitude")
                     / 1000000,
                     "timestamp": get_attr(position, "Position.timestampCarSentUTC"),
-                    "parktime": position.get("parkingTimeUTC"),
+                    "parktime": position.get("parkingTimeUTC")
+                    if position.get("parkingTimeUTC") is not None
+                    else get_attr(position, "Position.timestampCarSentUTC"),
                 }
 
         except TimeoutError:
@@ -488,7 +498,8 @@ class AudiConnectVehicle:
                     )
                 )
                 self.support_position = False
-            else:
+            # If error is 204 is returned, the position is currently not available
+            elif resp_exception.status != 204:
                 self.log_exception_once(
                     resp_exception,
                     "Unable to update the vehicle position of {}".format(
@@ -512,6 +523,14 @@ class AudiConnectVehicle:
                     result,
                     "climater.status.climatisationStatusData.climatisationState.content",
                 )
+                tmp = get_attr(
+                    result,
+                    "climater.status.temperatureStatusData.outdoorTemperature.content",
+                )
+                if tmp is not None:
+                    self._vehicle.state["outdoorTemperature"] = round(float(tmp) / 10 - 273, 1)
+                else:
+                    self._vehicle.state["outdoorTemperature"] = None
 
         except TimeoutError:
             raise
@@ -592,11 +611,20 @@ class AudiConnectVehicle:
                 self._vehicle.state["actualChargeRate"] = get_attr(
                     result, "charger.status.chargingStatusData.actualChargeRate.content"
                 )
+                if self._vehicle.state["actualChargeRate"] is not None:
+                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"]) / 10
                 self._vehicle.state["actualChargeRateUnit"] = get_attr(
                     result, "charger.status.chargingStatusData.chargeRateUnit.content"
                 )
                 self._vehicle.state["chargingPower"] = get_attr(
                     result, "charger.status.chargingStatusData.chargingPower.content"
+                )
+                self._vehicle.state["chargingMode"] = get_attr(
+                    result, "charger.status.chargingStatusData.chargingMode.content"
+                )
+
+                self._vehicle.state["energyFlow"] = get_attr(
+                    result, "charger.status.chargingStatusData.energyFlow.content"
                 )
 
                 self._vehicle.state["engineTypeFirstEngine"] = get_attr(
@@ -652,6 +680,55 @@ class AudiConnectVehicle:
                 exception,
                 "Unable to obtain the vehicle charger state for {}".format(
                     self._vehicle.vin
+                ),
+            )
+
+    async def update_vehicle_longterm(self):
+        await self.update_vehicle_tripdata("longTerm")
+
+    async def update_vehicle_shortterm(self):
+        await self.update_vehicle_tripdata("shortTerm")
+
+    async def update_vehicle_tripdata(self, kind: str):
+        try:
+            td_cur, td_rst = await self._audi_service.get_tripdata(self._vehicle.vin, kind)
+            self._vehicle.state[kind.lower() + "_current"] = {
+                "tripID": td_cur.tripID,
+                "averageElectricEngineConsumption": td_cur.averageElectricEngineConsumption,
+                "averageFuelConsumption": td_cur.averageFuelConsumption,
+                "averageSpeed": td_cur.averageSpeed,
+                "mileage": td_cur.mileage,
+                "startMileage": td_cur.startMileage,
+                "traveltime": td_cur.traveltime,
+                "timestamp": td_cur.timestamp,
+                "overallMileage": td_cur.overallMileage,
+            }
+            self._vehicle.state[kind.lower() + "_reset"] = {
+                "tripID": td_rst.tripID,
+                "averageElectricEngineConsumption": td_rst.averageElectricEngineConsumption,
+                "averageFuelConsumption": td_rst.averageFuelConsumption,
+                "averageSpeed": td_rst.averageSpeed,
+                "mileage": td_rst.mileage,
+                "startMileage": td_rst.startMileage,
+                "traveltime": td_rst.traveltime,
+                "timestamp": td_rst.timestamp,
+                "overallMileage": td_rst.overallMileage,
+            }
+
+        except TimeoutError:
+            raise
+        except ClientResponseError as resp_exception:
+            self.log_exception_once(
+                resp_exception,
+                "Unable to obtain the vehicle {kind} tripdata of {vin}".format(
+                    kind=kind, vin=self._vehicle.vin
+                ),
+            )
+        except Exception as exception:
+            self.log_exception_once(
+                exception,
+                "Unable to obtain the vehicle {kind} tripdata of {vin}".format(
+                    kind=kind, vin=self._vehicle.vin
                 ),
             )
 
@@ -985,6 +1062,30 @@ class AudiConnectVehicle:
             return True
 
     @property
+    def charging_mode(self):
+        """Return charging mode"""
+        if self.charging_mode_supported:
+            return self._vehicle.state.get("chargingMode")
+
+    @property
+    def charging_mode_supported(self):
+        check = self._vehicle.state.get("chargingMode")
+        if check is not None:
+            return True
+
+    @property
+    def energy_flow(self):
+        """Return charging mode"""
+        if self.energy_flow_supported:
+            return self._vehicle.state.get("energyFlow")
+
+    @property
+    def energy_flow_supported(self):
+        check = self._vehicle.state.get("energyFlow")
+        if check is not None:
+            return True
+
+    @property
     def max_charge_current(self):
         """Return max charge current"""
         if self.max_charge_current_supported:
@@ -1000,12 +1101,12 @@ class AudiConnectVehicle:
     def actual_charge_rate(self):
         """Return actual charge rate"""
         if self.actual_charge_rate_supported:
-            return parse_int(self._vehicle.state.get("actualChargeRate"))
+            return parse_float(self._vehicle.state.get("actualChargeRate"))
 
     @property
     def actual_charge_rate_supported(self):
         check = self._vehicle.state.get("actualChargeRate")
-        if check and parse_int(check):
+        if check and parse_float(check):
             return True
 
     @property
@@ -1141,6 +1242,17 @@ class AudiConnectVehicle:
             return True
 
     @property
+    def outdoor_temperature(self):
+        if self.outdoor_temperature_supported:
+            return self._vehicle.state.get("outdoorTemperature")
+
+    @property
+    def outdoor_temperature_supported(self):
+        check = self._vehicle.state.get("outdoorTemperature")
+        if check:
+            return True
+
+    @property
     def preheater_state(self):
         check = self._vehicle.state.get("preheaterState")
         if check:
@@ -1156,3 +1268,54 @@ class AudiConnectVehicle:
         return (
             self.doors_trunk_status_supported and self._audi_service._spin is not None
         )
+    @property
+    def shortterm_current(self):
+        """Return shortterm."""
+        if self.shortterm_current_supported:
+            return self._vehicle.state.get("shortterm_current")
+
+    @property
+    def shortterm_current_supported(self):
+        """Return true if vehicle has shortterm_current."""
+        check = self._vehicle.state.get("shortterm_current")
+        if check:
+            return True
+
+    @property
+    def shortterm_reset(self):
+        """Return shortterm."""
+        if self.shortterm_reset_supported:
+            return self._vehicle.state.get("shortterm_reset")
+
+    @property
+    def shortterm_reset_supported(self):
+        """Return true if vehicle has shortterm_reset."""
+        check = self._vehicle.state.get("shortterm_reset")
+        if check:
+            return True
+
+    @property
+    def longterm_current(self):
+        """Return longterm."""
+        if self.longterm_current_supported:
+            return self._vehicle.state.get("longterm_current")
+
+    @property
+    def longterm_current_supported(self):
+        """Return true if vehicle has longterm_current."""
+        check = self._vehicle.state.get("longterm_current")
+        if check:
+            return True
+
+    @property
+    def longterm_reset(self):
+        """Return longterm."""
+        if self.longterm_reset_supported:
+            return self._vehicle.state.get("longterm_reset")
+
+    @property
+    def longterm_reset_supported(self):
+        """Return true if vehicle has longterm_reset."""
+        check = self._vehicle.state.get("longterm_reset")
+        if check:
+            return True

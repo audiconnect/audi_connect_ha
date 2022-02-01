@@ -6,9 +6,10 @@ import os
 import math
 import logging
 from time import strftime, gmtime
-from datetime import datetime
+from datetime import timedelta, datetime
 
 from .audi_models import (
+    TripDataResponse,
     CurrentVehicleDataResponse,
     VehicleDataResponse,
     VehiclesResponse,
@@ -87,7 +88,7 @@ class AudiService:
             self._country = "DE"
 
     def get_hidden_html_input_form_data(self, response, form_data: Dict[str, str]):
-        # Now parse the html body and extract the target url, csfr token and other required parameters
+        # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
 
@@ -99,7 +100,7 @@ class AudiService:
         return form_data
 
     def get_post_url(self, response, url):
-        # Now parse the html body and extract the target url, csfr token and other required parameters
+        # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
 
@@ -250,7 +251,7 @@ class AudiService:
             json.dumps(req_data),
             headers=headers,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         vins = json.loads(rep_rsptxt)
         if "data" not in vins:
@@ -268,6 +269,55 @@ class AudiService:
                 type=self._type, country=self._country, vin=vin.upper()
             )
         )
+
+    async def get_tripdata(self, vin: str, kind: str):
+        self._api.use_token(self.vwToken)
+
+        # read tripdata
+        headers = {
+            "Accept": "application/json",
+            "Accept-Charset": "utf-8",
+            "X-App-Name": "myAudi",
+            "X-App-Version": "4.5.0",
+            "X-Client-ID": self.xclientId,
+            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "Authorization": "Bearer " + self.vwToken["access_token"],
+        }
+        td_reqdata = {
+            "type": "list",
+            "from": "1970-01-01T00:00:00Z",
+            # "from":(datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "to": (datetime.utcnow() + timedelta(minutes=90)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        data = await self._api.request(
+            "GET",
+            "{homeRegion}/api/bs/tripstatistics/v1/vehicles/{vin}/tripdata/{kind}".format(
+                homeRegion=await self._get_home_region_setter(vin.upper()),
+                vin=vin.upper(),
+                kind=kind,
+            ),
+            None,
+            params=td_reqdata,
+            headers=headers,
+        )
+        td_sorted = sorted(
+            data["tripDataList"]["tripData"],
+            key=lambda k: k["overallMileage"],
+            reverse=True,
+        )
+
+        td_current = td_sorted[0]
+        td_reset_trip = None
+
+        for trip in td_sorted:
+            if (td_current["startMileage"] - trip["startMileage"]) > 2:
+                td_reset_trip = trip
+                break
+            else:
+                td_current["tripID"] = trip["tripID"]
+                td_current["startMileage"] = trip["startMileage"]
+
+        return TripDataResponse(td_current), TripDataResponse(td_reset_trip)
 
     async def _fill_home_region(self, vin: str):
         self._homeRegion[vin] = "https://msg.volkswagen.de"
@@ -565,7 +615,7 @@ class AudiService:
         if "expires_in" not in self.mbboauthToken:
             return False
 
-        if (elapsed_sec * 2) < self.mbboauthToken["expires_in"]:
+        if (elapsed_sec + 5 * 60) < self.mbboauthToken["expires_in"]:
             # refresh not needed now
             return False
 
@@ -590,7 +640,7 @@ class AudiService:
                 encoded_mbboauth_refresh_data,
                 headers=headers,
                 allow_redirects=False,
-                rsp_wtxt = True,
+                rsp_wtxt=True,
             )
             # this code is the old "vwToken"
             self.vwToken = json.loads(mbboauth_refresh_rsptxt)
@@ -703,7 +753,7 @@ class AudiService:
             None,
             headers=headers,
             params=idk_data,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
 
         # form_data with email
@@ -717,7 +767,7 @@ class AudiService:
             headers=headers,
             cookies=idk_rsp.cookies,
             allow_redirects=True,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
 
         # form_data with password
@@ -731,7 +781,7 @@ class AudiService:
             headers=headers,
             cookies=idk_rsp.cookies,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
 
         # forward1 after pwd
@@ -742,7 +792,7 @@ class AudiService:
             headers=headers,
             cookies=idk_rsp.cookies,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         # forward2 after pwd
         fwd2_rsp, fwd2_rsptxt = await self._api.request(
@@ -752,7 +802,7 @@ class AudiService:
             headers=headers,
             cookies=idk_rsp.cookies,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         # get tokens
         codeauth_rsp, codeauth_rsptxt = await self._api.request(
@@ -762,7 +812,7 @@ class AudiService:
             headers=headers,
             cookies=fwd2_rsp.cookies,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         authcode_parsed = urlparse(
             codeauth_rsp.headers["Location"][len("myaudi:///?") :]
@@ -805,7 +855,7 @@ class AudiService:
             encoded_tokenreq_data,
             headers=headers,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         bearer_token_json = json.loads(bearer_token_rsptxt)
 
@@ -830,7 +880,7 @@ class AudiService:
             json.dumps(asz_req_data),
             headers=headers,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         azs_token_json = json.loads(azs_token_rsptxt)
         self.audiToken = azs_token_json
@@ -856,7 +906,7 @@ class AudiService:
             json.dumps(mbboauth_reg_data),
             headers=headers,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         mbboauth_client_reg_json = json.loads(mbboauth_client_reg_rsptxt)
         self.xclientId = mbboauth_client_reg_json["client_id"]
@@ -882,7 +932,7 @@ class AudiService:
             encoded_mbboauth_auth_data,
             headers=headers,
             allow_redirects=False,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         mbboauth_auth_json = json.loads(mbboauth_auth_rsptxt)
         # store token and expiration time
@@ -910,7 +960,7 @@ class AudiService:
             headers=headers,
             allow_redirects=False,
             cookies=mbboauth_client_reg_rsp.cookies,
-            rsp_wtxt = True,
+            rsp_wtxt=True,
         )
         # this code is the old "vwToken"
         self.vwToken = json.loads(mbboauth_refresh_rsptxt)
@@ -928,7 +978,7 @@ class AudiService:
         login_location = reply.get_location()
         page_reply = await self._api.get(login_location, raw_contents=True)
 
-        # Now parse the html body and extract the target url, csfr token and other required parameters
+        # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(page_reply, "html.parser")
         form_tag = html.find("form")
 
