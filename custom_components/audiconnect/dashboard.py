@@ -490,7 +490,7 @@ def create_instruments():
         Sensor(
             attr="outdoor_temperature",
             name="Outdoor Temperature",
-            icon="mdi:mdiTemperatureCelsius",
+            icon="mdi:temperature-celsius",
             unit="°C",
         ),
         Sensor(attr="preheater_duration", name="Preheater runtime", icon="mdi:clock", unit="Min"),
