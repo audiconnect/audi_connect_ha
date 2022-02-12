@@ -491,12 +491,12 @@ class AudiService:
 
     async def set_climatisation(self, vin: str, start: bool):
         if start:
-            data = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><action><type>startClimatisation</type><settings><heaterSource>electric</heaterSource></settings></action>'
+            data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
         else:
-            data = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><action><type>stopClimatisation</type></action>'
+            data = '{"action":{"type": "stopClimatisation"}}'
 
         headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.ClimaterAction_v1_0_0+xml;charset=utf-8", None
+            'application/json', None
         )
         res = await self._api.request(
             "POST",
