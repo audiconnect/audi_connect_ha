@@ -241,7 +241,7 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_battery_charger(self, vin: str, activate: bool):
+    async def set_battery_charger(self, vin: str, activate: bool, timer: bool):
         if not self._loggedin:
             await self.login()
 
@@ -250,16 +250,18 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} charger to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
+                "Sending command to {action}{timer} charger to vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin,
+                    timer=" timed" if timer else ""
                 ),
             )
 
-            await self._audi_service.set_battery_charger(vin, activate)
+            await self._audi_service.set_battery_charger(vin, activate, timer)
 
             _LOGGER.debug(
-                "Successfully {action} charger of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
+                "Successfully {action}{timer} charger of vehicle {vin}".format(
+                    action="started" if activate else "stopped", vin=vin,
+                    timer=" timed" if timer else ""
                 ),
             )
 

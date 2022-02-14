@@ -456,12 +456,16 @@ class AudiService:
             "requestStatusResponse.status",
         )
 
-    async def set_battery_charger(self, vin: str, start: bool):
-        data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
-            action="start" if start else "stop"
-        )
+    async def set_battery_charger(self, vin: str, start: bool, timer: bool):
+        if start and timer:
+            data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
+        elif start:
+            data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "immediateCharging" } } }}'
+        else:
+            data = '{ "action": { "type": "stop" }}'
+
         headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml", None
+            "application/json", None
         )
         res = await self._api.request(
             "POST",
