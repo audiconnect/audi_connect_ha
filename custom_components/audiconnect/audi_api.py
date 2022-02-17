@@ -19,6 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
+    HDR_XAPP_VERSION = "4.6.0"
+    HDR_USER_AGENT = "myAudi-Android/4.6.0 (Build 800236847.2111261819) Android/11"
+
     def __init__(self, session, proxy=None):
         self.__token = None
         self.__xclientid = None
@@ -125,9 +128,9 @@ class AudiAPI:
         data = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-App-Version": "4.5.0",
+            "X-App-Version": self.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": self.HDR_USER_AGENT,
         }
         if self.__token != None:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")
