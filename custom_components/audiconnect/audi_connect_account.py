@@ -87,7 +87,6 @@ class AudiConnectAccount:
         except Exception as exception:
             if logError is True:
                 _LOGGER.error("Login to Audi service failed: " + str(exception))
-
             return False
 
     async def update(self, vinlist):
@@ -1270,6 +1269,7 @@ class AudiConnectVehicle:
         return (
             self.doors_trunk_status_supported and self._audi_service._spin is not None
         )
+
     @property
     def shortterm_current(self):
         """Return shortterm."""
