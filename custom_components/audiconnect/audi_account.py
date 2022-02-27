@@ -191,9 +191,11 @@ class AudiAccount(AudiConnectObserver):
         if action == "stop_climatisation":
             await self.connection.set_vehicle_climatisation(vin, False)
         if action == "start_charger":
-            await self.connection.set_battery_charger(vin, True)
+            await self.connection.set_battery_charger(vin, True, False)
+        if action == "start_timed_charger":
+            await self.connection.set_battery_charger(vin, True, True)
         if action == "stop_charger":
-            await self.connection.set_battery_charger(vin, False)
+            await self.connection.set_battery_charger(vin, False, False)
         if action == "start_preheater":
             await self.connection.set_vehicle_pre_heater(vin, True)
         if action == "stop_preheater":

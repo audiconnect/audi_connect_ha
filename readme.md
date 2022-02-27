@@ -78,6 +78,7 @@ Executes a given action in the vehicle. The service takes a vin and an action as
 - start_climatisation
 - stop_climatisation
 - start_charger
+- start_timed_charger
 - stop_charger
 - start_preheater
 - stop_preheater
