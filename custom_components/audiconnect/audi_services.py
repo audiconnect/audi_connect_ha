@@ -84,6 +84,10 @@ class AudiService:
         self.mbbOAuthBaseURL = None
         self.mbboauthToken = None
         self.xclientId = None
+        self._tokenEndpoint = ""
+        self._bearer_token_json = None
+        self._client_id = ""
+        self._authorizationServerBaseURLLive = ""
 
         if self._country is None:
             self._country = "DE"
@@ -234,12 +238,12 @@ class AudiService:
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-App-Name": "myAudi",
-            "X-App-Version": "4.5.0",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "Accept-Language": "{l}-{c}".format(
                 l=self._language, c=self._country.upper()
             ),
             "X-User-Country": self._country.upper(),
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Authorization": "Bearer " + self.audiToken["access_token"],
             "Content-Type": "application/json; charset=utf-8",
         }
@@ -279,9 +283,9 @@ class AudiService:
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-App-Name": "myAudi",
-            "X-App-Version": "4.5.0",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-Client-ID": self.xclientId,
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Authorization": "Bearer " + self.vwToken["access_token"],
         }
         td_reqdata = {
@@ -610,6 +614,21 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
+    # TR/2022-02-17: New secrect for X_QMAuth
+    def _calculate_X_QMAuth(self):
+        # Calcualte X-QMAuth value
+        gmtime_100sec = int(
+            (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() / 100
+        )
+        xqmauth_secret = bytes([55,24,256-56,256-96,256-72,256-110,57,256-87,3,256-86,256-41,256-103,33,256-30,99,103,81,125,256-39,256-39,71,18,256-107,256-112,256-120,256-12,256-104,89,103,113,256-128,256-91])
+        xqmauth_val = hmac.new(
+            xqmauth_secret,
+            str(gmtime_100sec).encode("ascii", "ignore"),
+            digestmod="sha256",
+        ).hexdigest()
+
+        return "v1:55f755b0:" + xqmauth_val
+
     # TR/2021-12-01: Refresh token before it expires
     # returns True when refresh was required and succesful, otherwise False
     async def refresh_token_if_necessary(self, elapsed_sec: int) -> bool:
@@ -628,7 +647,7 @@ class AudiService:
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
-                "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+                "User-Agent": AudiAPI.HDR_USER_AGENT,
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-Client-ID": self.xclientId,
             }
@@ -647,8 +666,67 @@ class AudiService:
                 allow_redirects=False,
                 rsp_wtxt=True,
             )
+            
             # this code is the old "vwToken"
             self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+            
+            # TR/2022-02-10: If a new refresh_token is provided, save it for further refreshes
+            if "refresh_token" in self.vwToken:
+                self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
+
+            # hdr
+            headers = {
+               "Accept": "application/json",
+               "Accept-Charset": "utf-8",
+               "X-QMAuth": self._calculate_X_QMAuth(),
+               "User-Agent": AudiAPI.HDR_USER_AGENT,
+               "Content-Type": "application/x-www-form-urlencoded",
+            }
+            # IDK token request data
+            tokenreq_data = {
+               "client_id": self._client_id,
+               "grant_type": "refresh_token",
+               "refresh_token": self._bearer_token_json.get("refresh_token"),
+               "response_type": "token id_token",
+            }
+            # IDK token request
+            encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace("+","%20")
+            bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
+               "POST",
+               self._tokenEndpoint,
+               encoded_tokenreq_data,
+               headers=headers,
+               allow_redirects=False,
+               rsp_wtxt=True,
+            )
+            self._bearer_token_json = json.loads(bearer_token_rsptxt)
+
+            # AZS token
+            headers = {
+               "Accept": "application/json",
+               "Accept-Charset": "utf-8",
+               "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+               "X-App-Name": "myAudi",
+               "User-Agent": AudiAPI.HDR_USER_AGENT,
+               "Content-Type": "application/json; charset=utf-8",
+            }
+            asz_req_data = {
+               "token": self._bearer_token_json["access_token"],
+               "grant_type": "id_token",
+               "stage": "live",
+               "config": "myaudi",
+            }
+            azs_token_rsp, azs_token_rsptxt = await self._api.request(
+               "POST",
+               self._authorizationServerBaseURLLive + "/token",
+               json.dumps(asz_req_data),
+               headers=headers,
+               allow_redirects=False,
+               rsp_wtxt=True,
+            )
+            azs_token_json = json.loads(azs_token_rsptxt)
+            self.audiToken = azs_token_json
+
             return True
 
         except Exception as exception:
@@ -677,7 +755,7 @@ class AudiService:
         ]["defaultLanguage"]
 
         # Dynamic configuration URLs
-        marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.5.1".format(
+        marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.6.0".format(
             c=self._country, l=self._language
         )
         openidcfg_url = "https://idkproxy-service.apps.{0}.vwapps.io/v1/{0}/openid-configuration".format(
@@ -687,13 +765,13 @@ class AudiService:
         marketcfg_json = await self._api.request("GET", marketcfg_url, None)
 
         # use dynamic config from marketcfg
-        client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
+        self._client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
         if "idkClientIDAndroidLive" in marketcfg_json:
-            client_id = marketcfg_json["idkClientIDAndroidLive"]
+            self._client_id = marketcfg_json["idkClientIDAndroidLive"]
 
-        authorizationServerBaseURLLive = "https://aazsproxy-service.apps.emea.vwapps.io"
+        self._authorizationServerBaseURLLive = "https://aazsproxy-service.apps.emea.vwapps.io"
         if "authorizationServerBaseURLLive" in marketcfg_json:
-            authorizationServerBaseURLLive = marketcfg_json[
+            self._authorizationServerBaseURLLive = marketcfg_json[
                 "authorizationServerBaseURLLive"
             ]
         self.mbbOAuthBaseURL = "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth"
@@ -707,9 +785,9 @@ class AudiService:
         authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
         if "authorization_endpoint" in openidcfg_json:
             authorization_endpoint = openidcfg_json["authorization_endpoint"]
-        token_endpoint = "https://idkproxy-service.apps.emea.vwapps.io/v1/emea/token"
+        self._tokenEndpoint = "https://idkproxy-service.apps.emea.vwapps.io/v1/emea/token"
         if "token_endpoint" in openidcfg_json:
-            token_endpoint = openidcfg_json["token_endpoint"]
+            self._tokenEndpoint = openidcfg_json["token_endpoint"]
         revocation_endpoint = (
             "https://idkproxy-service.apps.emea.vwapps.io/v1/emea/revoke"
         )
@@ -736,13 +814,13 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-App-Version": "4.5.0",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
         }
         idk_data = {
             "response_type": "code",
-            "client_id": client_id,
+            "client_id": self._client_id,
             "redirect_uri": "myaudi:///",
             "scope": "address profile badge birthdate birthplace nationalIdentifier nationality profession email vin phone nickname name picture mbb gallery openid",
             "state": state,
@@ -779,7 +857,7 @@ class AudiService:
         # 2022-01-29: new HTML response uses a js two build the html form data + button.
         #             Therefore it's not possible to extract hmac and other form data. 
         #             --> extract hmac from embedded js snippet.
-        regex_res = re.findall("\"hmac\"\s*:\s*\"[0-9a-fA-F]+\"", email_rsptxt)
+        regex_res = re.findall('"hmac"\s*:\s*"[0-9a-fA-F]+"', email_rsptxt)
         if regex_res:
            submit_url = submit_url.replace("identifier", "authenticate")
            submit_data["hmac"] = regex_res[0].split(":")[1].strip('"')
@@ -834,28 +912,17 @@ class AudiService:
         )
         authcode_strings = parse_qs(authcode_parsed.path)
 
-        # Calcualte X-QMAuth value
-        gmtime_100sec = int(
-            (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() / 100
-        )
-        xqmauth_secret = bytes([95,14,23,256-99,256-87,17,0,256-106,256-114,19,256-109,94,256-38,106,43,94,58,256-46,77,39,17,29,87,11,256-89,256-76,256-127,256-55,26,256-18,127,256-81])
-        xqmauth_val = hmac.new(
-            xqmauth_secret,
-            str(gmtime_100sec).encode("ascii", "ignore"),
-            digestmod="sha256",
-        ).hexdigest()
-        X_QMAuth = "v1:e94ffc03:" + xqmauth_val
         # hdr
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-QMAuth": X_QMAuth,
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "X-QMAuth": self._calculate_X_QMAuth(),
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
         }
         # IDK token request data
         tokenreq_data = {
-            "client_id": client_id,
+            "client_id": self._client_id,
             "grant_type": "authorization_code",
             "code": authcode_strings["code"][0],
             "redirect_uri": "myaudi:///",
@@ -866,32 +933,32 @@ class AudiService:
         encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace("+","%20")
         bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
             "POST",
-            token_endpoint,
+            self._tokenEndpoint,
             encoded_tokenreq_data,
             headers=headers,
             allow_redirects=False,
             rsp_wtxt=True,
         )
-        bearer_token_json = json.loads(bearer_token_rsptxt)
+        self._bearer_token_json = json.loads(bearer_token_rsptxt)
 
         # AZS token
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-App-Version": "4.5.0",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/json; charset=utf-8",
         }
         asz_req_data = {
-            "token": bearer_token_json["access_token"],
+            "token": self._bearer_token_json["access_token"],
             "grant_type": "id_token",
             "stage": "live",
             "config": "myaudi",
         }
         azs_token_rsp, azs_token_rsptxt = await self._api.request(
             "POST",
-            authorizationServerBaseURLLive + "/token",
+            self._authorizationServerBaseURLLive + "/token",
             json.dumps(asz_req_data),
             headers=headers,
             allow_redirects=False,
@@ -904,7 +971,7 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/json; charset=utf-8",
         }
         mbboauth_reg_data = {
@@ -912,7 +979,7 @@ class AudiService:
             "platform": "google",
             "client_brand": "Audi",
             "appName": "myAudi",
-            "appVersion": "4.5.0",
+            "appVersion": AudiAPI.HDR_XAPP_VERSION,
             "appId": "de.myaudi.mobile.assistant",
         }
         mbboauth_client_reg_rsp, mbboauth_client_reg_rsptxt = await self._api.request(
@@ -931,13 +998,13 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
             "X-Client-ID": self.xclientId,
         }
         mbboauth_auth_data = {
             "grant_type": "id_token",
-            "token": bearer_token_json["id_token"],
+            "token": self._bearer_token_json["id_token"],
             "scope": "sc2:fal",
         }
         encoded_mbboauth_auth_data = urlencode(mbboauth_auth_data, encoding="utf-8").replace("+","%20")
@@ -957,7 +1024,7 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "User-Agent": "myAudi-Android/4.5.0(Build800236547.2110181440)Android/11",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
             "X-Client-ID": self.xclientId,
         }
