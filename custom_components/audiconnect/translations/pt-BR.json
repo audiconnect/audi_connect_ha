@@ -1,0 +1,29 @@
+{
+    "config": {
+        "abort": {
+            "invalid_credentials": "Credenciais inválidas",
+            "user_already_configured": "A conta já foi configurada"
+        },
+        "create_entry": {
+        },
+        "error": {
+            "invalid_credentials": "Credenciais inválidas",
+            "invalid_username": "Nome de usuário inválido",
+            "unexpected": "Erro inesperado na comunicação com o servidor Audi Connect",
+            "user_already_configured": "A conta já foi configurada"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": "Senha",
+                    "username": "Nome de usuário",
+                    "spin": "S-PIN",
+                    "region": "Região",
+                    "scan_interval": "Intervalo de escaneamento"
+                },
+                "title": "Informações da conta Audi Connect "
+            }
+        },
+        "title": "Audi Connect"
+    }
+}
