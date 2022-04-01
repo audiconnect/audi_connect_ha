@@ -464,7 +464,7 @@ class AudiService:
         if start and timer:
             data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
         elif start:
-            data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "immediateCharging" } } }}'
+            data = '{ "action": { "type": "start" }}'
         else:
             data = '{ "action": { "type": "stop" }}'
 
