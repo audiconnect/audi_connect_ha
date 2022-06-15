@@ -614,20 +614,20 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    # TR/2022-02-17: New secrect for X_QMAuth
+    # TR/2022-06-15: New secrect for X_QMAuth
     def _calculate_X_QMAuth(self):
         # Calcualte X-QMAuth value
         gmtime_100sec = int(
             (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() / 100
         )
-        xqmauth_secret = bytes([55,24,256-56,256-96,256-72,256-110,57,256-87,3,256-86,256-41,256-103,33,256-30,99,103,81,125,256-39,256-39,71,18,256-107,256-112,256-120,256-12,256-104,89,103,113,256-128,256-91])
+        xqmauth_secret = bytes([256-28,120,102,55,256-114,256-16,101,256-116,256-25,93,113,0,122,256-128,256-97,52,97,107,256-106,53,256-30,256-20,34,256-126,69,120,76,31,99,256-24,256-115,6])
         xqmauth_val = hmac.new(
             xqmauth_secret,
             str(gmtime_100sec).encode("ascii", "ignore"),
             digestmod="sha256",
         ).hexdigest()
 
-        return "v1:55f755b0:" + xqmauth_val
+        return "v1:c95f4fd2:" + xqmauth_val
 
     # TR/2021-12-01: Refresh token before it expires
     # returns True when refresh was required and succesful, otherwise False
