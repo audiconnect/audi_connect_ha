@@ -57,7 +57,7 @@ Configuration Variables
 
 **region**
 
-- (string)(Optional)The region where the Audi account is registered. Set to 'DE' for Europe (or leave unset), to 'US' for North America, or to 'CN' for China.
+- (string)(Optional)The region where the Audi account is registered. Set to 'DE' for Europe (or leave unset), 'US' for United States of America, 'CA' for Canada, or 'CN' for China.
 
 **scan_interval**
 
