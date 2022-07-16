@@ -1,4 +1,4 @@
-Audiconnect integration for home assistant
+Audi Connect Integration for Home Assistant
 ============================================================
 
 [![GitHub Activity][commits-shield]][commits]
@@ -11,68 +11,72 @@ Audiconnect integration for home assistant
 
 Description
 ------------
-The `audiconnect` component offers integration with the Audi connect cloud service and offers presence detection, sensors such as range, mileage, and fuel level, and provides car actions such as locking/unlocking and setting the pre-heater.
+The `audiconnect` component provides an integration with the Audi Connect cloud service. It adds presence detection, sensors such as range, mileage, and fuel level, and provides car actions such as locking/unlocking and setting the pre-heater.
 
-Note that certain functions may require special permissions from Audi, such as the position update via GPS. 
+**Note:** Certain functions require special permissions from Audi, such as position update via GPS. 
 
-Credits go to the guys at the ioBroker VW-Connect forum, which were able to figure out how the API and the pin hashing works, and to davidgiga1993 of the original [AudiAPI](https://github.com/davidgiga1993/AudiAPI) Python package on which some of this code is loosely based.
+Credit for initial API discovery go to the guys at the ioBroker VW-Connect forum, who were able to figure out how the API and the PIN hashing works. Also some implementation credit to davidgiga1993 of the original [AudiAPI](https://github.com/davidgiga1993/AudiAPI) Python package, on which some of this code is loosely based.
 
 Installation
 ------------
 
 There are two ways this integration can be installed into [Home Assistant](https://www.home-assistant.io).
 
-The easiest way is to install the integration using [HACS](https://hacs.xyz).
+The easiest and recommended way is to install the integration using [HACS](https://hacs.xyz), which makes future updates easy to track and install.
 
-Alternatively, installation can be done manually by copying the files in this repository into the custom_components directory in the HA configuration directory:
-1. Open the configuration directory of your HA configuration.
-2. If you do not have a custom_components directory, you need to create it.
-3. In the custom_components directory create a new directory called audiconnect.
-4. Copy all the files from the custom_components/audiconnect/ directory in this repository into the audiconnect directory.
-5. Restart Home Assistant
-6. Add the integration to Home Assistant (see `Configuration`)
+Alternatively, installation can be done manually by copying the files in this repository into the `custom_components` directory in the Home Assistant configuration directory:
+1. Open the configuration directory of your Home Assistant installation.
+2. If you do not have a `custom_components` directory, create it.
+3. In the `custom_components` directory, create a new directory called `audiconnect`.
+4. Copy all files from the `custom_components/audiconnect/` directory in this repository into the `audiconnect` directory.
+5. Restart Home Assistant.
+6. Add the integration to Home Assistant (see **Configuration**).
 
 Configuration
 -------------
 
 Configuration is done through the Home Assistant UI.
 
-To add the integration, go to `Configuration->Integrations`, click `+` and search for `Audi Connect`
+To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
 ![Configuration](ha_config.png)
 
-Configuration Variables
------------------------
+### Configuration Variables
+
 **username**
 
-- (string)(Required)The username associated with your Audi Connect account.
+- (string)(Required) The username associated with your Audi Connect account.
 
 **password**
 
-- (string)(Required)The password for your given Audi Connect account.
+- (string)(Required) The password for your Audi Connect account.
 
 **S-PIN**
 
-- (string)(Optional)The S-PIN for your given Audi Connect account.
+- (string)(Optional) The S-PIN for your Audi Connect account.
 
 **region**
 
-- (string)(Optional)The region where the Audi account is registered. Set to 'DE' for Europe (or leave unset), 'US' for United States of America, 'CA' for Canada, or 'CN' for China.
+- (string)(Optional) The region where your Audi Connect account is registered. 
+   * 'DE' for Europe (or leave unset)
+   * 'US' for United States of America
+   * 'CA' for Canada
+   * 'CN' for China
 
 **scan_interval**
 
-- specify in minutes how often to fetch status data from Audi Connect (optional, default 10 min, minimum 1 min)
+- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 10 minutes, can be no more frequent than 1 min.)
 
 Services
 --------
 
 **audiconnect.refresh_vehicle_data**
 
-The normal update procedure retrieves the data from the servers and does not directly interact with the vehicle. This service triggers an update request from the vehicle. When the data is retrieved successfully, the data in Home Assistant is automatically updated. The service requires a vin as parameter. 
+Normal updates retrieve data from the Audi Connect service, and don't interact directly with the vehicle. _This_ service triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service requires a vehicle identification number (VIN) as a parameter. 
 
 **audiconnect.execute_vehicle_action**
 
-Executes a given action in the vehicle. The service takes a vin and an action as parameters. Possible action values:
+Perform an action on the vehicle. The service takes a VIN and the action to perform as parameters. Possible action values:
 - lock
 - unlock 
 - start_climatisation
@@ -85,24 +89,25 @@ Executes a given action in the vehicle. The service takes a vin and an action as
 - start_window_heating
 - stop_window_heating 
 
-Note that certain action require the S-PIN to be defined in the configuration. 
+**Note:** Certain action require the S-PIN to be set in the configuration. 
 
-When the action was successfully performed, an update request from the vehicle is automatically triggered. 
+When an action is successfully performed, an update request is automatically triggered. 
 
-Example Lovelace Card
----------------------
+Example Dashboard Card
+----------------------
 
-Below is an example Lovelace Card summarizing some of the sensors this Home Assistant addon provides. 
+Below is an example Dashboard (Lovelace) card illustrating some of the sensors this Home Assistant addon provides. 
 
-![Example Lovelace Card](card_example.png)
+![Example Dashboard Card](card_example.png)
 
-The card requires the following mods:
+The card requires the following front end mods:
 - https://github.com/thomasloven/lovelace-card-mod
 - https://github.com/custom-cards/circle-sensor-card
 
-which are obtainable via HACS.
+These mods can (like this integration) be installed using HACS.
 
-The card uses the following code in ui-lovelace.yaml.
+The card uses the following code in `ui-lovelace.yaml` (or wherever your Dashboard is configured).
+
 ```yaml
      - type: picture-elements
         image: /local/pictures/audi_sq7.jpeg
