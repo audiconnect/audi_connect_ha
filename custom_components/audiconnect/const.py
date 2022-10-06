@@ -48,6 +48,15 @@ RESOURCES = [
     "plug_state",
     "sun_roof",
     "doors_trunk_status",
+    "left_front_door_open",
+    "right_front_door_open",
+    "left_rear_door_open",
+    "right_rear_door_open",
+    "left_front_window_open",
+    "right_front_window_open",
+    "left_rear_window_open",
+    "right_rear_window_open",
+    "braking_status",
 ]
 
 COMPONENTS = {
