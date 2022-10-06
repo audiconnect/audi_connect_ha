@@ -516,6 +516,12 @@ def create_instruments():
         BinarySensor(attr="right_front_window_open", name="Right front window", device_class="window"),
         BinarySensor(attr="left_rear_window_open", name="Left rear window", device_class="window"),
         BinarySensor(attr="right_rear_window_open", name="Right rear window", device_class="window"),
+        BinarySensor(
+            attr="braking_status",
+            name="Braking status",
+            device_class="safety",
+            icon="mdi:car-brake-abs",
+        ),
     ]
 
 

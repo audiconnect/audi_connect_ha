@@ -869,6 +869,20 @@ class AudiConnectVehicle:
             return True
 
     @property
+    def braking_status(self):
+        """Return true if braking status is on"""
+        if self.braking_status_supported:
+            check = self._vehicle.fields.get("BRAKING_STATUS")
+            return check != "2"
+
+    @property
+    def braking_status_supported(self):
+        """Return true if braking status is supported"""
+        check = self._vehicle.fields.get("BRAKING_STATUS")
+        if check:
+            return True
+
+    @property
     def mileage(self):
         if self.mileage_supported:
             check = self._vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
