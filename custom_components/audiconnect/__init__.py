@@ -94,7 +94,7 @@ async def async_setup_entry(hass, config_entry):
     account = config_entry.data.get(CONF_USERNAME)
 
     unit_system = "metric"
-    if hass.config.units.name == CONF_UNIT_SYSTEM_IMPERIAL:
+    if hass.config.units is US_CUSTOMARY_SYSTEM:
         unit_system = "imperial"
 
     if account not in hass.data[DOMAIN]:
