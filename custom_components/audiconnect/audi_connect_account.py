@@ -869,6 +869,20 @@ class AudiConnectVehicle:
             return True
 
     @property
+    def braking_status(self):
+        """Return true if braking status is on"""
+        if self.braking_status_supported:
+            check = self._vehicle.fields.get("BRAKING_STATUS")
+            return check != "2"
+
+    @property
+    def braking_status_supported(self):
+        """Return true if braking status is supported"""
+        check = self._vehicle.fields.get("BRAKING_STATUS")
+        if check:
+            return True
+
+    @property
     def mileage(self):
         if self.mileage_supported:
             check = self._vehicle.fields.get("UTC_TIME_AND_KILOMETER_STATUS")
@@ -945,6 +959,41 @@ class AudiConnectVehicle:
             )
 
     @property
+    def left_front_window_open_supported(self):
+        return self._vehicle.fields.get("STATE_LEFT_FRONT_WINDOW")
+
+    @property
+    def left_front_window_open(self):
+        if self.left_front_window_open_supported:
+            return self._vehicle.fields.get("STATE_LEFT_FRONT_WINDOW") != "3"
+
+    @property
+    def right_front_window_open_supported(self):
+        return self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
+
+    @property
+    def right_front_window_open(self):
+        if self.right_front_window_open_supported:
+            return self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW") != "3"
+    @property
+    def left_rear_window_open_supported(self):
+        return self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
+
+    @property
+    def left_rear_window_open(self):
+        if self.left_rear_window_open_supported:
+            return self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW") != "3"
+
+    @property
+    def right_rear_window_open_supported(self):
+        return self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
+
+    @property
+    def right_rear_window_open(self):
+        if self.right_rear_window_open_supported:
+            return self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW") != "3"
+
+    @property
     def any_door_unlocked_supported(self):
         checkLeftFront = self._vehicle.fields.get("LOCK_STATE_LEFT_FRONT_DOOR")
         checkLeftRear = self._vehicle.fields.get("LOCK_STATE_LEFT_REAR_DOOR")
@@ -989,6 +1038,41 @@ class AudiConnectVehicle:
                 and checkRightFront == "3"
                 and checkRightRear == "3"
             )
+
+    @property
+    def left_front_door_open_supported(self):
+        return self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR")
+
+    @property
+    def left_front_door_open(self):
+        if self.left_front_door_open_supported:
+            return self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR") != "3"
+
+    @property
+    def right_front_door_open_supported(self):
+        return self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
+
+    @property
+    def right_front_door_open(self):
+        if self.right_front_door_open_supported:
+            return self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR") != "3"
+    @property
+    def left_rear_door_open_supported(self):
+        return self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
+
+    @property
+    def left_rear_door_open(self):
+        if self.left_rear_door_open_supported:
+            return self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR") != "3"
+
+    @property
+    def right_rear_door_open_supported(self):
+        return self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
+
+    @property
+    def right_rear_door_open(self):
+        if self.right_rear_door_open_supported:
+            return self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR") != "3"
 
     @property
     def doors_trunk_status_supported(self):
