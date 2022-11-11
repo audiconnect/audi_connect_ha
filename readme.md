@@ -6,8 +6,11 @@ Audi Connect Integration for Home Assistant
 [![Code Style][blackbadge]][black]
 
 [![hacs][hacsbadge]](hacs)
-![Project Maintenance][maintenance-shield]
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
+
+Maintainers Wanted
+------------
+Due to time limitations this project is not actively maintained anymore. It will continue to work as long as Audi does not change the API again. 
+However, I'm open to someone else taking the lead. If you would like to become a maintainer, please contact me.
 
 Description
 ------------
