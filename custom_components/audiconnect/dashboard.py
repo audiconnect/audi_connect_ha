@@ -508,6 +508,20 @@ def create_instruments():
         BinarySensor(attr="trunk_unlocked", name="Trunk lock", device_class="lock"),
         BinarySensor(attr="trunk_open", name="Trunk", device_class="door"),
         BinarySensor(attr="hood_open", name="Hood", device_class="door"),
+        BinarySensor(attr="left_front_door_open", name="Left front door", device_class="door"),
+        BinarySensor(attr="right_front_door_open", name="Right front door", device_class="door"),
+        BinarySensor(attr="left_rear_door_open", name="Left rear door", device_class="door"),
+        BinarySensor(attr="right_rear_door_open", name="Right rear door", device_class="door"),
+        BinarySensor(attr="left_front_window_open", name="Left front window", device_class="window"),
+        BinarySensor(attr="right_front_window_open", name="Right front window", device_class="window"),
+        BinarySensor(attr="left_rear_window_open", name="Left rear window", device_class="window"),
+        BinarySensor(attr="right_rear_window_open", name="Right rear window", device_class="window"),
+        BinarySensor(
+            attr="braking_status",
+            name="Braking status",
+            device_class="safety",
+            icon="mdi:car-brake-abs",
+        ),
     ]
 
 
