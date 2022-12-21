@@ -19,8 +19,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
-    HDR_XAPP_VERSION = "4.9.2"
-    HDR_USER_AGENT = "myAudi-Android/4.9.2 (Build 800237696.2205091738) Android/11"
+    HDR_XAPP_VERSION = "4.13.0"
+    HDR_USER_AGENT = "myAudi-Android/4.13.0 (Build 800238275.2210271555) Android/11"
 
     def __init__(self, session, proxy=None):
         self.__token = None
