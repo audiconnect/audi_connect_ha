@@ -40,8 +40,6 @@ FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
 REQUEST_FAILED = "request_failed"
 
-XCLIENT_ID = "77869e21-e30a-4a92-b016-48ab7d3db1d8"
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -614,20 +612,21 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    # TR/2022-06-15: New secrect for X_QMAuth
+    # TR/2022-12-20: New secrect for X_QMAuth
     def _calculate_X_QMAuth(self):
         # Calcualte X-QMAuth value
         gmtime_100sec = int(
             (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() / 100
         )
-        xqmauth_secret = bytes([256-28,120,102,55,256-114,256-16,101,256-116,256-25,93,113,0,122,256-128,256-97,52,97,107,256-106,53,256-30,256-20,34,256-126,69,120,76,31,99,256-24,256-115,6])
+        xqmauth_secret = bytes([26,256-74,256-103,37,256-84,23,256-102,256-86,78,256-125,256-85,256-26,113,256-87,71,109,23,100,24,256-72,91,256-41,6,256-15,67,108,256-95,91,256-26,71,256-104,256-100])
         xqmauth_val = hmac.new(
             xqmauth_secret,
             str(gmtime_100sec).encode("ascii", "ignore"),
             digestmod="sha256",
         ).hexdigest()
 
-        return "v1:c95f4fd2:" + xqmauth_val
+        #v1:01da27b0:fbdb6e4ba3109bc68040cb83f380796f4d3bb178a626c4cc7e166815b806e4b5
+        return "v1:01da27b0:" + xqmauth_val
 
     # TR/2021-12-01: Refresh token before it expires
     # returns True when refresh was required and succesful, otherwise False
@@ -755,7 +754,7 @@ class AudiService:
         ]["defaultLanguage"]
 
         # Dynamic configuration URLs
-        marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.6.0".format(
+        marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.13.0".format(
             c=self._country, l=self._language
         )
         openidcfg_url = "https://idkproxy-service.apps.{0}.vwapps.io/v1/{0}/openid-configuration".format(
