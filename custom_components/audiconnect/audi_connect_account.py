@@ -444,11 +444,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_status_report set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_status_report set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_status_report = False
             else:
                 self.log_exception_once(
@@ -493,11 +493,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_position set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_position set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_position = False
             # If error is 204 is returned, the position is currently not available
             elif resp_exception.status != 204:
@@ -537,11 +537,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_climater set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_climater set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_climater = False
             else:
                 self.log_exception_once(
@@ -574,11 +574,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_preheater set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_preheater set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_preheater = False
             else:
                 self.log_exception_once(
@@ -663,11 +663,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_charger set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_charger set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_charger = False
             else:
                 self.log_exception_once(
