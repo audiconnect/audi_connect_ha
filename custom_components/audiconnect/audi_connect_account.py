@@ -1174,24 +1174,31 @@ class AudiConnectVehicle:
     def max_charge_current(self):
         """Return max charge current"""
         if self.max_charge_current_supported:
-            return parse_float(self._vehicle.state.get("maxChargeCurrent"))
+            try:
+                return parse_float(self._vehicle.state.get("maxChargeCurrent"))
+            except ValueError:
+                return -1
 
     @property
     def max_charge_current_supported(self):
         check = self._vehicle.state.get("maxChargeCurrent")
-        if check and parse_float(check):
+        if check is not None:
             return True
 
     @property
     def actual_charge_rate(self):
         """Return actual charge rate"""
         if self.actual_charge_rate_supported:
-            return parse_float(self._vehicle.state.get("actualChargeRate"))
+            try:
+                return parse_float(self._vehicle.state.get("actualChargeRate"))
+            except ValueError:
+                return -1
+            
 
     @property
     def actual_charge_rate_supported(self):
         check = self._vehicle.state.get("actualChargeRate")
-        if check and parse_float(check):
+        if check is not None:
             return True
 
     @property
@@ -1207,12 +1214,15 @@ class AudiConnectVehicle:
     def charging_power(self):
         """Return charging power"""
         if self.charging_power_supported:
-            return parse_int(self._vehicle.state.get("chargingPower")) / 1000
+            try:
+                return parse_int(self._vehicle.state.get("chargingPower")) / 1000
+            except ValueError:
+                return -1
 
     @property
     def charging_power_supported(self):
         check = self._vehicle.state.get("chargingPower")
-        if check and parse_int(check):
+        if check is not None:
             return True
 
     @property
