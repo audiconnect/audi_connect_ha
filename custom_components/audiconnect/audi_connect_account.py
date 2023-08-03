@@ -444,11 +444,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_status_report set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_status_report set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_status_report = False
             else:
                 self.log_exception_once(
@@ -493,11 +493,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_position set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_position set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_position = False
             # If error is 204 is returned, the position is currently not available
             elif resp_exception.status != 204:
@@ -537,11 +537,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_climater set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_climater set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_climater = False
             else:
                 self.log_exception_once(
@@ -574,11 +574,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_preheater set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_preheater set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_preheater = False
             else:
                 self.log_exception_once(
@@ -663,11 +663,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                _LOGGER.error(
-                    "support_charger set to False: {status}".format(
-                        status=resp_exception.status
-                    )
-                )
+                #_LOGGER.error(
+                #    "support_charger set to False: {status}".format(
+                #        status=resp_exception.status
+                #    )
+                #)
                 self.support_charger = False
             else:
                 self.log_exception_once(
@@ -1174,24 +1174,31 @@ class AudiConnectVehicle:
     def max_charge_current(self):
         """Return max charge current"""
         if self.max_charge_current_supported:
-            return parse_float(self._vehicle.state.get("maxChargeCurrent"))
+            try:
+                return parse_float(self._vehicle.state.get("maxChargeCurrent"))
+            except ValueError:
+                return -1
 
     @property
     def max_charge_current_supported(self):
         check = self._vehicle.state.get("maxChargeCurrent")
-        if check and parse_float(check):
+        if check is not None:
             return True
 
     @property
     def actual_charge_rate(self):
         """Return actual charge rate"""
         if self.actual_charge_rate_supported:
-            return parse_float(self._vehicle.state.get("actualChargeRate"))
+            try:
+                return parse_float(self._vehicle.state.get("actualChargeRate"))
+            except ValueError:
+                return -1
+            
 
     @property
     def actual_charge_rate_supported(self):
         check = self._vehicle.state.get("actualChargeRate")
-        if check and parse_float(check):
+        if check is not None:
             return True
 
     @property
@@ -1207,12 +1214,15 @@ class AudiConnectVehicle:
     def charging_power(self):
         """Return charging power"""
         if self.charging_power_supported:
-            return parse_int(self._vehicle.state.get("chargingPower")) / 1000
+            try:
+                return parse_int(self._vehicle.state.get("chargingPower")) / 1000
+            except ValueError:
+                return -1
 
     @property
     def charging_power_supported(self):
         check = self._vehicle.state.get("chargingPower")
-        if check and parse_int(check):
+        if check is not None:
             return True
 
     @property
