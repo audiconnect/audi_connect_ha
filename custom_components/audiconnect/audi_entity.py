@@ -77,6 +77,5 @@ class AudiEntity(Entity):
             "identifiers": {(DOMAIN, self._instrument.vehicle_name)},
             "manufacturer": "Audi",
             "name": self._vehicle_name,
-            "device_type": self._component,
             "model": self._instrument.vehicle_model_family,
         }
