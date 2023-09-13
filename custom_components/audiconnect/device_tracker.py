@@ -121,7 +121,6 @@ class AudiDeviceTracker(TrackerEntity):
             "identifiers": {(DOMAIN, self._instrument.vehicle_name)},
             "manufacturer": "Audi",
             "name": self._vehicle_name,
-            "device_type": "device_tracker",
         }
 
     @property
