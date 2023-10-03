@@ -250,7 +250,7 @@ class AudiService:
         }
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
-            "https://app-api.live-my.audi.com/vgql/v1/graphql",
+            "https://app-api.my.aoa.audi.com/vgql/v1/graphql",
             json.dumps(req_data),
             headers=headers,
             allow_redirects=False,
