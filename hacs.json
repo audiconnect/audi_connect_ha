@@ -1,5 +1,4 @@
 {
     "name": "Audi connect",
-    "domains": ["sensor", "binary_sensor", "switch", "device_tracker", "lock"],
     "homeassistant": "0.110.0"
 }
