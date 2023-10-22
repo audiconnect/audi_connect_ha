@@ -8,5 +8,5 @@
   "requirements": ["beautifulsoup4"],
   "dependencies": [],
   "codeowners": ["@arjenvrh"],
-  "version": "2023.10.11"
+  "version": "2023.10.22"
 }
