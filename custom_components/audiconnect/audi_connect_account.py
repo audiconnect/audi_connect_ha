@@ -721,15 +721,15 @@ class AudiConnectVehicle:
         except ClientResponseError as resp_exception:
             self.log_exception_once(
                 resp_exception,
-                "Unable to obtain the vehicle {kind} tripdata of {vin}".format(
-                    kind=kind, vin=self._vehicle.vin
+                "Unable to obtain the vehicle {kind} tripdata of {vin} - {vehicle}".format(
+                    kind=kind, vin=self._vehicle.vin, vehicle=self._vehicle
                 ),
             )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle {kind} tripdata of {vin}".format(
-                    kind=kind, vin=self._vehicle.vin
+                "Unable to obtain the vehicle {kind} tripdata of {vin} - {vehicle}".format(
+                    kind=kind, vin=self._vehicle.vin, vehicle=self._vehicle
                 ),
             )
 
@@ -938,8 +938,8 @@ class AudiConnectVehicle:
     def any_window_open_supported(self):
         """Return true if window state is supported"""
         checkLeftFront = self._vehicle.fields.get("STATE_LEFT_FRONT_WINDOW")
-        checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
+        checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
         if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
             return True
@@ -948,14 +948,14 @@ class AudiConnectVehicle:
     def any_window_open(self):
         if self.any_window_open_supported:
             checkLeftFront = self._vehicle.fields.get("STATE_LEFT_FRONT_WINDOW")
-            checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
+            checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
             return not (
                 checkLeftFront == "3"
-                and checkLeftRear == "3"
                 and checkRightFront == "3"
-                and checkRightRear == "3"
+                and (checkLeftRear == "3" or checkLeftRear == "0")
+                and (checkRightRear == "3" or checkRightRear == "0")
             )
 
     @property
@@ -977,7 +977,7 @@ class AudiConnectVehicle:
             return self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW") != "3"
     @property
     def left_rear_window_open_supported(self):
-        return self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
+        return self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW") and self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW") != "0"
 
     @property
     def left_rear_window_open(self):
@@ -986,7 +986,7 @@ class AudiConnectVehicle:
 
     @property
     def right_rear_window_open_supported(self):
-        return self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
+        return self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW") and self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW") != "0"
 
     @property
     def right_rear_window_open(self):
@@ -996,8 +996,8 @@ class AudiConnectVehicle:
     @property
     def any_door_unlocked_supported(self):
         checkLeftFront = self._vehicle.fields.get("LOCK_STATE_LEFT_FRONT_DOOR")
-        checkLeftRear = self._vehicle.fields.get("LOCK_STATE_LEFT_REAR_DOOR")
         checkRightFront = self._vehicle.fields.get("LOCK_STATE_RIGHT_FRONT_DOOR")
+        checkLeftRear = self._vehicle.fields.get("LOCK_STATE_LEFT_REAR_DOOR")
         checkRightRear = self._vehicle.fields.get("LOCK_STATE_RIGHT_REAR_DOOR")
         if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
             return True
@@ -1006,37 +1006,37 @@ class AudiConnectVehicle:
     def any_door_unlocked(self):
         if self.any_door_unlocked_supported:
             checkLeftFront = self._vehicle.fields.get("LOCK_STATE_LEFT_FRONT_DOOR")
-            checkLeftRear = self._vehicle.fields.get("LOCK_STATE_LEFT_REAR_DOOR")
             checkRightFront = self._vehicle.fields.get("LOCK_STATE_RIGHT_FRONT_DOOR")
+            checkLeftRear = self._vehicle.fields.get("LOCK_STATE_LEFT_REAR_DOOR")
             checkRightRear = self._vehicle.fields.get("LOCK_STATE_RIGHT_REAR_DOOR")
             return not (
                 checkLeftFront == "2"
-                and checkLeftRear == "2"
                 and checkRightFront == "2"
-                and checkRightRear == "2"
+                and (checkLeftRear == "2" or checkLeftRear == "0")
+                and (checkRightRear == "2" or checkRightRear == "0")
             )
 
     @property
     def any_door_open_supported(self):
         checkLeftFront = self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR")
-        checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
         checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
+        checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
         checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
-        if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
+        if checkLeftFront and checkRightFront and checkLeftRear and checkRightRear:
             return True
 
     @property
     def any_door_open(self):
         if self.any_door_open_supported:
             checkLeftFront = self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR")
-            checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
             checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
+            checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
             checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
             return not (
                 checkLeftFront == "3"
-                and checkLeftRear == "3"
                 and checkRightFront == "3"
-                and checkRightRear == "3"
+                and (checkLeftRear == "3" or checkLeftRear == "0")
+                and (checkRightRear == "3" or checkRightRear == "0")
             )
 
     @property
@@ -1058,7 +1058,7 @@ class AudiConnectVehicle:
             return self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR") != "3"
     @property
     def left_rear_door_open_supported(self):
-        return self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
+        return self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR") and self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR") != "0"
 
     @property
     def left_rear_door_open(self):
@@ -1067,7 +1067,7 @@ class AudiConnectVehicle:
 
     @property
     def right_rear_door_open_supported(self):
-        return self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
+        return self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR") and self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR") != "0"
 
     @property
     def right_rear_door_open(self):
