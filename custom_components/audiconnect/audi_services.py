@@ -250,7 +250,7 @@ class AudiService:
         }
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
-            "https://app-api.my.aoa.audi.com/vgql/v1/graphql",
+            "https://app-api.my.aoa.audi.com/vgql/v1/graphql" if self._country.upper()=="US" else "https://app-api.live-my.audi.com/vgql/v1/graphql", # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             json.dumps(req_data),
             headers=headers,
             allow_redirects=False,
