@@ -28,14 +28,14 @@ def log_exception(exception, message):
 def parse_int(val: str):
     try:
         return int(val)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
 def parse_float(val: str):
     try:
         return float(val)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
     except TypeError:
         return None
