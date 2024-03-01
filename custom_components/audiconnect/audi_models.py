@@ -17,23 +17,154 @@ class CurrentVehicleDataResponse:
 
 
 class VehicleDataResponse:
+    OLDAPI_MAPPING = {
+        "frontRightLock": "LOCK_STATE_RIGHT_FRONT_DOOR",
+        "frontRightOpen": "OPEN_STATE_RIGHT_FRONT_DOOR",
+        "frontLeftLock": "LOCK_STATE_LEFT_FRONT_DOOR",
+        "frontLeftOpen": "OPEN_STATE_LEFT_FRONT_DOOR",
+        "rearRightLock": "LOCK_STATE_RIGHT_REAR_DOOR",
+        "rearRightOpen": "OPEN_STATE_RIGHT_REAR_DOOR",
+        "rearLeftLock": "LOCK_STATE_LEFT_REAR_DOOR",
+        "rearLeftOpen": "OPEN_STATE_LEFT_REAR_DOOR",
+        "trunkLock": "LOCK_STATE_TRUNK_LID",
+        "trunkOpen": "OPEN_STATE_TRUNK_LID",
+        "frontLeftWindow" : "STATE_LEFT_FRONT_WINDOW",
+        "frontRightWindow" : "STATE_RIGHT_FRONT_WINDOW",
+        "rearLeftWindow" : "STATE_LEFT_REAR_WINDOW",
+        "rearRightWindow" : "STATE_RIGHT_REAR_WINDOW",
+        "sunRoof": "STATE_SUN_ROOF_MOTOR_COVER",
+        "bonnet": "OPEN_STATE_HOOD"
+    }
+
     def __init__(self, data):
         self.data_fields = []
-        response = data.get("StoredVehicleDataResponse")
-        if response is None:
-            response = data.get("CurrentVehicleDataByRequestResponse")
+        self.states = []
 
-        vehicle_data = response.get("vehicleData")
-        if vehicle_data is None:
-            return
+        self.data_fields.append(Field({
+            "textId":        "TOTAL_RANGE",
+            "value":         data["charging"]["batteryStatus"]["value"]["cruisingRangeElectric_km"],
+            "tsCarCaptured": data["charging"]["batteryStatus"]["value"]["carCapturedTimestamp"],
+        }))
 
-        vehicle_data = vehicle_data.get("data")
-        for raw_data in vehicle_data:
-            raw_fields = raw_data.get("field")
-            if raw_fields is None:
+        self.data_fields.append(Field({
+            "textId":        "UTC_TIME_AND_KILOMETER_STATUS",
+            "value":         data["measurements"]["odometerStatus"]["value"]["odometer"],
+            "tsCarCaptured": data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"],
+        }))
+
+        self.data_fields.append(Field({
+            "textId":        "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+            "value":         data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["inspectionDue_days"],
+            "tsCarCaptured": data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["carCapturedTimestamp"],
+        }))
+
+        self.data_fields.append(Field({
+            "textId":        "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+            "value":         data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["inspectionDue_km"],
+            "tsCarCaptured": data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["carCapturedTimestamp"],
+        }))
+
+        self.appendWindowState(data)
+        self.appendSunRoofState(data)
+        self.appendDoorState(data)
+        self.appendHoodState(data)
+        
+        self.states.append({"name" : "stateOfCharge",          "value" : data["measurements"]["fuelLevelStatus"]["value"]["currentSOC_pct"],                "measure_time" : data["measurements"]["fuelLevelStatus"]["value"]["carCapturedTimestamp"]   })
+        self.states.append({"name" : "chargingMode",           "value" : data["charging"]["chargingStatus"]["value"]["chargeType"],                         "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })        
+        self.states.append({"name" : "actualChargeRate",       "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"],                    "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
+        self.states.append({"name" : "chargingPower",          "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"],                     "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
+        self.states.append({"name" : "chargeMode",             "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"],                         "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
+        self.states.append({"name" : "chargingState",          "value" : data["charging"]["chargingStatus"]["value"]["chargingState"],                      "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
+        self.states.append({"name" : "plugState",              "value" : data["charging"]["plugStatus"]    ["value"]["plugConnectionState"],                "measure_time" : data["charging"]["plugStatus"]    ["value"]["carCapturedTimestamp"]   })
+        #self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"] "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
+        
+    def appendHoodState(self, data):
+        doors = data["access"]["accessStatus"]["value"]["doors"];
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        for door in doors:
+            status = door["status"]
+            name = door["name"]
+            if not name in self.OLDAPI_MAPPING:
                 continue
-            for raw_field in raw_fields:
-                self.data_fields.append(Field(raw_field))
+            status = door["status"]
+            open = "0"
+            unsupported = False
+            for state in status:
+                if state == "unsupported":
+                  unsupported = True
+                if state == "closed":
+                    open = "3"
+            if (not unsupported):
+                doorFieldOpen = {
+                    "textId": self.OLDAPI_MAPPING[name],
+                    "value": open,
+                    "tsCarCaptured": tsCarCapturedAccess,
+                }
+                self.data_fields.append(Field(doorFieldOpen))
+
+    def appendDoorState(self, data):
+        doors = data["access"]["accessStatus"]["value"]["doors"];
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        for door in doors:
+            status = door["status"]
+            name = door["name"]
+            if not name+"Lock" in self.OLDAPI_MAPPING:
+                continue
+            status = door["status"]
+            lock = "0"
+            open = "0"
+            unsupported = False
+            for state in status:
+                if state == "unsupported":
+                  unsupported = True
+                if state == "locked":
+                    lock = "2"
+                if state == "closed":
+                    open = "3"
+            if (not unsupported):
+                doorFieldLock = {
+                    "textId": self.OLDAPI_MAPPING[name+"Lock"],
+                    "value": lock,
+                    "tsCarCaptured": tsCarCapturedAccess,
+                }
+                self.data_fields.append(Field(doorFieldLock))
+
+                doorFieldOpen = {
+                    "textId": self.OLDAPI_MAPPING[name+"Open"],
+                    "value": open,
+                    "tsCarCaptured": tsCarCapturedAccess,
+                }
+                self.data_fields.append(Field(doorFieldOpen))
+
+    def appendSunRoofState(self, data):
+        windows = data["access"]["accessStatus"]["value"]["windows"];
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        for window in windows:
+            name = window["name"]
+            status = window["status"]
+            if (status[0] == "unsupported") or not name in self.OLDAPI_MAPPING:
+                continue
+            windowField = {
+                "textId": self.OLDAPI_MAPPING[name],
+                "value": "3" if status[0] == "closed" else "0",
+                "tsCarCaptured": tsCarCapturedAccess,
+            }
+            self.data_fields.append(Field(windowField))
+
+    def appendWindowState(self, data):
+        windows = data["access"]["accessStatus"]["value"]["windows"];
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        for window in windows:
+            name = window["name"]
+            status = window["status"]
+            if (status[0] == "unsupported") or not name+"Window" in self.OLDAPI_MAPPING:
+                continue
+            windowField = {
+                "textId": self.OLDAPI_MAPPING[name + "Window"],
+                "value": "3" if status[0] == "closed" else "0",
+                "tsCarCaptured": tsCarCapturedAccess,
+            }
+            self.data_fields.append(Field(windowField))
 
 
 class TripDataResponse:
@@ -132,8 +263,10 @@ class Field:
         self.id = data.get("id")
         self.unit = data.get("unit")
         self.value = data.get("value")
-        self.measure_time = data.get("tsCarCaptured")
-        self.send_time = data.get("tsCarSent")
+        self.measure_time = data.get("tsTssReceivedUtc")
+        if self.measure_time is None:
+           self.measure_time = data.get("tsCarCaptured")
+        self.send_time = data.get("tsCarSentUtc")
         self.measure_mileage = data.get("milCarCaptured")
         self.send_mileage = data.get("milCarSent")
 

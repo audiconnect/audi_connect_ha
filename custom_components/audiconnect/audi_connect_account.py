@@ -407,12 +407,12 @@ class AudiConnectVehicle:
             await self.call_update(self.update_vehicle_longterm, 3)
             info = "position"
             await self.call_update(self.update_vehicle_position, 3)
-            info = "climater"
-            await self.call_update(self.update_vehicle_climater, 3)
-            info = "charger"
-            await self.call_update(self.update_vehicle_charger, 3)
-            info = "preheater"
-            await self.call_update(self.update_vehicle_preheater, 3)
+            #info = "climater"
+            #await self.call_update(self.update_vehicle_climater, 3)
+            #info = "charger"
+            #await self.call_update(self.update_vehicle_charger, 3)
+            #info = "preheater"
+            #await self.call_update(self.update_vehicle_preheater, 3)
             # Return True on success, False on error
             return self._no_error
         except Exception as exception:
@@ -426,7 +426,7 @@ class AudiConnectVehicle:
         err = message + ": " + str(exception).rstrip("\n")
         if not err in self._logged_errors:
             self._logged_errors.add(err)
-            _LOGGER.error(err)
+            _LOGGER.error(err, exc_info=True)
 
     async def update_vehicle_statusreport(self):
         if not self.support_status_report:
@@ -439,6 +439,8 @@ class AudiConnectVehicle:
                 for i in range(0, len(status.data_fields))
             }
             self._vehicle.state["last_update_time"] = status.data_fields[0].send_time
+            for state in status.states:
+                self._vehicle.state[state["name"]] = state["value"]
 
         except TimeoutError:
             raise
@@ -471,22 +473,12 @@ class AudiConnectVehicle:
 
         try:
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
-            if resp.get("findCarResponse") is not None:
-                position = resp["findCarResponse"]
-
-            if (
-                position.get("Position") is not None
-                and position["Position"].get("carCoordinate") is not None
-            ):
+            if resp is not None:
                 self._vehicle.state["position"] = {
-                    "latitude": get_attr(position, "Position.carCoordinate.latitude")
-                    / 1000000,
-                    "longitude": get_attr(position, "Position.carCoordinate.longitude")
-                    / 1000000,
-                    "timestamp": get_attr(position, "Position.timestampCarSentUTC"),
-                    "parktime": position.get("parkingTimeUTC")
-                    if position.get("parkingTimeUTC") is not None
-                    else get_attr(position, "Position.timestampCarSentUTC"),
+                    "latitude": resp["data"]["lat"],
+                    "longitude": resp["data"]["lon"],
+                    "timestamp": resp["data"]["carCapturedTimestamp"],
+                    "parktime": resp["data"]["carCapturedTimestamp"]
                 }
 
         except TimeoutError:
@@ -613,7 +605,7 @@ class AudiConnectVehicle:
                     result, "charger.status.chargingStatusData.actualChargeRate.content"
                 )
                 if self._vehicle.state["actualChargeRate"] is not None:
-                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"]) / 10
+                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"])
                 self._vehicle.state["actualChargeRateUnit"] = get_attr(
                     result, "charger.status.chargingStatusData.chargeRateUnit.content"
                 )
@@ -1203,19 +1195,14 @@ class AudiConnectVehicle:
 
     @property
     def actual_charge_rate_unit(self):
-        if self.actual_charge_rate_supported:
-            res = self._vehicle.state.get("actualChargeRateUnit")
-            if res:
-                return res.replace("_per_", "/")
-
-            return res
+        return "km/h"
 
     @property
     def charging_power(self):
         """Return charging power"""
         if self.charging_power_supported:
             try:
-                return parse_int(self._vehicle.state.get("chargingPower")) / 1000
+                return parse_float(self._vehicle.state.get("chargingPower"))
             except ValueError:
                 return -1
 

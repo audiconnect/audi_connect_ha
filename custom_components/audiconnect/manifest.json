@@ -3,7 +3,6 @@
   "name": "Audi Connect",
   "config_flow": true,
   "documentation": "https://github.com/arjenvrh/audi_connect_ha",
-  "integration_type": "hub",
   "issue_tracker": "https://github.com/arjenvrh/audi_connect_ha/issues",
   "requirements": ["beautifulsoup4"],
   "dependencies": [],
