@@ -1,7 +1,7 @@
 """Support for tracking an Audi."""
 import logging
 
-from homeassistant.components.device_tracker import SourceType
+from homeassistant.components.device_tracker import SOURCE_TYPE_GPS
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
@@ -79,7 +79,7 @@ class AudiDeviceTracker(TrackerEntity):
     @property
     def source_type(self):
         """Return the source type, eg gps or router, of the device."""
-        return SourceType.GPS
+        return SOURCE_TYPE_GPS
 
     async def async_added_to_hass(self):
         """Register state update callback."""
