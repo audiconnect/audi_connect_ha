@@ -171,10 +171,36 @@ class AudiService:
         )
 
     async def get_stored_vehicle_data(self, vin: str):
+        JOBS2QUERY = {
+            "access",
+            "activeVentilation",
+            "auxiliaryHeating",
+            "batteryChargingCare",
+            "batterySupport",
+            "charging",
+            "chargingProfiles",
+            "chargingTimers",
+            "climatisation",
+            "climatisationTimers",
+            "departureProfiles",
+            "departureTimers",
+            "fuelStatus",
+            "honkAndFlash",
+            "hybridCarAuxiliaryHeating",
+            "lvBattery",
+            "measurements",
+            "oilLevel",
+            "readiness"
+            #"userCapabilities",
+            "vehicleHealthInspection",
+            "vehicleHealthWarnings",
+            "vehicleLights",
+	     }
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs=charging,chargingTimers,chargingProfiles,fuelStatus,measurements,oilLevel,vehicleHealthInspection,access,vehicleLights,vehicleHealthWarnings".format(
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs={jobs}".format(
                 vin=vin.upper(),
+                jobs=",".join(JOBS2QUERY)
             )
         )
         return VehicleDataResponse(data)

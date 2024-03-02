@@ -40,43 +40,65 @@ class VehicleDataResponse:
         self.data_fields = []
         self.states = []
 
-        self.data_fields.append(Field({
-            "textId":        "TOTAL_RANGE",
-            "value":         data["charging"]["batteryStatus"]["value"]["cruisingRangeElectric_km"],
-            "tsCarCaptured": data["charging"]["batteryStatus"]["value"]["carCapturedTimestamp"],
-        }))
-
-        self.data_fields.append(Field({
-            "textId":        "UTC_TIME_AND_KILOMETER_STATUS",
-            "value":         data["measurements"]["odometerStatus"]["value"]["odometer"],
-            "tsCarCaptured": data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"],
-        }))
-
-        self.data_fields.append(Field({
-            "textId":        "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
-            "value":         data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["inspectionDue_days"],
-            "tsCarCaptured": data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["carCapturedTimestamp"],
-        }))
-
-        self.data_fields.append(Field({
-            "textId":        "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
-            "value":         data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["inspectionDue_km"],
-            "tsCarCaptured": data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["carCapturedTimestamp"],
-        }))
+        self._tryAppendFieldWithTs(data, "TOTAL_RANGE",                                 ["fuelStatus",               "rangeStatus",       "value", "totalRange_km"])
+        self._tryAppendFieldWithTs(data, "UTC_TIME_AND_KILOMETER_STATUS",               ["measurements",             "odometerStatus",    "value", "odometer"])
+        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",     ["vehicleHealthInspection",  "maintenanceStatus", "value", "inspectionDue_days"])
+        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION", ["vehicleHealthInspection",  "maintenanceStatus", "value", "inspectionDue_km"])
 
         self.appendWindowState(data)
         self.appendSunRoofState(data)
         self.appendDoorState(data)
         self.appendHoodState(data)
+       
+        self._tryAppendStateWithTs(data, "engineTypeFirstEngine",    -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "type"])
+        self._tryAppendStateWithTs(data, "primaryEngineRange",       -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "remainingRange_km"])
+        self._tryAppendStateWithTs(data, "engineTypeSecondEngine",   -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "type"])
+        self._tryAppendStateWithTs(data, "secondaryEngineRange",     -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "remainingRange_km"])
+        self._tryAppendStateWithTs(data, "hybridRange",              -1, ["fuelStatus",   "rangeStatus",    "value",  "totalRange_km"])
+
+        self._tryAppendStateWithTs(data, "stateOfCharge",            -1, ["charging",     "batteryStatus",  "value",  "currentSOC_pct"])
+        self._tryAppendStateWithTs(data, "chargingMode",             -1, ["charging",     "chargingStatus", "value",  "chargeType"])
+        self._tryAppendStateWithTs(data, "actualChargeRate",         -1, ["charging",     "chargingStatus", "value",  "chargeRate_kmph"])
+        self._tryAppendStateWithTs(data, "chargingPower",            -1, ["charging",     "chargingStatus", "value",  "chargePower_kW"])
+        self._tryAppendStateWithTs(data, "chargeMode",               -1, ["charging",     "chargingStatus", "value",  "chargeMode"])
+        self._tryAppendStateWithTs(data, "chargingState",            -1, ["charging",     "chargingStatus", "value",  "chargingState"])
+        self._tryAppendStateWithTs(data, "plugState",                -1, ["charging",     "plugStatus",     "value",  "plugConnectionState"])
+        self._tryAppendStateWithTs(data, "remainingChargingTime",    -1, ["charging",     "plugStatus",     "value",  "remainingChargingTimeToComplete_min"])
         
-        self.states.append({"name" : "stateOfCharge",          "value" : data["measurements"]["fuelLevelStatus"]["value"]["currentSOC_pct"],                "measure_time" : data["measurements"]["fuelLevelStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargingMode",           "value" : data["charging"]["chargingStatus"]["value"]["chargeType"],                         "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })        
-        self.states.append({"name" : "actualChargeRate",       "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"],                    "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargingPower",          "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"],                     "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargeMode",             "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"],                         "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargingState",          "value" : data["charging"]["chargingStatus"]["value"]["chargingState"],                      "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "plugState",              "value" : data["charging"]["plugStatus"]    ["value"]["plugConnectionState"],                "measure_time" : data["charging"]["plugStatus"]    ["value"]["carCapturedTimestamp"]   })
-        #self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"] "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
+
+    def _tryAppendStateWithTs(self, json, name, tsoff, loc):
+        ts = None
+        val = self._getFromJson(json, loc)
+        if val:
+            loc[tsoff:] = ["carCapturedTimestamp"]
+            ts = self._getFromJson(json, loc)
+
+        if val and ts:
+           self.states.append({"name" : name, "value": val, "measure_time": ts})
+
+    def _tryAppendFieldWithTs(self, json, textId, loc):
+        ts = None
+        val = self._getFromJson(json, loc)
+        if val:
+            loc[-1:] = ["carCapturedTimestamp"]
+            ts = self._getFromJson(json, loc)
+
+        if val and ts:
+            self.data_fields.append(Field({
+               "textId":        textId,
+               "value":         val,
+               "tsCarCaptured": ts,
+            }))
+
+
+    def _getFromJson(self, json, loc):
+        child = json
+        for i in loc:
+           if i not in child:
+              return None
+           child = child[i]
+        return child
+        
         
     def appendHoodState(self, data):
         doors = data["access"]["accessStatus"]["value"]["doors"];
