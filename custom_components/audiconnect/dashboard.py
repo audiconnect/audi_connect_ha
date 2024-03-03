@@ -387,6 +387,7 @@ def create_instruments():
         Preheater(),
         Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
+        Sensor(attr="service_adblue_distance", name="AdBlue Range", icon="mdi:gas-station", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
         Sensor(
             attr="service_inspection_time",
