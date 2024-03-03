@@ -8,33 +8,217 @@ class VehicleData:
         self.config_entry = config_entry
         self.vehicle = None
 
-
 class CurrentVehicleDataResponse:
     def __init__(self, data):
         data = data["CurrentVehicleDataResponse"]
         self.request_id = data["requestId"]
         self.vin = data["vin"]
 
-
 class VehicleDataResponse:
+    Q4_MAPPING = {
+        "frontRightLock": "LOCK_STATE_RIGHT_FRONT_DOOR",
+        "frontRightOpen": "OPEN_STATE_RIGHT_FRONT_DOOR",
+        "frontLeftLock": "LOCK_STATE_LEFT_FRONT_DOOR",
+        "frontLeftOpen": "OPEN_STATE_LEFT_FRONT_DOOR",
+        "rearRightLock": "LOCK_STATE_RIGHT_REAR_DOOR",
+        "rearRightOpen": "OPEN_STATE_RIGHT_REAR_DOOR",
+        "rearLeftLock": "LOCK_STATE_LEFT_REAR_DOOR",
+        "rearLeftOpen": "OPEN_STATE_LEFT_REAR_DOOR",
+        "trunkLock": "LOCK_STATE_TRUNK_LID",
+        "trunkOpen": "OPEN_STATE_TRUNK_LID",
+        "bonnetLock": "LOCK_STATE_HOOD",
+        "bonnetOpen": "OPEN_STATE_HOOD",
+        "sunRoofWindow": "STATE_SUN_ROOF_MOTOR_COVER",
+        "frontLeftWindow" : "STATE_LEFT_FRONT_WINDOW",
+        "frontRightWindow" : "STATE_RIGHT_FRONT_WINDOW",
+        "rearLeftWindow" : "STATE_LEFT_REAR_WINDOW",
+        "rearRightWindow" : "STATE_RIGHT_REAR_WINDOW"
+    }
+
     def __init__(self, data):
         self.data_fields = []
-        response = data.get("StoredVehicleDataResponse")
-        if response is None:
-            response = data.get("CurrentVehicleDataByRequestResponse")
+        self.states = []
+        
+        if 'fuelStatus' in data:
+            FuelStatus = data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["currentFuelLevel_pct"]
+            cruisingRange = data["fuelStatus"]["rangeStatus"]["value"]["totalRange_km"]
+            tsCarCaptured = data["fuelStatus"]["rangeStatus"]["value"]["carCapturedTimestamp"]
+        
+            socField = {
+                "textId": "TANK_LEVEL_IN_PERCENTAGE",
+                "value": FuelStatus,
+                "tsCarCaptured": tsCarCaptured,
+                       }
+            rangeField = {
+            "textId": "TOTAL_RANGE",
+            "value": cruisingRange,
+            "tsCarCaptured": tsCarCaptured,
+            }
+            self.data_fields.append(Field(socField))
+            self.data_fields.append(Field(rangeField))
+        
+        
+        
+        else:
+            print("No fuelStatus KEY")
+            
+        if 'measurements' in data:
+            adblueRange = data["measurements"]["rangeStatus"]["value"]["adBlueRange"]
+            milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
+            milageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
+            adblueTsCarCaptured = data["measurements"]["rangeStatus"]["value"]["carCapturedTimestamp"]
+            adblueField = {
+                "textId": "ADBLUE_RANGE",
+                "value": adblueRange,
+                "tsCarCaptured": adblueTsCarCaptured,
+                }
+        
+            self.data_fields.append(Field(adblueField))        
+            milageField = {
+            "textId": "UTC_TIME_AND_KILOMETER_STATUS",
+            "value": milage,
+            "tsCarCaptured": milageTsCarCaptured,
+            }
+            self.data_fields.append(Field(milageField))
+        
+            self.states.append({"name" : "last_update_time", "value" : data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]})
+        
+        
+        else:
+            print("No measurements KEY")
+            
+        if 'vehicleLights' in data:
+            lightTsCarCaptured = data["vehicleLights"]["lightsStatus"]["value"]["carCapturedTimestamp"]
+            lightServiceStatus = data["vehicleLights"]["lightsStatus"]["value"]["lights"][0]["status"]
+            lightstatus = {
+            "textId": "LIGHT_STATUS",
+            "value": lightServiceStatus,
+            "tsCarCaptured": lightTsCarCaptured,
+            }
+            self.data_fields.append(Field(lightstatus))
+        else:
+            print("No vehicleLights KEY")
+            
+        if 'vehicleHealthInspection' in data:
+            oilTsCarCaptured = data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["carCapturedTimestamp"]
+            oilServiceDuekm = data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["oilServiceDue_km"]
+            oilServiceDuedays = data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["oilServiceDue_days"]
+            inspectionServiceDuekm = data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["inspectionDue_km"]
+            inspectionServiceDuedays = data["vehicleHealthInspection"]["maintenanceStatus"]["value"]["inspectionDue_days"]
+            oilFieldkm = {
+            "textId": "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
+            "value": oilServiceDuekm,
+            "tsCarCaptured": oilTsCarCaptured,
+            }
+            oilFieldday = {
+            "textId": "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+            "value": oilServiceDuedays,
+            "tsCarCaptured": oilTsCarCaptured,
+            }
+            inspectionFieldkm = {
+            "textId": "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+            "value": inspectionServiceDuekm,
+            "tsCarCaptured": oilTsCarCaptured,
+            }
+            inspectionFieldday = {
+            "textId": "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+            "value": inspectionServiceDuedays,
+            "tsCarCaptured": oilTsCarCaptured,
+            }
+        
+            self.data_fields.append(Field(oilFieldkm))
+            self.data_fields.append(Field(oilFieldday))
 
-        vehicle_data = response.get("vehicleData")
-        if vehicle_data is None:
-            return
+            self.data_fields.append(Field(inspectionFieldkm))
+            self.data_fields.append(Field(inspectionFieldday))
+        
+        else:
+            print("No vehicleHealthInspection KEY")
+            
+        if 'oilLevel' in data:   
+            if data["oilLevel"]["oilLevelStatus"]["value"]["value"] == True :
+                 oilFieldlevelper = 100
+            else:
+                 oilFieldlevelper = 1
+            oillTsCarCaptured = data["oilLevel"]["oilLevelStatus"]["value"]["carCapturedTimestamp"]
+        
+            oilFieldlevel = {
+            "textId": "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
+            "value": oilFieldlevelper,
+            "tsCarCaptured": oillTsCarCaptured,
+            }
+            self.data_fields.append(Field(oilFieldlevel))
+        else:
+            print("No oilLevel KEY")
+            
+            
+        self.appendWindowState(data)
+        self.appendDoorState(data)
 
-        vehicle_data = vehicle_data.get("data")
-        for raw_data in vehicle_data:
-            raw_fields = raw_data.get("field")
-            if raw_fields is None:
+      
+        
+            
+
+        if 'charging' in data:
+            self.states.append({"name" : "actualChargeRate", "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"]})
+            self.states.append({"name" : "chargingPower", "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"]})
+            self.states.append({"name" : "chargeMode", "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"]})
+            self.states.append({"name" : "chargingState", "value" : data["charging"]["chargingStatus"]["value"]["chargingState"]})
+            self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"]})
+            self.states.append({"name" : "plugState", "value" : data["charging"]["plugStatus"]["value"]["plugConnectionState"]})
+        else:
+            print("No Charching KEY")
+        
+        
+
+    def appendDoorState(self, data):
+        doors = data["access"]["accessStatus"]["value"]["doors"];
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        for door in doors:
+            status = door["status"]
+            name = door["name"]
+            if not name+"Lock" in self.Q4_MAPPING:
                 continue
-            for raw_field in raw_fields:
-                self.data_fields.append(Field(raw_field))
+            status = door["status"]
+            lock = "0"
+            open = "0"
+            unsupported = False
+            for state in status:
+                if state == "unsupported":
+                  unsupported = True
+                if state == "locked":
+                    lock = "2"
+                if state == "closed":
+                    open = "3"
+            if (not unsupported):
+                doorFieldLock = {
+                    "textId": self.Q4_MAPPING[name+"Lock"],
+                    "value": lock,
+                    "tsCarCaptured": tsCarCapturedAccess,
+                }
+                self.data_fields.append(Field(doorFieldLock))
 
+                doorFieldOpen = {
+                    "textId": self.Q4_MAPPING[name+"Open"],
+                    "value": open,
+                    "tsCarCaptured": tsCarCapturedAccess,
+                }
+                self.data_fields.append(Field(doorFieldOpen))
+
+    def appendWindowState(self, data):
+        windows = data["access"]["accessStatus"]["value"]["windows"];
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        for window in windows:
+            name = window["name"]
+            status = window["status"]
+            if (status[0] == "unsupported") or not name+"Window" in self.Q4_MAPPING:
+                continue
+            windowField = {
+                "textId": self.Q4_MAPPING[name + "Window"],
+                "value": "3" if status[0] == "closed" else "0",
+                "tsCarCaptured": tsCarCapturedAccess,
+            }
+            self.data_fields.append(Field(windowField))
 
 class TripDataResponse:
     def __init__(self, data):
@@ -136,7 +320,10 @@ class Field:
         self.send_time = data.get("tsCarSent")
         self.measure_mileage = data.get("milCarCaptured")
         self.send_mileage = data.get("milCarSent")
+#        _LOGGER.error("DATAX: " + str(data))
 
+        
+        
         for field_id, name in self.IDS.items():
             if field_id == self.id:
                 self.name = name
