@@ -785,7 +785,7 @@ class AudiConnectVehicle:
     def service_adblue_distance(self):
         """Return distance left for service inspection"""
         if self.service_adblue_distance_supported:
-            return -int(
+            return int(
                 self._vehicle.fields.get("ADBLUE_RANGE")
             )
 
