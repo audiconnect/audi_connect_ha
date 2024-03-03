@@ -26,6 +26,7 @@ RESOURCES = [
     "range",
     "service_inspection_time",
     "service_inspection_distance",
+    "service_adblue_distance",
     "oil_change_time",
     "oil_change_distance",
     "oil_level",
