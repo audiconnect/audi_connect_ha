@@ -1276,6 +1276,18 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("primaryEngineRange")
         if check and check != "unsupported":
             return True
+    
+    @property
+    def primary_engine_range_percent(self):
+        """Return primary engine range"""
+        if self.primary_engine_range_percent_supported:
+            return self._vehicle.state.get("primaryEngineRangePercent")
+
+    @property
+    def primary_engine_range_percent_supported(self):
+        check = self._vehicle.state.get("primaryEngineRangePercent")
+        if check and check != "unsupported":
+            return True
 
     @property
     def secondary_engine_range(self):
@@ -1288,6 +1300,32 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("secondaryEngineRange")
         if check and check != "unsupported":
             return True
+            
+    @property
+    def car_type(self):
+        """Return secondary engine range"""
+        if self.car_type_supported:
+            return self._vehicle.state.get("carType")
+
+    @property
+    def car_type_supported(self):
+        check = self._vehicle.state.get("carType")
+        if check and check != "unsupported":
+            return True            
+
+    @property
+    def secondary_engine_range_percent(self):
+        """Return secondary engine range"""
+        if self.secondary_engine_range_percent_supported:
+            return self._vehicle.state.get("secondaryEngineRangePercent")
+
+    @property
+    def secondary_engine_range_percent_supported(self):
+        check = self._vehicle.state.get("secondaryEngineRangePercent")
+        if check and check != "unsupported":
+            return True
+
+
 
     @property
     def hybrid_range(self):

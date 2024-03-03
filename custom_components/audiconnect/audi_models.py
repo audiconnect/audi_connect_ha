@@ -154,11 +154,26 @@ class VehicleDataResponse:
             
         self.appendWindowState(data)
         self.appendDoorState(data)
-
-      
         
+        #self.states.append({"name" : "engineTypeFirstEngine", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["type"]})
+        #self.states.append({"name" : "primaryEngineRange", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["remainingRange_km"]})
+      
+        if 'primaryEngine' in data["fuelStatus"]["rangeStatus"]["value"]:
+            self.states.append({"name" : "carType", "value" : data["fuelStatus"]["rangeStatus"]["value"]["carType"]})
+            self.states.append({"name" : "engineTypeFirstEngine", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["type"]})
+            self.states.append({"name" : "primaryEngineRange", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["remainingRange_km"]})
+            self.states.append({"name" : "primaryEngineRangePercent", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["currentSOC_pct"]})
+        else:
+            print("No Primary Engine")
             
-
+            
+        if 'secondaryEngine' in data["fuelStatus"]["rangeStatus"]["value"]:
+            self.states.append({"name" : "engineTypeSecondEngine", "value" : data["fuelStatus"]["rangeStatus"]["value"]["secondaryEngine"]["type"]})
+            self.states.append({"name" : "secondaryEngineRange", "value" : data["fuelStatus"]["rangeStatus"]["value"]["secondaryEngine"]["remainingRange_km"]})
+            self.states.append({"name" : "secondaryEngineRangePercent", "value" : data["fuelStatus"]["rangeStatus"]["value"]["secondaryEngine"]["currentSOC_pct"]})
+        else:
+            print("No Secondary Engine")
+        
         if 'charging' in data:
             self.states.append({"name" : "actualChargeRate", "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"]})
             self.states.append({"name" : "chargingPower", "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"]})

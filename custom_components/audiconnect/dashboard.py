@@ -24,7 +24,7 @@ class Instrument:
 
     def camel2slug(self, s):
         """Convert camelCase to camel_case.
-        >>> camel2slug('fooBar')
+            >>> camel2slug('fooBar')
         'foo_bar'
         """
         return re.sub("([A-Z])", "_\\1", s).lower().lstrip("_")
@@ -386,6 +386,7 @@ def create_instruments():
         Lock(),
         Preheater(),
         Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
+        Sensor(attr="service_adblue_distance", name="AdBlue Range", icon="mdi:gas-station", unit="km"),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
         Sensor(attr="service_adblue_distance", name="AdBlue range", icon="mdi:gas-station", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
@@ -452,6 +453,24 @@ def create_instruments():
             name="Secondary engine range",
             icon="mdi:gas-station-outline",
             unit="km",
+        ),
+        Sensor(
+            attr="primary_engine_range_percent",
+            name="Primary engine Percent",
+            icon="mdi:gas-station-outline",
+            unit="%",
+        ),
+        Sensor(
+            attr="car_type",
+            name="Car Type",
+            icon="mdi:car-info",
+            unit=None,
+        ),
+        Sensor(
+            attr="secondary_engine_range_percent",
+            name="Secondary engine Percent",
+            icon="mdi:gas-station-outline",
+            unit="%",
         ),
         Sensor(
             attr="charging_power", name="Charging power", icon="mdi:flash", unit="kW"
