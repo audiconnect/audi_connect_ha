@@ -1,0 +1,2 @@
+aiohttp>=3.8.3
+beautifulsoup4>=4.11.2
