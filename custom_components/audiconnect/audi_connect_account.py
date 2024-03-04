@@ -409,8 +409,8 @@ class AudiConnectVehicle:
             await self.call_update(self.update_vehicle_position, 3)
             info = "climater"
             await self.call_update(self.update_vehicle_climater, 3)
-            info = "charger"
-            await self.call_update(self.update_vehicle_charger, 3)
+            #info = "charger"
+            #await self.call_update(self.update_vehicle_charger, 3)
             info = "preheater"
             await self.call_update(self.update_vehicle_preheater, 3)
             # Return True on success, False on error
@@ -762,7 +762,7 @@ class AudiConnectVehicle:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
         if check and parse_int(check):
             return True
-    
+
     @property
     def service_adblue_distance(self):
         """Return distance left for service inspection"""
@@ -809,12 +809,19 @@ class AudiConnectVehicle:
     def oil_level(self):
         """Return oil level percentage"""
         if self.oil_level_supported:
-            return float(self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
+            val = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
+            if type(val) is bool:
+                if val:
+                    return 100
+                else:
+                  return 1
+            if parse_float(val):
+                return True
 
     @property
     def oil_level_supported(self):
         check = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
-        if check and parse_float(check):
+        if check is not None:
             return True
 
     @property
@@ -1201,7 +1208,7 @@ class AudiConnectVehicle:
                 return parse_float(self._vehicle.state.get("actualChargeRate"))
             except ValueError:
                 return -1
-
+            
 
     @property
     def actual_charge_rate_supported(self):
