@@ -480,24 +480,6 @@ class AudiConnectVehicle:
                     "parktime": resp["data"]["carCapturedTimestamp"],
                 }
 
-            # if resp.get("findCarResponse") is not None:
-            #     position = resp["findCarResponse"]
-
-            # if (
-            #     position.get("Position") is not None
-            #     and position["Position"].get("carCoordinate") is not None
-            # ):
-            # self._vehicle.state["position"] = {
-            #     "latitude": get_attr(position, "Position.carCoordinate.latitude")
-            #     / 1000000,
-            #     "longitude": get_attr(position, "Position.carCoordinate.longitude")
-            #     / 1000000,
-            #     "timestamp": get_attr(position, "Position.timestampCarSentUTC"),
-            #     "parktime": position.get("parkingTimeUTC")
-            #     if position.get("parkingTimeUTC") is not None
-            #     else get_attr(position, "Position.timestampCarSentUTC"),
-            # }
-
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
