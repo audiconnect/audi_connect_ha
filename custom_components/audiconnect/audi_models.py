@@ -182,7 +182,7 @@ class VehicleDataResponse:
                 print("No chargePower_kW")
             self.states.append({"name" : "chargingState", "value" : data["charging"]["chargingStatus"]["value"]["chargingState"]})
             self.states.append({"name" : "chargeMode", "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"]})
-             if 'remainingChargingTime' in data["charging"]["chargingStatus"]["value"]:
+            if 'remainingChargingTime' in data["charging"]["chargingStatus"]["value"]:
                 self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"]})
             else:
                 print("No chargePower_kW")
