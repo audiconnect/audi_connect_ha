@@ -1,0 +1,10 @@
+-r requirements.txt
+
+pre-commit
+pytest
+pytest-asyncio
+ruff
+yamllint
+codespell
+python-typing-update
+types-beautifulsoup4
