@@ -40,7 +40,7 @@ class VehicleDataResponse:
         self.states = []
         
         if 'fuelStatus' in data:
-            FuelStatus = data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["currentFuelLevel_pct"]
+            FuelStatus =    data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["currentFuelLevel_pct"]
             cruisingRange = data["fuelStatus"]["rangeStatus"]["value"]["totalRange_km"]
             tsCarCaptured = data["fuelStatus"]["rangeStatus"]["value"]["carCapturedTimestamp"]
         
@@ -55,9 +55,7 @@ class VehicleDataResponse:
             "tsCarCaptured": tsCarCaptured,
             }
             self.data_fields.append(Field(socField))
-            self.data_fields.append(Field(rangeField))
-        
-        
+            self.data_fields.append(Field(rangeField)) 
         
         else:
             print("No fuelStatus KEY")
@@ -80,8 +78,7 @@ class VehicleDataResponse:
             
             milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
             milageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
-           
-                 
+               
             milageField = {
             "textId": "UTC_TIME_AND_KILOMETER_STATUS",
             "value": milage,
@@ -90,8 +87,6 @@ class VehicleDataResponse:
             self.data_fields.append(Field(milageField))
         
             self.states.append({"name" : "last_update_time", "value" : data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]})
-        
-        
         else:
             print("No measurements KEY")
             
@@ -139,7 +134,6 @@ class VehicleDataResponse:
 
             self.data_fields.append(Field(inspectionFieldkm))
             self.data_fields.append(Field(inspectionFieldday))
-        
         else:
             print("No vehicleHealthInspection KEY")
             
@@ -165,14 +159,13 @@ class VehicleDataResponse:
         
       
         if 'primaryEngine' in data["fuelStatus"]["rangeStatus"]["value"]:
-            self.states.append({"name" : "carType", "value" : data["fuelStatus"]["rangeStatus"]["value"]["carType"]})
-            self.states.append({"name" : "engineTypeFirstEngine", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["type"]})
-            self.states.append({"name" : "primaryEngineRange", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["remainingRange_km"]})
+            self.states.append({"name" : "carType",                   "value" : data["fuelStatus"]["rangeStatus"]["value"]["carType"]})
+            self.states.append({"name" : "engineTypeFirstEngine",     "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["type"]})
+            self.states.append({"name" : "primaryEngineRange",        "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["remainingRange_km"]})
             self.states.append({"name" : "primaryEngineRangePercent", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["currentSOC_pct"]})
         else:
             print("No Primary Engine")
-            
-            
+                 
         if 'secondaryEngine' in data["fuelStatus"]["rangeStatus"]["value"]:
             self.states.append({"name" : "engineTypeSecondEngine", "value" : data["fuelStatus"]["rangeStatus"]["value"]["secondaryEngine"]["type"]})
             self.states.append({"name" : "secondaryEngineRange", "value" : data["fuelStatus"]["rangeStatus"]["value"]["secondaryEngine"]["remainingRange_km"]})
@@ -199,8 +192,6 @@ class VehicleDataResponse:
         else:
             print("No Charching KEY")
         
-        
-
     def appendDoorState(self, data):
         doors = data["access"]["accessStatus"]["value"]["doors"];
         tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
