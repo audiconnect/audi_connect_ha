@@ -663,7 +663,7 @@ class AudiService:
 
     # TR/2022-12-20: New secrect for X_QMAuth
     def _calculate_X_QMAuth(self):
-        # Calcualte X-QMAuth value
+        # Calculate X-QMAuth value
         gmtime_100sec = int(
             (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() / 100
         )
@@ -713,7 +713,7 @@ class AudiService:
         return "v1:01da27b0:" + xqmauth_val
 
     # TR/2021-12-01: Refresh token before it expires
-    # returns True when refresh was required and succesful, otherwise False
+    # returns True when refresh was required and successful, otherwise False
     async def refresh_token_if_necessary(self, elapsed_sec: int) -> bool:
         if self.mbboauthToken is None:
             return False
