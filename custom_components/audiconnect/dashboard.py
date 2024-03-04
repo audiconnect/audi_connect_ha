@@ -153,9 +153,9 @@ class Sensor(Instrument):
     @property
     def state(self):
         val = super().state
-        if val and self._unit and "mi" in self._unit and self._convert == True:
+        if val and self._unit and "mi" in self._unit and self._convert is True:
             return round(val / 1.609344)
-        elif val and self._unit and "km" in self._unit and self._convert == True:
+        elif val and self._unit and "km" in self._unit and self._convert is True:
             return round(val * 1.609344)
         else:
             return val
