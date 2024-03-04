@@ -1,3 +1,5 @@
+# Describes the format for available AUDI services
+
 refresh_vehicle_data:
   name: Refresh vehicle data
   description: >-
