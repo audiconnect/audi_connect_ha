@@ -29,7 +29,6 @@ execute_vehicle_action:
       description: >-
         The action to be executed. Possible choices, depending on subscription
         options.
-      example: lock
       selector:
         select:
           translation_key: select_mode
