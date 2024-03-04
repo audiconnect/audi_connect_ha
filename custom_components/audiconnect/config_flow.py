@@ -59,7 +59,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     spin=self._spin,
                 )
 
-                if await connection.try_login(False) is False
+                if await connection.try_login(False) is False:
                     raise Exception(
                         "Unexpected error communicating with the Audi server"
                     )
