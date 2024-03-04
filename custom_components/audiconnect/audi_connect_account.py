@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import logging
 import asyncio
 from typing import List
@@ -438,7 +438,13 @@ class AudiConnectVehicle:
                 status.data_fields[i].name: status.data_fields[i].value
                 for i in range(0, len(status.data_fields))
             }
-            self._vehicle.state["last_update_time"] = status.data_fields[0].send_time
+
+            # last_update_time should be newest carCapturedTimestamp of all fields and states
+            self._vehicle.state["last_update_time"] = datetime(1970,1,1, tzinfo=timezone.utc)
+            for f in status.data_fields:
+                self._vehicle.state["last_update_time"] = max(self._vehicle.state["last_update_time"], f.measure_time)
+            for state in status.states:
+                self._vehicle.state["last_update_time"] = max(self._vehicle.state["last_update_time"], state["measure_time"])
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
         except TimeoutError:

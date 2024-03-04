@@ -56,7 +56,6 @@ class VehicleDataResponse:
         self.appendWindowState(data)
         self.appendDoorState(data)
 
-        self._tryAppendStateWithTs(data, "last_update_time",            -1, ["measurements", "odometerStatus",       "value",  "carCapturedTimestamp"])
         self._tryAppendStateWithTs(data, "carType",                     -1, ["fuelStatus",   "rangeStatus",    "value",  "carType"])
 
         self._tryAppendStateWithTs(data, "engineTypeFirstEngine",       -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "type"])
