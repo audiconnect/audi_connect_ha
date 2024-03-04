@@ -861,7 +861,7 @@ class AudiService:
         self._tokenEndpoint = "https://emea.bff.cariad.digital/login/v1/idk/token"
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
-        revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
+        #revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
         #if "revocation_endpoint" in openidcfg_json:
         #    revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
