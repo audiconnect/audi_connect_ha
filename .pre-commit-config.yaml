@@ -25,10 +25,10 @@ repos:
         stages: [manual]
       - id: check-json
         exclude: (.vscode|.devcontainer)
-  -   repo: https://github.com/asottile/pyupgrade
-    rev: v1.25.0
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.15.1
     hooks:
-    -   id: pyupgrade
+      - id: pyupgrade
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.35.1
     hooks:
