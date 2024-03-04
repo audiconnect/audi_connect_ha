@@ -181,11 +181,20 @@ class VehicleDataResponse:
             print("No Secondary Engine")
         
         if 'charging' in data:
-            self.states.append({"name" : "actualChargeRate", "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"]})
-            self.states.append({"name" : "chargingPower", "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"]})
-            self.states.append({"name" : "chargeMode", "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"]})
+            if 'chargeRate_kmph' in data["charging"]["chargingStatus"]["value"]:
+                self.states.append({"name" : "actualChargeRate", "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"]})
+            else:
+                print("No chargeRate_kmph")
+            if 'chargePower_kW' in data["charging"]["chargingStatus"]["value"]:
+                self.states.append({"name" : "chargingPower", "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"]})
+            else:
+                print("No chargePower_kW")
             self.states.append({"name" : "chargingState", "value" : data["charging"]["chargingStatus"]["value"]["chargingState"]})
-            self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"]})
+            self.states.append({"name" : "chargeMode", "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"]})
+            if 'remainingChargingTime' in data["charging"]["chargingStatus"]["value"]:
+                self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"]})
+            else:
+                print("No chargePower_kW")
             self.states.append({"name" : "plugState", "value" : data["charging"]["plugStatus"]["value"]["plugConnectionState"]})
         else:
             print("No Charching KEY")
