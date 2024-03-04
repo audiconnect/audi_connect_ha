@@ -29,7 +29,6 @@ repos:
     rev: v1.25.0
     hooks:
     -   id: pyupgrade
-        args: [--py36-plus]
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.35.1
     hooks:
