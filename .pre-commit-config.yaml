@@ -16,10 +16,3 @@ repos:
           - --skip="./.*,*.csv,*.json,*.ambr"
           - --quiet-level=2
         exclude_types: [csv, json]
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: check-executables-have-shebangs
-        stages: [manual]
-      - id: check-json
-        exclude: (.vscode|.devcontainer)
