@@ -500,6 +500,9 @@ def create_instruments():
             unit=None,
         ),
         Sensor(attr="plug_state", name="Plug state", icon="mdi:power-plug", unit=None),
+        Sensor(attr="plug_lock_state", name="Plug Lock state", icon="mdi:power-plug", unit=None),
+        Sensor(attr="external_power", name="External Power", icon="mdi:ev-station", unit=None),
+        Sensor(attr="plug_led_Color", name="Plug LED Color", icon="mdi:power-plug", unit=None),
         Sensor(
             attr="doors_trunk_status",
             name="Doors/trunk state",
