@@ -80,7 +80,6 @@ class VehicleDataResponse:
             
             milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
             milageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
-           
                  
             milageField = {
             "textId": "UTC_TIME_AND_KILOMETER_STATUS",
@@ -90,8 +89,6 @@ class VehicleDataResponse:
             self.data_fields.append(Field(milageField))
         
             self.states.append({"name" : "last_update_time", "value" : data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]})
-        
-        
         else:
             print("No measurements KEY")
             
@@ -139,7 +136,6 @@ class VehicleDataResponse:
 
             self.data_fields.append(Field(inspectionFieldkm))
             self.data_fields.append(Field(inspectionFieldday))
-        
         else:
             print("No vehicleHealthInspection KEY")
             
