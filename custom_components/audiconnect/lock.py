@@ -1,4 +1,5 @@
 """Support for Audi Connect locks."""
+
 import logging
 
 from homeassistant.components.lock import LockEntity
@@ -15,7 +16,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-
     sensors = []
     account = config_entry.data.get(CONF_USERNAME)
     audiData = hass.data[DOMAIN][account]

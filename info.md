@@ -2,8 +2,7 @@
 ![Project Maintenance][maintenance-shield]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
-Configuration
--------------
+## Configuration
 
 Configuration is done through the Home Assistant UI.
 
@@ -11,8 +10,8 @@ To add the integration, go to `Configuration->Integrations`, click `+` and searc
 
 ![Configuration](ha_config.png)
 
-Configuration Variables
------------------------
+## Configuration Variables
+
 **username**
 
 - (string)(Required)The username associated with your Audi Connect account.
