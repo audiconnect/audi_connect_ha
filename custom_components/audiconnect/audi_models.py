@@ -166,7 +166,7 @@ class VehicleDataResponse:
             print("No vehicleHealthInspection KEY")
 
         if "oilLevel" in data:
-            if data["oilLevel"]["oilLevelStatus"]["value"]["value"] == True:
+            if data["oilLevel"]["oilLevelStatus"]["value"]["value"] is True:
                 oilFieldlevelper = 100
             else:
                 oilFieldlevelper = 1
