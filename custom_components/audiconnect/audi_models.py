@@ -72,7 +72,6 @@ class VehicleDataResponse:
         else:
             print("No Adblue KEY")
         
-        
         if 'measurements' in data:
             
             milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
