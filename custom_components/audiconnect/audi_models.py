@@ -74,15 +74,15 @@ class VehicleDataResponse:
         
         if 'measurements' in data:
             
-            milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
-            milageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
+            mileage = data["measurements"]["odometerStatus"]["value"]["odometer"]
+            mileageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
                  
-            milageField = {
+            mileageField = {
             "textId": "UTC_TIME_AND_KILOMETER_STATUS",
-            "value": milage,
-            "tsCarCaptured": milageTsCarCaptured,
+            "value": mileage,
+            "tsCarCaptured": mileageTsCarCaptured,
             }
-            self.data_fields.append(Field(milageField))
+            self.data_fields.append(Field(mileageField))
         
             self.states.append({"name" : "last_update_time", "value" : data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]})
         else:
