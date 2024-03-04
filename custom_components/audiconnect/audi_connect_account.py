@@ -655,6 +655,15 @@ class AudiConnectVehicle:
                 self._vehicle.state["plugState"] = get_attr(
                     result, "charger.status.plugStatusData.plugState.content"
                 )
+                self._vehicle.state["plugLockState"] = get_attr(
+                    result, "charger.status.plugStatusData.plugLockState.content"
+                )
+                self._vehicle.state["externalPower"] = get_attr(
+                    result, "charger.status.plugStatusData.externalPower.content"
+                )
+                self._vehicle.state["plugledColor"] = get_attr(
+                    result, "charger.status.plugStatusData.plugledColor.content"
+                )
 
         except TimeoutError:
             raise
@@ -1376,6 +1385,42 @@ class AudiConnectVehicle:
     @property
     def plug_state_supported(self):
         check = self._vehicle.state.get("plugState")
+        if check:
+            return True
+
+    @property
+    def plug_lock_state(self):
+        """Return plug lock state"""
+        if self.plug_lock_state_supported:
+            return self._vehicle.state.get("plugLockState")
+
+    @property
+    def plug_lock_state_supported(self):
+        check = self._vehicle.state.get("plugLockState")
+        if check:
+            return True
+
+    @property
+    def external_power(self):
+        """Return external Power"""
+        if self.external_power_supported:
+            return self._vehicle.state.get("externalPower")
+
+    @property
+    def external_power_supported(self):
+        check = self._vehicle.state.get("externalPower")
+        if check:
+            return True
+
+    @property
+    def plug_led_color(self):
+        """Return plug LED Color"""
+        if self.plug_led_color_supported:
+            return self._vehicle.state.get("plugledColor")
+
+    @property
+    def plug_led_color_supported(self):
+        check = self._vehicle.state.get("plugledColor")
         if check:
             return True
 
