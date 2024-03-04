@@ -89,8 +89,6 @@ class AudiService:
     def get_hidden_html_input_form_data(self, response, form_data: Dict[str, str]):
         # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
-        form_tag = html.find("form")
-
         form_inputs = html.find_all("input", attrs={"type": "hidden"})
         for form_input in form_inputs:
             name = form_input.get("name")
@@ -161,26 +159,7 @@ class AudiService:
             )
         )
 
-    async def get_preheater(self, vin: str):
-        self._api.use_token(self.vwToken)
-        return await self._api.get(
-            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
-        )
-
     async def get_stored_vehicle_data(self, vin: str):
-        # self._api.use_token(self.vwToken);
-        # data = await self._api.get(
-        # "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/status".format(
-        #     homeRegion=await self._get_home_region(vin.upper()),
-        #     type=self._type,
-        #     country=self._country,
-        #     vin=vin.upper(),
-        # )
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
             # "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs=access,charging,fuelStatus,climatisation,measurements".format(
