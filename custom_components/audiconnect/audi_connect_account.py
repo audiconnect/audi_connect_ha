@@ -119,7 +119,7 @@ class AudiConnectAccount:
 
             return True
 
-        except IOError as exception:
+        except OSError as exception:
             # Force a re-login in case of failure/exception
             self._loggedin = False
             _LOGGER.exception(exception)

@@ -75,7 +75,7 @@ class Instrument:
 
     @property
     def full_name(self):
-        return "%s %s" % (self.vehicle_name, self._name)
+        return "{} {}".format(self.vehicle_name, self._name)
 
     @property
     def vehicle_model(self):
@@ -146,7 +146,7 @@ class Sensor(Instrument):
     @property
     def str_state(self):
         if self.unit:
-            return "%s %s" % (self.state, self.unit)
+            return "{} {}".format(self.state, self.unit)
         else:
             return "%s" % self.state
 

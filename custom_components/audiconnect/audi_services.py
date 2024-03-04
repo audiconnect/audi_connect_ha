@@ -826,7 +826,7 @@ class AudiService:
             c=self._country, l=self._language
         )
         openidcfg_url = (
-            "https://{0}.bff.cariad.digital/login/v1/idk/openid-configuration".format(
+            "https://{}.bff.cariad.digital/login/v1/idk/openid-configuration".format(
                 "na" if self._country.upper() == "US" else "emea"
             )
         )
@@ -861,8 +861,8 @@ class AudiService:
         self._tokenEndpoint = "https://emea.bff.cariad.digital/login/v1/idk/token"
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
-        #revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
-        #if "revocation_endpoint" in openidcfg_json:
+        # revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
+        # if "revocation_endpoint" in openidcfg_json:
         #    revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
         # generate code_challenge
