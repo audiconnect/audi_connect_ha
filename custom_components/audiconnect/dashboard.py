@@ -390,6 +390,12 @@ def create_instruments():
         Sensor(attr="service_adblue_distance", name="AdBlue range", icon="mdi:gas-station", unit="km"),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
         Sensor(
+            attr="hybrid_range",
+            name="hybrid Range",
+            icon="mdi:gas-station-outline",
+            unit="km",
+        ),
+        Sensor(
             attr="service_inspection_time",
             name="Service inspection time",
             icon="mdi:room-service-outline",

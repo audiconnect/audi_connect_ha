@@ -37,5 +37,3 @@ def parse_float(val: str):
         return float(val)
     except (ValueError, TypeError):
         return None
-    except TypeError:
-        return None

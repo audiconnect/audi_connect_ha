@@ -53,14 +53,12 @@ class VehicleDataResponse:
 
         self._tryAppendFieldWithTs(data, "LIGHT_STATUS",                                ["vehicleLights",             "lightsStatus",        "value", "lights"])
 
-        
         self.appendWindowState(data)
-        self.appendSunRoofState(data)
         self.appendDoorState(data)
-        self.appendHoodState(data)
 
+        self._tryAppendStateWithTs(data, "last_update_time",            -1, ["measurements", "odometerStatus",       "value",  "carCapturedTimestamp"])
         self._tryAppendStateWithTs(data, "carType",                     -1, ["fuelStatus",   "rangeStatus",    "value",  "carType"])
-       
+
         self._tryAppendStateWithTs(data, "engineTypeFirstEngine",       -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "type"])
         self._tryAppendStateWithTs(data, "primaryEngineRange",          -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "remainingRange_km"])
         self._tryAppendStateWithTs(data, "primaryEngineRangePercent",   -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "currentSOC_pct"])
@@ -77,7 +75,9 @@ class VehicleDataResponse:
         self._tryAppendStateWithTs(data, "chargingState",               -1, ["charging",     "chargingStatus", "value",  "chargingState"])
         self._tryAppendStateWithTs(data, "plugState",                   -1, ["charging",     "plugStatus",     "value",  "plugConnectionState"])
         self._tryAppendStateWithTs(data, "remainingChargingTime",       -1, ["charging",     "plugStatus",     "value",  "remainingChargingTimeToComplete_min"])
-        
+
+        self._tryAppendStateWithTs(data, "climatisationState",          -1, ["climatisation", "auxiliaryHeatingStatus", "value", "climatisationState"])
+
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         ts = None
@@ -111,16 +111,6 @@ class VehicleDataResponse:
               return None
            child = child[i]
         return child
-        
-        self.states.append({"name" : "stateOfCharge",          "value" : data["measurements"]["fuelLevelStatus"]["value"]["currentSOC_pct"],                "measure_time" : data["measurements"]["fuelLevelStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargingMode",           "value" : data["charging"]["chargingStatus"]["value"]["chargeType"],                         "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })        
-        self.states.append({"name" : "actualChargeRate",       "value" : data["charging"]["chargingStatus"]["value"]["chargeRate_kmph"],                    "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargingPower",          "value" : data["charging"]["chargingStatus"]["value"]["chargePower_kW"],                     "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargeMode",             "value" : data["charging"]["chargingStatus"]["value"]["chargeMode"],                         "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "chargingState",          "value" : data["charging"]["chargingStatus"]["value"]["chargingState"],                      "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-        self.states.append({"name" : "plugState",              "value" : data["charging"]["plugStatus"]    ["value"]["plugConnectionState"],                "measure_time" : data["charging"]["plugStatus"]    ["value"]["carCapturedTimestamp"]   })
-        #self.states.append({"name" : "remainingChargingTime", "value" : data["charging"]["chargingStatus"]["value"]["remainingChargingTimeToComplete_min"] "measure_time" : data["charging"]["chargingStatus"]["value"]["carCapturedTimestamp"]   })
-
 
     def appendDoorState(self, data):
         doors = data["access"]["accessStatus"]["value"]["doors"];

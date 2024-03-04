@@ -190,12 +190,12 @@ class AudiService:
             "lvBattery",
             "measurements",
             "oilLevel",
-            "readiness"
+            "readiness",
             #"userCapabilities",
             "vehicleHealthInspection",
             "vehicleHealthWarnings",
             "vehicleLights",
-	     }
+        }
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs={jobs}".format(
