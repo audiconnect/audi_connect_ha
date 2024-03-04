@@ -35,12 +35,12 @@ execute_vehicle_action:
           options:
             - lock
             - unlock
-            -start_climatisation
-            -stop_climatisation
-            -start_charger
-            -start_timed_charger
-            -stop_charger
+            - start_climatisation
+            - stop_climatisation
+            - start_charger
+            - start_timed_charger
+            - stop_charger
             - start_preheater
-            -stop_preheater
-            -start_window_heating
-            -stop_window_heating
+            - stop_preheater
+            - start_window_heating
+            - stop_window_heating
