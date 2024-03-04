@@ -190,7 +190,7 @@ class VehicleDataResponse:
                 print("No chargePower_kW")
             self.states.append({"name" : "plugState", "value" : data["charging"]["plugStatus"]["value"]["plugConnectionState"]})
         else:
-            print("No Charching KEY")
+            print("No Charging KEY")
         
     def appendDoorState(self, data):
         doors = data["access"]["accessStatus"]["value"]["doors"];
