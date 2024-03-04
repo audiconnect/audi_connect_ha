@@ -28,8 +28,20 @@ execute_vehicle_action:
       name: Action
       description: >-
         The action to be executed. Possible choices, depending on subscription
-        options, include 'lock', 'unlock', 'start_climatisation',
-        'stop_climatisation, 'start_charger', 'start_timed_charger',
-        'stop_charger', 'start_preheater', 'stop_preheater,
-        'start_window_heating', 'stop_window_heating'
+        options.
       example: lock
+      selector:
+        select:
+          translation_key: select_mode
+          options:
+            - lock
+            - unlock
+            -start_climatisation
+            -stop_climatisation
+            -start_charger
+            -start_timed_charger
+            -stop_charger
+            - start_preheater
+            -stop_preheater
+            -start_window_heating
+            -stop_window_heating
