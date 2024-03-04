@@ -56,9 +56,6 @@ class VehicleDataResponse:
             }
             self.data_fields.append(Field(socField))
             self.data_fields.append(Field(rangeField))
-        
-        
-        
         else:
             print("No fuelStatus KEY")
             
