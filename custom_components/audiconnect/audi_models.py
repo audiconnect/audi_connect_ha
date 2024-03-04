@@ -39,30 +39,44 @@ class VehicleDataResponse:
         self.data_fields = []
         self.states = []
 
-        self._tryAppendFieldWithTs(data, "TOTAL_RANGE",                                 ["fuelStatus",               "rangeStatus",       "value", "totalRange_km"])
-        self._tryAppendFieldWithTs(data, "UTC_TIME_AND_KILOMETER_STATUS",               ["measurements",             "odometerStatus",    "value", "odometer"])
-        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",     ["vehicleHealthInspection",  "maintenanceStatus", "value", "inspectionDue_days"])
-        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION", ["vehicleHealthInspection",  "maintenanceStatus", "value", "inspectionDue_km"])
+        self._tryAppendFieldWithTs(data, "TOTAL_RANGE",                                 ["fuelStatus",               "rangeStatus",          "value", "totalRange_km"])
+        self._tryAppendFieldWithTs(data, "TANK_LEVEL_IN_PERCENTAGE",                    ["measurements",             "fuelLevelStatus",      "value", "currentFuelLevel_pct"])
+        self._tryAppendFieldWithTs(data, "UTC_TIME_AND_KILOMETER_STATUS",               ["measurements",             "odometerStatus",       "value", "odometer"])
+        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",     ["vehicleHealthInspection",  "maintenanceStatus",    "value", "inspectionDue_days"])
+        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION", ["vehicleHealthInspection",  "maintenanceStatus",    "value", "inspectionDue_km"])
+        
+        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",     ["vehicleHealthInspection",  "maintenanceStatus",    "value", "oilServiceDue_days"])
+        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE", ["vehicleHealthInspection",  "maintenanceStatus",    "value", "oilServiceDue_km"])
+        
+        self._tryAppendFieldWithTs(data, "OIL_LEVEL_DIPSTICKS_PERCENTAGE",              ["oilLevel",                 "oilLevelStatus",       "value", "value"])
+        self._tryAppendFieldWithTs(data, "ADBLUE_RANGE",                                ["measurements",             "rangeStatus",          "value", "adBlueRange"])
 
+        self._tryAppendFieldWithTs(data, "LIGHT_STATUS",                                ["vehicleLights",             "lightsStatus",        "value", "lights"])
+
+        
         self.appendWindowState(data)
         self.appendSunRoofState(data)
         self.appendDoorState(data)
         self.appendHoodState(data)
-       
-        self._tryAppendStateWithTs(data, "engineTypeFirstEngine",    -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "type"])
-        self._tryAppendStateWithTs(data, "primaryEngineRange",       -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "remainingRange_km"])
-        self._tryAppendStateWithTs(data, "engineTypeSecondEngine",   -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "type"])
-        self._tryAppendStateWithTs(data, "secondaryEngineRange",     -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "remainingRange_km"])
-        self._tryAppendStateWithTs(data, "hybridRange",              -1, ["fuelStatus",   "rangeStatus",    "value",  "totalRange_km"])
 
-        self._tryAppendStateWithTs(data, "stateOfCharge",            -1, ["charging",     "batteryStatus",  "value",  "currentSOC_pct"])
-        self._tryAppendStateWithTs(data, "chargingMode",             -1, ["charging",     "chargingStatus", "value",  "chargeType"])
-        self._tryAppendStateWithTs(data, "actualChargeRate",         -1, ["charging",     "chargingStatus", "value",  "chargeRate_kmph"])
-        self._tryAppendStateWithTs(data, "chargingPower",            -1, ["charging",     "chargingStatus", "value",  "chargePower_kW"])
-        self._tryAppendStateWithTs(data, "chargeMode",               -1, ["charging",     "chargingStatus", "value",  "chargeMode"])
-        self._tryAppendStateWithTs(data, "chargingState",            -1, ["charging",     "chargingStatus", "value",  "chargingState"])
-        self._tryAppendStateWithTs(data, "plugState",                -1, ["charging",     "plugStatus",     "value",  "plugConnectionState"])
-        self._tryAppendStateWithTs(data, "remainingChargingTime",    -1, ["charging",     "plugStatus",     "value",  "remainingChargingTimeToComplete_min"])
+        self._tryAppendStateWithTs(data, "carType",                     -1, ["fuelStatus",   "rangeStatus",    "value",  "carType"])
+       
+        self._tryAppendStateWithTs(data, "engineTypeFirstEngine",       -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "type"])
+        self._tryAppendStateWithTs(data, "primaryEngineRange",          -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "remainingRange_km"])
+        self._tryAppendStateWithTs(data, "primaryEngineRangePercent",   -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "currentSOC_pct"])
+        self._tryAppendStateWithTs(data, "engineTypeSecondEngine",      -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "type"])
+        self._tryAppendStateWithTs(data, "secondaryEngineRange",        -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "remainingRange_km"])
+        self._tryAppendStateWithTs(data, "secondaryEngineRangePercent", -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "currentSOC_pct"])
+        self._tryAppendStateWithTs(data, "hybridRange",                 -1, ["fuelStatus",   "rangeStatus",    "value",  "totalRange_km"])
+
+        self._tryAppendStateWithTs(data, "stateOfCharge",               -1, ["charging",     "batteryStatus",  "value",  "currentSOC_pct"])
+        self._tryAppendStateWithTs(data, "chargingMode",                -1, ["charging",     "chargingStatus", "value",  "chargeType"])
+        self._tryAppendStateWithTs(data, "actualChargeRate",            -1, ["charging",     "chargingStatus", "value",  "chargeRate_kmph"])
+        self._tryAppendStateWithTs(data, "chargingPower",               -1, ["charging",     "chargingStatus", "value",  "chargePower_kW"])
+        self._tryAppendStateWithTs(data, "chargeMode",                  -1, ["charging",     "chargingStatus", "value",  "chargeMode"])
+        self._tryAppendStateWithTs(data, "chargingState",               -1, ["charging",     "chargingStatus", "value",  "chargingState"])
+        self._tryAppendStateWithTs(data, "plugState",                   -1, ["charging",     "plugStatus",     "value",  "plugConnectionState"])
+        self._tryAppendStateWithTs(data, "remainingChargingTime",       -1, ["charging",     "plugStatus",     "value",  "remainingChargingTimeToComplete_min"])
         
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):

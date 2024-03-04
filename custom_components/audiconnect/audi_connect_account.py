@@ -863,8 +863,11 @@ class AudiConnectVehicle:
     def parking_light(self):
         """Return true if parking light is on"""
         if self.parking_light_supported:
-            check = self._vehicle.fields.get("LIGHT_STATUS")
-            return check != "off"
+            try:
+                check = self._vehicle.fields.get("LIGHT_STATUS")
+                return check[0]["status"] != "off" or check[1]["status"] != "off"
+            except:
+                return False
 
     @property
     def parking_light_supported(self):
@@ -1260,7 +1263,7 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("primaryEngineRange")
         if check and check != "unsupported":
             return True
-    
+
     @property
     def primary_engine_range_percent(self):
         """Return primary engine range"""
@@ -1284,7 +1287,7 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("secondaryEngineRange")
         if check and check != "unsupported":
             return True
-            
+
     @property
     def car_type(self):
         """Return secondary engine range"""
