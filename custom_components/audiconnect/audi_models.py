@@ -62,18 +62,26 @@ class VehicleDataResponse:
         else:
             print("No fuelStatus KEY")
             
-        if 'measurements' in data:
+        if 'adBlueRange' in data["measurements"]["rangeStatus"]["value"]:
             adblueRange = data["measurements"]["rangeStatus"]["value"]["adBlueRange"]
-            milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
-            milageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
             adblueTsCarCaptured = data["measurements"]["rangeStatus"]["value"]["carCapturedTimestamp"]
             adblueField = {
-                "textId": "ADBLUE_RANGE",
-                "value": adblueRange,
-                "tsCarCaptured": adblueTsCarCaptured,
-                }
+            "textId": "ADBLUE_RANGE",
+            "value": adblueRange,
+            "tsCarCaptured": adblueTsCarCaptured,
+            }
         
-            self.data_fields.append(Field(adblueField))        
+            self.data_fields.append(Field(adblueField))   
+        else:
+            print("No Adblue KEY")
+        
+        
+        if 'measurements' in data:
+            
+            milage = data["measurements"]["odometerStatus"]["value"]["odometer"]
+            milageTsCarCaptured = data["measurements"]["odometerStatus"]["value"]["carCapturedTimestamp"]
+           
+                 
             milageField = {
             "textId": "UTC_TIME_AND_KILOMETER_STATUS",
             "value": milage,
@@ -155,8 +163,6 @@ class VehicleDataResponse:
         self.appendWindowState(data)
         self.appendDoorState(data)
         
-        #self.states.append({"name" : "engineTypeFirstEngine", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["type"]})
-        #self.states.append({"name" : "primaryEngineRange", "value" : data["fuelStatus"]["rangeStatus"]["value"]["primaryEngine"]["remainingRange_km"]})
       
         if 'primaryEngine' in data["fuelStatus"]["rangeStatus"]["value"]:
             self.states.append({"name" : "carType", "value" : data["fuelStatus"]["rangeStatus"]["value"]["carType"]})
