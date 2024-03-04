@@ -30,6 +30,7 @@ execute_vehicle_action:
       description: >-
         The action to be executed. Possible choices, depending on subscription
         options.
+      required: true
       selector:
         select:
           translation_key: select_mode
