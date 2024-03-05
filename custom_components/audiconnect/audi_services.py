@@ -171,22 +171,38 @@ class AudiService:
         )
 
     async def get_stored_vehicle_data(self, vin: str):
-        # self._api.use_token(self.vwToken);
-        # data = await self._api.get(
-            # "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/status".format(
-            #     homeRegion=await self._get_home_region(vin.upper()),
-            #     type=self._type,
-            #     country=self._country,
-            #     vin=vin.upper(),
-            # )
-        self._api.use_token(self._bearer_token_json);
+        JOBS2QUERY = {
+            "access",
+            "activeVentilation",
+            "auxiliaryHeating",
+            "batteryChargingCare",
+            "batterySupport",
+            "charging",
+            "chargingProfiles",
+            "chargingTimers",
+            "climatisation",
+            "climatisationTimers",
+            "departureProfiles",
+            "departureTimers",
+            "fuelStatus",
+            "honkAndFlash",
+            "hybridCarAuxiliaryHeating",
+            "lvBattery",
+            "measurements",
+            "oilLevel",
+            "readiness",
+            #"userCapabilities",
+            "vehicleHealthInspection",
+            "vehicleHealthWarnings",
+            "vehicleLights",
+        }
+        self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
-            #"https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs=access,charging,fuelStatus,climatisation,measurements".format(
-             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs=activeVentilation,auxiliaryHeating,batteryChargingCare,batterySupport,charging,chargingTimers,chargingProfiles,climatisation,climatisationTimers,departureProfiles,fuelStatus,honkAndFlash,hybridCarAuxiliaryHeating,userCapabilities,departureTimers,lvBattery,readiness,measurements,oilLevel,vehicleHealthInspection,access,vehicleLights,vehicleHealthWarnings".format(
-             vin=vin.upper(),
-            ))
-      
-        # _LOGGER.warning("DATA From your AUDI: " + str(data))
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs={jobs}".format(
+                vin=vin.upper(),
+                jobs=",".join(JOBS2QUERY)
+            )
+        )
         return VehicleDataResponse(data)
 
     async def get_charger(self, vin: str):
@@ -214,13 +230,6 @@ class AudiService:
                 vin=vin.upper(),
             )
         )
-        # self._api.use_token(self.vwToken)
-        # return await self._api.get(
-        #     "{homeRegion}/fs-car/bs/cf/v1/{type}/{country}/vehicles/{vin}/position".format(
-        #         homeRegion=await self._get_home_region(vin.upper()),
-        #         type=self._type, country=self._country, vin=vin.upper()
-        #     )
-        # )
 
     async def get_operations_list(self, vin: str):
         self._api.use_token(self.vwToken)
@@ -265,7 +274,7 @@ class AudiService:
         }
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
-            "https://app-api.live-my.audi.com/vgql/v1/graphql",
+            "https://app-api.my.aoa.audi.com/vgql/v1/graphql" if self._country.upper()=="US" else "https://app-api.live-my.audi.com/vgql/v1/graphql", # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             json.dumps(req_data),
             headers=headers,
             allow_redirects=False,
@@ -589,11 +598,8 @@ class AudiService:
             input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
             if activate
             else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
-            
-         
         )
-           
-           
+
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
         )
@@ -773,7 +779,6 @@ class AudiService:
         ]["defaultLanguage"]
 
         # Dynamic configuration URLs
-    #    marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.15.0".format(
         marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.23.1".format(
             c=self._country, l=self._language
         )
@@ -791,7 +796,6 @@ class AudiService:
         self._authorizationServerBaseURLLive = "https://emea.bff.cariad.digital/login/v1/audi"
         if "authorizationServerBaseURLLive" in marketcfg_json:
             self._authorizationServerBaseURLLive = marketcfg_json[
-                #"authorizationServerBaseURLLive"
                 "myAudiAuthorizationServerProxyServiceURLProduction"
             ]
         self.mbbOAuthBaseURL = "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth"
