@@ -18,6 +18,7 @@ from .audi_models import (
 )
 from .audi_api import AudiAPI
 from .util import to_byte_array, get_attr
+from .const import DOMAIN
 
 from hashlib import sha256, sha512
 import hmac
@@ -186,7 +187,7 @@ class AudiService:
              vin=vin.upper(),
             ))
       
-        # _LOGGER.warning("DATA From your AUDI: " + str(data))
+        _LOGGER.debug(f"{DOMAIN} - DATA From your AUDI: " + str(data))
         return VehicleDataResponse(data)
 
     async def get_charger(self, vin: str):
