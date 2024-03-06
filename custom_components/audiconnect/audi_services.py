@@ -756,8 +756,7 @@ class AudiService:
             return True
 
         except Exception as exception:
-            _
-            .error("Refresh token failed: " + str(exception))
+            _LOGGER.error("Refresh token failed: " + str(exception))
             return False
 
     # TR/2021-12-01 updated to match behaviour of Android myAudi 4.5.0
