@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import logging
 import asyncio
 from typing import List
@@ -401,16 +401,16 @@ class AudiConnectVehicle:
             self._no_error = True
             info = "statusreport"
             await self.call_update(self.update_vehicle_statusreport, 3)
-            # info = "shortterm"
-            # await self.call_update(self.update_vehicle_shortterm, 3)
-            # info = "longterm"
-            # await self.call_update(self.update_vehicle_longterm, 3)
+            info = "shortterm"
+            await self.call_update(self.update_vehicle_shortterm, 3)
+            info = "longterm"
+            await self.call_update(self.update_vehicle_longterm, 3)
             info = "position"
             await self.call_update(self.update_vehicle_position, 3)
             info = "climater"
             await self.call_update(self.update_vehicle_climater, 3)
-            info = "charger"
-            await self.call_update(self.update_vehicle_charger, 3)
+            #info = "charger"
+            #await self.call_update(self.update_vehicle_charger, 3)
             info = "preheater"
             await self.call_update(self.update_vehicle_preheater, 3)
             # Return True on success, False on error
@@ -438,7 +438,13 @@ class AudiConnectVehicle:
                 status.data_fields[i].name: status.data_fields[i].value
                 for i in range(0, len(status.data_fields))
             }
-            self._vehicle.state["last_update_time"] = status.data_fields[0].send_time
+
+            # last_update_time should be newest carCapturedTimestamp of all fields and states
+            self._vehicle.state["last_update_time"] = datetime(1970,1,1, tzinfo=timezone.utc)
+            for f in status.data_fields:
+                self._vehicle.state["last_update_time"] = max(self._vehicle.state["last_update_time"], f.measure_time)
+            for state in status.states:
+                self._vehicle.state["last_update_time"] = max(self._vehicle.state["last_update_time"], state["measure_time"])
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
         except TimeoutError:
@@ -479,24 +485,6 @@ class AudiConnectVehicle:
                     "timestamp": resp["data"]["carCapturedTimestamp"],
                     "parktime": resp["data"]["carCapturedTimestamp"]
                 }
-
-            # if resp.get("findCarResponse") is not None:
-            #     position = resp["findCarResponse"]
-
-            # if (
-            #     position.get("Position") is not None
-            #     and position["Position"].get("carCoordinate") is not None
-            # ):
-                # self._vehicle.state["position"] = {
-                #     "latitude": get_attr(position, "Position.carCoordinate.latitude")
-                #     / 1000000,
-                #     "longitude": get_attr(position, "Position.carCoordinate.longitude")
-                #     / 1000000,
-                #     "timestamp": get_attr(position, "Position.timestampCarSentUTC"),
-                #     "parktime": position.get("parkingTimeUTC")
-                #     if position.get("parkingTimeUTC") is not None
-                #     else get_attr(position, "Position.timestampCarSentUTC"),
-                # }
 
         except TimeoutError:
             raise
@@ -622,7 +610,7 @@ class AudiConnectVehicle:
                     result, "charger.status.chargingStatusData.actualChargeRate.content"
                 )
                 if self._vehicle.state["actualChargeRate"] is not None:
-                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"]) / 10
+                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"])
                 self._vehicle.state["actualChargeRateUnit"] = get_attr(
                     result, "charger.status.chargingStatusData.chargeRateUnit.content"
                 )
@@ -730,15 +718,15 @@ class AudiConnectVehicle:
         except ClientResponseError as resp_exception:
             self.log_exception_once(
                 resp_exception,
-                "Unable to obtain the vehicle {kind} tripdata of {vin}".format(
-                    kind=kind, vin=self._vehicle.vin
+                "Unable to obtain the vehicle {kind} tripdata of {vin} - {vehicle}".format(
+                    kind=kind, vin=self._vehicle.vin, vehicle=self._vehicle
                 ),
             )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle {kind} tripdata of {vin}".format(
-                    kind=kind, vin=self._vehicle.vin
+                "Unable to obtain the vehicle {kind} tripdata of {vin} - {vehicle}".format(
+                    kind=kind, vin=self._vehicle.vin, vehicle=self._vehicle
                 ),
             )
 
@@ -780,7 +768,7 @@ class AudiConnectVehicle:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
         if check and parse_int(check):
             return True
-    
+
     @property
     def service_adblue_distance(self):
         """Return distance left for service inspection"""
@@ -827,12 +815,19 @@ class AudiConnectVehicle:
     def oil_level(self):
         """Return oil level percentage"""
         if self.oil_level_supported:
-            return float(self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
+            val = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
+            if type(val) is bool:
+                if val:
+                    return 100
+                else:
+                  return 1
+            if parse_float(val):
+                return True
 
     @property
     def oil_level_supported(self):
         check = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
-        if check and parse_float(check):
+        if check is not None:
             return True
 
     @property
@@ -881,8 +876,11 @@ class AudiConnectVehicle:
     def parking_light(self):
         """Return true if parking light is on"""
         if self.parking_light_supported:
-            check = self._vehicle.fields.get("LIGHT_STATUS")
-            return check != "off"
+            try:
+                check = self._vehicle.fields.get("LIGHT_STATUS")
+                return check[0]["status"] != "off" or check[1]["status"] != "off"
+            except:
+                return False
 
     @property
     def parking_light_supported(self):
@@ -1216,11 +1214,13 @@ class AudiConnectVehicle:
                 return parse_float(self._vehicle.state.get("actualChargeRate"))
             except ValueError:
                 return -1
-
+            
 
     @property
     def actual_charge_rate_supported(self):
-        return True
+        check = self._vehicle.state.get("actualChargeRate")
+        if check is not None:
+            return True
 
     @property
     def actual_charge_rate_unit(self):
@@ -1231,7 +1231,7 @@ class AudiConnectVehicle:
         """Return charging power"""
         if self.charging_power_supported:
             try:
-                return parse_int(self._vehicle.state.get("chargingPower"))
+                return parse_float(self._vehicle.state.get("chargingPower"))
             except ValueError:
                 return -1
 
@@ -1276,7 +1276,7 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("primaryEngineRange")
         if check and check != "unsupported":
             return True
-    
+
     @property
     def primary_engine_range_percent(self):
         """Return primary engine range"""
@@ -1300,7 +1300,7 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("secondaryEngineRange")
         if check and check != "unsupported":
             return True
-            
+
     @property
     def car_type(self):
         """Return secondary engine range"""
@@ -1343,12 +1343,12 @@ class AudiConnectVehicle:
     def state_of_charge(self):
         """Return state of charge"""
         if self.state_of_charge_supported:
-            return self._vehicle.state.get("stateOfCharge")
+            return parse_float(self._vehicle.state.get("stateOfCharge"))
 
     @property
     def state_of_charge_supported(self):
         check = self._vehicle.state.get("stateOfCharge")
-        if check:
+        if check and parse_float(check):
             return True
 
     @property

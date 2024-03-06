@@ -19,8 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
-    #HDR_XAPP_VERSION = "4.16.0"
-    #HDR_USER_AGENT = "myAudi-Android/4.13.0 (Build 800238275.2210271555) Android/11"
     HDR_XAPP_VERSION = "4.23.1"
     HDR_USER_AGENT = "Android/4.23.1 (Build 800240120.root project 'onetouch-android'.ext.buildTime) Android/11"
 
