@@ -1,13 +1,13 @@
 {
   "domain": "audiconnect",
   "name": "Audi Connect",
+  "codeowners": ["@arjenvrh"],
   "config_flow": true,
   "documentation": "https://github.com/arjenvrh/audi_connect_ha",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/arjenvrh/audi_connect_ha/issues",
+  "loggers": ["audiconnect"],
   "requirements": ["beautifulsoup4"],
-  "dependencies": [],
-  "codeowners": ["@arjenvrh"],
   "version": "2021.1.1"
 }
