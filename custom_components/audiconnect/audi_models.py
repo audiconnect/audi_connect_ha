@@ -8,11 +8,13 @@ class VehicleData:
         self.config_entry = config_entry
         self.vehicle = None
 
+
 class CurrentVehicleDataResponse:
     def __init__(self, data):
         data = data["CurrentVehicleDataResponse"]
         self.request_id = data["requestId"]
         self.vin = data["vin"]
+
 
 class VehicleDataResponse:
     OLDAPI_MAPPING = {
@@ -29,54 +31,203 @@ class VehicleDataResponse:
         "bonnetLock": "LOCK_STATE_HOOD",
         "bonnetOpen": "OPEN_STATE_HOOD",
         "sunRoofWindow": "STATE_SUN_ROOF_MOTOR_COVER",
-        "frontLeftWindow" : "STATE_LEFT_FRONT_WINDOW",
-        "frontRightWindow" : "STATE_RIGHT_FRONT_WINDOW",
-        "rearLeftWindow" : "STATE_LEFT_REAR_WINDOW",
-        "rearRightWindow" : "STATE_RIGHT_REAR_WINDOW"
+        "frontLeftWindow": "STATE_LEFT_FRONT_WINDOW",
+        "frontRightWindow": "STATE_RIGHT_FRONT_WINDOW",
+        "rearLeftWindow": "STATE_LEFT_REAR_WINDOW",
+        "rearRightWindow": "STATE_RIGHT_REAR_WINDOW",
     }
 
     def __init__(self, data):
         self.data_fields = []
         self.states = []
 
-        self._tryAppendFieldWithTs(data, "TOTAL_RANGE",                                 ["fuelStatus",               "rangeStatus",          "value", "totalRange_km"])
-        self._tryAppendFieldWithTs(data, "TANK_LEVEL_IN_PERCENTAGE",                    ["measurements",             "fuelLevelStatus",      "value", "currentFuelLevel_pct"])
-        self._tryAppendFieldWithTs(data, "UTC_TIME_AND_KILOMETER_STATUS",               ["measurements",             "odometerStatus",       "value", "odometer"])
-        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",     ["vehicleHealthInspection",  "maintenanceStatus",    "value", "inspectionDue_days"])
-        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION", ["vehicleHealthInspection",  "maintenanceStatus",    "value", "inspectionDue_km"])
-        
-        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",     ["vehicleHealthInspection",  "maintenanceStatus",    "value", "oilServiceDue_days"])
-        self._tryAppendFieldWithTs(data, "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE", ["vehicleHealthInspection",  "maintenanceStatus",    "value", "oilServiceDue_km"])
-        
-        self._tryAppendFieldWithTs(data, "OIL_LEVEL_DIPSTICKS_PERCENTAGE",              ["oilLevel",                 "oilLevelStatus",       "value", "value"])
-        self._tryAppendFieldWithTs(data, "ADBLUE_RANGE",                                ["measurements",             "rangeStatus",          "value", "adBlueRange"])
+        self._tryAppendFieldWithTs(
+            data, "TOTAL_RANGE", ["fuelStatus", "rangeStatus", "value", "totalRange_km"]
+        )
+        self._tryAppendFieldWithTs(
+            data,
+            "TANK_LEVEL_IN_PERCENTAGE",
+            ["measurements", "fuelLevelStatus", "value", "currentFuelLevel_pct"],
+        )
+        self._tryAppendFieldWithTs(
+            data,
+            "UTC_TIME_AND_KILOMETER_STATUS",
+            ["measurements", "odometerStatus", "value", "odometer"],
+        )
+        self._tryAppendFieldWithTs(
+            data,
+            "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "inspectionDue_days",
+            ],
+        )
+        self._tryAppendFieldWithTs(
+            data,
+            "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "inspectionDue_km",
+            ],
+        )
 
-        self._tryAppendFieldWithTs(data, "LIGHT_STATUS",                                ["vehicleLights",             "lightsStatus",        "value", "lights"])
+        self._tryAppendFieldWithTs(
+            data,
+            "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "oilServiceDue_days",
+            ],
+        )
+        self._tryAppendFieldWithTs(
+            data,
+            "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "oilServiceDue_km",
+            ],
+        )
+
+        self._tryAppendFieldWithTs(
+            data,
+            "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
+            ["oilLevel", "oilLevelStatus", "value", "value"],
+        )
+        self._tryAppendFieldWithTs(
+            data,
+            "ADBLUE_RANGE",
+            ["measurements", "rangeStatus", "value", "adBlueRange"],
+        )
+
+        self._tryAppendFieldWithTs(
+            data, "LIGHT_STATUS", ["vehicleLights", "lightsStatus", "value", "lights"]
+        )
 
         self.appendWindowState(data)
         self.appendDoorState(data)
 
-        self._tryAppendStateWithTs(data, "carType",                     -1, ["fuelStatus",   "rangeStatus",    "value",  "carType"])
+        self._tryAppendStateWithTs(
+            data, "carType", -1, ["fuelStatus", "rangeStatus", "value", "carType"]
+        )
 
-        self._tryAppendStateWithTs(data, "engineTypeFirstEngine",       -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "type"])
-        self._tryAppendStateWithTs(data, "primaryEngineRange",          -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "remainingRange_km"])
-        self._tryAppendStateWithTs(data, "primaryEngineRangePercent",   -2, ["fuelStatus",   "rangeStatus",    "value",  "primaryEngine",   "currentSOC_pct"])
-        self._tryAppendStateWithTs(data, "engineTypeSecondEngine",      -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "type"])
-        self._tryAppendStateWithTs(data, "secondaryEngineRange",        -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "remainingRange_km"])
-        self._tryAppendStateWithTs(data, "secondaryEngineRangePercent", -2, ["fuelStatus",   "rangeStatus",    "value",  "secondaryEngine", "currentSOC_pct"])
-        self._tryAppendStateWithTs(data, "hybridRange",                 -1, ["fuelStatus",   "rangeStatus",    "value",  "totalRange_km"])
+        self._tryAppendStateWithTs(
+            data,
+            "engineTypeFirstEngine",
+            -2,
+            ["fuelStatus", "rangeStatus", "value", "primaryEngine", "type"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "primaryEngineRange",
+            -2,
+            [
+                "fuelStatus",
+                "rangeStatus",
+                "value",
+                "primaryEngine",
+                "remainingRange_km",
+            ],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "primaryEngineRangePercent",
+            -2,
+            ["fuelStatus", "rangeStatus", "value", "primaryEngine", "currentSOC_pct"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "engineTypeSecondEngine",
+            -2,
+            ["fuelStatus", "rangeStatus", "value", "secondaryEngine", "type"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "secondaryEngineRange",
+            -2,
+            [
+                "fuelStatus",
+                "rangeStatus",
+                "value",
+                "secondaryEngine",
+                "remainingRange_km",
+            ],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "secondaryEngineRangePercent",
+            -2,
+            ["fuelStatus", "rangeStatus", "value", "secondaryEngine", "currentSOC_pct"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "hybridRange",
+            -1,
+            ["fuelStatus", "rangeStatus", "value", "totalRange_km"],
+        )
 
-        self._tryAppendStateWithTs(data, "stateOfCharge",               -1, ["charging",     "batteryStatus",  "value",  "currentSOC_pct"])
-        self._tryAppendStateWithTs(data, "chargingMode",                -1, ["charging",     "chargingStatus", "value",  "chargeType"])
-        self._tryAppendStateWithTs(data, "actualChargeRate",            -1, ["charging",     "chargingStatus", "value",  "chargeRate_kmph"])
-        self._tryAppendStateWithTs(data, "chargingPower",               -1, ["charging",     "chargingStatus", "value",  "chargePower_kW"])
-        self._tryAppendStateWithTs(data, "chargeMode",                  -1, ["charging",     "chargingStatus", "value",  "chargeMode"])
-        self._tryAppendStateWithTs(data, "chargingState",               -1, ["charging",     "chargingStatus", "value",  "chargingState"])
-        self._tryAppendStateWithTs(data, "plugState",                   -1, ["charging",     "plugStatus",     "value",  "plugConnectionState"])
-        self._tryAppendStateWithTs(data, "remainingChargingTime",       -1, ["charging",     "plugStatus",     "value",  "remainingChargingTimeToComplete_min"])
+        self._tryAppendStateWithTs(
+            data,
+            "stateOfCharge",
+            -1,
+            ["charging", "batteryStatus", "value", "currentSOC_pct"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "chargingMode",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeType"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "actualChargeRate",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeRate_kmph"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "chargingPower",
+            -1,
+            ["charging", "chargingStatus", "value", "chargePower_kW"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "chargeMode",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeMode"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "chargingState",
+            -1,
+            ["charging", "chargingStatus", "value", "chargingState"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "plugState",
+            -1,
+            ["charging", "plugStatus", "value", "plugConnectionState"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "remainingChargingTime",
+            -1,
+            ["charging", "plugStatus", "value", "remainingChargingTimeToComplete_min"],
+        )
 
-        self._tryAppendStateWithTs(data, "climatisationState",          -1, ["climatisation", "auxiliaryHeatingStatus", "value", "climatisationState"])
-
+        self._tryAppendStateWithTs(
+            data,
+            "climatisationState",
+            -1,
+            ["climatisation", "auxiliaryHeatingStatus", "value", "climatisationState"],
+        )
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         ts = None
@@ -86,7 +237,7 @@ class VehicleDataResponse:
             ts = self._getFromJson(json, loc)
 
         if val and ts:
-           self.states.append({"name" : name, "value": val, "measure_time": ts})
+            self.states.append({"name": name, "value": val, "measure_time": ts})
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
         ts = None
@@ -96,28 +247,33 @@ class VehicleDataResponse:
             ts = self._getFromJson(json, loc)
 
         if val and ts:
-            self.data_fields.append(Field({
-               "textId":        textId,
-               "value":         val,
-               "tsCarCaptured": ts,
-            }))
-
+            self.data_fields.append(
+                Field(
+                    {
+                        "textId": textId,
+                        "value": val,
+                        "tsCarCaptured": ts,
+                    }
+                )
+            )
 
     def _getFromJson(self, json, loc):
         child = json
         for i in loc:
-           if i not in child:
-              return None
-           child = child[i]
+            if i not in child:
+                return None
+            child = child[i]
         return child
 
     def appendDoorState(self, data):
-        doors = data["access"]["accessStatus"]["value"]["doors"];
-        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        doors = data["access"]["accessStatus"]["value"]["doors"]
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"][
+            "carCapturedTimestamp"
+        ]
         for door in doors:
             status = door["status"]
             name = door["name"]
-            if not name+"Lock" in self.OLDAPI_MAPPING:
+            if name + "Lock" not in self.OLDAPI_MAPPING:
                 continue
             status = door["status"]
             lock = "0"
@@ -125,33 +281,37 @@ class VehicleDataResponse:
             unsupported = False
             for state in status:
                 if state == "unsupported":
-                  unsupported = True
+                    unsupported = True
                 if state == "locked":
                     lock = "2"
                 if state == "closed":
                     open = "3"
-            if (not unsupported):
+            if not unsupported:
                 doorFieldLock = {
-                    "textId": self.OLDAPI_MAPPING[name+"Lock"],
+                    "textId": self.OLDAPI_MAPPING[name + "Lock"],
                     "value": lock,
                     "tsCarCaptured": tsCarCapturedAccess,
                 }
                 self.data_fields.append(Field(doorFieldLock))
 
                 doorFieldOpen = {
-                    "textId": self.OLDAPI_MAPPING[name+"Open"],
+                    "textId": self.OLDAPI_MAPPING[name + "Open"],
                     "value": open,
                     "tsCarCaptured": tsCarCapturedAccess,
                 }
                 self.data_fields.append(Field(doorFieldOpen))
 
     def appendWindowState(self, data):
-        windows = data["access"]["accessStatus"]["value"]["windows"];
-        tsCarCapturedAccess = data["access"]["accessStatus"]["value"]["carCapturedTimestamp"];
+        windows = data["access"]["accessStatus"]["value"]["windows"]
+        tsCarCapturedAccess = data["access"]["accessStatus"]["value"][
+            "carCapturedTimestamp"
+        ]
         for window in windows:
             name = window["name"]
             status = window["status"]
-            if (status[0] == "unsupported") or not name+"Window" in self.OLDAPI_MAPPING:
+            if (
+                status[0] == "unsupported"
+            ) or name + "Window" not in self.OLDAPI_MAPPING:
                 continue
             windowField = {
                 "textId": self.OLDAPI_MAPPING[name + "Window"],
@@ -159,6 +319,7 @@ class VehicleDataResponse:
                 "tsCarCaptured": tsCarCapturedAccess,
             }
             self.data_fields.append(Field(windowField))
+
 
 class TripDataResponse:
     def __init__(self, data):
@@ -168,7 +329,9 @@ class TripDataResponse:
 
         self.averageElectricEngineConsumption = None
         if "averageElectricEngineConsumption" in data:
-             self.averageElectricEngineConsumption = float(data["averageElectricEngineConsumption"]) / 10
+            self.averageElectricEngineConsumption = (
+                float(data["averageElectricEngineConsumption"]) / 10
+            )
 
         self.averageFuelConsumption = None
         if "averageFuelConsumption" in data:
@@ -258,7 +421,7 @@ class Field:
         self.value = data.get("value")
         self.measure_time = data.get("tsTssReceivedUtc")
         if self.measure_time is None:
-           self.measure_time = data.get("tsCarCaptured")
+            self.measure_time = data.get("tsCarCaptured")
         self.send_time = data.get("tsCarSentUtc")
         self.measure_mileage = data.get("milCarCaptured")
         self.send_mileage = data.get("milCarSent")
@@ -290,13 +453,22 @@ class Vehicle:
     def parse(self, data):
         self.vin = data.get("vin")
         self.csid = data.get("csid")
-        if data.get("vehicle") is not None and data.get("vehicle").get("media") is not None:
+        if (
+            data.get("vehicle") is not None
+            and data.get("vehicle").get("media") is not None
+        ):
             self.model = data.get("vehicle").get("media").get("longName")
-        if data.get("vehicle") is not None and data.get("vehicle").get("core") is not None:
+        if (
+            data.get("vehicle") is not None
+            and data.get("vehicle").get("core") is not None
+        ):
             self.model_year = data.get("vehicle").get("core").get("modelYear")
         if data.get("nickname") is not None and len(data.get("nickname")) > 0:
             self.title = data.get("nickname")
-        elif data.get("vehicle") is not None and data.get("vehicle").get("media") is not None:
+        elif (
+            data.get("vehicle") is not None
+            and data.get("vehicle").get("media") is not None
+        ):
             self.title = data.get("vehicle").get("media").get("shortName")
 
     def __str__(self):

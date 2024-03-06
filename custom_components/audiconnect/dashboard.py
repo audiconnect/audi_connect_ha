@@ -75,7 +75,7 @@ class Instrument:
 
     @property
     def full_name(self):
-        return "%s %s" % (self.vehicle_name, self._name)
+        return "{} {}".format(self.vehicle_name, self._name)
 
     @property
     def vehicle_model(self):
@@ -146,7 +146,7 @@ class Sensor(Instrument):
     @property
     def str_state(self):
         if self.unit:
-            return "%s %s" % (self.state, self.unit)
+            return "{} {}".format(self.state, self.unit)
         else:
             return "%s" % self.state
 
@@ -260,7 +260,12 @@ class Switch(Instrument):
 
 class Preheater(Instrument):
     def __init__(self):
-        super().__init__(component="switch", attr="preheater_active", name="Preheater", icon="mdi:radiator")
+        super().__init__(
+            component="switch",
+            attr="preheater_active",
+            name="Preheater",
+            icon="mdi:radiator",
+        )
 
     @property
     def is_mutable(self):
@@ -366,7 +371,7 @@ class LastUpdate(Instrument):
     def str_state(self):
         ts = super().state
         if type(ts) == datetime:
-           return str(ts.astimezone(tz=None)) if ts else None
+            return str(ts.astimezone(tz=None)) if ts else None
         return ts
 
     @property
@@ -387,7 +392,12 @@ def create_instruments():
         Preheater(),
         Sensor(attr="model", name="Model", icon="mdi:car-info", unit=None),
         Sensor(attr="mileage", name="Mileage", icon="mdi:speedometer", unit="km"),
-        Sensor(attr="service_adblue_distance", name="AdBlue range", icon="mdi:gas-station", unit="km"),
+        Sensor(
+            attr="service_adblue_distance",
+            name="AdBlue range",
+            icon="mdi:gas-station",
+            unit="km",
+        ),
         Sensor(attr="range", name="Range", icon="mdi:gas-station", unit="km"),
         Sensor(
             attr="hybrid_range",
@@ -423,12 +433,8 @@ def create_instruments():
             icon="mdi:car-battery",
             unit=None,
         ),
-        Sensor(
-            attr="charging_mode", name="Charging mode", icon=None, unit=None
-        ),
-        Sensor(
-            attr="energy_flow", name="Energy flow", icon=None, unit=None
-        ),
+        Sensor(attr="charging_mode", name="Charging mode", icon=None, unit=None),
+        Sensor(attr="energy_flow", name="Energy flow", icon=None, unit=None),
         Sensor(
             attr="max_charge_current",
             name="Max charge current",
@@ -518,8 +524,18 @@ def create_instruments():
             icon="mdi:temperature-celsius",
             unit="°C",
         ),
-        Sensor(attr="preheater_duration", name="Preheater runtime", icon="mdi:clock", unit="Min"),
-        Sensor(attr="preheater_remaining", name="Preheater remaining", icon="mdi:clock", unit="Min"),
+        Sensor(
+            attr="preheater_duration",
+            name="Preheater runtime",
+            icon="mdi:clock",
+            unit="Min",
+        ),
+        Sensor(
+            attr="preheater_remaining",
+            name="Preheater remaining",
+            icon="mdi:clock",
+            unit="Min",
+        ),
         BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
         BinarySensor(
             attr="parking_light",
@@ -533,14 +549,36 @@ def create_instruments():
         BinarySensor(attr="trunk_unlocked", name="Trunk lock", device_class="lock"),
         BinarySensor(attr="trunk_open", name="Trunk", device_class="door"),
         BinarySensor(attr="hood_open", name="Hood", device_class="door"),
-        BinarySensor(attr="left_front_door_open", name="Left front door", device_class="door"),
-        BinarySensor(attr="right_front_door_open", name="Right front door", device_class="door"),
-        BinarySensor(attr="left_rear_door_open", name="Left rear door", device_class="door"),
-        BinarySensor(attr="right_rear_door_open", name="Right rear door", device_class="door"),
-        BinarySensor(attr="left_front_window_open", name="Left front window", device_class="window"),
-        BinarySensor(attr="right_front_window_open", name="Right front window", device_class="window"),
-        BinarySensor(attr="left_rear_window_open", name="Left rear window", device_class="window"),
-        BinarySensor(attr="right_rear_window_open", name="Right rear window", device_class="window"),
+        BinarySensor(
+            attr="left_front_door_open", name="Left front door", device_class="door"
+        ),
+        BinarySensor(
+            attr="right_front_door_open", name="Right front door", device_class="door"
+        ),
+        BinarySensor(
+            attr="left_rear_door_open", name="Left rear door", device_class="door"
+        ),
+        BinarySensor(
+            attr="right_rear_door_open", name="Right rear door", device_class="door"
+        ),
+        BinarySensor(
+            attr="left_front_window_open",
+            name="Left front window",
+            device_class="window",
+        ),
+        BinarySensor(
+            attr="right_front_window_open",
+            name="Right front window",
+            device_class="window",
+        ),
+        BinarySensor(
+            attr="left_rear_window_open", name="Left rear window", device_class="window"
+        ),
+        BinarySensor(
+            attr="right_rear_window_open",
+            name="Right rear window",
+            device_class="window",
+        ),
         BinarySensor(
             attr="braking_status",
             name="Braking status",

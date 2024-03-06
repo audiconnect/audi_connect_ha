@@ -1,7 +1,6 @@
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
-    async_dispatcher_send,
 )
 
 from .const import DOMAIN, SIGNAL_STATE_UPDATED
