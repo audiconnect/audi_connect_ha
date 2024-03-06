@@ -162,15 +162,6 @@ class AudiService:
             )
         )
 
-    async def get_preheater(self, vin: str):
-        self._api.use_token(self.vwToken)
-        return await self._api.get(
-            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type, country=self._country, vin=vin.upper()
-            )
-        )
-
     async def get_stored_vehicle_data(self, vin: str):
         JOBS2QUERY = {
             "access",
