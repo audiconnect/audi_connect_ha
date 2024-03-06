@@ -204,7 +204,7 @@ class AudiService:
                 jobs=",".join(JOBS2QUERY)
             )
         )
-        _LOGGER.debug(f"{DOMAIN} - config data- {data}")
+        _LOGGER.debug(f"{DOMAIN} - Car Data: {data}")
         return VehicleDataResponse(data)
 
     async def get_charger(self, vin: str):
