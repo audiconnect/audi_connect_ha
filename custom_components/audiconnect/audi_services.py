@@ -18,6 +18,7 @@ from .audi_models import (
 )
 from .audi_api import AudiAPI
 from .util import to_byte_array, get_attr
+from .const import DOMAIN
 
 from hashlib import sha256, sha512
 import hmac
@@ -203,6 +204,7 @@ class AudiService:
                 jobs=",".join(JOBS2QUERY)
             )
         )
+        _LOGGER.debug(f"{DOMAIN} - Car Data: {data}")
         return VehicleDataResponse(data)
 
     async def get_charger(self, vin: str):
