@@ -363,10 +363,10 @@ class AudiService:
                 )
             )
             if (
-                res != None
-                and res.get("homeRegion") != None
-                and res["homeRegion"].get("baseUri") != None
-                and res["homeRegion"]["baseUri"].get("content") != None
+                res is not None
+                and res.get("homeRegion") is not None
+                and res["homeRegion"].get("baseUri") is not None
+                and res["homeRegion"]["baseUri"].get("content") is not None
             ):
                 uri = res["homeRegion"]["baseUri"]["content"]
                 if uri != "https://mal-1a.prd.ece.vwg-connect.com/api":
@@ -378,7 +378,7 @@ class AudiService:
             pass
 
     async def _get_home_region(self, vin: str):
-        if self._homeRegion.get(vin) != None:
+        if self._homeRegion.get(vin) is not None:
             return self._homeRegion[vin]
 
         await self._fill_home_region(vin)
@@ -386,7 +386,7 @@ class AudiService:
         return self._homeRegion[vin]
 
     async def _get_home_region_setter(self, vin: str):
-        if self._homeRegionSetter.get(vin) != None:
+        if self._homeRegionSetter.get(vin) is not None:
             return self._homeRegionSetter[vin]
 
         await self._fill_home_region(vin)
@@ -461,7 +461,7 @@ class AudiService:
             "Accept": "application/json, application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml,application/vnd.volkswagenag.com-error-v1+xml,application/vnd.vwg.mbb.genericError_v1_0_2+xml, application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml,application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml,*/*",
         }
 
-        if security_token != None:
+        if security_token is not None:
             headers["x-mbbSecToken"] = security_token
 
         return headers
