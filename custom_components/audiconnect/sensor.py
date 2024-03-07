@@ -1,4 +1,5 @@
 """Support for Audi Connect sensors."""
+
 import logging
 
 from homeassistant.const import CONF_USERNAME
