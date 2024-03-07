@@ -1,6 +1,5 @@
-import json
 import time
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timezone
 import logging
 import asyncio
 from typing import List
@@ -8,7 +7,6 @@ from typing import List
 from asyncio import TimeoutError
 from aiohttp import ClientResponseError
 
-import voluptuous as vol
 from abc import ABC, abstractmethod
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,7 +37,6 @@ class AudiConnectAccount:
     def __init__(
         self, session, username: str, password: str, country: str, spin: str
     ) -> None:
-
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin)
 
@@ -123,7 +120,7 @@ class AudiConnectAccount:
 
             return True
 
-        except IOError as exception:
+        except OSError as exception:
             # Force a re-login in case of failure/exception
             self._loggedin = False
             _LOGGER.exception(exception)
@@ -250,8 +247,9 @@ class AudiConnectAccount:
         try:
             _LOGGER.debug(
                 "Sending command to {action}{timer} charger to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin,
-                    timer=" timed" if timer else ""
+                    action="start" if activate else "stop",
+                    vin=vin,
+                    timer=" timed" if timer else "",
                 ),
             )
 
@@ -259,8 +257,9 @@ class AudiConnectAccount:
 
             _LOGGER.debug(
                 "Successfully {action}{timer} charger of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin,
-                    timer=" timed" if timer else ""
+                    action="started" if activate else "stopped",
+                    vin=vin,
+                    timer=" timed" if timer else "",
                 ),
             )
 
@@ -409,8 +408,8 @@ class AudiConnectVehicle:
             await self.call_update(self.update_vehicle_position, 3)
             info = "climater"
             await self.call_update(self.update_vehicle_climater, 3)
-            #info = "charger"
-            #await self.call_update(self.update_vehicle_charger, 3)
+            # info = "charger"
+            # await self.call_update(self.update_vehicle_charger, 3)
             info = "preheater"
             await self.call_update(self.update_vehicle_preheater, 3)
             # Return True on success, False on error
@@ -418,13 +417,15 @@ class AudiConnectVehicle:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to update vehicle data {} of {}".format(info, self._vehicle.vin),
+                "Unable to update vehicle data {} of {}".format(
+                    info, self._vehicle.vin
+                ),
             )
 
     def log_exception_once(self, exception, message):
         self._no_error = False
         err = message + ": " + str(exception).rstrip("\n")
-        if not err in self._logged_errors:
+        if err not in self._logged_errors:
             self._logged_errors.add(err)
             _LOGGER.error(err, exc_info=True)
 
@@ -440,22 +441,28 @@ class AudiConnectVehicle:
             }
 
             # last_update_time should be newest carCapturedTimestamp of all fields and states
-            self._vehicle.state["last_update_time"] = datetime(1970,1,1, tzinfo=timezone.utc)
+            self._vehicle.state["last_update_time"] = datetime(
+                1970, 1, 1, tzinfo=timezone.utc
+            )
             for f in status.data_fields:
-                self._vehicle.state["last_update_time"] = max(self._vehicle.state["last_update_time"], f.measure_time)
+                self._vehicle.state["last_update_time"] = max(
+                    self._vehicle.state["last_update_time"], f.measure_time
+                )
             for state in status.states:
-                self._vehicle.state["last_update_time"] = max(self._vehicle.state["last_update_time"], state["measure_time"])
+                self._vehicle.state["last_update_time"] = max(
+                    self._vehicle.state["last_update_time"], state["measure_time"]
+                )
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                #_LOGGER.error(
+                # _LOGGER.error(
                 #    "support_status_report set to False: {status}".format(
                 #        status=resp_exception.status
                 #    )
-                #)
+                # )
                 self.support_status_report = False
             else:
                 self.log_exception_once(
@@ -483,18 +490,18 @@ class AudiConnectVehicle:
                     "latitude": resp["data"]["lat"],
                     "longitude": resp["data"]["lon"],
                     "timestamp": resp["data"]["carCapturedTimestamp"],
-                    "parktime": resp["data"]["carCapturedTimestamp"]
+                    "parktime": resp["data"]["carCapturedTimestamp"],
                 }
 
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                #_LOGGER.error(
+                # _LOGGER.error(
                 #    "support_position set to False: {status}".format(
                 #        status=resp_exception.status
                 #    )
-                #)
+                # )
                 self.support_position = False
             # If error is 204 is returned, the position is currently not available
             elif resp_exception.status != 204:
@@ -526,7 +533,9 @@ class AudiConnectVehicle:
                     "climater.status.temperatureStatusData.outdoorTemperature.content",
                 )
                 if tmp is not None:
-                    self._vehicle.state["outdoorTemperature"] = round(float(tmp) / 10 - 273, 1)
+                    self._vehicle.state["outdoorTemperature"] = round(
+                        float(tmp) / 10 - 273, 1
+                    )
                 else:
                     self._vehicle.state["outdoorTemperature"] = None
 
@@ -534,11 +543,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                #_LOGGER.error(
+                # _LOGGER.error(
                 #    "support_climater set to False: {status}".format(
                 #        status=resp_exception.status
                 #    )
-                #)
+                # )
                 self.support_climater = False
             else:
                 self.log_exception_once(
@@ -571,11 +580,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                #_LOGGER.error(
+                # _LOGGER.error(
                 #    "support_preheater set to False: {status}".format(
                 #        status=resp_exception.status
                 #    )
-                #)
+                # )
                 self.support_preheater = False
             else:
                 self.log_exception_once(
@@ -610,7 +619,9 @@ class AudiConnectVehicle:
                     result, "charger.status.chargingStatusData.actualChargeRate.content"
                 )
                 if self._vehicle.state["actualChargeRate"] is not None:
-                   self._vehicle.state["actualChargeRate"] = float(self._vehicle.state["actualChargeRate"])
+                    self._vehicle.state["actualChargeRate"] = float(
+                        self._vehicle.state["actualChargeRate"]
+                    )
                 self._vehicle.state["actualChargeRateUnit"] = get_attr(
                     result, "charger.status.chargingStatusData.chargeRateUnit.content"
                 )
@@ -669,11 +680,11 @@ class AudiConnectVehicle:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 403 or resp_exception.status == 502:
-                #_LOGGER.error(
+                # _LOGGER.error(
                 #    "support_charger set to False: {status}".format(
                 #        status=resp_exception.status
                 #    )
-                #)
+                # )
                 self.support_charger = False
             else:
                 self.log_exception_once(
@@ -698,7 +709,9 @@ class AudiConnectVehicle:
 
     async def update_vehicle_tripdata(self, kind: str):
         try:
-            td_cur, td_rst = await self._audi_service.get_tripdata(self._vehicle.vin, kind)
+            td_cur, td_rst = await self._audi_service.get_tripdata(
+                self._vehicle.vin, kind
+            )
             self._vehicle.state[kind.lower() + "_current"] = {
                 "tripID": td_cur.tripID,
                 "averageElectricEngineConsumption": td_cur.averageElectricEngineConsumption,
@@ -782,9 +795,7 @@ class AudiConnectVehicle:
     def service_adblue_distance(self):
         """Return distance left for service inspection"""
         if self.service_adblue_distance_supported:
-            return int(
-                self._vehicle.fields.get("ADBLUE_RANGE")
-            )
+            return int(self._vehicle.fields.get("ADBLUE_RANGE"))
 
     @property
     def service_adblue_distance_supported(self):
@@ -829,7 +840,7 @@ class AudiConnectVehicle:
                 if val:
                     return 100
                 else:
-                  return 1
+                    return 1
             if parse_float(val):
                 return True
 
@@ -854,7 +865,11 @@ class AudiConnectVehicle:
     @property
     def preheater_active(self):
         if self.preheater_active_supported:
-            res = self._vehicle.state["preheaterState"].get('climatisationStateReport').get('climatisationState')
+            res = (
+                self._vehicle.state["preheaterState"]
+                .get("climatisationStateReport")
+                .get("climatisationState")
+            )
             return res != "off"
 
     @property
@@ -864,7 +879,11 @@ class AudiConnectVehicle:
     @property
     def preheater_duration(self):
         if self.preheater_duration_supported:
-            res = self._vehicle.state["preheaterState"].get('climatisationStateReport').get('climatisationDuration')
+            res = (
+                self._vehicle.state["preheaterState"]
+                .get("climatisationStateReport")
+                .get("climatisationDuration")
+            )
             return parse_int(res)
 
     @property
@@ -878,7 +897,11 @@ class AudiConnectVehicle:
     @property
     def preheater_remaining(self):
         if self.preheater_remaining_supported:
-            res = self._vehicle.state["preheaterState"].get('climatisationStateReport').get('remainingClimateTime')
+            res = (
+                self._vehicle.state["preheaterState"]
+                .get("climatisationStateReport")
+                .get("remainingClimateTime")
+            )
             return parse_int(res)
 
     @property
@@ -1005,6 +1028,7 @@ class AudiConnectVehicle:
     def right_front_window_open(self):
         if self.right_front_window_open_supported:
             return self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW") != "3"
+
     @property
     def left_rear_window_open_supported(self):
         return self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
@@ -1086,6 +1110,7 @@ class AudiConnectVehicle:
     def right_front_door_open(self):
         if self.right_front_door_open_supported:
             return self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR") != "3"
+
     @property
     def left_rear_door_open_supported(self):
         return self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
@@ -1223,7 +1248,6 @@ class AudiConnectVehicle:
                 return parse_float(self._vehicle.state.get("actualChargeRate"))
             except ValueError:
                 return -1
-            
 
     @property
     def actual_charge_rate_supported(self):
@@ -1320,7 +1344,7 @@ class AudiConnectVehicle:
     def car_type_supported(self):
         check = self._vehicle.state.get("carType")
         if check and check != "unsupported":
-            return True            
+            return True
 
     @property
     def secondary_engine_range_percent(self):
@@ -1333,8 +1357,6 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("secondaryEngineRangePercent")
         if check and check != "unsupported":
             return True
-
-
 
     @property
     def hybrid_range(self):

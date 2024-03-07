@@ -9,7 +9,9 @@ from aiohttp import ClientSession
 
 
 def printHelp():
-    print("test.py --user <username> --password <password> --spin <spin> --country <region>")
+    print(
+        "test.py --user <username> --password <password> --spin <spin> --country <region>"
+    )
 
 
 async def main(argv):
@@ -18,7 +20,9 @@ async def main(argv):
     spin = ""
     country = ""
     try:
-        opts, _ = getopt.getopt(argv, "hu:p:s:r:", ["user=", "password=", "spin=", "country="])
+        opts, _ = getopt.getopt(
+            argv, "hu:p:s:r:", ["user=", "password=", "spin=", "country="]
+        )
     except getopt.GetoptError:
         printHelp()
         sys.exit(2)

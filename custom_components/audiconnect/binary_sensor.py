@@ -1,11 +1,12 @@
 """Support for Audi Connect sensors."""
+
 import logging
 
 from homeassistant.components.binary_sensor import DEVICE_CLASSES, BinarySensorEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
-from .const import DOMAIN, CONF_CARNAME
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,7 +16,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-
     sensors = []
     account = config_entry.data.get(CONF_USERNAME)
     audiData = hass.data[DOMAIN][account]

@@ -2,7 +2,7 @@
 
 refresh_vehicle_data:
   description: >
-    Request an update of the state from the vehicle, as opposed to the normal update 
+    Request an update of the state from the vehicle, as opposed to the normal update
     mechanism, which only retrieves data from the servers.
   fields:
     vin:
@@ -12,7 +12,7 @@ refresh_vehicle_data:
 
 execute_vehicle_action:
   description: >
-    Request an update of the state from the vehicle, as opposed to the normal update 
+    Request an update of the state from the vehicle, as opposed to the normal update
     mechanism, which only retrieves data from the servers.
   fields:
     vin:
@@ -21,7 +21,7 @@ execute_vehicle_action:
       example: WBANXXXXXX1234567
     action:
       description: >
-        The action to be executed. Possible choices, depending on subscription options, include 'lock', 'unlock', 
+        The action to be executed. Possible choices, depending on subscription options, include 'lock', 'unlock',
         'start_climatisation', 'stop_climatisation, 'start_charger', 'start_timed_charger', 'stop_charger',
         'start_preheater', 'stop_preheater, 'start_window_heating', 'stop_window_heating'
       example: lock
