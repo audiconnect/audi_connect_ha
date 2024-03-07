@@ -204,7 +204,7 @@ class AudiAccount(AudiConnectObserver):
     async def _refresh_vehicle_data(self, vin):
         res = await self.connection.refresh_vehicle_data(vin)
 
-        if res == True:
+        if res is True:
             await self.update(utcnow())
 
             self.hass.bus.fire(
