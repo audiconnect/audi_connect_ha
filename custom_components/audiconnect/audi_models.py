@@ -219,8 +219,13 @@ class VehicleDataResponse:
             data,
             "remainingChargingTime",
             -1,
-            ["charging", "chargingStatus", "value", "remainingChargingTimeToComplete_min"],
-        ) 
+            [
+                "charging",
+                "chargingStatus",
+                "value",
+                "remainingChargingTimeToComplete_min",
+            ],
+        )
         self._tryAppendStateWithTs(
             data,
             "plugLockState",
@@ -228,16 +233,16 @@ class VehicleDataResponse:
             ["charging", "plugStatus", "value", "plugLockState"],
         )
         self._tryAppendStateWithTs(
-          data,
-          "externalPower",
-          -1,
-          ["charging", "plugStatus", "value", "externalPower"],
+            data,
+            "externalPower",
+            -1,
+            ["charging", "plugStatus", "value", "externalPower"],
         )
         self._tryAppendStateWithTs(
-          data,
-          "plugledColor",
-          -1,
-          ["charging", "plugStatus", "value", "ledColor"],
+            data,
+            "plugledColor",
+            -1,
+            ["charging", "plugStatus", "value", "ledColor"],
         )
         self._tryAppendStateWithTs(
             data,
