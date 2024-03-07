@@ -6,6 +6,10 @@
 
 [![hacs][hacsbadge]](hacs)
 
+## Notice
+
+Due to API changes it might be that currently not all functionality is given. Please open a issue to report the topics you are missing.
+
 ## Maintainers Wanted
 
 Due to time limitations this project is not actively maintained anymore. It will continue to work as long as Audi does not change the API again.
