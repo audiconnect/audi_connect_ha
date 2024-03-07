@@ -9,14 +9,14 @@ from aiohttp import ClientResponseError
 
 from abc import ABC, abstractmethod
 
+from .audi_services import AudiService
+from .audi_api import AudiAPI
+from .util import log_exception, get_attr, parse_int, parse_float
+
 _LOGGER = logging.getLogger(__name__)
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
-
-from .audi_services import AudiService
-from .audi_api import AudiAPI
-from .util import log_exception, get_attr, parse_int, parse_float
 
 ACTION_LOCK = "lock"
 ACTION_CLIMATISATION = "climatisation"
@@ -400,10 +400,10 @@ class AudiConnectVehicle:
             self._no_error = True
             info = "statusreport"
             await self.call_update(self.update_vehicle_statusreport, 3)
-            #info = "shortterm"
-            #await self.call_update(self.update_vehicle_shortterm, 3)
-            #info = "longterm"
-            #await self.call_update(self.update_vehicle_longterm, 3)
+            # info = "shortterm"
+            # await self.call_update(self.update_vehicle_shortterm, 3)
+            # info = "longterm"
+            # await self.call_update(self.update_vehicle_longterm, 3)
             info = "position"
             await self.call_update(self.update_vehicle_position, 3)
             info = "climater"
