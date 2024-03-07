@@ -73,7 +73,10 @@ class VehicleDataResponse:
         self._tryAppendStateWithTs(data, "chargeMode",                  -1, ["charging",     "chargingStatus", "value",  "chargeMode"])
         self._tryAppendStateWithTs(data, "chargingState",               -1, ["charging",     "chargingStatus", "value",  "chargingState"])
         self._tryAppendStateWithTs(data, "plugState",                   -1, ["charging",     "plugStatus",     "value",  "plugConnectionState"])
-        self._tryAppendStateWithTs(data, "remainingChargingTime",       -1, ["charging",     "plugStatus",     "value",  "remainingChargingTimeToComplete_min"])
+        self._tryAppendStateWithTs(data, "remainingChargingTime",       -1, ["charging",     "chargingStatus", "value",  "remainingChargingTimeToComplete_min"])
+        self._tryAppendStateWithTs(data, "plugLockState",               -1, ["charging",     "plugStatus",     "value",  "plugLockState"])
+        self._tryAppendStateWithTs(data, "externalPower",               -1, ["charging",     "plugStatus",     "value",  "externalPower"])
+        self._tryAppendStateWithTs(data, "plugledColor",                -1, ["charging",     "plugStatus",     "value",  "ledColor"])
 
         self._tryAppendStateWithTs(data, "climatisationState",          -1, ["climatisation", "auxiliaryHeatingStatus", "value", "climatisationState"])
 
