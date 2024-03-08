@@ -133,9 +133,9 @@ class AudiAPI:
             "X-App-Name": "myAudi",
             "User-Agent": self.HDR_USER_AGENT,
         }
-        if self.__token != None:
+        if self.__token is not None:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")
-        if self.__xclientid != None:
+        if self.__xclientid is not None:
             data["X-Client-ID"] = self.__xclientid
 
         return data
