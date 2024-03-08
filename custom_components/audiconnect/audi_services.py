@@ -880,7 +880,7 @@ class AudiService:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
         revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
         # if "revocation_endpoint" in openidcfg_json:
-           # revocation_endpoint = openidcfg_json["revocation_endpoint"]
+        # revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
         # generate code_challenge
         code_verifier = str(base64.urlsafe_b64encode(os.urandom(32)), "utf-8").strip(
