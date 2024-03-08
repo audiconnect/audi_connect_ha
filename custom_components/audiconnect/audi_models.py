@@ -108,7 +108,14 @@ class VehicleDataResponse:
         )
 
         self._tryAppendFieldWithTs(
-            data, "LIGHT_STATUS", ["vehicleLights", "lightsStatus", "value", "lights"]
+            data, 
+            "LIGHT_STATUS", 
+            [
+                "vehicleLights", 
+                "lightsStatus", 
+                "value", 
+                "lights"
+            ]
         )
 
         self.appendWindowState(data)
