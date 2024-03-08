@@ -15,7 +15,7 @@ refresh_vehicle_data:
 execute_vehicle_action:
   name: Execute Vehicle Action
   description: >
-    Excetue Vehicle actions
+    Execute Vehicle actions
   fields:
     vin:
       name: VIN
