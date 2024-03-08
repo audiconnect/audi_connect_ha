@@ -1,6 +1,5 @@
 {
   "config": {
-    "title": "Audi Connect",
     "step": {
       "user": {
         "title": "Please fill in the information of your Audi Connect account",
