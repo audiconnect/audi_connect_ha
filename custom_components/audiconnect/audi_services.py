@@ -90,8 +90,6 @@ class AudiService:
     def get_hidden_html_input_form_data(self, response, form_data: Dict[str, str]):
         # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
-        form_tag = html.find("form")
-
         form_inputs = html.find_all("input", attrs={"type": "hidden"})
         for form_input in form_inputs:
             name = form_input.get("name")
@@ -290,7 +288,7 @@ class AudiService:
 
     async def get_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
-        data = await self._api.get(
+        return await self._api.get(
             "{homeRegion}/fs-car/vehicleMgmt/vehicledata/v2/{type}/{country}/vehicles/{vin}/".format(
                 homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type,
@@ -880,9 +878,9 @@ class AudiService:
         self._tokenEndpoint = "https://emea.bff.cariad.digital/login/v1/idk/token"
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
-        revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
-        if "revocation_endpoint" in openidcfg_json:
-            revocation_endpoint = openidcfg_json["revocation_endpoint"]
+        # revocation_endpoint = "https://emea.bff.cariad.digital/login/v1/idk/revoke"
+        # if "revocation_endpoint" in openidcfg_json:
+        # revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
         # generate code_challenge
         code_verifier = str(base64.urlsafe_b64encode(os.urandom(32)), "utf-8").strip(

@@ -836,13 +836,13 @@ class AudiConnectVehicle:
         """Return oil level percentage"""
         if self.oil_level_supported:
             val = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
-            if type(val) is bool:
-                if val:
-                    return 100
-                else:
-                    return 1
-            if parse_float(val):
-                return True
+        if isinstance(val, bool):
+            if val:
+                return 100
+            else:
+                return 1
+        elif parse_float(val):
+            return parse_float(val)
 
     @property
     def oil_level_supported(self):
@@ -911,7 +911,7 @@ class AudiConnectVehicle:
             try:
                 check = self._vehicle.fields.get("LIGHT_STATUS")
                 return check[0]["status"] != "off" or check[1]["status"] != "off"
-            except:
+            except KeyError:
                 return False
 
     @property
