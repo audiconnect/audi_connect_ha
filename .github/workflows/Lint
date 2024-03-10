@@ -1,0 +1,49 @@
+name: Lint
+
+on:
+  pull_request_target:
+    branches:
+      - master
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    name: Run ${{ matrix.checks }}
+    strategy:
+      matrix:
+        checks:
+          - pyupgrade
+          - ruff
+          - python-typing-update
+          - check-executables-have-shebangs
+          - check-json
+          - end-of-file-fixer
+          - trailing-whitespace
+          - mypy
+          - yamllint
+          - python-typing-update
+          - prettier
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          token: ${{ github.token }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: "3.x"
+      - name: Install pre-commit
+        run: |
+          python3 -m pip install pre-commit
+          pre-commit install-hooks --config .pre-commit-config.yaml
+      - name: Run the check (${{ matrix.checks }})
+        run: pre-commit run --hook-stage manual ${{ matrix.checks }} --all-files --config .pre-commit-config.yaml
+
+      - name: Commit Changes
+        if: failure()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "fix: ${{ matrix.checks }} action"
