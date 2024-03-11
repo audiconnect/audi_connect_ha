@@ -24,7 +24,7 @@
       }
     }
   },
-    "services": {
+  "services": {
     "refresh_vehicle_data": {
       "name": "Refresh vehicle data",
       "description": "Sets fan speed.",
