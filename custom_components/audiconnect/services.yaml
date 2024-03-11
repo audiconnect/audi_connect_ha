@@ -22,8 +22,13 @@ execute_vehicle_action:
           translation_key: select_mode
           options:
             - lock
-            - climater
-            - charger
-            - pre_heating
-            - window_heating
-            - ventilation
+            - unlock
+            - start_climatisation
+            - stop_climatisation
+            - start_charger
+            - start_timed_charger
+            - stop_charger
+            - start_preheater
+            - stop_preheater
+            - start_window_heating
+            - stop_window_heating
