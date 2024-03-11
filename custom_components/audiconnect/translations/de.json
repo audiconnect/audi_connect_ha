@@ -22,7 +22,8 @@
         },
         "title": "Audi Connect Kontoinformationen"
       }
-    },
+    }
+  },
     "selector": {
       "select_mode": {
         "options": {
@@ -61,5 +62,4 @@
         }
       }
     }
-  }
 }
