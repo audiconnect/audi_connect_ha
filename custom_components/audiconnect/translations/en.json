@@ -23,5 +23,35 @@
         "title": "Audi Connect Account Info"
       }
     }
+  },
+    "services": {
+    "refresh_vehicle_data": {
+      "name": "Refresh vehicle data",
+      "description": "Sets fan speed.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": " Request an update of the state from the vehicle, as opposed to the normal update mechanism, which only retrieves data from the servers."
+        }
+      }
+    },
+    "execute_vehicle_action": {
+      "name": "Execute Vehicle Action",
+      "description": "Execute Vehicle actions",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The vehicle identification number (VIN) of the vehicle, 17 characters."
+        },
+                "action": {
+          "name": "Action",
+          "description": "The action to be executed. Possible choices, depending on subscription
+        options, include 'lock', 'unlock', 'start_climatisation',
+        'stop_climatisation, 'start_charger', 'start_timed_charger',
+        'stop_charger', 'start_preheater', 'stop_preheater,
+        'start_window_heating', 'stop_window_heating"
+        }
+      }
+    }
   }
 }
