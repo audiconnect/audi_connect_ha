@@ -64,7 +64,7 @@ class AudiAccount(AudiConnectObserver):
             session=session,
             username=self.config_entry.data.get(CONF_USERNAME),
             password=self.config_entry.data.get(CONF_PASSWORD),
-            country=self.config_entry.data.get(CONF_REGION),
+            country=self.config_entry.data.get(CONF_REGION),(
             spin=self.config_entry.data.get(CONF_SPIN),
         )
 
@@ -170,7 +170,7 @@ class AudiAccount(AudiConnectObserver):
 
     async def execute_vehicle_action(self, service):
         device_id = service.data.get(CONF_VIN).lower()
-        device = dr.async_get(hass).async_get(device_id)
+        device = dr.async_get(self.hass).async_get(device_id)
         vin = dict(device.identifiers).get(DOMAIN)
         action = service.data.get(CONF_ACTION).lower()
 
@@ -202,7 +202,7 @@ class AudiAccount(AudiConnectObserver):
 
     async def refresh_vehicle_data(self, service):
         device_id = service.data.get(CONF_VIN).lower()
-        device = dr.async_get(hass).async_get(device_id)
+        device = dr.async_get(self.hass).async_get(device_id)
         vin = dict(device.identifiers).get(DOMAIN)
         await self._refresh_vehicle_data(vin)
 
