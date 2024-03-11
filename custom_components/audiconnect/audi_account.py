@@ -169,7 +169,9 @@ class AudiAccount(AudiConnectObserver):
             )
 
     async def execute_vehicle_action(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         action = service.data.get(CONF_ACTION).lower()
 
         if action == "lock":
@@ -199,7 +201,9 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def refresh_vehicle_data(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
