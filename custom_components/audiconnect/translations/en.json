@@ -28,11 +28,16 @@
     "select_mode": {
       "options": {
         "lock": "Lock",
-        "climater": "Climater",
-        "charger": "Charger",
-        "pre_heating": "Pre heating",
-        "window_heating": "Windows heating",
-        "ventilation": "Ventilation"
+        "unlock" : "Unlock",
+         "start_climatisation" : "Start Climatisation",
+        "stop_climatisation" : "Stop Climatisation",
+        "start_charger" : "Start Charger",
+        "start_timed_charger" : "Start timed Charger",
+        "stop_charger" : "Stop Charger",
+        "start_preheater" : "Start Preheater",
+        "stop_preheater" : "Stop Preheater",
+        "start_window_heating" : "Start Window heating",
+        "stop_window_heating" : "Stop Windows heating"    
       }
     }
   },
