@@ -17,4 +17,13 @@ execute_vehicle_action:
           integration: audiconnect
     action:
       required: true
-      example: lock
+      selector:
+        select:
+          translation_key: select_mode
+          options:
+            - lock
+            - climater
+            - charger
+            - pre_heating
+            - window_heating
+            - ventilation
