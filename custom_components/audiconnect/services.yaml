@@ -4,17 +4,17 @@ refresh_vehicle_data:
   fields:
     vin:
       required: true
-      #selector:
-      #device:
-      #integration: audiconnect
+      selector:
+      device:
+      integration: audiconnect
 
 execute_vehicle_action:
   fields:
     vin:
       required: true
-      #selector:
-      #device:
-      #integration: audiconnect
+      selector:
+      device:
+      integration: audiconnect
     action:
       required: true
       selector:
