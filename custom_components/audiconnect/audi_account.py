@@ -64,7 +64,7 @@ class AudiAccount(AudiConnectObserver):
             session=session,
             username=self.config_entry.data.get(CONF_USERNAME),
             password=self.config_entry.data.get(CONF_PASSWORD),
-            country=self.config_entry.data.get(CONF_REGION),(
+            country=self.config_entry.data.get(CONF_REGION),
             spin=self.config_entry.data.get(CONF_SPIN),
         )
 
