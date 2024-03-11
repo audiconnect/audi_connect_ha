@@ -57,22 +57,42 @@ class VehicleDataResponse:
         self._tryAppendFieldWithTs(
             data,
             "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
-            ["vehicleHealthInspection", "maintenanceStatus", "value", "inspectionDue_days"],
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "inspectionDue_days",
+            ],
         )
         self._tryAppendFieldWithTs(
             data,
             "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
-            ["vehicleHealthInspection", "maintenanceStatus", "value", "inspectionDue_km"],
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "inspectionDue_km",
+            ],
         )
         self._tryAppendFieldWithTs(
             data,
             "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
-            ["vehicleHealthInspection", "maintenanceStatus","value", "oilServiceDue_days"],
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "oilServiceDue_days",
+            ],
         )
         self._tryAppendFieldWithTs(
             data,
             "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
-            ["vehicleHealthInspection", "maintenanceStatus", "value", "oilServiceDue_km"],
+            [
+                "vehicleHealthInspection",
+                "maintenanceStatus",
+                "value",
+                "oilServiceDue_km",
+            ],
         )
         self._tryAppendFieldWithTs(
             data,
@@ -103,7 +123,13 @@ class VehicleDataResponse:
             data,
             "primaryEngineRange",
             -2,
-            ["fuelStatus", "rangeStatus", "value", "primaryEngine", "remainingRange_km"],
+            [
+                "fuelStatus",
+                "rangeStatus",
+                "value",
+                "primaryEngine",
+                "remainingRange_km",
+            ],
         )
         self._tryAppendStateWithTs(
             data,
@@ -121,7 +147,13 @@ class VehicleDataResponse:
             data,
             "secondaryEngineRange",
             -2,
-            ["fuelStatus", "rangeStatus", "value", "secondaryEngine", "remainingRange_km"],
+            [
+                "fuelStatus",
+                "rangeStatus",
+                "value",
+                "secondaryEngine",
+                "remainingRange_km",
+            ],
         )
         self._tryAppendStateWithTs(
             data,
@@ -181,7 +213,12 @@ class VehicleDataResponse:
             data,
             "remainingChargingTime",
             -1,
-            ["charging", "chargingStatus", "value", "remainingChargingTimeToComplete_min"],
+            [
+                "charging",
+                "chargingStatus",
+                "value",
+                "remainingChargingTimeToComplete_min",
+            ],
         )
         self._tryAppendStateWithTs(
             data,
