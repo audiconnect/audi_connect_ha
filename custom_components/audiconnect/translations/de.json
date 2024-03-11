@@ -26,22 +26,22 @@
   },
   "services": {
     "refresh_vehicle_data": {
-      "name": "Refresh vehicle data",
+      "name": "Fahrzeugdaten aktualisieren",
       "description": "Request an update of the state from the vehicle, as opposed to the normal update mechanism, which only retrieves data from the servers.",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "The vehicle identification number (VIN) of the vehicle, 17 characters."
+          "description": "Wähle dein Audi aus."
         }
       }
     },
     "execute_vehicle_action": {
-      "name": "Execute Vehicle Action",
-      "description": "Execute Vehicle actions",
+      "name": "Fahrzeugaktionen ausführen",
+      "description": "Fahrzeugaktionen ausführen",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "The vehicle identification number (VIN) of the vehicle, 17 characters."
+          "description": "Wähle dein Audi aus."
         },
         "action": {
           "name": "Action",
