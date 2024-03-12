@@ -4,23 +4,22 @@ refresh_vehicle_data:
   fields:
     vin:
       required: true
-      example: WBANXXXXXX1234567
       selector:
-        text:
+        device:
+          integration: audiconnect
 
 execute_vehicle_action:
   fields:
     vin:
       required: true
-      example: WBANXXXXXX1234567
       selector:
-        text:
+        device:
+          integration: audiconnect
     action:
       required: true
-      example: "lock"
       selector:
         select:
-          translation_key: vehicle_actions
+          translation_key: select_mode
           options:
             - lock
             - unlock
@@ -33,36 +32,3 @@ execute_vehicle_action:
             - stop_preheater
             - start_window_heating
             - stop_window_heating
-
-start_climate_control:
-  fields:
-    vin:
-      required: true
-      example: WBANXXXXXX1234567
-      selector:
-        text:
-    temp_f:
-      selector:
-        number:
-          min: 59
-          max: 85
-    temp_c:
-      selector:
-        number:
-          min: 15
-          max: 30
-    glass_heating:
-      selector:
-        boolean:
-    seat_fl:
-      selector:
-        boolean:
-    seat_fr:
-      selector:
-        boolean:
-    seat_rl:
-      selector:
-        boolean:
-    seat_rr:
-      selector:
-        boolean:

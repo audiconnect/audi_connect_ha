@@ -5,7 +5,11 @@ import voluptuous as vol
 import logging
 
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import device_registry as dr
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
+
 from homeassistant.util.dt import utcnow
 from homeassistant import config_entries
 from homeassistant.const import (
@@ -162,4 +166,11 @@ async def async_unload_entry(hass, config_entry):
 
     del hass.data[DOMAIN][account]
 
+    return True
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: dr.DeviceEntry
+) -> bool:
+    """Remove a config entry from a device."""
     return True

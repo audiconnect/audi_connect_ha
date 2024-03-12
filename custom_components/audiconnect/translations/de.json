@@ -24,107 +24,30 @@
       }
     }
   },
-  "options": {
-    "step": {
-      "init": {
-        "data": {
-          "scan_initial": "Cloud-Update beim Start",
-          "scan_active": "Aktive Abfrage im Scanintervall",
-          "scan_interval": "Abfrageintervall"
-        },
-        "title": "Audi Connect-Optionen",
-        "data_description": {
-          "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
-          "scan_active": "Führen Sie im festgelegten Scanintervall ein Cloud-Update durch.",
-          "scan_interval": "Minuten zwischen aktiven Abfragen. Wenn „Aktive Abfrage im Scan-Intervall“ deaktiviert ist, hat dieser Wert keine Auswirkung."
-        }
-      }
-    }
-  },
-  "selector": {
-    "vehicle_actions": {
-      "options": {
-        "lock": "Sperren",
-        "unlock": "Freischalten",
-        "start_climatisation": "Klimatisierung starten (Legacy)",
-        "stop_climatisation": "Schluss mit der Klimatisierung",
-        "start_charger": "Ladegerät starten",
-        "start_timed_charger": "Starten Sie das zeitgesteuerte Ladegerät",
-        "stop_charger": "Stoppen Sie das Ladegerät",
-        "start_preheater": "Vorwärmer starten",
-        "stop_preheater": "Stoppen Sie den Vorwärmer",
-        "start_window_heating": "Fensterheizung starten",
-        "stop_window_heating": "Stoppen Sie die Fensterheizung"
-      }
-    }
-  },
   "services": {
     "refresh_vehicle_data": {
       "name": "Fahrzeugdaten aktualisieren",
-      "description": "Fordert direkt eine Aktualisierung des Fahrzeugstatus an, im Gegensatz zum normalen Aktualisierungsmechanismus, der nur Daten aus der Cloud abruft.",
+      "description": "Request an update of the state from the vehicle, as opposed to the normal update mechanism, which only retrieves data from the servers.",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+          "description": "Wähle dein Audi aus."
         }
       }
     },
     "execute_vehicle_action": {
-      "name": "Fahrzeugaktionen ausfuhren",
-      "description": "Führt verschiedene Aktionen am Fahrzeug aus.",
+      "name": "Fahrzeugaktionen ausführen",
+      "description": "Fahrzeugaktionen ausführen",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+          "description": "Wähle dein Audi aus."
         },
         "action": {
-          "name": "Aktion",
-          "description": "Die spezifische Aktion, die am Fahrzeug ausgeführt werden soll. Beachten Sie, dass die verfügbaren Aktionen je nach Fahrzeug variieren können.",
-          "example": "lock"
+          "name": "Action",
+          "description": "The action to be executed. Possible choices, depending on subscription options."
         }
       }
-    },
-    "start_climate_control": {
-      "name": "Starten Sie die Klimatisierung",
-      "description": "Starten Sie die Klimaanlage mit Optionen für Temperatur, Glasflächenheizung und automatischen Sitzkomfort.",
-      "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
-        },
-        "temp_f": {
-          "name": "Zieltemperatur (Fahrenheit)",
-          "description": "(Optional) Stellen Sie die Temperatur in °F ein. Standardmäßig 70 °F, sofern nicht angegeben. Überschreibt 'temp_c'."
-        },
-        "temp_c": {
-          "name": "Zieltemperatur (Celsius)",
-          "description": "(Optional) Stellen Sie die Temperatur in °C ein. Standardmäßig 21 °C, sofern nicht angegeben. Wird überschrieben, wenn „temp_f“ bereitgestellt wird."
-        },
-        "glass_heating": {
-          "name": "Glasflächenheizung",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie die Glasflächenheizung."
-        },
-        "seat_fl": {
-          "name": "Automatischer Sitzkomfort: Vorne links",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den vorderen linken Sitz."
-        },
-        "seat_fr": {
-          "name": "Automatischer Sitzkomfort: Vorne rechts",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den Vordersitz rechts."
-        },
-        "seat_rl": {
-          "name": "Automatischer Sitzkomfort: Hinten links",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den linken Rücksitz."
-        },
-        "seat_rr": {
-          "name": "Automatischer Sitzkomfort: Hinten rechts",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den rechten Rücksitz."
-        }
-      }
-    },
-    "refresh_cloud_data": {
-      "name": "Cloud-Daten aktualisieren",
-      "description": "Ruft aktuelle Cloud-Daten ab, ohne eine Fahrzeugaktualisierung auszulösen. Die Daten sind möglicherweise veraltet, wenn das Fahrzeug nicht kürzlich eingecheckt wurde."
     }
   }
 }

@@ -2,7 +2,7 @@ import logging
 import voluptuous as vol
 import asyncio
 
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_send,
 )
@@ -200,7 +200,9 @@ class AudiAccount(AudiConnectObserver):
         return True
 
     async def execute_vehicle_action(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         action = service.data.get(CONF_ACTION).lower()
 
         if action == "lock":
@@ -253,7 +255,9 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def refresh_vehicle_data(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
