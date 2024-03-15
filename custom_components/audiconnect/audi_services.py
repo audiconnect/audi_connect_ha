@@ -189,7 +189,9 @@ class AudiService:
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
             "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs={jobs}".format(
-                region="emea" if self._country.upper() != "US" else "na", vin=vin.upper(), jobs=",".join(JOBS2QUERY)
+                region="emea" if self._country.upper() != "US" else "na",
+                vin=vin.upper(),
+                jobs=",".join(JOBS2QUERY),
             )
         )
         _LOGGER.debug(f"{DOMAIN} - Car Data: {data}")
@@ -221,7 +223,8 @@ class AudiService:
         self._api.use_token(self._bearer_token_json)
         return await self._api.get(
             "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/parkingposition".format(
-                region="emea" if self._country.upper() != "US" else "na", vin=vin.upper(),
+                region="emea" if self._country.upper() != "US" else "na",
+                vin=vin.upper(),
             )
         )
 
@@ -858,7 +861,9 @@ class AudiService:
             self._client_id = marketcfg_json["idkClientIDAndroidLive"]
 
         self._authorizationServerBaseURLLive = (
-            "https://{region}.bff.cariad.digital/login/v1/audi".format(region="emea" if self._country.upper() != "US" else "na")
+            "https://{region}.bff.cariad.digital/login/v1/audi".format(
+                region="emea" if self._country.upper() != "US" else "na"
+            )
         )
         if "authorizationServerBaseURLLive" in marketcfg_json:
             self._authorizationServerBaseURLLive = marketcfg_json[
@@ -875,7 +880,11 @@ class AudiService:
         authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
         if "authorization_endpoint" in openidcfg_json:
             authorization_endpoint = openidcfg_json["authorization_endpoint"]
-        self._tokenEndpoint = "https://{region}.bff.cariad.digital/login/v1/idk/token".format(region="emea" if self._country.upper() != "US" else "na")
+        self._tokenEndpoint = (
+            "https://{region}.bff.cariad.digital/login/v1/idk/token".format(
+                region="emea" if self._country.upper() != "US" else "na"
+            )
+        )
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
         # revocation_endpoint = "https://{region}.bff.cariad.digital/login/v1/idk/revoke".format(region="emea" if self._country.upper() != "US" else "na")
