@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -370,7 +371,7 @@ class LastUpdate(Instrument):
     @property
     def str_state(self):
         ts = super().state
-        return ts.astimezone(tz=None).isoformat() if ts else None
+        return ts.astimezone(tz=None).isoformat() if ts else None 
 
     @property
     def state(self):
