@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,6 +128,7 @@ class Instrument:
 class Sensor(Instrument):
     def __init__(self, attr, name, icon, unit):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
+        self.device_class = None
         self._unit = unit
         self._convert = False
 
@@ -318,6 +320,7 @@ class Position(Instrument):
 class TripData(Instrument):
     def __init__(self, attr, name):
         super().__init__(component="sensor", attr=attr, name=name)
+        self.device_class = None
         self.unit = None
 
     @property
@@ -370,7 +373,7 @@ class LastUpdate(Instrument):
     @property
     def str_state(self):
         ts = super().state
-        return ts.astimezone(tz=None).isoformat() if ts else None
+        return ts.astimezone(tz=None).isoformat() if ts else None 
 
     @property
     def state(self):
