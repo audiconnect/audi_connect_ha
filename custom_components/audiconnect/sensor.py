@@ -44,6 +44,6 @@ class AudiSensor(AudiEntity, SensorEntity):
     @property
     def device_class(self):
         """Return the class of this sensor, from DEVICE_CLASSES."""
-        if self._instrument.device_class in DEVICE_CLASSES:
+        if self._instrument.device_class is Not none and self._instrument.device_class in DEVICE_CLASSES:
             return self._instrument.device_class
         return None
