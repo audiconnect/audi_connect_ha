@@ -368,19 +368,15 @@ class LastUpdate(Instrument):
     def is_mutable(self):
         return False
 
-    @property
+    #@property
     def str_state(self):
         ts = super().state
-        if type(ts) == datetime:
-            return str(ts.astimezone(tz=None)) if ts else None
-        return ts
+        return ts.astimezone(tz=None).isoformat() if ts else None 
 
     @property
     def state(self):
         val = super().state
-        if type(val) == datetime:
-            return str(val.astimezone(tz=None)) if val else None
-        return val
+        return val.astimezone(tz=None).isoformat() if val else None
 
 
 def create_instruments():
