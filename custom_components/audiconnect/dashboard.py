@@ -361,6 +361,7 @@ class LastUpdate(Instrument):
             name="Last Update",
             icon="mdi:update",
         )
+        self.device_class = "timestamp"
         self.unit = None
 
     @property
@@ -377,6 +378,8 @@ class LastUpdate(Instrument):
     @property
     def state(self):
         val = super().state
+        if type(val) == datetime:
+            return str(val.astimezone(tz=None)) if val else None
         return val
 
 
