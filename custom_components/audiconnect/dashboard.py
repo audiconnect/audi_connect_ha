@@ -2,7 +2,6 @@
 
 import logging
 import re
-from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -368,10 +367,10 @@ class LastUpdate(Instrument):
     def is_mutable(self):
         return False
 
-    #@property
+    # @property
     def str_state(self):
         ts = super().state
-        return ts.astimezone(tz=None).isoformat() if ts else None 
+        return ts.astimezone(tz=None).isoformat() if ts else None
 
     @property
     def state(self):
