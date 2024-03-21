@@ -1,3 +1,8 @@
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
+
 class VehicleData:
     def __init__(self, config_entry):
         self.sensors = set()
@@ -254,12 +259,15 @@ class VehicleDataResponse:
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         ts = None
         val = self._getFromJson(json, loc)
-        if val:
+        val = 0 if name == "remainingChargingTime" and val is None else val
+        if val is not None:
             loc[tsoff:] = ["carCapturedTimestamp"]
             ts = self._getFromJson(json, loc)
-
-        if val and ts:
+        if val is not None and ts:
             self.states.append({"name": name, "value": val, "measure_time": ts})
+        _LOGGER.debug(
+            f"audi_models.py - _tryAppendStateWithTs: json:{json} name:{name} tsoff:{tsoff} loc:{loc}: val:{val} ts:{ts}"
+        )
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
         ts = None
@@ -267,7 +275,6 @@ class VehicleDataResponse:
         if val:
             loc[-1:] = ["carCapturedTimestamp"]
             ts = self._getFromJson(json, loc)
-
         if val and ts:
             self.data_fields.append(
                 Field(
@@ -278,6 +285,9 @@ class VehicleDataResponse:
                     }
                 )
             )
+        _LOGGER.debug(
+            f"audi_models.py - _tryAppendFieldWithTs: json:{json} textId:{textId} loc:{loc}: val:{val} ts:{ts}"
+        )
 
     def _getFromJson(self, json, loc):
         child = json
