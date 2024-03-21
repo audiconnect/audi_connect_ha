@@ -2,6 +2,7 @@
 
 import logging
 
+from homeassistant.components.sensor import DEVICE_CLASSES, SensorEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
@@ -27,7 +28,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(sensors, True)
 
 
-class AudiSensor(AudiEntity):
+class AudiSensor(AudiEntity, SensorEntity):
     """Representation of a Audi sensor."""
 
     @property
@@ -39,3 +40,13 @@ class AudiSensor(AudiEntity):
     def unit_of_measurement(self):
         """Return the unit of measurement."""
         return self._instrument.unit
+
+    @property
+    def device_class(self):
+        """Return the class of this sensor, from DEVICE_CLASSES."""
+        if (
+            self._instrument.device_class is not None
+            and self._instrument.device_class in DEVICE_CLASSES
+        ):
+            return self._instrument.device_class
+        return None
