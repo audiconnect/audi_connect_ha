@@ -74,15 +74,15 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 ## Services
 
-**audiconnect.refresh_vehicle_data**
+### audiconnect.refresh_vehicle_data
 
 Normal updates retrieve data from the Audi Connect service, and don't interact directly with the vehicle. _This_ service triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service requires a vehicle identification number (VIN) as a parameter.
 
-**audiconnect.execute_vehicle_action**
+### audiconnect.execute_vehicle_action**
 
 This service allows you to perform actions on your Audi vehicle, specified by the vehicle identification number (VIN) and the desired action.
 
-### Service Parameters
+#### Service Parameters
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 - **`action`**: The specific action to perform on the vehicle. Available actions include:
@@ -106,7 +106,7 @@ This service allows you to perform actions on your Audi vehicle, specified by th
   - **`start_window_heating`**: Start heating the vehicle's windows.
   - **`stop_window_heating`**: Stop heating the vehicle's windows.
 
-### Usage Example
+#### Usage Example
 
 To initiate the climatisation system for a vehicle with VIN `WAUZZZ4G7EN123456` to a temperature of 72°F, enable glass heating, and activate both front seat heaters, use the following service call:
 
@@ -121,10 +121,10 @@ data:
   seat_fr: True
 ```
 
-### Notes
+#### Notes
 
 - The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
-- For the `start_climatisation` action, if neither `temp_f` nor `temp_c` is provided, the system defaults to using the vehicle's last known temperature setting or a system preset if unavailable.
+- For the `start_climatisation` action, if neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
 - Certain action require the S-PIN to be set in the configuration.
 
 When an action is successfully performed, an update request is automatically triggered.
