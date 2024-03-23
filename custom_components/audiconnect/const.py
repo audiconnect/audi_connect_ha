@@ -3,9 +3,16 @@ DOMAIN = "audiconnect"
 CONF_VIN = "vin"
 CONF_CARNAME = "carname"
 CONF_ACTION = "action"
+CONF_CLIMATE_TEMP_F = "temperature_f"
+CONF_CLIMATE_TEMP_C = "temperature_c"
+CONF_CLIMATE_GLASS = "glass_surface_heating"
+CONF_CLIMATE_SEAT_FL = "seat_comfort_front_left"
+CONF_CLIMATE_SEAT_FR = "seat_comfort_front_right"
+CONF_CLIMATE_SEAT_RL = "seat_comfort_rear_left"
+CONF_CLIMATE_SEAT_RR = "seat_comfort_rear_right"
 
-MIN_UPDATE_INTERVAL = 5
-DEFAULT_UPDATE_INTERVAL = 10
+MIN_UPDATE_INTERVAL = 15
+DEFAULT_UPDATE_INTERVAL = 15
 
 CONF_SPIN = "spin"
 CONF_REGION = "region"
