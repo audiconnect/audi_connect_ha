@@ -53,16 +53,18 @@ execute_vehicle_action:
       name: Temperature (Fahrenheit)
       description: >
         (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Fahrenheit. If provided, this takes precedence over 'temp_c'. If nothing is provided, the temperature will be set to 70°F.
-      example: 70
       selector:
-        text:
+        number:
+          min: 60
+          max: 80
     temp_c:
       name: Temperature (Celsius)
       description: >
         (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Celsius. This is used if 'temp_f' is not provided. If nothing is provided, the temperature will be set to 21°C.
-      example: 21
       selector:
-        text:
+        number:
+          min: 15
+          max: 27
     glass_heating:
       name: Glass Heating
       description: >
