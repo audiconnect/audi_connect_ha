@@ -32,7 +32,7 @@ execute_vehicle_action:
       required: true
       name: Action
       description: >
-        The specific action to perform on the vehicle. Available actions include locking, unlocking, starting or stopping the climatisation system, charger control actions, and window heating management. Note that available actions may vary based on the vehicle's capabilities and your subscription status with Audi Connect services.
+        The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle's capabilities.
       example: "start_climatisation"
       selector:
         select:
@@ -52,14 +52,14 @@ execute_vehicle_action:
     temp_f:
       name: Temperature (Fahrenheit)
       description: >
-        (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Fahrenheit. If provided, this takes precedence over 'temp_c'.
+        (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Fahrenheit. If provided, this takes precedence over 'temp_c'. If nothing is provided, the temperature will be set to 70°F.
       example: 70
       selector:
         text:
     temp_c:
       name: Temperature (Celsius)
       description: >
-        (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Celsius. This is used if 'temp_f' is not provided.
+        (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Celsius. This is used if 'temp_f' is not provided. If nothing is provided, the temperature will be set to 21°C.
       example: 21
       selector:
         text:
@@ -67,35 +67,30 @@ execute_vehicle_action:
       name: Glass Heating
       description: >
         (Optional, for 'start_climatisation' action) Enable or disable glass heating. Setting this to True activates glass heating.
-      default: False
       selector:
         boolean:
     seat_fl:
-      name: Front-Left Seat Heating
+      name: Front-Left Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable heating for the front-left seat. Setting this to true activates the seat heater.
-      default: False
+        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the front-left seat. Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
     seat_fr:
-      name: Front-Right Seat Heating
+      name: Front-Right Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable heating for the front-right seat. Setting this to true activates the seat heater.
-      default: False
+        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the front-right seat. Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
     seat_rl:
-      name: Rear-Left Seat Heating
+      name: Rear-Left Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable heating for the rear-left seat. This is particularly useful in vehicles equipped with rear seat heating options.
-      default: False
+        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the rear-left seat. This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
     seat_rr:
-      name: Rear-Right Seat Heating
+      name: Rear-Right Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable heating for the rear-right seat. This allows for individual control of heating in vehicles that support this feature.
-      default: False
+        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the rear-right seat. This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
 
