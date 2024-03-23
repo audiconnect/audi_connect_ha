@@ -78,23 +78,58 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 Normal updates retrieve data from the Audi Connect service, and don't interact directly with the vehicle. _This_ service triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service requires a vehicle identification number (VIN) as a parameter.
 
-**audiconnect.execute_vehicle_action**
+Certainly! Below is the README section for the `audiconnect.execute_vehicle_action` service in GitHub formatting, including the optional inputs for the `start_climatisation` action with their default values:
 
-Perform an action on the vehicle. The service takes a VIN and the action to perform as parameters. Possible action values:
+---
 
-- lock
-- unlock
-- start_climatisation
-- stop_climatisation
-- start_charger
-- start_timed_charger
-- stop_charger
-- start_preheater
-- stop_preheater
-- start_window_heating
-- stop_window_heating
+## `audiconnect.execute_vehicle_action`
 
-**Note:** Certain action require the S-PIN to be set in the configuration.
+This service allows you to perform actions on your Audi vehicle, specified by the vehicle identification number (VIN) and the desired action.
+
+### Service Parameters
+
+- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`action`**: The specific action to perform on the vehicle. Available actions include:
+
+  - **`lock`**: Lock the vehicle.
+  - **`unlock`**: Unlock the vehicle.
+  - **`start_climatisation`**: Start the vehicle's climatisation system with the following optional parameters:
+    - **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `None`.
+    - **`temp_c`** (_optional_): Desired temperature in Celsius. Default is `None`.
+    - **`glass_heating`** (_optional_): Enable (`True`) or disable (`False`) glass heating. Default is `False`.
+    - **`seat_fl`** (_optional_): Enable (`True`) or disable (`False`) the front-left seat heater. Default is `False`.
+    - **`seat_fr`** (_optional_): Enable (`True`) or disable (`False`) the front-right seat heater. Default is `False`.
+    - **`seat_rl`** (_optional_): Enable (`True`) or disable (`False`) the rear-left seat heater. Default is `False`.
+    - **`seat_rr`** (_optional_): Enable (`True`) or disable (`False`) the rear-right seat heater. Default is `False`.
+  - **`stop_climatisation`**: Stop the vehicle's climatisation system.
+  - **`start_charger`**: Start charging the vehicle.
+  - **`start_timed_charger`**: Start the vehicle's charger with a timer.
+  - **`stop_charger`**: Stop charging the vehicle.
+  - **`start_preheater`**: Start the vehicle's preheater system.
+  - **`stop_preheater`**: Stop the vehicle's preheater system.
+  - **`start_window_heating`**: Start heating the vehicle's windows.
+  - **`stop_window_heating`**: Stop heating the vehicle's windows.
+
+### Usage Example
+
+To initiate the climatisation system for a vehicle with VIN `WAUZZZ4G7EN123456` to a temperature of 72°F, enable glass heating, and activate both front seat heaters, use the following service call:
+
+```yaml
+service: audiconnect.execute_vehicle_action
+data:
+  vin: "WAUZZZ4G7EN123456"
+  action: "start_climatisation"
+  temp_f: 72
+  glass_heating: True
+  seat_fl: True
+  seat_fr: True
+```
+
+### Notes
+
+- The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
+- For the `start_climatisation` action, if neither `temp_f` nor `temp_c` is provided, the system defaults to using the vehicle's last known temperature setting or a system preset if unavailable.
+- Certain action require the S-PIN to be set in the configuration.
 
 When an action is successfully performed, an update request is automatically triggered.
 
