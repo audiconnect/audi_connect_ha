@@ -38,17 +38,28 @@ execute_vehicle_action:
         select:
           translation_key: select_mode
           options:
-            - lock
-            - unlock
-            - start_climatisation
-            - stop_climatisation
-            - start_charger
-            - start_timed_charger
-            - stop_charger
-            - start_preheater
-            - stop_preheater
-            - start_window_heating
-            - stop_window_heating
+            - label: Lock
+              value: lock
+            - label: Unlock
+              value: unlock
+            - label: Start Climatisation
+              value: start_climatisation
+            - label: Stop Climatisation
+              value: stop_climatisation
+            - label: Start Charger
+              value: start_charger
+            - label: Start Timed Charger
+              value: start_timed_charger
+            - label: Stop Charger
+              value: stop_charger
+            - label: Start Preheater
+              value: start_preheater
+            - label: Stop Preheater
+              value: stop_preheater
+            - label: Start Window Heating
+              value: start_window_heating
+            - label: Stop Window Heating
+              value: stop_window_heating
     temp_f:
       name: Temperature (Fahrenheit)
       description: >
