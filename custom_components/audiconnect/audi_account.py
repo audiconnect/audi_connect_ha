@@ -23,6 +23,13 @@ from .const import (
     DOMAIN,
     CONF_VIN,
     CONF_ACTION,
+    CONF_CLIMATE_TEMP_F,
+    CONF_CLIMATE_TEMP_C,
+    CONF_CLIMATE_GLASS,
+    CONF_CLIMATE_SEAT_FL,
+    CONF_CLIMATE_SEAT_FR,
+    CONF_CLIMATE_SEAT_RL,
+    CONF_CLIMATE_SEAT_RR,
     CONF_REGION,
     CONF_SPIN,
     SIGNAL_STATE_UPDATED,
@@ -41,7 +48,17 @@ SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema(
 
 SERVICE_EXECUTE_VEHICLE_ACTION = "execute_vehicle_action"
 SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
-    {vol.Required(CONF_VIN): cv.string, vol.Required(CONF_ACTION): cv.string}
+    {
+        vol.Required(CONF_VIN): cv.string,
+        vol.Required(CONF_ACTION): cv.string,
+        vol.Optional(CONF_CLIMATE_TEMP_F): cv.positive_int,
+        vol.Optional(CONF_CLIMATE_TEMP_C): cv.positive_int,
+        vol.Optional(CONF_CLIMATE_GLASS): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_FL): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_FR): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_RL): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
+    }
 )
 
 _LOGGER = logging.getLogger(__name__)
