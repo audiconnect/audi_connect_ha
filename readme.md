@@ -90,8 +90,8 @@ This service allows you to perform actions on your Audi vehicle, specified by th
   - **`lock`**: Lock the vehicle.
   - **`unlock`**: Unlock the vehicle.
   - **`start_climatisation`**: Start the vehicle's climatisation system with the following optional parameters:
-    - **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `None`.
-    - **`temp_c`** (_optional_): Desired temperature in Celsius. Default is `None`.
+    - **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `70`.
+    - **`temp_c`** (_optional_): Desired temperature in Celsius. Default is `21`.
     - **`glass_heating`** (_optional_): Enable (`True`) or disable (`False`) glass heating. Default is `False`.
     - **`seat_fl`** (_optional_): Enable (`True`) or disable (`False`) the front-left seat heater. Default is `False`.
     - **`seat_fr`** (_optional_): Enable (`True`) or disable (`False`) the front-right seat heater. Default is `False`.
