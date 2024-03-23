@@ -203,7 +203,7 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_climatisation(self, vin: str, activate: bool, temp_f: int = None, temp_c: int = None, glass_heating: bool, seat_fl: bool, seat_fr: bool, seat_rl: bool, seat_rr: bool):
+    async def set_vehicle_climatisation(self, vin: str, activate: bool, temp_f: int, temp_c: int, glass_heating: bool, seat_fl: bool, seat_fr: bool, seat_rl: bool, seat_rr: bool):
         if not self._loggedin:
             await self.login()
     
