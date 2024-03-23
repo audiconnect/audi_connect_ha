@@ -1,6 +1,6 @@
 # Describes the format for available services for audiconnect
 
-refresh_vehicle_data:
+refresh_data:
   name: Refresh vehicle data
   description: >
     Request an update of the state from the vehicle, as opposed to the normal
