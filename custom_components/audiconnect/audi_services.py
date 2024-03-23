@@ -542,17 +542,17 @@ class AudiService:
             "action.actionState",
         )
 
-    async def set_climatisation(self, vin: str, start: bool, temp_f: int = None, temp_c: int = None, glass_heating: bool = False, seat_fl: bool = False, seat_fr: bool = False, seat_rl: bool = False, seat_rr: bool = False):
+    async def set_climatisation(self, vin: str, start: bool, temp_f: int, temp_c: int, glass_heating: bool, seat_fl: bool, seat_fr: bool, seat_rl: bool, seat_rr: bool):
         if start:
             target_temperature = None
             if temp_f is not None:
-                target_temperature = int((temp_f - 32) * 5/9 * 10 + 2731)
+                target_temperature = int(((temp_f - 32) * (5/9)) * 10 + 2731)
             elif temp_c is not None:
-                target_temperature = temp_c * 10 + 2731
+                target_temperature = int(temp_c * 10 + 2731)
             
             # Default Temp
             target_temperature = target_temperature or 2941
-
+        
             #Construct Zone Settings
             zone_settings = [
                 {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
@@ -560,7 +560,7 @@ class AudiService:
                 {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
                 {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
             ]
-    
+        
             data = {
                 "action": {
                     "type": "startClimatisation",
@@ -579,9 +579,13 @@ class AudiService:
                 }
             }
         else:
-            data = {"action": {"type": "stopClimatisation"}}
-
-        json_data = json.dumps(data)
+            data = {
+                "action": {
+                    "type": "stopClimatisation"
+                }
+            }
+        
+        data=json.dumps(data)
         
         headers = self._get_vehicle_action_header("application/json", None)
         res = await self._api.request(
@@ -593,7 +597,7 @@ class AudiService:
                 vin=vin.upper(),
             ),
             headers=headers,
-            data=f"'{json_data}'",
+            data=data,
         )
 
         checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(

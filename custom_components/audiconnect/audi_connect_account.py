@@ -203,7 +203,7 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_climatisation(self, vin: str, activate: bool, temp_f: int = None, temp_c: int = None, glass_heating: bool = None, seat_fl: bool = None, seat_fr: bool = None, seat_rl: bool = None, seat_rr: bool = None):
+    async def set_vehicle_climatisation(self, vin: str, activate: bool, temp_f: int = None, temp_c: int = None, glass_heating: bool, seat_fl: bool, seat_fr: bool, seat_rl: bool, seat_rr: bool):
         if not self._loggedin:
             await self.login()
     
@@ -215,7 +215,7 @@ class AudiConnectAccount:
                 f"Sending command to {'start' if activate else 'stop'} climatisation for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
             )
     
-            await self._audi_service.set_climatisation(vin, activate, temp_f=temp_f, temp_c=temp_c, glass_heating=glass_heating, seat_fl=seat_fl, seat_fr=seat_fr, seat_rl=seat_rl, seat_rr=seat_rr)
+            await self._audi_service.set_climatisation(vin, activate, temp_f, temp_c, glass_heating, seat_fl, seat_fr, seat_rl, seat_rr)
     
             _LOGGER.debug(
                 f"Successfully {'started' if activate else 'stopped'} climatisation of vehicle {vin}"
