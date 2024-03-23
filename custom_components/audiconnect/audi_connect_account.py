@@ -203,39 +203,35 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_climatisation(self, vin: str, activate: bool):
+    async def set_vehicle_climatisation(self, vin: str, activate: bool, temp_f: int = None, temp_c: int = None, glass_heating: bool = None, seat_fl: bool = None, seat_fr: bool = None, seat_rl: bool = None, seat_rr: bool = None):
         if not self._loggedin:
             await self.login()
-
+    
         if not self._loggedin:
             return False
-
+    
         try:
             _LOGGER.debug(
-                "Sending command to {action} climatisation to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                f"Sending command to {'start' if activate else 'stop'} climatisation for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
             )
-
-            await self._audi_service.set_climatisation(vin, activate)
-
+    
+            await self._audi_service.set_climatisation(vin, activate, temp_f=temp_f, temp_c=temp_c, glass_heating=glass_heating, seat_fl=seat_fl, seat_fr=seat_fr, seat_rl=seat_rl, seat_rr=seat_rr)
+    
             _LOGGER.debug(
-                "Successfully {action} climatisation of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                f"Successfully {'started' if activate else 'stopped'} climatisation of vehicle {vin}"
             )
-
+    
             await self.notify(vin, ACTION_CLIMATISATION)
-
+    
             return True
-
+    
         except Exception as exception:
-            log_exception(
-                exception,
-                "Unable to {action} climatisation of vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+            _LOGGER.error(
+                f"Unable to {'start' if activate else 'stop'} climatisation of vehicle {vin}. Error: {exception}",
+                exc_info=True
             )
+            return False
+
 
     async def set_battery_charger(self, vin: str, activate: bool, timer: bool):
         if not self._loggedin:
