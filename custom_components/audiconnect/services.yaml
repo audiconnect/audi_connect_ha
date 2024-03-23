@@ -10,8 +10,8 @@ refresh_vehicle_data:
       required: true
       name: VIN
       description: >
-        The vehicle identification number (VIN) of the vehicle, 17 characters
-      example: WBANXXXXXX1234567
+        The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle.
+      example: "WAUZZZ4G7EN123456"
       selector:
         text:
 
@@ -33,7 +33,7 @@ execute_vehicle_action:
       name: Action
       description: >
         The specific action to perform on the vehicle. Available actions include locking, unlocking, starting or stopping the climatisation system, charger control actions, and window heating management. Note that available actions may vary based on the vehicle's capabilities and your subscription status with Audi Connect services.
-      example: "lock"
+      example: "start_climatisation"
       selector:
         select:
           translation_key: select_mode
