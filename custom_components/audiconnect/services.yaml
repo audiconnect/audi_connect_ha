@@ -7,10 +7,13 @@ refresh_vehicle_data:
     update mechanism, which only retrieves data from the servers.
   fields:
     vin:
+      required: true
       name: VIN
       description: >
         The vehicle identification number (VIN) of the vehicle, 17 characters
       example: WBANXXXXXX1234567
+      selector:
+        text:
 
 execute_vehicle_action:
   name: Execute Vehicle Action
@@ -18,48 +21,81 @@ execute_vehicle_action:
     Perform various actions on the vehicle, such as locking, unlocking, managing climatisation, and charging. The action to be performed is specified along with necessary parameters.
   fields:
     vin:
+      required: true
       name: VIN
       description: >
         The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
+      selector:
+        text:
     action:
+      required: true
       name: Action
       description: >
         The specific action to perform on the vehicle. Available actions include locking, unlocking, starting or stopping the climatisation system, charger control actions, and window heating management. Note that available actions may vary based on the vehicle's capabilities and your subscription status with Audi Connect services.
       example: "lock"
+      selector:
+        select:
+          translation_key: select_mode
+          options:
+            - lock
+            - unlock
+            - start_climatisation
+            - stop_climatisation
+            - start_charger
+            - start_timed_charger
+            - stop_charger
+            - start_preheater
+            - stop_preheater
+            - start_window_heating
+            - stop_window_heating
     temp_f:
       name: Temperature (Fahrenheit)
       description: >
         (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Fahrenheit. If provided, this takes precedence over 'temp_c'.
       example: 70
+      selector:
+        text:
     temp_c:
       name: Temperature (Celsius)
       description: >
         (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Celsius. This is used if 'temp_f' is not provided.
       example: 21
+      selector:
+        text:
     glass_heating:
       name: Glass Heating
       description: >
         (Optional, for 'start_climatisation' action) Enable or disable glass heating. Setting this to True activates glass heating.
-      example: True
+      default: False
+      selector:
+        boolean:
     seat_fl:
       name: Front-Left Seat Heating
       description: >
         (Optional, for 'start_climatisation' action) Enable or disable heating for the front-left seat. Setting this to true activates the seat heater.
-      example: False
+      default: False
+      selector:
+        boolean:
     seat_fr:
       name: Front-Right Seat Heating
       description: >
         (Optional, for 'start_climatisation' action) Enable or disable heating for the front-right seat. Setting this to true activates the seat heater.
-      example: False
+      default: False
+      selector:
+        boolean:
     seat_rl:
       name: Rear-Left Seat Heating
       description: >
         (Optional, for 'start_climatisation' action) Enable or disable heating for the rear-left seat. This is particularly useful in vehicles equipped with rear seat heating options.
-      example: False
+      default: False
+      selector:
+        boolean:
     seat_rr:
       name: Rear-Right Seat Heating
       description: >
         (Optional, for 'start_climatisation' action) Enable or disable heating for the rear-right seat. This allows for individual control of heating in vehicles that support this feature.
-      example: False
+      default: False
+      selector:
+        boolean:
 
