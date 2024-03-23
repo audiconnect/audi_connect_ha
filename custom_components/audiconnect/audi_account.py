@@ -188,12 +188,21 @@ class AudiAccount(AudiConnectObserver):
         vin = service.data.get(CONF_VIN).lower()
         action = service.data.get(CONF_ACTION).lower()
 
+        # Extract optional parameters
+        temp_f = service.data.get(CONF_CLIMATE_TEMP_F)
+        temp_c = service.data.get(CONF_CLIMATE_TEMP_C)
+        glass_heating = service.data.get(CONF_CLIMATE_GLASS)
+        seat_fl = service.data.get(CONF_CLIMATE_SEAT_FL)
+        seat_fr = service.data.get(CONF_CLIMATE_SEAT_FR)
+        seat_rl = service.data.get(CONF_CLIMATE_SEAT_RL)
+        seat_rr = service.data.get(CONF_CLIMATE_SEAT_RR)
+
         if action == "lock":
             await self.connection.set_vehicle_lock(vin, True)
         if action == "unlock":
             await self.connection.set_vehicle_lock(vin, False)
         if action == "start_climatisation":
-            await self.connection.set_vehicle_climatisation(vin, True)
+            await self.connection.set_vehicle_climatisation(vin, True, temp_f=temp_f, temp_c=temp_c, glass_heating=glass_heating, seat_fl=seat_fl, seat_fr=seat_fr, seat_rl=seat_rl, seat_rr=seat_rr)
         if action == "stop_climatisation":
             await self.connection.set_vehicle_climatisation(vin, False)
         if action == "start_charger":
