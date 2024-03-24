@@ -645,7 +645,7 @@ class AudiService:
 
         await self.check_request_succeeded(
             checkUrl,
-            "start climatisation" if start else "stop climatisation",
+            "start climatisation",
             SUCCEEDED,
             FAILED,
             "action.actionState",
