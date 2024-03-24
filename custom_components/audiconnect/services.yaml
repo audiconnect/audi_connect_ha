@@ -25,7 +25,7 @@ execute_vehicle_action:
       required: true
       name: VIN
       description: >
-        The Vehicle Identification Number (VIN) of the Audi vehicle. 
+        The Vehicle Identification Number (VIN) of the Audi vehicle.
         This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
@@ -65,8 +65,8 @@ execute_vehicle_action:
     temp_f:
       name: Temperature (Fahrenheit)
       description: >
-        (Optional) For 'start_climatisation': 
-        Set temperature in °F. Defaults to 70°F if not provided. 
+        (Optional) For 'start_climatisation':
+        Set temperature in °F. Defaults to 70°F if not provided.
         Overrides 'temp_c'.
       selector:
         number:
@@ -75,8 +75,8 @@ execute_vehicle_action:
     temp_c:
       name: Temperature (Celsius)
       description: >
-        (Optional) For 'start_climatisation': 
-        Set temperature in °C. Defaults to 21°C if not provided. 
+        (Optional) For 'start_climatisation':
+        Set temperature in °C. Defaults to 21°C if not provided.
         Overridden if 'temp_f' is provided.
       selector:
         number:
@@ -93,7 +93,7 @@ execute_vehicle_action:
       name: Front-Left Seat Comfort
       description: >
         (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the front-left seat. 
+        Enable or disable Auto Seat Comfort for the front-left seat.
         Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
@@ -101,7 +101,7 @@ execute_vehicle_action:
       name: Front-Right Seat Comfort
       description: >
         (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the front-right seat. 
+        Enable or disable Auto Seat Comfort for the front-right seat.
         Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
@@ -109,7 +109,7 @@ execute_vehicle_action:
       name: Rear-Left Seat Comfort
       description: >
         (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the rear-left seat. 
+        Enable or disable Auto Seat Comfort for the rear-left seat.
         This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
@@ -117,7 +117,7 @@ execute_vehicle_action:
       name: Rear-Right Seat Comfort
       description: >
         (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the rear-right seat. 
+        Enable or disable Auto Seat Comfort for the rear-right seat.
         This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
