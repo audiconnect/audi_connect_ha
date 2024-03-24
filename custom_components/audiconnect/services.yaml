@@ -1,5 +1,5 @@
 # Describes the format for available services for audiconnect
-
+---
 refresh_data:
   name: Refresh Vehicle Data
   description: >
@@ -10,7 +10,8 @@ refresh_data:
       required: true
       name: VIN
       description: >
-        The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle.
+        The Vehicle Identification Number (VIN) of the Audi vehicle.
+        This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
         text:
@@ -18,13 +19,14 @@ refresh_data:
 execute_vehicle_action:
   name: Execute Vehicle Action
   description: >
-    Perform various actions on the vehicle, such as locking, unlocking, managing climatisation, and charging. The action to be performed is specified along with necessary parameters.
+    Perform various actions on the vehicle.
   fields:
     vin:
       required: true
       name: VIN
       description: >
-        The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle.
+        The Vehicle Identification Number (VIN) of the Audi vehicle. 
+        This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
         text:
@@ -32,7 +34,8 @@ execute_vehicle_action:
       required: true
       name: Action
       description: >
-        The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle's capabilities.
+        The specific action to perform on the vehicle.
+        Note that available actions may vary based on the vehicle's capabilities.
       example: "start_climatisation"
       selector:
         select:
@@ -62,7 +65,9 @@ execute_vehicle_action:
     temp_f:
       name: Temperature (Fahrenheit)
       description: >
-        (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Fahrenheit. If provided, this takes precedence over 'temp_c'. If nothing is provided, the temperature will be set to 70°F.
+        (Optional) For 'start_climatisation': 
+        Set temperature in °F. Defaults to 70°F if not provided. 
+        Overrides 'temp_c'.
       selector:
         number:
           min: 60
@@ -70,7 +75,9 @@ execute_vehicle_action:
     temp_c:
       name: Temperature (Celsius)
       description: >
-        (Optional, for 'start_climatisation' action) Desired climatisation temperature in degrees Celsius. This is used if 'temp_f' is not provided. If nothing is provided, the temperature will be set to 21°C.
+        (Optional) For 'start_climatisation': 
+        Set temperature in °C. Defaults to 21°C if not provided. 
+        Overridden if 'temp_f' is provided.
       selector:
         number:
           min: 15
@@ -78,30 +85,39 @@ execute_vehicle_action:
     glass_heating:
       name: Glass Heating
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable glass heating. Setting this to True activates glass heating.
+        (Optional) For 'start_climatisation':
+        Enable or disable glass heating. Setting this to True activates glass heating.
       selector:
         boolean:
     seat_fl:
       name: Front-Left Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the front-left seat. Setting this to true activates the Auto Seat Comfort.
+        (Optional) For 'start_climatisation':
+        Enable or disable Auto Seat Comfort for the front-left seat. 
+        Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
     seat_fr:
       name: Front-Right Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the front-right seat. Setting this to true activates the Auto Seat Comfort.
+        (Optional) For 'start_climatisation':
+        Enable or disable Auto Seat Comfort for the front-right seat. 
+        Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
     seat_rl:
       name: Rear-Left Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the rear-left seat. This is particularly useful in vehicles equipped with rear seat comfort options.
+        (Optional) For 'start_climatisation':
+        Enable or disable Auto Seat Comfort for the rear-left seat. 
+        This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
     seat_rr:
       name: Rear-Right Seat Comfort
       description: >
-        (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the rear-right seat. This is particularly useful in vehicles equipped with rear seat comfort options.
+        (Optional) For 'start_climatisation':
+        Enable or disable Auto Seat Comfort for the rear-right seat. 
+        This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
