@@ -36,7 +36,7 @@ execute_vehicle_action:
       description: >
         The specific action to perform on the vehicle.
         Note that available actions may vary based on the vehicle.
-      example: "start_climatisation"
+      example: "lock"
       selector:
         select:
           options:
@@ -44,7 +44,7 @@ execute_vehicle_action:
               value: lock
             - label: Unlock
               value: unlock
-            - label: Start Climatisation
+            - label: Start Climatisation (Legacy)
               value: start_climatisation
             - label: Stop Climatisation
               value: stop_climatisation
@@ -62,6 +62,22 @@ execute_vehicle_action:
               value: start_window_heating
             - label: Stop Window Heating
               value: stop_window_heating
+
+start_climate_control:
+  name: Start Climate Control
+  description: >
+    Start the climate control with options for temperature,
+    glass surface heating, and auto seat comfort.
+  fields:
+    vin:
+      required: true
+      name: VIN
+      description: >
+        The Vehicle Identification Number (VIN) of the Audi vehicle.
+        This should be a 17-character identifier unique to each vehicle.
+      example: "WAUZZZ4G7EN123456"
+      selector:
+        text:
     temp_f:
       name: Temperature (Fahrenheit)
       description: >
