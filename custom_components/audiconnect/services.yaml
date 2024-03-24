@@ -106,4 +106,3 @@ execute_vehicle_action:
         (Optional, for 'start_climatisation' action) Enable or disable Auto Seat Comfort for the rear-right seat. This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
-
