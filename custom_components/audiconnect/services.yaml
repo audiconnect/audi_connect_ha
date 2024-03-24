@@ -107,28 +107,28 @@ start_climate_control:
       selector:
         boolean:
     seat_fl:
-      name: Auto Seat Comfort: Front-Left
+      name: "Auto Seat Comfort: Front-Left"
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the front-left seat.
       selector:
         boolean:
     seat_fr:
-      name: Auto Seat Comfort: Front-Right
+      name: "Auto Seat Comfort: Front-Right"
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the front-right seat.
       selector:
         boolean:
     seat_rl:
-      name: Auto Seat Comfort: Rear-Left
+      name: "Auto Seat Comfort: Rear-Left"
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the rear-left seat.
       selector:
         boolean:
     seat_rr:
-      name: Auto Seat Comfort: Rear-Right
+      name: "Auto Seat Comfort: Rear-Right"
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the rear-right seat.
