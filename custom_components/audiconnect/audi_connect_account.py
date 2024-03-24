@@ -270,9 +270,7 @@ class AudiConnectAccount:
                 seat_rr,
             )
 
-            _LOGGER.debug(
-                f"Successfully started climate control of vehicle {vin}"
-            )
+            _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
 
             await self.notify(vin, ACTION_CLIMATISATION)
 
