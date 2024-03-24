@@ -86,7 +86,7 @@ execute_vehicle_action:
       name: Glass Heating
       description: >
         (Optional) For 'start_climatisation':
-        Enable or disable glass heating. 
+        Enable or disable glass heating.
         Setting this to True activates glass heating.
       selector:
         boolean:
