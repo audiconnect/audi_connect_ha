@@ -70,7 +70,7 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 **scan_interval**
 
-- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 10 minutes, can be no more frequent than 1 min.)
+- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 minutes.)
 
 ## Services
 
