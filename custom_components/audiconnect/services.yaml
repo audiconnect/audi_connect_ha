@@ -36,7 +36,6 @@ execute_vehicle_action:
       example: "start_climatisation"
       selector:
         select:
-          translation_key: select_mode
           options:
             - label: Lock
               value: lock
