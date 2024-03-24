@@ -259,7 +259,7 @@ class AudiConnectAccount:
                 f"Sending command to start climate control for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
             )
 
-            await self._audi_service.set_climatisation(
+            await self._audi_service.start_climate_control(
                 vin,
                 temp_f,
                 temp_c,
