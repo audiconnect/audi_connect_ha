@@ -35,7 +35,7 @@ execute_vehicle_action:
       name: Action
       description: >
         The specific action to perform on the vehicle.
-        Note that available actions may vary based on the vehicle's capabilities.
+        Note that available actions may vary based on the vehicle.
       example: "start_climatisation"
       selector:
         select:
@@ -86,7 +86,8 @@ execute_vehicle_action:
       name: Glass Heating
       description: >
         (Optional) For 'start_climatisation':
-        Enable or disable glass heating. Setting this to True activates glass heating.
+        Enable or disable glass heating. 
+        Setting this to True activates glass heating.
       selector:
         boolean:
     seat_fl:
@@ -94,7 +95,6 @@ execute_vehicle_action:
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the front-left seat.
-        Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
     seat_fr:
@@ -102,7 +102,6 @@ execute_vehicle_action:
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the front-right seat.
-        Setting this to true activates the Auto Seat Comfort.
       selector:
         boolean:
     seat_rl:
@@ -110,7 +109,6 @@ execute_vehicle_action:
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the rear-left seat.
-        This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
     seat_rr:
@@ -118,6 +116,5 @@ execute_vehicle_action:
       description: >
         (Optional) For 'start_climatisation':
         Enable or disable Auto Seat Comfort for the rear-right seat.
-        This is particularly useful in vehicles equipped with rear seat comfort options.
       selector:
         boolean:
