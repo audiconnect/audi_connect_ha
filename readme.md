@@ -70,7 +70,7 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 **scan_interval**
 
-- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
+- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 minutes.)
 
 ## Services
 
@@ -94,17 +94,9 @@ This service allows you to perform actions on your Audi vehicle, specified by th
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 - **`action`**: The specific action to perform on the vehicle. Available actions include:
-
   - **`lock`**: Lock the vehicle.
   - **`unlock`**: Unlock the vehicle.
-  - **`start_climatisation`**: Start the vehicle's climatisation system with the following optional parameters:
-    - **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `70`.
-    - **`temp_c`** (_optional_): Desired temperature in Celsius. Default is `21`.
-    - **`glass_heating`** (_optional_): Enable (`True`) or disable (`False`) glass heating. Default is `False`.
-    - **`seat_fl`** (_optional_): Enable (`True`) or disable (`False`) the front-left seat heater. Default is `False`.
-    - **`seat_fr`** (_optional_): Enable (`True`) or disable (`False`) the front-right seat heater. Default is `False`.
-    - **`seat_rl`** (_optional_): Enable (`True`) or disable (`False`) the rear-left seat heater. Default is `False`.
-    - **`seat_rr`** (_optional_): Enable (`True`) or disable (`False`) the rear-right seat heater. Default is `False`.
+  - **`start_climatisation`**: Start the vehicle's climatisation system. (Legacy)
   - **`stop_climatisation`**: Stop the vehicle's climatisation system.
   - **`start_charger`**: Start charging the vehicle.
   - **`start_timed_charger`**: Start the vehicle's charger with a timer.
@@ -116,13 +108,45 @@ This service allows you to perform actions on your Audi vehicle, specified by th
 
 #### Usage Example
 
-To initiate the climatisation system for a vehicle with VIN `WAUZZZ4G7EN123456` to a temperature of 72°F, enable glass heating, and activate both front seat heaters, use the following service call:
+To initiate the lock action for a vehicle with VIN `WAUZZZ4G7EN123456`, use the following service call:
 
 ```yaml
 service: audiconnect.execute_vehicle_action
 data:
   vin: "WAUZZZ4G7EN123456"
-  action: "start_climatisation"
+  action: "lock"
+```
+
+#### Notes
+
+- Certain action require the S-PIN to be set in the configuration.
+- When an action is successfully performed, an update request is automatically triggered.
+
+### Audi Connect: Start Climate Control
+
+`audiconnect.start_climate_control`
+
+This service allows you to start the climate control with options for temperature, glass surface heating, and auto seat comfort.
+
+#### Service Parameters
+
+- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `70`.
+- **`temp_c`** (_optional_): Desired temperature in Celsius. Default is `21`.
+- **`glass_heating`** (_optional_): Enable (`True`) or disable (`False`) glass heating. Default is `False`.
+- **`seat_fl`** (_optional_): Enable (`True`) or disable (`False`) the front-left seat heater. Default is `False`.
+- **`seat_fr`** (_optional_): Enable (`True`) or disable (`False`) the front-right seat heater. Default is `False`.
+- **`seat_rl`** (_optional_): Enable (`True`) or disable (`False`) the rear-left seat heater. Default is `False`.
+- **`seat_rr`** (_optional_): Enable (`True`) or disable (`False`) the rear-right seat heater. Default is `False`.
+
+#### Usage Example
+
+To start the climate control for a vehicle with VIN `WAUZZZ4G7EN123456` with a temperature of 72°F, enable glass heating, and activate both front seat heaters, use the following service call:
+
+```yaml
+service: audiconnect.start_climate_control
+data:
+  vin: "WAUZZZ4G7EN123456"
   temp_f: 72
   glass_heating: True
   seat_fl: True
@@ -132,10 +156,9 @@ data:
 #### Notes
 
 - The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
-- For the `start_climatisation` action, if neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
+- If neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
 - Certain action require the S-PIN to be set in the configuration.
-
-When an action is successfully performed, an update request is automatically triggered.
+- When an action is successfully performed, an update request is automatically triggered.
 
 ## Example Dashboard Card
 

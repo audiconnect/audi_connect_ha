@@ -203,10 +203,43 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_climatisation(
+    async def set_vehicle_climatisation(self, vin: str, activate: bool):
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug(
+                "Sending command to {action} climatisation to vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
+            await self._audi_service.set_climatisation(vin, activate)
+
+            _LOGGER.debug(
+                "Successfully {action} climatisation of vehicle {vin}".format(
+                    action="started" if activate else "stopped", vin=vin
+                ),
+            )
+
+            await self.notify(vin, ACTION_CLIMATISATION)
+
+            return True
+
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to {action} climatisation of vehicle {vin}".format(
+                    action="start" if activate else "stop", vin=vin
+                ),
+            )
+
+    async def start_climate_control(
         self,
         vin: str,
-        activate: bool,
         temp_f: int,
         temp_c: int,
         glass_heating: bool,
@@ -223,12 +256,11 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                f"Sending command to {'start' if activate else 'stop'} climatisation for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
+                f"Sending command to start climate control for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
             )
 
-            await self._audi_service.set_climatisation(
+            await self._audi_service.start_climate_control(
                 vin,
-                activate,
                 temp_f,
                 temp_c,
                 glass_heating,
@@ -238,9 +270,7 @@ class AudiConnectAccount:
                 seat_rr,
             )
 
-            _LOGGER.debug(
-                f"Successfully {'started' if activate else 'stopped'} climatisation of vehicle {vin}"
-            )
+            _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
 
             await self.notify(vin, ACTION_CLIMATISATION)
 
@@ -248,7 +278,7 @@ class AudiConnectAccount:
 
         except Exception as exception:
             _LOGGER.error(
-                f"Unable to {'start' if activate else 'stop'} climatisation of vehicle {vin}. Error: {exception}",
+                f"Unable to start climate control of vehicle {vin}. Error: {exception}",
                 exc_info=True,
             )
             return False
