@@ -541,11 +541,44 @@ class AudiService:
             FAILED,
             "action.actionState",
         )
+    async def set_climatisation(self, vin: str, start: bool):
+        if start:
+            data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+        else:
+            data = '{"action":{"type": "stopClimatisation"}}'
 
-    async def set_climatisation(
+        headers = self._get_vehicle_action_header("application/json", None)
+        res = await self._api.request(
+            "POST",
+            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                homeRegion=await self._get_home_region(vin.upper()),
+                type=self._type,
+                country=self._country,
+                vin=vin.upper(),
+            ),
+            headers=headers,
+            data=data,
+        )
+
+        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+            homeRegion=await self._get_home_region(vin.upper()),
+            type=self._type,
+            country=self._country,
+            vin=vin.upper(),
+            actionid=res["action"]["actionId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "start climatisation" if start else "stop climatisation",
+            SUCCEEDED,
+            FAILED,
+            "action.actionState",
+        )
+        
+    async def start_climate_control(
         self,
         vin: str,
-        start: bool,
         temp_f: int,
         temp_c: int,
         glass_heating: bool,
@@ -554,41 +587,38 @@ class AudiService:
         seat_rl: bool,
         seat_rr: bool,
     ):
-        if start:
-            target_temperature = None
-            if temp_f is not None:
-                target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
-            elif temp_c is not None:
-                target_temperature = int(temp_c * 10 + 2731)
+        target_temperature = None
+        if temp_f is not None:
+            target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
+        elif temp_c is not None:
+            target_temperature = int(temp_c * 10 + 2731)
 
-            # Default Temp
-            target_temperature = target_temperature or 2941
+        # Default Temp
+        target_temperature = target_temperature or 2941
 
-            # Construct Zone Settings
-            zone_settings = [
-                {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
-                {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
-                {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
-                {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
-            ]
+        # Construct Zone Settings
+        zone_settings = [
+            {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
+            {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
+            {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
+            {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
+        ]
 
-            data = {
-                "action": {
-                    "type": "startClimatisation",
-                    "settings": {
-                        "targetTemperature": target_temperature,
-                        "climatisationWithoutHVpower": True,
-                        "heaterSource": "electric",
-                        "climaterElementSettings": {
-                            "isClimatisationAtUnlock": False,
-                            "isMirrorHeatingEnabled": glass_heating,
-                            "zoneSettings": {"zoneSetting": zone_settings},
-                        },
+        data = {
+            "action": {
+                "type": "startClimatisation",
+                "settings": {
+                    "targetTemperature": target_temperature,
+                    "climatisationWithoutHVpower": True,
+                    "heaterSource": "electric",
+                    "climaterElementSettings": {
+                        "isClimatisationAtUnlock": False,
+                        "isMirrorHeatingEnabled": glass_heating,
+                        "zoneSettings": {"zoneSetting": zone_settings},
                     },
-                }
+                },
             }
-        else:
-            data = {"action": {"type": "stopClimatisation"}}
+        }
 
         data = json.dumps(data)
 
