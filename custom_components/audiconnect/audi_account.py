@@ -234,7 +234,7 @@ class AudiAccount(AudiConnectObserver):
         seat_rl = service.data.get(CONF_CLIMATE_SEAT_RL, False)
         seat_rr = service.data.get(CONF_CLIMATE_SEAT_RR, False)
 
-        await self.connection.set_vehicle_climatisation(
+        await self.connection.start_climate_control(
                 vin,
                 temp_f,
                 temp_c,
