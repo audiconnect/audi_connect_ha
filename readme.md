@@ -96,7 +96,7 @@ This service allows you to perform actions on your Audi vehicle, specified by th
 - **`action`**: The specific action to perform on the vehicle. Available actions include:
   - **`lock`**: Lock the vehicle.
   - **`unlock`**: Unlock the vehicle.
-  - **`start_climatisation`**: Start the vehicle's climatisation system.
+  - **`start_climatisation`**: Start the vehicle's climatisation system. (Legacy)
   - **`stop_climatisation`**: Stop the vehicle's climatisation system.
   - **`start_charger`**: Start charging the vehicle.
   - **`start_timed_charger`**: Start the vehicle's charger with a timer.
