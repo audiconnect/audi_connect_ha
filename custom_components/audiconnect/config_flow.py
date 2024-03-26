@@ -13,7 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.core import callback
 
 from .audi_connect_account import AudiConnectAccount
-from .const import DOMAIN, CONF_SPIN, DEFAULT_UPDATE_INTERVAL
+from .const import DOMAIN, CONF_SPIN, DEFAULT_UPDATE_INTERVAL, MIN_UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._password = vol.UNDEFINED
         self._spin = vol.UNDEFINED
         self._region = vol.UNDEFINED
-        self._scan_interval = 10
+        self._scan_interval = DEFAULT_UPDATE_INTERVAL
 
     async def async_step_user(self, user_input=None):
         """Handle a user initiated config flow."""
@@ -111,13 +111,13 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input.get(CONF_REGION):
             region = user_input.get(CONF_REGION)
 
-        scan_interval = 10
+        scan_interval = DEFAULT_UPDATE_INTERVAL
 
         if user_input.get(CONF_SCAN_INTERVAL):
             scan_interval = user_input[CONF_SCAN_INTERVAL]
 
-        if scan_interval < 5:
-            scan_interval = 5
+        if scan_interval < MIN_UPDATE_INTERVAL:
+            scan_interval = MIN_UPDATE_INTERVAL
 
         try:
             session = async_get_clientsession(self.hass)
