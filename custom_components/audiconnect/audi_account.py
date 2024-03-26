@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 import voluptuous as vol
 
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_send,
 )
@@ -39,7 +39,8 @@ from .const import (
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
-SERVICE_REFRESH_VEHICLE_DATA = "refresh_data"
+
+SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
 SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_VIN): cv.string,
@@ -202,7 +203,9 @@ class AudiAccount(AudiConnectObserver):
             )
 
     async def execute_vehicle_action(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         action = service.data.get(CONF_ACTION).lower()
 
         if action == "lock":
@@ -229,7 +232,9 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, False)
 
     async def start_climate_control(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         # Optional Parameters
         temp_f = service.data.get(CONF_CLIMATE_TEMP_F, None)
         temp_c = service.data.get(CONF_CLIMATE_TEMP_C, None)
@@ -254,7 +259,9 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def refresh_vehicle_data(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
