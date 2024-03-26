@@ -138,10 +138,10 @@ start_climate_control:
       selector:
         boolean:
 
-update_all_vehicles_data:
-  name: Update All Vehicles Data
+refresh_cloud_data:
+  name: Refresh Cloud Data
   description: >
-    Updates vehicle data, for all vehicles, from the online source
+    Updates vehicle data, for all vehicles, from the cloud
     without forcing a vehicle refresh. If the vehicle has not
     recently updated its data, the information retrieved may still
     be outdated. Vehicle data typically refreshes after receiving
