@@ -31,3 +31,16 @@ execute_vehicle_action:
         'stop_charger', 'start_preheater', 'stop_preheater,
         'start_window_heating', 'stop_window_heating'
       example: lock
+
+update_all_vehicles_data:
+  name: Update All Vehicles Data
+  description: >
+    Updates vehicle data, for all vehicles, from the online source 
+    without forcing a vehicle refresh. If the vehicle has not
+    recently updated its data, the information retrieved may still
+    be outdated. Vehicle data typically refreshes after receiving
+    a command, such as starting climate control. It's recommended
+    to wait approximately 30 seconds between initiating a command
+    and using this service call to ensure updated data is fetched.
+    This is essentially the same function as restarting the
+    integration.
