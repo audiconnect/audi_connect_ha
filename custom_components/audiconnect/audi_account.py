@@ -51,7 +51,6 @@ SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
     {vol.Required(CONF_VIN): cv.string, vol.Required(CONF_ACTION): cv.string}
 )
 
-
 SERVICE_START_CLIMATE_CONTROL = "start_climate_control"
 SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
     {
@@ -65,6 +64,8 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
         vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
     }
 )
+
+SERVICE_UPDATE_ALL_VEHICLES_DATA = "update_all_vehicles_data"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,12 +102,16 @@ class AudiAccount(AudiConnectObserver):
             self.execute_vehicle_action,
             schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
         )
-
         self.hass.services.async_register(
             DOMAIN,
             SERVICE_START_CLIMATE_CONTROL,
             self.start_climate_control,
             schema=SERVICE_START_CLIMATE_CONTROL_SCHEMA,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_UPDATE_ALL_VEHICLES_DATA,
+            self.update,
         )
 
         self.connection.add_observer(self)
