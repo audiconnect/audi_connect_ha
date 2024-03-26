@@ -89,6 +89,7 @@ Normal updates retrieve data from the Audi Connect service, and don't interact d
 `audiconnect.update_all_vehicles_data`
 
 _This_ service triggers an update request from the cloud.
+
 - Functionality: Updates data for all vehicles from the online source, mirroring the action performed at integration startup or during scheduled refresh intervals.
 - Behavior: Does not force a vehicle-side data refresh. Consequently, if vehicles haven't recently pushed updates, retrieved data might be outdated.
 - Recommended Usage: Ideal for post-command updates (e.g., after initiating climate control). To ensure data accuracy, a delay of approximately 30 seconds is recommended between command issuance and this service call.
