@@ -76,17 +76,17 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 ### Audi Connect: Refresh Vehicle Data
 
-`audiconnect.refresh_data`
+`audiconnect.refresh_vehicle_data`
 
-Normal updates retrieve data from the Audi Connect service, and don't interact directly with the vehicle. _This_ service triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service requires a vehicle identification number (VIN) as a parameter.
+Normal updates retrieve data from the Audi Connect cloud service, and don't interact directly with the vehicle. _This_ service triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service requires a vehicle identification number (VIN) as a parameter.
 
 #### Service Parameters
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 
-### Audi Connect: Update All Vehicles Data
+### Audi Connect: Refresh Cloud Data
 
-`audiconnect.update_all_vehicles_data`
+`audiconnect.refresh_cloud_data`
 
 _This_ service triggers an update request from the cloud.
 
