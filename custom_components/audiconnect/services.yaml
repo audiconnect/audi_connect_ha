@@ -1,6 +1,6 @@
 # Describes the format for available services for audiconnect
 ---
-refresh_data:
+refresh_vehicle_data:
   name: Refresh Vehicle Data
   description: >
     Request an update of the state from the vehicle, as opposed to the normal
@@ -14,7 +14,8 @@ refresh_data:
         This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
-        text:
+        device:
+          integration: audiconnect
 
 execute_vehicle_action:
   name: Execute Vehicle Action
@@ -29,7 +30,8 @@ execute_vehicle_action:
         This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
-        text:
+        device:
+          integration: audiconnect
     action:
       required: true
       name: Action
@@ -77,7 +79,8 @@ start_climate_control:
         This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
-        text:
+        device:
+          integration: audiconnect
     temp_f:
       name: Target Temperature (Fahrenheit)
       description: >
