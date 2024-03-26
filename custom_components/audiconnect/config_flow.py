@@ -35,7 +35,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._password = vol.UNDEFINED
         self._spin = vol.UNDEFINED
         self._region = vol.UNDEFINED
-        self._scan_interval = 10
+        self._scan_interval = 15
 
     async def async_step_user(self, user_input=None):
         """Handle a user initiated config flow."""
@@ -111,13 +111,13 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input.get(CONF_REGION):
             region = user_input.get(CONF_REGION)
 
-        scan_interval = 10
+        scan_interval = 15
 
         if user_input.get(CONF_SCAN_INTERVAL):
             scan_interval = user_input[CONF_SCAN_INTERVAL]
 
-        if scan_interval < 5:
-            scan_interval = 5
+        if scan_interval < 15:
+            scan_interval = 15
 
         try:
             session = async_get_clientsession(self.hass)
