@@ -120,6 +120,7 @@ class AudiDeviceTracker(TrackerEntity):
         return {
             "identifiers": {(DOMAIN, self._instrument.vehicle_vin)},
             "manufacturer": "Audi",
+            "model": self._instrument.vehicle_model_family,
             "name": self._vehicle_name,
         }
 
