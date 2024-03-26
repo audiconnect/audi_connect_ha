@@ -44,6 +44,8 @@ SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
     {vol.Required(CONF_VIN): cv.string, vol.Required(CONF_ACTION): cv.string}
 )
 
+SERVICE_UPDATE_ALL_VEHICLES_DATA = "update_all_vehicles_data"
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -66,7 +68,6 @@ class AudiAccount(AudiConnectObserver):
             country=self.config_entry.data.get(CONF_REGION),
             spin=self.config_entry.data.get(CONF_SPIN),
         )
-
         self.hass.services.async_register(
             DOMAIN,
             SERVICE_REFRESH_VEHICLE_DATA,
@@ -78,6 +79,11 @@ class AudiAccount(AudiConnectObserver):
             SERVICE_EXECUTE_VEHICLE_ACTION,
             self.execute_vehicle_action,
             schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_UPDATE_ALL_VEHICLES_DATA,
+            self.update,
         )
 
         self.connection.add_observer(self)
