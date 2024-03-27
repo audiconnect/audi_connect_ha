@@ -1,152 +1,71 @@
 # Describes the format for available services for audiconnect
 ---
 refresh_vehicle_data:
-  name: Refresh Vehicle Data
-  description: >
-    Request an update of the state from the vehicle, as opposed to the normal
-    update mechanism, which only retrieves data from the servers.
   fields:
     vin:
       required: true
-      name: VIN
-      description: >
-        The Vehicle Identification Number (VIN) of the Audi vehicle.
-        This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
         device:
           integration: audiconnect
 
 execute_vehicle_action:
-  name: Execute Vehicle Action
-  description: >
-    Perform various actions on the vehicle.
   fields:
     vin:
       required: true
-      name: VIN
-      description: >
-        The Vehicle Identification Number (VIN) of the Audi vehicle.
-        This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
         device:
           integration: audiconnect
     action:
       required: true
-      name: Action
-      description: >
-        The specific action to perform on the vehicle.
-        Note that available actions may vary based on the vehicle.
       example: "lock"
       selector:
         select:
+          translation_key: vehicle_actions
           options:
-            - label: Lock
-              value: lock
-            - label: Unlock
-              value: unlock
-            - label: Start Climatisation (Legacy)
-              value: start_climatisation
-            - label: Stop Climatisation
-              value: stop_climatisation
-            - label: Start Charger
-              value: start_charger
-            - label: Start Timed Charger
-              value: start_timed_charger
-            - label: Stop Charger
-              value: stop_charger
-            - label: Start Preheater
-              value: start_preheater
-            - label: Stop Preheater
-              value: stop_preheater
-            - label: Start Window Heating
-              value: start_window_heating
-            - label: Stop Window Heating
-              value: stop_window_heating
+            - lock
+            - unlock
+            - start_climatisation
+            - stop_climatisation
+            - start_charger
+            - start_timed_charger
+            - stop_charger
+            - start_preheater
+            - stop_preheater
+            - start_window_heating
+            - stop_window_heating
 
 start_climate_control:
-  name: Start Climate Control
-  description: >
-    Start the climate control with options for temperature,
-    glass surface heating, and auto seat comfort.
   fields:
     vin:
       required: true
-      name: VIN
-      description: >
-        The Vehicle Identification Number (VIN) of the Audi vehicle.
-        This should be a 17-character identifier unique to each vehicle.
       example: "WAUZZZ4G7EN123456"
       selector:
         device:
           integration: audiconnect
     temp_f:
-      name: Target Temperature (Fahrenheit)
-      description: >
-        (Optional) For 'start_climatisation':
-        Set temperature in °F. Defaults to 70°F if not provided.
-        Overrides 'temp_c'.
       selector:
         number:
-          min: 60
-          max: 80
+          min: 59
+          max: 85
     temp_c:
-      name: Target Temperature (Celsius)
-      description: >
-        (Optional) For 'start_climatisation':
-        Set temperature in °C. Defaults to 21°C if not provided.
-        Overridden if 'temp_f' is provided.
       selector:
         number:
           min: 15
-          max: 27
+          max: 30
     glass_heating:
-      name: Glass Surface Heating
-      description: >
-        (Optional) For 'start_climatisation':
-        Enable or disable glass heating.
-        Setting this to True activates glass heating.
       selector:
         boolean:
     seat_fl:
-      name: "Auto Seat Comfort: Front-Left"
-      description: >
-        (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the front-left seat.
       selector:
         boolean:
     seat_fr:
-      name: "Auto Seat Comfort: Front-Right"
-      description: >
-        (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the front-right seat.
       selector:
         boolean:
     seat_rl:
-      name: "Auto Seat Comfort: Rear-Left"
-      description: >
-        (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the rear-left seat.
       selector:
         boolean:
     seat_rr:
-      name: "Auto Seat Comfort: Rear-Right"
-      description: >
-        (Optional) For 'start_climatisation':
-        Enable or disable Auto Seat Comfort for the rear-right seat.
       selector:
         boolean:
-
-refresh_cloud_data:
-  name: Refresh Cloud Data
-  description: >
-    Updates vehicle data, for all vehicles, from the cloud
-    without forcing a vehicle refresh. If the vehicle has not
-    recently updated its data, the information retrieved may still
-    be outdated. Vehicle data typically refreshes after receiving
-    a command, such as starting climate control. It's recommended
-    to wait approximately 30 seconds between initiating a command
-    and using this service call to ensure updated data is fetched.
-    This is essentially the same function as restarting the
-    integration.
