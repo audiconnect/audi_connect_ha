@@ -3,7 +3,12 @@ import logging
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, CONF_REGION, CONF_SCAN_INTERVAL
+from homeassistant.const import (
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_REGION,
+    CONF_SCAN_INTERVAL,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -148,6 +153,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
+
 class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         """Initialize options flow."""
@@ -160,12 +166,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_options(self, user_input=None):
         """Handle the options flow."""
         if user_input is not None:
-            _LOGGER.debug("Updating options for %s: %s", self.config_entry.title, user_input)
+            _LOGGER.debug(
+                "Updating options for %s: %s", self.config_entry.title, user_input
+            )
             return self.async_create_entry(title="", data=user_input)
 
         current_scan_interval = self.config_entry.options.get(
             CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
 
         options_schema = OrderedDict()
@@ -173,4 +181,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval)
         ] = vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL))
 
-        return self.async_show_form(step_id="options", data_schema=vol.Schema(options_schema))
+        return self.async_show_form(
+            step_id="options", data_schema=vol.Schema(options_schema)
+        )
