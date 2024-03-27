@@ -1,20 +1,36 @@
 {
   "config": {
+    "abort": {
+      "invalid_credentials": "Invalid credentials",
+      "user_already_configured": "Account has already been configured"
+    },
+    "create_entry": {},
+    "error": {
+      "invalid_credentials": "Invalid credentials",
+      "invalid_username": "Invalid username",
+      "unexpected": "Unexpected error communicating with Audi Connect server",
+      "user_already_configured": "Account has already been configured"
+    },
     "step": {
       "user": {
-        "title": "Please fill in the information of your Audi Connect account",
         "data": {
-          "username": "Username",
           "password": "Password",
+          "username": "Username",
           "spin": "S-PIN",
           "region": "Region",
-          "scan_interval": "Scan interval"
+          "scan_interval": "Scan Interval (minutes)"
+        },
+        "title": "Audi Connect Account Info"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scan Interval (minutes)"
         }
       }
-    },
-    "error": {
-      "invalid_credentials": "Login error, please check your username and password",
-      "invalid_username": "Invalid username"
     }
   }
 }
