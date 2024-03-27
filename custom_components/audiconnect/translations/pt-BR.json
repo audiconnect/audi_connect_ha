@@ -18,9 +18,18 @@
           "username": "Nome de usuário",
           "spin": "S-PIN",
           "region": "Região",
-          "scan_interval": "Intervalo de escaneamento"
+          "scan_interval": "Intervalo de varredura (minutos)"
         },
         "title": "Informações da conta Audi Connect "
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Intervalo de varredura (minutos)"
+        }
       }
     }
   }
