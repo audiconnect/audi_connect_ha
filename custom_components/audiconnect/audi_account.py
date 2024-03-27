@@ -72,13 +72,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAccount(AudiConnectObserver):
-    def __init__(self, hass, config_entry, unit_system: str):
+    def __init__(self, hass, config_entry, unit_system: str, scan_interval: int):
         """Initialize the component state."""
         self.hass = hass
         self.config_entry = config_entry
         self.config_vehicles = set()
         self.vehicles = set()
-        self.interval = config_entry.data.get(CONF_SCAN_INTERVAL)
+        self.interval = scan_interval
         self.unit_system = unit_system
 
     def init_connection(self):
@@ -112,7 +112,7 @@ class AudiAccount(AudiConnectObserver):
         self.hass.services.async_register(
             DOMAIN,
             SERVICE_REFRESH_CLOUD_DATA,
-            self.update,
+            self.refresh_cloud_data,
         )
 
         self.connection.add_observer(self)
@@ -181,14 +181,18 @@ class AudiAccount(AudiConnectObserver):
             )
 
     async def update(self, now):
-        """Update status from the online service."""
+        """Update status from the cloud."""
+        _LOGGER.info("Running update for Audi Connect service at %s", now)
         try:
             if not await self.connection.update(None):
+                _LOGGER.warning("Failed to update from Audi Connect service")
                 return False
 
-            self.discover_vehicles(
-                [x for x in self.connection._vehicles if x.vin not in self.vehicles]
-            )
+            # Discover new vehicles that have not been added yet
+            new_vehicles = [x for x in self.connection._vehicles if x.vin not in self.vehicles]
+            if new_vehicles:
+                _LOGGER.info("Discovered %d new vehicles", len(new_vehicles))
+            self.discover_vehicles(new_vehicles)
 
             async_dispatcher_send(self.hass, SIGNAL_STATE_UPDATED)
 
@@ -196,11 +200,40 @@ class AudiAccount(AudiConnectObserver):
                 for instrument in config_vehicle.device_trackers:
                     async_dispatcher_send(self.hass, TRACKER_UPDATE, instrument)
 
+            _LOGGER.info("Successfully updated Audi Connect service")
             return True
         finally:
-            async_track_point_in_utc_time(
-                self.hass, self.update, utcnow() + timedelta(minutes=self.interval)
-            )
+            # Schedule next update
+            next_update = utcnow() + timedelta(minutes=self.interval)
+            _LOGGER.info("Scheduling next update for Audi Connect service at %s", next_update)
+            async_track_point_in_utc_time(self.hass, self.update, next_update)
+
+    async def refresh_cloud_data(self, now):
+        """Refresh data from the cloud."""
+        _LOGGER.info("Running refresh_cloud_data for Audi Connect service")
+        try:
+            if not await self.connection.update(None):
+                _LOGGER.warning("Failed to update from Audi Connect service")
+                return False
+
+            # Discover new vehicles that have not been added yet
+            new_vehicles = [x for x in self.connection._vehicles if x.vin not in self.vehicles]
+            if new_vehicles:
+                _LOGGER.info("Discovered %d new vehicles", len(new_vehicles))
+            self.discover_vehicles(new_vehicles)
+
+            async_dispatcher_send(self.hass, SIGNAL_STATE_UPDATED)
+
+            for config_vehicle in self.config_vehicles:
+                for instrument in config_vehicle.device_trackers:
+                    async_dispatcher_send(self.hass, TRACKER_UPDATE, instrument)
+
+            _LOGGER.info("Successfully completed cloud update for Audi Connect service")
+            return True
+        except Exception as e:
+            _LOGGER.error("An error occurred during the cloud update process: %s", e)
+            return False
+
 
     async def execute_vehicle_action(self, service):
         device_id = service.data.get(CONF_VIN).lower()
@@ -232,6 +265,7 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, False)
 
     async def start_climate_control(self, service):
+        _LOGGER.info("Initiating Start Climate Control Service...")
         device_id = service.data.get(CONF_VIN).lower()
         device = dr.async_get(self.hass).async_get(device_id)
         vin = dict(device.identifiers).get(DOMAIN)
