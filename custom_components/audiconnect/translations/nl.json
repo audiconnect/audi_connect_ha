@@ -18,9 +18,18 @@
           "username": "Gebruikersnaam",
           "spin": "S-PIN",
           "region": "Regio",
-          "scan_interval": "Update interval"
+          "scan_interval": "Scaninterval (minuten)"
         },
         "title": "Audi Connect accountgegevens"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scaninterval (minuten)"
+        }
       }
     }
   }
