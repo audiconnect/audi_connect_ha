@@ -14,8 +14,8 @@
     "step": {
       "user": {
         "data": {
-          "password": "Password",
           "username": "Username",
+          "password": "Password",
           "spin": "S-PIN",
           "region": "Region",
           "scan_interval": "Scan Interval (minutes)"
