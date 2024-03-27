@@ -18,9 +18,18 @@
           "username": "Brukernavn",
           "spin": "S-PIN",
           "region": "Region",
-          "scan_interval": "Skanneintervall"
+          "scan_interval": "Skanneintervall (minutter)"
         },
         "title": "Audi Connect kontoinformasjon"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Skanneintervall (minutter)"
+        }
       }
     }
   }
