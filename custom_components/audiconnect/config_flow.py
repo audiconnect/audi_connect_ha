@@ -3,14 +3,9 @@ import logging
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    CONF_REGION,
-    CONF_SCAN_INTERVAL,
-)
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, CONF_REGION, CONF_SCAN_INTERVAL
 from homeassistant.core import callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .audi_connect_account import AudiConnectAccount
 from .const import DOMAIN, CONF_SPIN, DEFAULT_UPDATE_INTERVAL, MIN_UPDATE_INTERVAL
@@ -146,3 +141,36 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_SCAN_INTERVAL: scan_interval,
             },
         )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler(config_entry)
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    def __init__(self, config_entry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options."""
+        return await self.async_step_options()
+
+    async def async_step_options(self, user_input=None):
+        """Handle the options flow."""
+        if user_input is not None:
+            _LOGGER.debug("Updating options for %s: %s", self.config_entry.title, user_input)
+            return self.async_create_entry(title="", data=user_input)
+
+        current_scan_interval = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL,
+            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        )
+
+        options_schema = OrderedDict()
+        options_schema[
+            vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval)
+        ] = vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL))
+
+        return self.async_show_form(step_id="options", data_schema=vol.Schema(options_schema))
