@@ -150,27 +150,27 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
+        self.config_entry: config_entries.ConfigEntry = config_entry
+        _LOGGER.debug("Initializing options flow for %s", config_entry.title)
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
-        return await self.async_step_options()
-
-    async def async_step_options(self, user_input=None):
-        """Handle the options flow."""
+        _LOGGER.debug("Options flow initiated")
         if user_input is not None:
-            _LOGGER.debug("Updating options for %s: %s", self.config_entry.title, user_input)
+            _LOGGER.debug("Received user input for options: %s", user_input)
             return self.async_create_entry(title="", data=user_input)
 
         current_scan_interval = self.config_entry.options.get(
             CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
+        _LOGGER.debug("Current scan interval: %s minutes", current_scan_interval)
 
-        options_schema = OrderedDict()
-        options_schema[
-            vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval)
-        ] = vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL))
-
-        return self.async_show_form(step_id="options", data_schema=vol.Schema(options_schema))
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval):
+                        vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
+                }
+            ),
+        )
