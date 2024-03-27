@@ -175,8 +175,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval):
-                        vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL, default=current_scan_interval
+                    ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
                 }
             ),
         )
