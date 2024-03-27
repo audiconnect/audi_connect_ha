@@ -96,6 +96,12 @@ async def async_setup_entry(hass, config_entry):
     """Set up the Audi Connect component."""
     hass.data[DOMAIN]["devices"] = set()
 
+    # Attempt to retrieve the scan interval from options, then fall back to data, or use default
+    scan_interval = config_entry.options.get(
+        CONF_SCAN_INTERVAL,
+        config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    )
+
     account = config_entry.data.get(CONF_USERNAME)
 
     unit_system = "metric"
@@ -104,7 +110,7 @@ async def async_setup_entry(hass, config_entry):
 
     if account not in hass.data[DOMAIN]:
         data = hass.data[DOMAIN][account] = AudiAccount(
-            hass, config_entry, unit_system=unit_system
+            hass, config_entry, unit_system=unit_system, scan_interval=scan_interval
         )
         data.init_connection()
     else:
