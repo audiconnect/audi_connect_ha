@@ -11,7 +11,6 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util.dt import utcnow
 from homeassistant.const import (
     CONF_PASSWORD,
-    CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
 
@@ -189,7 +188,9 @@ class AudiAccount(AudiConnectObserver):
                 return False
 
             # Discover new vehicles that have not been added yet
-            new_vehicles = [x for x in self.connection._vehicles if x.vin not in self.vehicles]
+            new_vehicles = [
+                x for x in self.connection._vehicles if x.vin not in self.vehicles
+            ]
             if new_vehicles:
                 _LOGGER.info("Discovered %d new vehicles", len(new_vehicles))
             self.discover_vehicles(new_vehicles)
@@ -205,7 +206,9 @@ class AudiAccount(AudiConnectObserver):
         finally:
             # Schedule next update
             next_update = utcnow() + timedelta(minutes=self.interval)
-            _LOGGER.info("Scheduling next update for Audi Connect service at %s", next_update)
+            _LOGGER.info(
+                "Scheduling next update for Audi Connect service at %s", next_update
+            )
             async_track_point_in_utc_time(self.hass, self.update, next_update)
 
     async def refresh_cloud_data(self, now):
@@ -217,7 +220,9 @@ class AudiAccount(AudiConnectObserver):
                 return False
 
             # Discover new vehicles that have not been added yet
-            new_vehicles = [x for x in self.connection._vehicles if x.vin not in self.vehicles]
+            new_vehicles = [
+                x for x in self.connection._vehicles if x.vin not in self.vehicles
+            ]
             if new_vehicles:
                 _LOGGER.info("Discovered %d new vehicles", len(new_vehicles))
             self.discover_vehicles(new_vehicles)
@@ -233,7 +238,6 @@ class AudiAccount(AudiConnectObserver):
         except Exception as e:
             _LOGGER.error("An error occurred during the cloud update process: %s", e)
             return False
-
 
     async def execute_vehicle_action(self, service):
         device_id = service.data.get(CONF_VIN).lower()

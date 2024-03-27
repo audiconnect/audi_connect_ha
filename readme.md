@@ -46,31 +46,26 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 ![Configuration](ha_config.png)
 
-### Configuration Variables
+## Configuration Variables
 
-**username**
+Ensure you configure these variables in your integration setup to connect to your Audi Connect account effectively.
 
-- (string)(Required) The username associated with your Audi Connect account.
-
-**password**
-
-- (string)(Required) The password for your Audi Connect account.
-
-**S-PIN**
-
-- (string)(Optional) The S-PIN for your Audi Connect account.
-
-**region**
-
-- (string)(Optional) The region where your Audi Connect account is registered.
-  - 'DE' for Europe (or leave unset)
-  - 'US' for United States of America
-  - 'CA' for Canada
-  - 'CN' for China
-
-**scan_interval**
-
-- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 minutes.)
+- `username`: _(string) (Required)_
+  The username associated with your Audi Connect account.
+- `password`: _(string) (Required)_
+  The password for your Audi Connect account.
+- `S-PIN`: _(string) (Optional)_
+  The S-PIN for your Audi Connect account.
+- `region`: _(string) (Optional)_
+  - The region where your Audi Connect account is registered. Choose one of the following values:
+    - `'DE'`: Europe (Default if left unset)
+    - `'US'`: United States of America
+    - `'CA'`: Canada
+    - `'CN'`: China
+- `scan_interval`: (number) (Optional)
+  - Defines the frequency in minutes for how often to fetch status data from Audi Connect.
+  - Default: 15 minutes. The interval cannot be more frequent than 15 minutes.
+  - This option can be updated from the front-end integration "configure" interface at any time.
 
 ## Services
 

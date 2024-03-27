@@ -3,7 +3,12 @@ import logging
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, CONF_REGION, CONF_SCAN_INTERVAL
+from homeassistant.const import (
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_REGION,
+    CONF_SCAN_INTERVAL,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -147,6 +152,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
+
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
