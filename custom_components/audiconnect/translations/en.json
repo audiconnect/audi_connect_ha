@@ -29,7 +29,8 @@
       "init": {
         "data": {
           "scan_interval": "Scan Interval (minutes)"
-        }
+        },
+        "title": "Audi Connect Options"
       }
     }
   },
