@@ -29,7 +29,8 @@
       "init": {
         "data": {
           "scan_interval": "Intervalo de varredura (minutos)"
-        }
+        },
+        "title": "Opções Audi Connect"
       }
     }
   },
