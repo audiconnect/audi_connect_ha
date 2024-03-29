@@ -29,7 +29,8 @@
       "init": {
         "data": {
           "scan_interval": "Skanneintervall (minutter)"
-        }
+        },
+        "title": "Audi Connect-alternativer"
       }
     }
   },
