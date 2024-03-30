@@ -31,3 +31,36 @@ execute_vehicle_action:
         'stop_charger', 'start_preheater', 'stop_preheater,
         'start_window_heating', 'stop_window_heating'
       example: lock
+
+start_climate_control:
+  fields:
+    vin:
+      required: true
+      example: "WAUZZZ4G7EN123456"
+      selector:
+        text:
+    temp_f:
+      selector:
+        number:
+          min: 59
+          max: 85
+    temp_c:
+      selector:
+        number:
+          min: 15
+          max: 30
+    glass_heating:
+      selector:
+        boolean:
+    seat_fl:
+      selector:
+        boolean:
+    seat_fr:
+      selector:
+        boolean:
+    seat_rl:
+      selector:
+        boolean:
+    seat_rr:
+      selector:
+        boolean:
