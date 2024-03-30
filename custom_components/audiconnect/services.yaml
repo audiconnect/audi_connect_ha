@@ -4,7 +4,7 @@ refresh_vehicle_data:
   fields:
     vin:
       required: true
-      example: "WAUZZZ4G7EN123456"
+      example: WBANXXXXXX1234567
       selector:
         text:
 
