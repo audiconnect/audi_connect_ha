@@ -26,50 +26,50 @@
   },
   "services": {
     "refresh_vehicle_data": {
-      "name": "Fahrzeugdaten aktualisieren",
-      "description": "Fordert direkt eine Aktualisierung des Fahrzeugstatus an, im Gegensatz zum normalen Aktualisierungsmechanismus, der nur Daten aus der Cloud abruft.",
+      "name": "Refresh Vehicle Data",
+      "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
         }
       }
     },
     "start_climate_control": {
-      "name": "Starten Sie die Klimatisierung",
-      "description": "Starten Sie die Klimaanlage mit Optionen für Temperatur, Glasflächenheizung und automatischen Sitzkomfort.",
+      "name": "Start Climate Control",
+      "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
         },
         "temp_f": {
-          "name": "Zieltemperatur (Fahrenheit)",
-          "description": "(Optional) Stellen Sie die Temperatur in °F ein. Standardmäßig 70 °F, sofern nicht angegeben. Überschreibt 'temp_c'."
+          "name": "Target Temperature (Fahrenheit)",
+          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
         },
         "temp_c": {
-          "name": "Zieltemperatur (Celsius)",
-          "description": "(Optional) Stellen Sie die Temperatur in °C ein. Standardmäßig 21 °C, sofern nicht angegeben. Wird überschrieben, wenn „temp_f“ bereitgestellt wird."
+          "name": "Target Temperature (Celsius)",
+          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
         },
         "glass_heating": {
-          "name": "Glasflächenheizung",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie die Glasflächenheizung."
+          "name": "Glass Surface Heating",
+          "description": "(Optional) Enable or disable glass surface heating."
         },
         "seat_fl": {
-          "name": "Automatischer Sitzkomfort: Vorne links",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den vorderen linken Sitz."
+          "name": "Auto Seat Comfort: Front-Left",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the front-left seat."
         },
         "seat_fr": {
-          "name": "Automatischer Sitzkomfort: Vorne rechts",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den Vordersitz rechts."
+          "name": "Auto Seat Comfort: Front-Right",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the front-right seat."
         },
         "seat_rl": {
-          "name": "Automatischer Sitzkomfort: Hinten links",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den linken Rücksitz."
+          "name": "Auto Seat Comfort: Rear-Left",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-left seat."
         },
         "seat_rr": {
-          "name": "Automatischer Sitzkomfort: Hinten rechts",
-          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den rechten Rücksitz."
+          "name": "Auto Seat Comfort: Rear-Right",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-right seat."
         }
       }
     }
