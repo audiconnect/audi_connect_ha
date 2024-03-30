@@ -22,6 +22,13 @@ from .audi_models import VehicleData
 from .const import (
     DOMAIN,
     CONF_VIN,
+    CONF_CLIMATE_TEMP_F,
+    CONF_CLIMATE_TEMP_C,
+    CONF_CLIMATE_GLASS,
+    CONF_CLIMATE_SEAT_FL,
+    CONF_CLIMATE_SEAT_FR,
+    CONF_CLIMATE_SEAT_RL,
+    CONF_CLIMATE_SEAT_RR,
     CONF_ACTION,
     CONF_REGION,
     CONF_SPIN,
