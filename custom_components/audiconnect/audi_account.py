@@ -44,6 +44,20 @@ SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
     {vol.Required(CONF_VIN): cv.string, vol.Required(CONF_ACTION): cv.string}
 )
 
+SERVICE_START_CLIMATE_CONTROL = "start_climate_control"
+SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VIN): cv.string,
+        vol.Optional(CONF_CLIMATE_TEMP_F): cv.positive_int,
+        vol.Optional(CONF_CLIMATE_TEMP_C): cv.positive_int,
+        vol.Optional(CONF_CLIMATE_GLASS): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_FL): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_FR): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_RL): cv.boolean,
+        vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
+    }
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -78,6 +92,12 @@ class AudiAccount(AudiConnectObserver):
             SERVICE_EXECUTE_VEHICLE_ACTION,
             self.execute_vehicle_action,
             schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_START_CLIMATE_CONTROL,
+            self.start_climate_control,
+            schema=SERVICE_START_CLIMATE_CONTROL_SCHEMA,
         )
 
         self.connection.add_observer(self)
@@ -193,6 +213,31 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, True)
         if action == "stop_window_heating":
             await self.connection.set_vehicle_window_heating(vin, False)
+
+    async def start_climate_control(self, service):
+        _LOGGER.info("Initiating Start Climate Control Service...")
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
+        # Optional Parameters
+        temp_f = service.data.get(CONF_CLIMATE_TEMP_F, None)
+        temp_c = service.data.get(CONF_CLIMATE_TEMP_C, None)
+        glass_heating = service.data.get(CONF_CLIMATE_GLASS, False)
+        seat_fl = service.data.get(CONF_CLIMATE_SEAT_FL, False)
+        seat_fr = service.data.get(CONF_CLIMATE_SEAT_FR, False)
+        seat_rl = service.data.get(CONF_CLIMATE_SEAT_RL, False)
+        seat_rr = service.data.get(CONF_CLIMATE_SEAT_RR, False)
+
+        await self.connection.start_climate_control(
+            vin,
+            temp_f,
+            temp_c,
+            glass_heating,
+            seat_fl,
+            seat_fr,
+            seat_rl,
+            seat_rr,
+        )
 
     async def handle_notification(self, vin: str, action: str) -> None:
         await self._refresh_vehicle_data(vin)
