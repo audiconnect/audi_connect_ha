@@ -32,7 +32,7 @@ start_climate_control:
   fields:
     vin:
       required: true
-      example: "WAUZZZ4G7EN123456"
+      example: WBANXXXXXX1234567
       selector:
         text:
     temp_f:
