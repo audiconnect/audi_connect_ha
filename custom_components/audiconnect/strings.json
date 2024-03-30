@@ -16,5 +16,40 @@
       "invalid_credentials": "Login error, please check your username and password",
       "invalid_username": "Invalid username"
     }
+  },
+  "selector": {
+    "vehicle_actions": {
+      "options": {
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "start_climatisation": "Start Climatisation (Legacy)",
+        "stop_climatisation": "Stop Climatisation",
+        "start_charger": "Start Charger",
+        "start_timed_charger": "Start timed Charger",
+        "stop_charger": "Stop Charger",
+        "start_preheater": "Start Preheater",
+        "stop_preheater": "Stop Preheater",
+        "start_window_heating": "Start Window heating",
+        "stop_window_heating": "Stop Windows heating"
+      }
+    }
+  },
+  "services": {
+    "execute_vehicle_action": {
+      "name": "Execute Vehicle Action",
+      "description": "Performs various actions on the vehicle.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "action": {
+          "name": "Action",
+          "description": "The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle.",
+          "example": "lock"
+        }
+      }
+    }
   }
 }
+
