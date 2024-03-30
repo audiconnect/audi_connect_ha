@@ -237,6 +237,52 @@ class AudiConnectAccount:
                 ),
             )
 
+    async def start_climate_control(
+        self,
+        vin: str,
+        temp_f: int,
+        temp_c: int,
+        glass_heating: bool,
+        seat_fl: bool,
+        seat_fr: bool,
+        seat_rl: bool,
+        seat_rr: bool,
+    ):
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug(
+                f"Sending command to start climate control for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
+            )
+
+            await self._audi_service.start_climate_control(
+                vin,
+                temp_f,
+                temp_c,
+                glass_heating,
+                seat_fl,
+                seat_fr,
+                seat_rl,
+                seat_rr,
+            )
+
+            _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
+
+            await self.notify(vin, ACTION_CLIMATISATION)
+
+            return True
+
+        except Exception as exception:
+            _LOGGER.error(
+                f"Unable to start climate control of vehicle {vin}. Error: {exception}",
+                exc_info=True,
+            )
+            return False
+
     async def set_battery_charger(self, vin: str, activate: bool, timer: bool):
         if not self._loggedin:
             await self.login()
