@@ -216,9 +216,7 @@ class AudiAccount(AudiConnectObserver):
 
     async def start_climate_control(self, service):
         _LOGGER.info("Initiating Start Climate Control Service...")
-        device_id = service.data.get(CONF_VIN).lower()
-        device = dr.async_get(self.hass).async_get(device_id)
-        vin = dict(device.identifiers).get(DOMAIN)
+        vin = service.data.get(CONF_VIN).lower()
         # Optional Parameters
         temp_f = service.data.get(CONF_CLIMATE_TEMP_F, None)
         temp_c = service.data.get(CONF_CLIMATE_TEMP_C, None)
