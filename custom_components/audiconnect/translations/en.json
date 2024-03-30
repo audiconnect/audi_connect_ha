@@ -25,6 +25,16 @@
     }
   },
   "services": {
+    "refresh_vehicle_data": {
+      "name": "Refresh Vehicle Data",
+      "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        }
+      }
+    },
     "start_climate_control": {
       "name": "Start Climate Control",
       "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",

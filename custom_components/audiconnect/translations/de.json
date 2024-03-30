@@ -25,6 +25,16 @@
     }
   },
   "services": {
+    "refresh_vehicle_data": {
+      "name": "Fahrzeugdaten aktualisieren",
+      "description": "Fordert direkt eine Aktualisierung des Fahrzeugstatus an, im Gegensatz zum normalen Aktualisierungsmechanismus, der nur Daten aus der Cloud abruft.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+        }
+      }
+    },
     "start_climate_control": {
       "name": "Starten Sie die Klimatisierung",
       "description": "Starten Sie die Klimaanlage mit Optionen für Temperatur, Glasflächenheizung und automatischen Sitzkomfort.",
