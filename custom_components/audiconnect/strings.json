@@ -35,6 +35,16 @@
     }
   },
   "services": {
+    "refresh_vehicle_data": {
+      "name": "Refresh Vehicle Data",
+      "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        }
+      }
+    },
     "execute_vehicle_action": {
       "name": "Execute Vehicle Action",
       "description": "Performs various actions on the vehicle.",
