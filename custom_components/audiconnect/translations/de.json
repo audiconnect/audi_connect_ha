@@ -24,6 +24,23 @@
       }
     }
   },
+  "selector": {
+    "vehicle_actions": {
+      "options": {
+        "lock": "Sperren",
+        "unlock": "Freischalten",
+        "start_climatisation": "Klimatisierung starten (Legacy)",
+        "stop_climatisation": "Schluss mit der Klimatisierung",
+        "start_charger": "Ladegerät starten",
+        "start_timed_charger": "Starten Sie das zeitgesteuerte Ladegerät",
+        "stop_charger": "Stoppen Sie das Ladegerät",
+        "start_preheater": "Vorwärmer starten",
+        "stop_preheater": "Stoppen Sie den Vorwärmer",
+        "start_window_heating": "Fensterheizung starten",
+        "stop_window_heating": "Stoppen Sie die Fensterheizung"
+      }
+    }
+  },
   "services": {
     "refresh_vehicle_data": {
       "name": "Fahrzeugdaten aktualisieren",
@@ -32,6 +49,21 @@
         "vin": {
           "name": "VIN",
           "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+        }
+      }
+    },
+    "execute_vehicle_action": {
+      "name": "Fahrzeugaktionen ausfuhren",
+      "description": "Führt verschiedene Aktionen am Fahrzeug aus.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+        },
+        "action": {
+          "name": "Aktion",
+          "description": "Die spezifische Aktion, die am Fahrzeug ausgeführt werden soll. Beachten Sie, dass die verfügbaren Aktionen je nach Fahrzeug variieren können.",
+          "example": "lock"
         }
       }
     },
