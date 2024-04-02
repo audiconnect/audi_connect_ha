@@ -98,10 +98,12 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DOMAIN]["devices"] = set()
 
     # Attempt to retrieve the scan interval from options, then fall back to data, or use default
-    scan_interval = timedelta(minutes=config_entry.options.get(
-        CONF_SCAN_INTERVAL,
-        config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-    ))
+    scan_interval = timedelta(
+        minutes=config_entry.options.get(
+            CONF_SCAN_INTERVAL,
+            config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+        )
+    )
 
     account = config_entry.data.get(CONF_USERNAME)
 
