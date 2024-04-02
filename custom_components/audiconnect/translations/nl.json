@@ -23,5 +23,18 @@
         "title": "Audi Connect accountgegevens"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scaninterval"
+        },
+        "title": "Audi Connect-opties",
+        "data_description": {
+          "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden."
+        }
+      }
+    }
   }
 }
