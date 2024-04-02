@@ -24,6 +24,19 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scan Interval"
+        },
+        "title": "Audi Connect Options",
+        "data_description": {
+          "scan_interval": "(Minutes) Restart required for new scan interval to take effect."
+        }
+      }
+    }
+  },
   "selector": {
     "vehicle_actions": {
       "options": {
