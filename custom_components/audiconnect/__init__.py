@@ -2,8 +2,10 @@
 
 from datetime import timedelta
 import voluptuous as vol
+import logging
 
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util.dt import utcnow
 from homeassistant import config_entries
 from homeassistant.const import (
@@ -29,6 +31,8 @@ from .const import (
     RESOURCES,
     COMPONENTS,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -93,6 +97,12 @@ async def async_setup_entry(hass, config_entry):
     """Set up the Audi Connect component."""
     hass.data[DOMAIN]["devices"] = set()
 
+    # Attempt to retrieve the scan interval from options, then fall back to data, or use default
+    scan_interval = timedelta(minutes=config_entry.options.get(
+        CONF_SCAN_INTERVAL,
+        config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+    ))
+
     account = config_entry.data.get(CONF_USERNAME)
 
     unit_system = "metric"
@@ -107,6 +117,15 @@ async def async_setup_entry(hass, config_entry):
     else:
         data = hass.data[DOMAIN][account]
 
+    async def update_data(now):
+        """Update the data with the latest information."""
+        _LOGGER.info("Running cloud update at set interval...")
+        await data.update(utcnow())
+
+    _LOGGER.info("Scheduling update at every %s interval", scan_interval)
+    async_track_time_interval(hass, update_data, scan_interval)
+
+    # Initially update the data
     return await data.update(utcnow())
 
 
