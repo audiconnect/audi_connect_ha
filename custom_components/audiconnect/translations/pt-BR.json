@@ -23,5 +23,18 @@
         "title": "Informações da conta Audi Connect "
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Intervalo de escaneamento"
+        },
+        "title": "Opções Audi Connect",
+        "data_description": {
+          "scan_interval": "(Minutos) É necessário reiniciar para que o novo intervalo de verificação entre em vigor."
+        }
+      }
+    }
   }
 }
