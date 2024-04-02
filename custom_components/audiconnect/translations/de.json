@@ -24,6 +24,19 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Abfrageintervall"
+        },
+        "title": "Audi Connect-Optionen",
+        "data_description": {
+          "scan_interval": "(Minuten) Damit das neue Scanintervall wirksam wird, ist ein Neustart erforderlich."
+        }
+      }
+    }
+  },
   "selector": {
     "vehicle_actions": {
       "options": {
