@@ -23,5 +23,18 @@
         "title": "Audi Connect kontoinformasjon"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Skanneintervall"
+        },
+        "title": "Audi Connect-alternativer",
+        "data_description": {
+          "scan_interval": "(Minutter) Omstart kreves for at nytt skanneintervall skal tre i kraft."
+        }
+      }
+    }
   }
 }

@@ -146,3 +146,38 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_SCAN_INTERVAL: scan_interval,
             },
         )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    def __init__(self, config_entry):
+        self.config_entry: config_entries.ConfigEntry = config_entry
+        _LOGGER.debug("Initializing options flow for %s", config_entry.title)
+
+    async def async_step_init(self, user_input=None):
+        _LOGGER.debug("Options flow initiated")
+        if user_input is not None:
+            _LOGGER.debug("Received user input for options: %s", user_input)
+            return self.async_create_entry(title="", data=user_input)
+
+        current_scan_interval = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL,
+            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+        )
+        _LOGGER.debug("Current scan interval: %s minutes", current_scan_interval)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL, default=current_scan_interval
+                    ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
+                }
+            ),
+        )
