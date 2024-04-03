@@ -26,6 +26,8 @@ from .const import (
     DOMAIN,
     CONF_REGION,
     CONF_MUTABLE,
+    CONF_SCAN_INITIAL,
+    CONF_SCAN_ACTIVE,
     DEFAULT_UPDATE_INTERVAL,
     MIN_UPDATE_INTERVAL,
     RESOURCES,
@@ -104,6 +106,21 @@ async def async_setup_entry(hass, config_entry):
             config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
     )
+    _LOGGER.debug("User option for CONF_SCAN_INTERVAL is %s", scan_interval)
+
+    # Get Initial Scan Option - Default to True
+    _scan_initial = config_entry.options.get(
+        CONF_SCAN_INITIAL,
+        True
+    )
+    _LOGGER.debug("User option for CONF_SCAN_INITIAL is %s.", _scan_initial)
+
+    # Get Active Scan Option - Default to True
+    _scan_active = config_entry.options.get(
+        CONF_SCAN_ACTIVE,
+        True
+    )
+    _LOGGER.debug("User option for CONF_SCAN_ACTIVE is %s.", _scan_active)
 
     account = config_entry.data.get(CONF_USERNAME)
 
@@ -119,16 +136,28 @@ async def async_setup_entry(hass, config_entry):
     else:
         data = hass.data[DOMAIN][account]
 
+    # Define a callback function for the timer to update data
     async def update_data(now):
         """Update the data with the latest information."""
-        _LOGGER.info("Running cloud update at set interval...")
+        _LOGGER.info("Scheduled cloud update started...")
         await data.update(utcnow())
 
-    _LOGGER.info("Scheduling update at every %s interval", scan_interval)
-    async_track_time_interval(hass, update_data, scan_interval)
+    # Schedule the update_data function if option is true
+    if _scan_active:
+        _LOGGER.info("Scheduling cloud update every %d minutes.", scan_interval.seconds / 60)
+        async_track_time_interval(hass, update_data, scan_interval)
+    else:
+        _LOGGER.info("Active Polling is turned off in user options. Skipping scheduling...")
 
-    # Initially update the data
-    return await data.update(utcnow())
+    # Initially update the data if option is true
+    if _scan_initial:
+        _LOGGER.info("Requesting initial cloud update...")
+        return await data.update(utcnow())
+    else:
+        _LOGGER.info("Update on start is turned off in user options. Skipping initial update...")
+        
+    _LOGGER.debug("Audi Connect Setup Complete.")
+    return True
 
 
 async def async_unload_entry(hass, config_entry):
