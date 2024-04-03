@@ -257,10 +257,15 @@ class AudiAccount(AudiConnectObserver):
 
         if res is True:
             await self.update(utcnow())
-            self.hass.bus.fire("{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT), {"vin": vin})
+            self.hass.bus.fire(
+                "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
+                {"vin": vin},
+            )
         else:
             _LOGGER.exception("Error refreshing vehicle data %s", vin)
-            self.hass.bus.fire("{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT), {"vin": vin})
+            self.hass.bus.fire(
+                "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT), {"vin": vin}
+            )
 
             _LOGGER.info("Trying cloud update in %d seconds...", UPDATE_SLEEP)
             await asyncio.sleep(UPDATE_SLEEP)
@@ -268,6 +273,6 @@ class AudiAccount(AudiConnectObserver):
             try:
                 _LOGGER.info("Trying cloud update now...")
                 await self.update(utcnow())
-                
+
             except Exception as e:
                 _LOGGER.exception("Cloud update failed: %s", str(e))
