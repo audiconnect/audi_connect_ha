@@ -33,7 +33,7 @@ from .const import (
     SIGNAL_STATE_UPDATED,
     TRACKER_UPDATE,
     COMPONENTS,
-    UPDATE_PAUSE,
+    UPDATE_SLEEP,
 )
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
@@ -262,8 +262,8 @@ class AudiAccount(AudiConnectObserver):
             _LOGGER.exception("Error refreshing vehicle data %s", vin)
             self.hass.bus.fire("{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT), {"vin": vin})
 
-            _LOGGER.info("Trying cloud update in 30 seconds...")
-            await asyncio.sleep(UPDATE_PAUSE)
+            _LOGGER.info("Trying cloud update in %d seconds...", UPDATE_SLEEP)
+            await asyncio.sleep(UPDATE_SLEEP)
 
             try:
                 _LOGGER.info("Trying cloud update now...")
