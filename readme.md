@@ -75,6 +75,7 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 ## Options
 
 Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ Audi Connect ➤ Configure**:
+
 - **Cloud Update at Startup (`bool`)**: Toggle cloud updates at startup. Ideal for development or frequent HA restarts.
 - **Active Polling at Scan Interval (`bool`)**: Enable or disable active polling.
 - **Scan Interval (`int`)**: Defines polling frequency in minutes (minimum 15). Effective only if "Active Polling at Scan Interval" is enabled.
