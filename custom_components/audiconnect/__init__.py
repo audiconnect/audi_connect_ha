@@ -147,14 +147,14 @@ async def async_setup_entry(hass, config_entry):
         _LOGGER.info("Scheduling cloud update every %d minutes.", scan_interval.seconds / 60)
         async_track_time_interval(hass, update_data, scan_interval)
     else:
-        _LOGGER.info("Active Polling is turned off in user options. Skipping scheduling...")
+        _LOGGER.info("Active Polling at Scan Interval is turned off in user options. Skipping scheduling...")
 
     # Initially update the data if option is true
     if _scan_initial:
         _LOGGER.info("Requesting initial cloud update...")
         return await data.update(utcnow())
     else:
-        _LOGGER.info("Update on start is turned off in user options. Skipping initial update...")
+        _LOGGER.info("Cloud Update at Start is turned off in user options. Skipping initial update...")
         
     _LOGGER.debug("Audi Connect Setup Complete.")
     return True
