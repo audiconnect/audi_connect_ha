@@ -28,10 +28,14 @@
     "step": {
       "init": {
         "data": {
+          "scan_initial": "Cloud-Update beim Start",
+          "scan_active": "Aktive Abfrage im Scanintervall",
           "scan_interval": "Abfrageintervall"
         },
         "title": "Audi Connect-Optionen",
         "data_description": {
+          "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
+          "scan_active": "Führen Sie im festgelegten Scanintervall ein Cloud-Update durch.",
           "scan_interval": "(Minuten) Damit das neue Scanintervall wirksam wird, ist ein Neustart erforderlich."
         }
       }
