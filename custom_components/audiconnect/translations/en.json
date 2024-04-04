@@ -28,11 +28,15 @@
     "step": {
       "init": {
         "data": {
+          "scan_initial": "Cloud Update at Startup",
+          "scan_active": "Active Polling at Scan Interval",
           "scan_interval": "Scan Interval"
         },
         "title": "Audi Connect Options",
         "data_description": {
-          "scan_interval": "(Minutes) Restart required for new scan interval to take effect."
+          "scan_initial": "Perform a cloud update immediately upon startup.",
+          "scan_active": "Perform a cloud update at the set scan interval.",
+          "scan_interval": "Minutes between active polling. If 'Active Polling at Scan Interval' is off, this value will have no impact."
         }
       }
     }

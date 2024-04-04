@@ -72,6 +72,16 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 - (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
 
+## Options
+
+Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ Audi Connect ➤ Configure**:
+
+- **Cloud Update at Startup (`bool`)**: Toggle cloud updates at integration startup. Ideal for development or frequent HA restarts.
+- **Active Polling at Scan Interval (`bool`)**: Enable or disable active polling.
+- **Scan Interval (`int`)**: Defines polling frequency in minutes (minimum 15). Effective only if "Active Polling at Scan Interval" is enabled.
+
+_Note: A Home Assistant restart is required for changes to take effect._
+
 ## Services
 
 ### Audi Connect: Refresh Vehicle Data
