@@ -1,5 +1,6 @@
 import logging
 import voluptuous as vol
+import asyncio
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import (
@@ -32,6 +33,7 @@ from .const import (
     SIGNAL_STATE_UPDATED,
     TRACKER_UPDATE,
     COMPONENTS,
+    UPDATE_SLEEP,
 )
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
@@ -255,14 +257,22 @@ class AudiAccount(AudiConnectObserver):
 
         if res is True:
             await self.update(utcnow())
-
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
                 {"vin": vin},
             )
-
         else:
             _LOGGER.exception("Error refreshing vehicle data %s", vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT), {"vin": vin}
             )
+
+            _LOGGER.info("Trying cloud update in %d seconds...", UPDATE_SLEEP)
+            await asyncio.sleep(UPDATE_SLEEP)
+
+            try:
+                _LOGGER.info("Trying cloud update now...")
+                await self.update(utcnow())
+
+            except Exception as e:
+                _LOGGER.exception("Cloud update failed: %s", str(e))
