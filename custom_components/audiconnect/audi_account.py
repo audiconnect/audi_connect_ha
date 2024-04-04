@@ -65,6 +65,8 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
     }
 )
 
+SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -104,6 +106,11 @@ class AudiAccount(AudiConnectObserver):
             SERVICE_START_CLIMATE_CONTROL,
             self.start_climate_control,
             schema=SERVICE_START_CLIMATE_CONTROL_SCHEMA,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_CLOUD_DATA,
+            self.update,
         )
 
         self.connection.add_observer(self)

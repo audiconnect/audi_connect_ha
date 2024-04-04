@@ -121,6 +121,10 @@
           "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den rechten Rücksitz."
         }
       }
+    },
+    "refresh_cloud_data": {
+      "name": "Cloud-Daten aktualisieren",
+      "description": "Ruft aktuelle Cloud-Daten ab, ohne eine Fahrzeugaktualisierung auszulösen. Die Daten sind möglicherweise veraltet, wenn das Fahrzeug nicht kürzlich eingecheckt wurde. Die besten Ergebnisse erzielen Sie, wenn Sie 30 Sekunden nach einem Befehl verwenden."
     }
   }
 }
