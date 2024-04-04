@@ -121,6 +121,10 @@
           "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-right seat."
         }
       }
+    },
+    "refresh_cloud_data": {
+      "name": "Refresh Cloud Data",
+      "description": "Retrieves current cloud data without triggering a vehicle refresh. Data may be outdated if the vehicle has not checked in recently. For best results, use 30 seconds after a command."
     }
   }
 }
