@@ -513,7 +513,7 @@ def create_instruments():
             name="Charging Complete Time",
             icon="mdi:battery-charging",
             unit=None,
-            state_class=None
+            state_class=None,
             device_class="timestamp",
         ),
         Sensor(attr="plug_state", name="Plug state", icon="mdi:power-plug", unit=None),
