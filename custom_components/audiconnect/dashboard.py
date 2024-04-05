@@ -488,7 +488,7 @@ def create_instruments():
             unit=None,
             state_class=None,
             device_class=None,
-            ),
+        ),
         Sensor(
             attr="energy_flow",
             name="Energy flow",
