@@ -125,9 +125,9 @@ class Instrument:
 
 
 class Sensor(Instrument):
-    def __init__(self, attr, name, icon, unit, state_class):
+    def __init__(self, attr, name, icon, unit, state_class=None, device_class=None):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
-        self.device_class = None
+        self.device_class = device_class
         self._unit = unit
         self.state_class = state_class
         self._convert = False
@@ -394,7 +394,12 @@ def create_instruments():
         Lock(),
         Preheater(),
         Sensor(
-            attr="model", name="Model", icon="mdi:car-info", unit=None, state_class=None
+            attr="model",
+            name="Model",
+            icon="mdi:car-info",
+            unit=None,
+            state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="mileage",
@@ -402,6 +407,7 @@ def create_instruments():
             icon="mdi:speedometer",
             unit="km",
             state_class="total_increasing",
+            device_class=None,
         ),
         Sensor(
             attr="service_adblue_distance",
@@ -409,6 +415,7 @@ def create_instruments():
             icon="mdi:gas-station",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="range",
@@ -416,6 +423,7 @@ def create_instruments():
             icon="mdi:gas-station",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="hybrid_range",
@@ -423,6 +431,7 @@ def create_instruments():
             icon="mdi:gas-station-outline",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="service_inspection_time",
@@ -430,6 +439,7 @@ def create_instruments():
             icon="mdi:room-service-outline",
             unit="days",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="service_inspection_distance",
@@ -437,6 +447,7 @@ def create_instruments():
             icon="mdi:room-service-outline",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="oil_change_time",
@@ -444,6 +455,7 @@ def create_instruments():
             icon="mdi:oil",
             unit="days",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="oil_change_distance",
@@ -451,6 +463,7 @@ def create_instruments():
             icon="mdi:oil",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="oil_level",
@@ -458,6 +471,7 @@ def create_instruments():
             icon="mdi:oil",
             unit="%",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="charging_state",
@@ -465,6 +479,7 @@ def create_instruments():
             icon="mdi:car-battery",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="charging_mode",
@@ -472,13 +487,15 @@ def create_instruments():
             icon=None,
             unit=None,
             state_class=None,
-        ),
+            device_class=None,
+            ),
         Sensor(
             attr="energy_flow",
             name="Energy flow",
             icon=None,
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="max_charge_current",
@@ -486,6 +503,7 @@ def create_instruments():
             icon="mdi:current-ac",
             unit="A",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="primary_engine_type",
@@ -493,6 +511,7 @@ def create_instruments():
             icon="mdi:engine",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="secondary_engine_type",
@@ -500,6 +519,7 @@ def create_instruments():
             icon="mdi:engine",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="primary_engine_range",
@@ -507,6 +527,7 @@ def create_instruments():
             icon="mdi:gas-station-outline",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="secondary_engine_range",
@@ -514,6 +535,7 @@ def create_instruments():
             icon="mdi:gas-station-outline",
             unit="km",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="primary_engine_range_percent",
@@ -521,6 +543,7 @@ def create_instruments():
             icon="mdi:gas-station-outline",
             unit="%",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="car_type",
@@ -528,6 +551,7 @@ def create_instruments():
             icon="mdi:car-info",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="secondary_engine_range_percent",
@@ -535,6 +559,7 @@ def create_instruments():
             icon="mdi:gas-station-outline",
             unit="%",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="charging_power",
@@ -542,6 +567,7 @@ def create_instruments():
             icon="mdi:flash",
             unit="kW",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="actual_charge_rate",
@@ -549,6 +575,7 @@ def create_instruments():
             icon="mdi:electron-framework",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="tank_level",
@@ -556,6 +583,7 @@ def create_instruments():
             icon="mdi:gas-station",
             unit="%",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="state_of_charge",
@@ -563,6 +591,7 @@ def create_instruments():
             icon="mdi:ev-station",
             unit="%",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="remaining_charging_time",
@@ -570,6 +599,7 @@ def create_instruments():
             icon="mdi:battery-charging",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="plug_state",
@@ -577,6 +607,7 @@ def create_instruments():
             icon="mdi:power-plug",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="plug_lock_state",
@@ -584,6 +615,7 @@ def create_instruments():
             icon="mdi:power-plug",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="external_power",
@@ -591,6 +623,7 @@ def create_instruments():
             icon="mdi:ev-station",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="plug_led_color",
@@ -598,6 +631,7 @@ def create_instruments():
             icon="mdi:power-plug",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="doors_trunk_status",
@@ -605,6 +639,7 @@ def create_instruments():
             icon="mdi:car-door",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="climatisation_state",
@@ -612,6 +647,7 @@ def create_instruments():
             icon="mdi:air-conditioner",
             unit=None,
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="outdoor_temperature",
@@ -619,6 +655,7 @@ def create_instruments():
             icon="mdi:temperature-celsius",
             unit="°C",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="preheater_duration",
@@ -626,6 +663,7 @@ def create_instruments():
             icon="mdi:clock",
             unit="Min",
             state_class=None,
+            device_class=None,
         ),
         Sensor(
             attr="preheater_remaining",
@@ -633,15 +671,24 @@ def create_instruments():
             icon="mdi:clock",
             unit="Min",
             state_class=None,
+            device_class=None,
         ),
-        BinarySensor(attr="sun_roof", name="Sun roof", device_class="window"),
+        BinarySensor(
+            attr="sun_roof",
+            name="Sun roof",
+            device_class=None,
+        ),
         BinarySensor(
             attr="parking_light",
             name="Parking light",
             device_class="safety",
             icon="mdi:lightbulb",
         ),
-        BinarySensor(attr="any_window_open", name="Windows", device_class="window"),
+        BinarySensor(
+            attr="any_window_open",
+            name="Windows",
+            device_class="window",
+        ),
         BinarySensor(attr="any_door_unlocked", name="Doors lock", device_class="lock"),
         BinarySensor(attr="any_door_open", name="Doors", device_class="door"),
         BinarySensor(attr="trunk_unlocked", name="Trunk lock", device_class="lock"),
