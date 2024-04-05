@@ -125,10 +125,11 @@ class Instrument:
 
 
 class Sensor(Instrument):
-    def __init__(self, attr, name, icon, unit):
+    def __init__(self, attr, name, icon, unit, state_class=None, device_class=None):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
-        self.device_class = None
+        self.device_class = device_class
         self._unit = unit
+        self.state_class = state_class
         self._convert = False
 
     def configurate(self, unit_system=None, **config):
@@ -321,6 +322,7 @@ class TripData(Instrument):
         super().__init__(component="sensor", attr=attr, name=name)
         self.device_class = None
         self.unit = None
+        self.state_class = None
 
     @property
     def is_mutable(self):
@@ -364,6 +366,7 @@ class LastUpdate(Instrument):
         )
         self.device_class = "timestamp"
         self.unit = None
+        self.state_class = None
 
     @property
     def is_mutable(self):
