@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 import asyncio
 from typing import List
@@ -1443,6 +1443,19 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("remainingChargingTime")
         if check is not None:
             return True
+
+    @property
+    def charging_complete_time(self):
+        """Return the datetime when charging is expected to be complete."""
+        if self.remaining_charging_time_supported:
+            remaining_minutes = self.remaining_charging_time
+            
+            if self.last_update_time is None or remaining_minutes is None:
+                return None
+            
+            charging_complete_time = self.last_update_time + timedelta(minutes=remaining_minutes)
+            
+            return charging_complete_time
 
     @property
     def plug_state(self):
