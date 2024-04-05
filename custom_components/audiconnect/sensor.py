@@ -2,7 +2,7 @@
 
 import logging
 
-from homeassistant.components.sensor import DEVICE_CLASSES, SensorEntity
+from homeassistant.components.sensor import DEVICE_CLASSES, SensorEntity, STATE_CLASSES
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
@@ -54,4 +54,9 @@ class AudiSensor(AudiEntity, SensorEntity):
     @property
     def state_class(self):
         """Return the state_class"""
-        return self._instrument.state_class
+        if (
+            self._instrument.state_class is not None
+            and self._instrument.state_class in STATE_CLASSES
+        ):
+            return self._instrument.state_class
+        return None
