@@ -322,6 +322,7 @@ class TripData(Instrument):
         super().__init__(component="sensor", attr=attr, name=name)
         self.device_class = None
         self.unit = None
+        self.state_class = None
 
     @property
     def is_mutable(self):
@@ -365,6 +366,7 @@ class LastUpdate(Instrument):
         )
         self.device_class = "timestamp"
         self.unit = None
+        self.state_class = None
 
     @property
     def is_mutable(self):
