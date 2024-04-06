@@ -2,7 +2,7 @@
 
 import logging
 
-from homeassistant.components.sensor import DEVICE_CLASSES, SensorEntity, STATE_CLASSES
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
