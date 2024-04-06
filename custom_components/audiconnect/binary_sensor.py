@@ -2,7 +2,7 @@
 
 import logging
 
-from homeassistant.components.binary_sensor import DEVICE_CLASSES, BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
@@ -37,7 +37,5 @@ class AudiSensor(AudiEntity, BinarySensorEntity):
 
     @property
     def device_class(self):
-        """Return the class of this sensor, from DEVICE_CLASSES."""
-        if self._instrument.device_class in DEVICE_CLASSES:
-            return self._instrument.device_class
-        return None
+        """Return the device_class of this sensor."""
+        return self._instrument.device_class
