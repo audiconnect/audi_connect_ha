@@ -568,6 +568,12 @@ def create_instruments():
             icon="mdi:battery-charging",
         ),
         Sensor(
+            attr="charging_complete_time",
+            name="Charging Complete Time",
+            icon="mdi:battery-charging",
+            device_class=SensorDeviceClass.TIMESTAMP,
+        ),
+        Sensor(
             attr="plug_state",
             name="Plug state",
             icon="mdi:ev-plug-type1",
