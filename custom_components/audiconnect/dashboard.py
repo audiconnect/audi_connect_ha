@@ -619,6 +619,7 @@ def create_instruments():
         BinarySensor(
             attr="sun_roof",
             name="Sun roof",
+            device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
             attr="parking_light",
