@@ -10,7 +10,6 @@ from homeassistant.components.sensor import (
 
 from homeassistant.const import (
     PERCENTAGE,
-    UnitOfEnergy,
     UnitOfTime,
     UnitOfLength,
     UnitOfTemperature,
@@ -140,7 +139,9 @@ class Instrument:
 
 
 class Sensor(Instrument):
-    def __init__(self, attr, name, icon=None, unit=None, state_class=None, device_class=None):
+    def __init__(
+        self, attr, name, icon=None, unit=None, state_class=None, device_class=None
+    ):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
         self._unit = unit
