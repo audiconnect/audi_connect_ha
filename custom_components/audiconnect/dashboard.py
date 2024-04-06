@@ -8,6 +8,8 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfTime,
@@ -187,7 +189,7 @@ class Sensor(Instrument):
 
 
 class BinarySensor(Instrument):
-    def __init__(self, attr, name, device_class, icon=None):
+    def __init__(self, attr, name, device_class=None, icon=None):
         super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
 
@@ -617,58 +619,87 @@ def create_instruments():
         BinarySensor(
             attr="sun_roof",
             name="Sun roof",
-            device_class=None,
         ),
         BinarySensor(
             attr="parking_light",
             name="Parking light",
-            device_class="safety",
+            device_class=BinarySensorDeviceClass.SAFETY,
             icon="mdi:lightbulb",
         ),
         BinarySensor(
             attr="any_window_open",
             name="Windows",
-            device_class="window",
-        ),
-        BinarySensor(attr="any_door_unlocked", name="Doors lock", device_class="lock"),
-        BinarySensor(attr="any_door_open", name="Doors", device_class="door"),
-        BinarySensor(attr="trunk_unlocked", name="Trunk lock", device_class="lock"),
-        BinarySensor(attr="trunk_open", name="Trunk", device_class="door"),
-        BinarySensor(attr="hood_open", name="Hood", device_class="door"),
-        BinarySensor(
-            attr="left_front_door_open", name="Left front door", device_class="door"
+            device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
-            attr="right_front_door_open", name="Right front door", device_class="door"
+            attr="any_door_unlocked",
+            name="Doors lock",
+            device_class=BinarySensorDeviceClass.LOCK,
         ),
         BinarySensor(
-            attr="left_rear_door_open", name="Left rear door", device_class="door"
+            attr="any_door_open",
+            name="Doors",
+            device_class=BinarySensorDeviceClass.DOOR,
         ),
         BinarySensor(
-            attr="right_rear_door_open", name="Right rear door", device_class="door"
+            attr="trunk_unlocked",
+            name="Trunk lock",
+            device_class=BinarySensorDeviceClass.LOCK,
+        ),
+        BinarySensor(
+            attr="trunk_open",
+            name="Trunk",
+            device_class=BinarySensorDeviceClass.DOOR,
+        ),
+        BinarySensor(
+            attr="hood_open",
+            name="Hood",
+            device_class=BinarySensorDeviceClass.DOOR,
+        ),
+        BinarySensor(
+            attr="left_front_door_open",
+            name="Left front door",
+            device_class=BinarySensorDeviceClass.DOOR,
+        ),
+        BinarySensor(
+            attr="right_front_door_open",
+            name="Right front door",
+            device_class=BinarySensorDeviceClass.DOOR,
+        ),
+        BinarySensor(
+            attr="left_rear_door_open",
+            name="Left rear door",
+            device_class=BinarySensorDeviceClass.DOOR,
+        ),
+        BinarySensor(
+            attr="right_rear_door_open",
+            name="Right rear door",
+            device_class=BinarySensorDeviceClass.DOOR,
         ),
         BinarySensor(
             attr="left_front_window_open",
             name="Left front window",
-            device_class="window",
+            device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
             attr="right_front_window_open",
             name="Right front window",
-            device_class="window",
+            device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
-            attr="left_rear_window_open", name="Left rear window", device_class="window"
+            attr="left_rear_window_open",
+            name="Left rear window",
+            device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
             attr="right_rear_window_open",
             name="Right rear window",
-            device_class="window",
+            device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
             attr="braking_status",
             name="Braking status",
-            device_class="safety",
+            device_class=BinarySensorDeviceClass.SAFETY,
             icon="mdi:car-brake-abs",
         ),
     ]
