@@ -43,10 +43,10 @@ class AudiSensor(AudiEntity, SensorEntity):
 
     @property
     def device_class(self):
-        """Return the class of this sensor, from DEVICE_CLASSES."""
+        """Return the device_class."""
         return self._instrument.device_class
 
     @property
     def state_class(self):
-        """Return the state_class"""
+        """Return the state_class."""
         return self._instrument.state_class
