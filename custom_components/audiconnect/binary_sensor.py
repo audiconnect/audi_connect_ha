@@ -37,5 +37,5 @@ class AudiSensor(AudiEntity, BinarySensorEntity):
 
     @property
     def device_class(self):
-        """Return the class of this sensor, from DEVICE_CLASSES."""
+        """Return the device_class of this sensor."""
         return self._instrument.device_class
