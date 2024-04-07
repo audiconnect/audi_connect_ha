@@ -45,7 +45,10 @@ class VehicleDataResponse:
     def __init__(self, data):
         self.data_fields = []
         self.states = []
-
+        _LOGGER.debug(
+            f"Data that will be used for _tryAppendStateWithTs: {data}"
+        )
+        
         self._tryAppendFieldWithTs(
             data, "TOTAL_RANGE", ["fuelStatus", "rangeStatus", "value", "totalRange_km"]
         )
@@ -266,7 +269,7 @@ class VehicleDataResponse:
         if val is not None and ts:
             self.states.append({"name": name, "value": val, "measure_time": ts})
         _LOGGER.debug(
-            f"audi_models.py - _tryAppendStateWithTs: json:{json} name:{name} tsoff:{tsoff} loc:{loc}: val:{val} ts:{ts}"
+            f"audi_models.py - _tryAppendStateWithTs: name:{name} tsoff:{tsoff} loc:{loc}: val:{val} ts:{ts}"
         )
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
@@ -286,7 +289,7 @@ class VehicleDataResponse:
                 )
             )
         _LOGGER.debug(
-            f"audi_models.py - _tryAppendFieldWithTs: json:{json} textId:{textId} loc:{loc}: val:{val} ts:{ts}"
+            f"audi_models.py - _tryAppendFieldWithTs: textId:{textId} loc:{loc}: val:{val} ts:{ts}"
         )
 
     def _getFromJson(self, json, loc):
