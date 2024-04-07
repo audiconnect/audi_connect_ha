@@ -77,6 +77,6 @@ class AudiEntity(Entity):
         return DeviceInfo(
             identifiers={(DOMAIN, self._instrument.vehicle_name)},
             manufacturer="Audi",
-            name=self._vehicle_name,
+            name=self._instrument.vehicle_name,
             model=self._instrument.vehicle_model_family,
         )
