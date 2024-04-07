@@ -45,10 +45,8 @@ class VehicleDataResponse:
     def __init__(self, data):
         self.data_fields = []
         self.states = []
-        _LOGGER.debug(
-            f"Data that will be used for _tryAppendStateWithTs: {data}"
-        )
-        
+        _LOGGER.debug(f"Data that will be used for _tryAppendStateWithTs: {data}")
+
         self._tryAppendFieldWithTs(
             data, "TOTAL_RANGE", ["fuelStatus", "rangeStatus", "value", "totalRange_km"]
         )
