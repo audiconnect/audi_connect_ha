@@ -378,8 +378,7 @@ class LastUpdate(Instrument):
 
     @property
     def state(self):
-        val = super().state
-        return val.astimezone(tz=None).isoformat() if val else None
+        return super().state
 
 
 def create_instruments():
