@@ -71,13 +71,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAccount(AudiConnectObserver):
-    def __init__(self, hass, config_entry, unit_system: str):
+    def __init__(self, hass, config_entry):
         """Initialize the component state."""
         self.hass = hass
         self.config_entry = config_entry
         self.config_vehicles = set()
         self.vehicles = set()
-        self.unit_system = unit_system
 
     def init_connection(self):
         session = async_get_clientsession(self.hass)
@@ -131,9 +130,7 @@ class AudiAccount(AudiConnectObserver):
                 cfg_vehicle.vehicle = vehicle
                 self.config_vehicles.add(cfg_vehicle)
 
-                dashboard = Dashboard(
-                    self.connection, vehicle, unit_system=self.unit_system
-                )
+                dashboard = Dashboard(self.connection, vehicle)
 
                 for instrument in (
                     instrument
