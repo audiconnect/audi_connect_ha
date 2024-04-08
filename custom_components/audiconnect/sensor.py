@@ -32,13 +32,13 @@ class AudiSensor(AudiEntity, SensorEntity):
     """Representation of a Audi sensor."""
 
     @property
-    def state(self):
-        """Return the state."""
+    def native_value(self):
+        """Return the native value."""
         return self._instrument.state
 
     @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement."""
+    def native_unit_of_measurement(self):
+        """Return the native unit of measurement."""
         return self._instrument.unit
 
     @property
