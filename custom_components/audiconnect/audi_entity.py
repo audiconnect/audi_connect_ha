@@ -82,7 +82,7 @@ class AudiEntity(Entity):
             manufacturer="Audi",
             name=self._instrument.vehicle_name,
             model="{} ({})".format(
-                model_only, 
+                model_only,
                 self._instrument.vehicle_model_year
             ),
         )
