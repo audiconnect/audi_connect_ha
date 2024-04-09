@@ -10,7 +10,7 @@ from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
 
 from typing import Dict
 
-TIMEOUT = 10
+TIMEOUT = 30
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -34,9 +34,6 @@ class Instrument:
     def __repr__(self):
         return self.full_name
 
-    def configurate(self, **args):
-        pass
-
     def camel2slug(self, s):
         """Convert camelCase to camel_case.
             >>> camel2slug('fooBar')
@@ -63,8 +60,6 @@ class Instrument:
             return False
 
         # _LOGGER.debug("%s is supported", self)
-
-        self.configurate(**config)
 
         return True
 
@@ -150,14 +145,6 @@ class Sensor(Instrument):
         self.state_class = state_class
         self._convert = False
 
-    def configurate(self, unit_system=None, **config):
-        if self._unit and unit_system == "imperial" and "km" in self._unit:
-            self._unit = "mi"
-            self._convert = True
-        elif self._unit and unit_system == "metric" and "mi" in self._unit:
-            self._unit = "km"
-            self._convert = True
-
     @property
     def is_mutable(self):
         return False
@@ -171,13 +158,7 @@ class Sensor(Instrument):
 
     @property
     def state(self):
-        val = super().state
-        if val and self._unit and "mi" in self._unit and self._convert is True:
-            return round(val / 1.609344)
-        elif val and self._unit and "km" in self._unit and self._convert is True:
-            return round(val * 1.609344)
-        else:
-            return val
+        return super().state
 
     @property
     def unit(self):
@@ -397,8 +378,7 @@ class LastUpdate(Instrument):
 
     @property
     def state(self):
-        val = super().state
-        return val.astimezone(tz=None).isoformat() if val else None
+        return super().state
 
 
 def create_instruments():
@@ -566,6 +546,12 @@ def create_instruments():
             attr="remaining_charging_time",
             name="Remaining charge time",
             icon="mdi:battery-charging",
+        ),
+        Sensor(
+            attr="charging_complete_time",
+            name="Charging Complete Time",
+            icon="mdi:battery-charging",
+            device_class=SensorDeviceClass.TIMESTAMP,
         ),
         Sensor(
             attr="plug_state",
