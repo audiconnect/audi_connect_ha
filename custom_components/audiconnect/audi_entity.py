@@ -79,8 +79,5 @@ class AudiEntity(Entity):
             identifiers={(DOMAIN, self._instrument.vehicle_name)},
             manufacturer="Audi",
             name=self._instrument.vehicle_name,
-            model="{} ({})".format(
-                model_only,
-                self._instrument.vehicle_model_year
-            ),
+            model="{} ({})".format(model_only, self._instrument.vehicle_model_year),
         )
