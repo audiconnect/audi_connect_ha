@@ -103,6 +103,7 @@ _This_ service triggers an update request from the cloud.
 - Functionality: Updates data for all vehicles from the online source, mirroring the action performed at integration startup or during scheduled refresh intervals.
 - Behavior: Does not force a vehicle-side data refresh. Consequently, if vehicles haven't recently pushed updates, retrieved data might be outdated.
 - Note: This service replicates the function of active polling without scheduling, offering a more granular control over data refresh moments.
+- **IMPORTANT:** This service has no built in usage limits. Excessive use may result in a temporary suspension of your account.
 
 #### Service Parameters
 
