@@ -149,27 +149,27 @@ class AudiAccount(AudiConnectObserver):
                     if instrument._component == "lock":
                         cfg_vehicle.locks.add(instrument)
 
-            self.hass.async_add_job(
+            self.hass.async_create_task(
                 self.hass.config_entries.async_forward_entry_setup(
                     self.config_entry, "sensor"
                 )
             )
-            self.hass.async_add_job(
+            self.hass.async_create_task(
                 self.hass.config_entries.async_forward_entry_setup(
                     self.config_entry, "binary_sensor"
                 )
             )
-            self.hass.async_add_job(
+            self.hass.async_create_task(
                 self.hass.config_entries.async_forward_entry_setup(
                     self.config_entry, "switch"
                 )
             )
-            self.hass.async_add_job(
+            self.hass.async_create_task(
                 self.hass.config_entries.async_forward_entry_setup(
                     self.config_entry, "device_tracker"
                 )
             )
-            self.hass.async_add_job(
+            self.hass.async_create_task(
                 self.hass.config_entries.async_forward_entry_setup(
                     self.config_entry, "lock"
                 )
