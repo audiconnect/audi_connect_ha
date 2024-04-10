@@ -57,7 +57,6 @@ class AudiEntity(Entity):
     def unique_id(self):
         return self._instrument.vehicle_vin
 
-
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
