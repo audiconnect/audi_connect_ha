@@ -574,11 +574,10 @@ class AudiConnectVehicle:
                     redacted_vin,
                 )
 
-        except TimeoutError as te:
+        except TimeoutError:
             _LOGGER.error(
-                "TimeoutError encountered while updating vehicle position for VIN: %s. Error: %s",
+                "TimeoutError encountered while updating vehicle position for VIN: %s.",
                 redacted_vin,
-                te,
             )
 
         except ClientResponseError as cre:
