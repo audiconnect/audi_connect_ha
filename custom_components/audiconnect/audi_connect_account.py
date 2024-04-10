@@ -550,6 +550,14 @@ class AudiConnectVehicle:
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
                 timestamp = resp["data"]["carCapturedTimestamp"]
                 parktime = resp["data"]["carCapturedTimestamp"]
+                _LOGGER.debug(
+                    "Vehicle position received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
+                    redacted_vin,
+                    redacted_lat,
+                    redacted_lon,
+                    timestamp,
+                    parktime,
+                )
 
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
@@ -557,14 +565,7 @@ class AudiConnectVehicle:
                     "timestamp": resp["data"]["carCapturedTimestamp"],
                     "parktime": resp["data"]["carCapturedTimestamp"],
                 }
-                _LOGGER.debug(
-                    "Vehicle position updated successfully for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
-                    redacted_vin,
-                    redacted_lat,
-                    redacted_lon,
-                    timestamp,
-                    parktime,
-                )
+
                 _LOGGER.info(
                     "Vehicle position updated successfully for VIN: %s", redacted_vin
                 )
