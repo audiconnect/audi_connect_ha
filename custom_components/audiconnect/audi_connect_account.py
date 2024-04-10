@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import asyncio
 from typing import List
+import re
 
 from asyncio import TimeoutError
 from aiohttp import ClientResponseError
@@ -531,7 +532,12 @@ class AudiConnectVehicle:
 
         try:
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
-            _LOGGER.debug(f"update_vehicle_position: {resp}")
+            #Redacted Log
+            resp_redacted = resp.copy()
+            resp_redacted["data"]["lon"] = re.sub(r'\d', '#', str(resp_redacted["data"]["lon"]))
+            resp_redacted["data"]["lat"] = re.sub(r'\d', '#', str(resp_redacted["data"]["lat"]))
+            _LOGGER.debug(f"update_vehicle_position: {resp_redacted}")
+            
             if resp is not None:
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
