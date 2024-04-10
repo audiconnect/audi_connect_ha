@@ -554,8 +554,8 @@ class AudiConnectVehicle:
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
                     "longitude": resp["data"]["lon"],
-                    "timestamp": timestamp,
-                    "parktime": parktime,
+                    "timestamp": resp["data"]["carCapturedTimestamp"],
+                    "parktime": resp["data"]["carCapturedTimestamp"],
                 }
                 _LOGGER.debug(
                     "Vehicle position updated successfully for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
