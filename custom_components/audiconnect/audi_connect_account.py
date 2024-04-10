@@ -545,13 +545,12 @@ class AudiConnectVehicle:
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
 
             if resp is not None:
-                _LOGGER.debug("Response received for VIN: %s", redacted_vin)
                 redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
                 timestamp = resp["data"]["carCapturedTimestamp"]
                 parktime = resp["data"]["carCapturedTimestamp"]
                 _LOGGER.debug(
-                    "Vehicle position received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
+                    "Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
                     redacted_vin,
                     redacted_lat,
                     redacted_lon,
