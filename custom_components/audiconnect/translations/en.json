@@ -78,7 +78,7 @@
           "action": {
           "name": "Action",
           "description": "The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle.",
-          "example": "lock"    
+          "example": "lock"
       }
     }
   }
