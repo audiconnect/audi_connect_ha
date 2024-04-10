@@ -67,7 +67,7 @@ class AudiEntity(Entity):
             csid=self._instrument.vehicle_csid,
             vin=self._instrument.vehicle_vin,
         )
-    
+
     @property
     def unique_id(self):
         return self._instrument.vehicle_vin

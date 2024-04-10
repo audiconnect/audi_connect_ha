@@ -77,7 +77,7 @@
           "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."        "action": {
           "name": "Action",
           "description": "The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle.",
-          "example": "lock"    
+          "example": "lock"
       }
     }
   }
