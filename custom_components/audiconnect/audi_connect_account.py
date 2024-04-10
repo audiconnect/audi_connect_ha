@@ -579,7 +579,7 @@ class AudiConnectVehicle:
                 "TimeoutError encountered while updating vehicle position for VIN: %s.",
                 redacted_vin,
             )
-
+            raise
         except ClientResponseError as cre:
             if cre.status in (403, 502):
                 _LOGGER.error(
