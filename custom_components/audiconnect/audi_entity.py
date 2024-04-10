@@ -15,7 +15,7 @@ class AudiEntity(Entity):
         """Initialize the entity."""
         self._data = data
         self._instrument = instrument
-        self._vin = self._instrument.vehicle_name
+        self._vin = self._instrument.vehicle_vin
         self._component = self._instrument.component
         self._attribute = self._instrument.attr
 
@@ -54,6 +54,11 @@ class AudiEntity(Entity):
         return True
 
     @property
+    def unique_id(self):
+        return self._instrument.vehicle_vin
+
+
+    @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return dict(
@@ -67,10 +72,6 @@ class AudiEntity(Entity):
             csid=self._instrument.vehicle_csid,
             vin=self._instrument.vehicle_vin,
         )
-
-    @property
-    def unique_id(self):
-        return self._instrument.full_name
 
     @property
     def device_info(self):

@@ -174,3 +174,50 @@ async def async_remove_config_entry_device(
 ) -> bool:
     """Remove a config entry from a device."""
     return True
+
+
+async def async_migrate_entry(
+    self, hass: HomeAssistant, config_entry: ConfigEntry
+) -> bool:
+    """Migrates an old configuration entry to version 2."""
+
+    if config_entry.version == 1:
+        # Update config entry data with spread operator
+        new_data = {**config_entry.data}
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, minor_version=0, version=2
+        )
+        _LOGGER.info(
+            f"Migration to version {config_entry.version}.{config_entry.minor_version} successful"
+        )
+
+        # Get device registry and iterate through devices
+        device_registry = await dr.async_get(hass)
+        for entry_id, device in device_registry.devices.items():
+            if device.domain == DOMAIN and "identifiers" in device.config_entries:
+                old_identifier = device.config_entries["identifiers"][0]
+
+                # Check for old identifier using f-string for clarity
+                if old_identifier[1] == self._instrument.vehicle_name:
+                    _LOGGER.info(
+                        f"Migrating device {device.name} ({device.id}) to new identifier"
+                    )
+                    new_identifier = (DOMAIN, self._instrument.vehicle_vin)
+                    try:
+                        await device_registry.async_update_device(
+                            entry_id, device_id=new_identifier["id"]
+                        )
+                        _LOGGER.info(f"Migration for device {device.name} successful")
+                    except Exception as e:
+                        _LOGGER.error(f"Migration for device {device.name} failed: {e}")
+                else:
+                    _LOGGER.info(
+                        f"No migration necessary for device {device.name} ({device.id}) to new identifier"
+                    )
+
+    else:
+        _LOGGER.info(
+            f"No migration necessary for config entry version {config_entry.version}"
+        )
+
+    return True
