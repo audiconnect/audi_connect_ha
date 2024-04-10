@@ -65,7 +65,8 @@
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."        }
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        }
       }
     },
     "execute_vehicle_action": {
@@ -74,57 +75,56 @@
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle.",
-          "action": {
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "action": {
           "name": "Action",
           "description": "The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle.",
           "example": "lock"
+        }
       }
-    }
-  }
-}
-},
-"start_climate_control": {
-  "name": "Start Climate Control",
-  "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",
-  "fields": {
-    "vin": {
-      "name": "VIN",
-      "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
     },
-    "temp_f": {
-      "name": "Target Temperature (Fahrenheit)",
-      "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
+    "start_climate_control": {
+      "name": "Start Climate Control",
+      "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "temp_f": {
+          "name": "Target Temperature (Fahrenheit)",
+          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
+        },
+        "temp_c": {
+          "name": "Target Temperature (Celsius)",
+          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
+        },
+        "glass_heating": {
+          "name": "Glass Surface Heating",
+          "description": "(Optional) Enable or disable glass surface heating."
+        },
+        "seat_fl": {
+          "name": "Auto Seat Comfort: Front-Left",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the front-left seat."
+        },
+        "seat_fr": {
+          "name": "Auto Seat Comfort: Front-Right",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the front-right seat."
+        },
+        "seat_rl": {
+          "name": "Auto Seat Comfort: Rear-Left",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-left seat."
+        },
+        "seat_rr": {
+          "name": "Auto Seat Comfort: Rear-Right",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-right seat."
+        }
+      }
     },
-    "temp_c": {
-      "name": "Target Temperature (Celsius)",
-      "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
-    },
-    "glass_heating": {
-      "name": "Glass Surface Heating",
-      "description": "(Optional) Enable or disable glass surface heating."
-    },
-    "seat_fl": {
-      "name": "Auto Seat Comfort: Front-Left",
-      "description": "(Optional) Enable or disable Auto Seat Comfort for the front-left seat."
-    },
-    "seat_fr": {
-      "name": "Auto Seat Comfort: Front-Right",
-      "description": "(Optional) Enable or disable Auto Seat Comfort for the front-right seat."
-    },
-    "seat_rl": {
-      "name": "Auto Seat Comfort: Rear-Left",
-      "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-left seat."
-    },
-    "seat_rr": {
-      "name": "Auto Seat Comfort: Rear-Right",
-      "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-right seat."
-    }
-  }
-},
-"refresh_cloud_data": {
-  "name": "Refresh Cloud Data",
-  "description": "Retrieves current cloud data without triggering a vehicle refresh. Data may be outdated if the vehicle has not checked in recently."
+    "refresh_cloud_data": {
+      "name": "Refresh Cloud Data",
+      "description": "Retrieves current cloud data without triggering a vehicle refresh. Data may be outdated if the vehicle has not checked in recently."
     }
   }
 }

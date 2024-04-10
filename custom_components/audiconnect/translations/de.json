@@ -61,25 +61,26 @@
   "services": {
     "refresh_vehicle_data": {
       "name": "Fahrzeugdaten aktualisieren",
-      "description": "Request an update of the state from the vehicle, as opposed to the normal update mechanism, which only retrieves data from the servers.",
+      "description": "Fordert direkt eine Aktualisierung des Fahrzeugstatus an, im Gegensatz zum normalen Aktualisierungsmechanismus, der nur Daten aus der Cloud abruft.",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "Wähle dein Audi aus."
+          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
         }
       }
     },
     "execute_vehicle_action": {
-      "name": "Fahrzeugaktionen ausführen",
-      "description": "Fahrzeugaktionen ausführen",
+      "name": "Fahrzeugaktionen ausfuhren",
+      "description": "Führt verschiedene Aktionen am Fahrzeug aus.",
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "Wähle dein Audi aus."
+          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
         },
         "action": {
-          "name": "Action",
-          "description": "The action to be executed. Possible choices, depending on subscription options."
+          "name": "Aktion",
+          "description": "Die spezifische Aktion, die am Fahrzeug ausgeführt werden soll. Beachten Sie, dass die verfügbaren Aktionen je nach Fahrzeug variieren können.",
+          "example": "lock"
         }
       }
     },
