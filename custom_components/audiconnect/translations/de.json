@@ -48,6 +48,48 @@
           "description": "The action to be executed. Possible choices, depending on subscription options."
         }
       }
+    },
+    "start_climate_control": {
+      "name": "Starten Sie die Klimatisierung",
+      "description": "Starten Sie die Klimaanlage mit Optionen für Temperatur, Glasflächenheizung und automatischen Sitzkomfort.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Die Fahrzeugidentifikationsnummer (VIN) des Audi-Fahrzeugs. Dies sollte eine 17-stellige Kennung sein, die für jedes Fahrzeug eindeutig ist."
+        },
+        "temp_f": {
+          "name": "Zieltemperatur (Fahrenheit)",
+          "description": "(Optional) Stellen Sie die Temperatur in °F ein. Standardmäßig 70 °F, sofern nicht angegeben. Überschreibt 'temp_c'."
+        },
+        "temp_c": {
+          "name": "Zieltemperatur (Celsius)",
+          "description": "(Optional) Stellen Sie die Temperatur in °C ein. Standardmäßig 21 °C, sofern nicht angegeben. Wird überschrieben, wenn „temp_f“ bereitgestellt wird."
+        },
+        "glass_heating": {
+          "name": "Glasflächenheizung",
+          "description": "(Optional) Aktivieren oder deaktivieren Sie die Glasflächenheizung."
+        },
+        "seat_fl": {
+          "name": "Automatischer Sitzkomfort: Vorne links",
+          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den vorderen linken Sitz."
+        },
+        "seat_fr": {
+          "name": "Automatischer Sitzkomfort: Vorne rechts",
+          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den Vordersitz rechts."
+        },
+        "seat_rl": {
+          "name": "Automatischer Sitzkomfort: Hinten links",
+          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den linken Rücksitz."
+        },
+        "seat_rr": {
+          "name": "Automatischer Sitzkomfort: Hinten rechts",
+          "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den rechten Rücksitz."
+        }
+      }
+    },
+    "refresh_cloud_data": {
+      "name": "Cloud-Daten aktualisieren",
+      "description": "Ruft aktuelle Cloud-Daten ab, ohne eine Fahrzeugaktualisierung auszulösen. Die Daten sind möglicherweise veraltet, wenn das Fahrzeug nicht kürzlich eingecheckt wurde."
     }
   }
 }

@@ -42,11 +42,11 @@
     }
   },
   "selector": {
-    "select_mode": {
+    "vehicle_actions": {
       "options": {
         "lock": "Lock",
         "unlock": "Unlock",
-        "start_climatisation": "Start Climatisation",
+        "start_climatisation": "Start Climatisation (Legacy)",
         "stop_climatisation": "Stop Climatisation",
         "start_charger": "Start Charger",
         "start_timed_charger": "Start timed Charger",
@@ -61,11 +61,11 @@
   "services": {
     "refresh_vehicle_data": {
       "name": "Refresh Vehicle Data",
-      "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",      "fields": {
+      "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",      
+      "fields": {
         "vin": {
           "name": "VIN",
-          "description": "The vehicle identification number (VIN) of the vehicle, 17 characters."
-        }
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."        }
       }
     },
     "execute_vehicle_action": {
@@ -74,7 +74,8 @@
       "fields": {
         "vin": {
           "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."        "action": {
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle.", 
+          "action": {
           "name": "Action",
           "description": "The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle.",
           "example": "lock"    

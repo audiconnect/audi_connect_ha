@@ -19,7 +19,7 @@ execute_vehicle_action:
       required: true
       selector:
         select:
-          translation_key: select_mode
+          translation_key: vehicle_actions
           options:
             - lock
             - unlock
