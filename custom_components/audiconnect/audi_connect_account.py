@@ -531,9 +531,7 @@ class AudiConnectVehicle:
 
         try:
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
-            _LOGGER.debug(
-            f"audi_connect_account.py - update_vehicle_position: {resp}"
-        )
+            _LOGGER.debug(f"audi_connect_account.py - update_vehicle_position: {resp}")
             if resp is not None:
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
