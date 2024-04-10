@@ -603,7 +603,7 @@ class AudiConnectVehicle:
 
         except Exception as e:
             _LOGGER.error(
-                "An unexpected error occurred while pdating vehicle position for VIN: %s. Error: %s",
+                "An unexpected error occurred while updating vehicle position for VIN: %s. Error: %s",
                 redacted_vin,
                 e,
             )
