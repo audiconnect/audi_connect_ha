@@ -529,10 +529,10 @@ class AudiConnectVehicle:
     async def update_vehicle_position(self):
         # Redact all but the last 4 characters of the VIN
         redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
-        _LOGGER.info("Starting update_vehicle_position for VIN: %s", redacted_vin)
+        _LOGGER.debug("Starting update_vehicle_position for VIN: %s", redacted_vin)
 
         if not self.support_position:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Position support is disabled for VIN: %s. Exiting update process.",
                 redacted_vin,
             )
@@ -565,7 +565,7 @@ class AudiConnectVehicle:
                     "parktime": resp["data"]["carCapturedTimestamp"],
                 }
 
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Vehicle position updated successfully for VIN: %s", redacted_vin
                 )
             else:
