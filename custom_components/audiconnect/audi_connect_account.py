@@ -942,17 +942,6 @@ class AudiConnectVehicle:
             return True
 
     @property
-    def sun_roof(self):
-        if self.sun_roof_supported:
-            return self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
-
-    @property
-    def sun_roof_supported(self):
-        check = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
-        if check is not None:
-            return True
-
-    @property
     def preheater_active(self):
         if self.preheater_active_supported:
             res = (
@@ -1084,7 +1073,14 @@ class AudiConnectVehicle:
         checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
-        if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear:
+        checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+        if (
+            checkLeftFront
+            and checkLeftRear
+            and checkRightFront
+            and checkRightRear
+            and checkSunRoof
+        ):
             return True
 
     @property
@@ -1094,11 +1090,13 @@ class AudiConnectVehicle:
             checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
+            checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
             return not (
                 checkLeftFront == "3"
                 and checkLeftRear == "3"
                 and checkRightFront == "3"
                 and checkRightRear == "3"
+                and checkSunRoof == "3"
             )
 
     @property
@@ -1136,6 +1134,15 @@ class AudiConnectVehicle:
     def right_rear_window_open(self):
         if self.right_rear_window_open_supported:
             return self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW") != "3"
+
+    @property
+    def sun_roof_supported(self):
+        return self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+
+    @property
+    def sun_roof(self):
+        if self.sun_roof_supported:
+            return self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER") != "3"
 
     @property
     def any_door_unlocked_supported(self):
