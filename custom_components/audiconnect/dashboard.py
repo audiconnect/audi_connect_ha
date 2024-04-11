@@ -145,7 +145,7 @@ class Sensor(Instrument):
         unit=None,
         state_class=None,
         device_class=None,
-        entity_category=None
+        entity_category=None,
     ):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
