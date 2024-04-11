@@ -17,6 +17,7 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfPower,
     UnitOfElectricCurrent,
+    EntityCategory,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -137,12 +138,20 @@ class Instrument:
 
 class Sensor(Instrument):
     def __init__(
-        self, attr, name, icon=None, unit=None, state_class=None, device_class=None
+        self,
+        attr,
+        name,
+        icon=None,
+        unit=None,
+        state_class=None,
+        device_class=None,
+        entity_category=None
     ):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
         self._unit = unit
         self.state_class = state_class
+        self.entity_category = entity_category
         self._convert = False
 
     @property
@@ -170,9 +179,10 @@ class Sensor(Instrument):
 
 
 class BinarySensor(Instrument):
-    def __init__(self, attr, name, device_class=None, icon=None):
+    def __init__(self, attr, name, device_class=None, icon=None, entity_category=None):
         super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
+        self.entity_category = entity_category
 
     @property
     def is_mutable(self):
@@ -363,9 +373,10 @@ class LastUpdate(Instrument):
             name="Last Update",
             icon="mdi:update",
         )
-        self.device_class = "timestamp"
+        self.device_class = SensorDeviceClass.TIMESTAMP
         self.unit = None
         self.state_class = None
+        self.entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def is_mutable(self):
@@ -395,6 +406,7 @@ def create_instruments():
             attr="model",
             name="Model",
             icon="mdi:car-info",
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="mileage",
@@ -403,6 +415,7 @@ def create_instruments():
             unit=UnitOfLength.KILOMETERS,
             state_class=SensorStateClass.TOTAL_INCREASING,
             device_class=SensorDeviceClass.DISTANCE,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="service_adblue_distance",
@@ -430,6 +443,7 @@ def create_instruments():
             name="Service inspection time",
             icon="mdi:room-service-outline",
             unit=UnitOfTime.DAYS,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="service_inspection_distance",
@@ -437,12 +451,14 @@ def create_instruments():
             icon="mdi:room-service-outline",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="oil_change_time",
             name="Oil change time",
             icon="mdi:oil",
             unit=UnitOfTime.DAYS,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="oil_change_distance",
@@ -450,6 +466,7 @@ def create_instruments():
             icon="mdi:oil",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="oil_level",
@@ -481,11 +498,13 @@ def create_instruments():
             attr="primary_engine_type",
             name="Primary engine type",
             icon="mdi:engine",
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="secondary_engine_type",
             name="Secondary engine type",
             icon="mdi:engine",
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="primary_engine_range",
@@ -511,6 +530,7 @@ def create_instruments():
             attr="car_type",
             name="Car Type",
             icon="mdi:car-info",
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="secondary_engine_range_percent",
@@ -572,6 +592,7 @@ def create_instruments():
             attr="plug_led_color",
             name="Plug LED Color",
             icon="mdi:ev-plug-type1",
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         Sensor(
             attr="doors_trunk_status",
@@ -612,6 +633,7 @@ def create_instruments():
             name="Parking light",
             device_class=BinarySensorDeviceClass.SAFETY,
             icon="mdi:lightbulb",
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="any_window_open",
@@ -647,41 +669,49 @@ def create_instruments():
             attr="left_front_door_open",
             name="Left front door",
             device_class=BinarySensorDeviceClass.DOOR,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="right_front_door_open",
             name="Right front door",
             device_class=BinarySensorDeviceClass.DOOR,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="left_rear_door_open",
             name="Left rear door",
             device_class=BinarySensorDeviceClass.DOOR,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="right_rear_door_open",
             name="Right rear door",
             device_class=BinarySensorDeviceClass.DOOR,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="left_front_window_open",
             name="Left front window",
             device_class=BinarySensorDeviceClass.WINDOW,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="right_front_window_open",
             name="Right front window",
             device_class=BinarySensorDeviceClass.WINDOW,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="left_rear_window_open",
             name="Left rear window",
             device_class=BinarySensorDeviceClass.WINDOW,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="right_rear_window_open",
             name="Right rear window",
             device_class=BinarySensorDeviceClass.WINDOW,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         BinarySensor(
             attr="braking_status",
