@@ -259,12 +259,15 @@ class VehicleDataResponse:
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         _LOGGER.debug(
-            f"Entering _tryAppendStateWithTs with name: {name}, tsoff: {tsoff}, loc: {loc}"
+            "Entering _tryAppendStateWithTs with name: %s, tsoff: %s, loc: %s",
+            name,
+            tsoff,
+            loc,
         )
 
         ts = None
         val = self._getFromJson(json, loc)
-        _LOGGER.debug(f"Initial value retrieved for '{name}': {val}")
+        _LOGGER.debug("Initial value retrieved for '%s': %s", name, val)
 
         # Special handling for remainingChargingTime
         if name == "remainingChargingTime" and val is None:
@@ -273,37 +276,42 @@ class VehicleDataResponse:
 
         if val is not None:
             loc[tsoff:] = ["carCapturedTimestamp"]
-            _LOGGER.debug(f"Updated loc for timestamp retrieval: {loc}")
+            _LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
             ts = self._getFromJson(json, loc)
-            _LOGGER.debug(f"Timestamp retrieved for '{name}': {ts}")
+            _LOGGER.debug("Timestamp retrieved for '%s': %s", name, ts)
 
         if val is not None and ts:
             self.states.append({"name": name, "value": val, "measure_time": ts})
             _LOGGER.debug(
-                f"Found and appended state with timestamp: name={name}, tsoff={tsoff}, loc={loc}, val={val}, ts={ts}"
+                "Found and appended state with timestamp: name=%s, tsoff=%s, loc=%s, val=%s, ts=%s",
+                name,
+                tsoff,
+                loc,
+                val,
+                ts,
             )
         else:
             if val is None:
-                _LOGGER.warning(f"Value for '{name}' is None; not appending state.")
+                _LOGGER.warning("Value for '%s' is None; not appending state.", name)
             elif not ts:
-                _LOGGER.warning(
-                    f"Timestamp for '{name}' is None or missing; not appending state."
-                )
+                _LOGGER.warning("Timestamp for '%s' is None or missing; not appending state.", name)
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
         _LOGGER.debug(
-            f"Entering _tryAppendFieldWithTs with textId: {textId}, loc: {loc}"
+            "Entering _tryAppendFieldWithTs with textId: %s, loc: %s",
+            textId,
+            loc,
         )
 
         ts = None
         val = self._getFromJson(json, loc)
-        _LOGGER.debug(f"Initial value retrieved for '{textId}': {val}")
+        _LOGGER.debug("Initial value retrieved for '%s': %s", textId, val)
 
         if val:
             loc[-1:] = ["carCapturedTimestamp"]
-            _LOGGER.debug(f"Updated loc for timestamp retrieval: {loc}")
+            _LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
             ts = self._getFromJson(json, loc)
-            _LOGGER.debug(f"Timestamp retrieved for '{textId}': {ts}")
+            _LOGGER.debug("Timestamp retrieved for '%s': %s", textId, ts)
 
         if val and ts:
             self.data_fields.append(
@@ -316,17 +324,17 @@ class VehicleDataResponse:
                 )
             )
             _LOGGER.debug(
-                f"Found and appended field with timestamp: textId={textId}, loc={loc}, val={val}, ts={ts}"
+                "Found and appended field with timestamp: textId=%s, loc=%s, val=%s, ts=%s",
+                textId,
+                loc,
+                val,
+                ts,
             )
         else:
             if not val:
-                _LOGGER.warning(
-                    f"Value for '{textId}' is missing; not appending field."
-                )
+                _LOGGER.warning("Value for '%s' is missing; not appending field.", textId)
             elif not ts:
-                _LOGGER.warning(
-                    f"Timestamp for '{textId}' is missing; not appending field."
-                )
+                _LOGGER.warning("Timestamp for '%s' is missing; not appending field." textId)
 
     def _getFromJson(self, json, loc):
         child = json
