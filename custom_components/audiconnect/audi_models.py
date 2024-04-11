@@ -258,7 +258,6 @@ class VehicleDataResponse:
         )
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
-        _LOGGER.debug(f"Looking for value for {name}.")
         _LOGGER.debug(
             f"Entering _tryAppendStateWithTs with name: {name}, tsoff: {tsoff}, loc: {loc}"
         )
@@ -281,9 +280,8 @@ class VehicleDataResponse:
         if val is not None and ts:
             self.states.append({"name": name, "value": val, "measure_time": ts})
             _LOGGER.debug(
-                f"Appended state with timestamp: name={name}, tsoff={tsoff}, loc={loc}, val={val}, ts={ts}"
+                f"Found and appended state with timestamp: name={name}, tsoff={tsoff}, loc={loc}, val={val}, ts={ts}"
             )
-            _LOGGER.debug(f"Found value for {name}: {val}")
         else:
             if val is None:
                 _LOGGER.warning(f"Value for '{name}' is None; not appending state.")
@@ -293,7 +291,6 @@ class VehicleDataResponse:
                 )
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
-        _LOGGER.debug(f"Looking for value for {textId}.")
         _LOGGER.debug(
             f"Entering _tryAppendFieldWithTs with textId: {textId}, loc: {loc}"
         )
@@ -321,7 +318,6 @@ class VehicleDataResponse:
             _LOGGER.debug(
                 f"Appended field with timestamp: textId={textId}, loc={loc}, val={val}, ts={ts}"
             )
-            _LOGGER.debug(f"Found value for {textId}: {val}")
         else:
             if not val:
                 _LOGGER.warning(
