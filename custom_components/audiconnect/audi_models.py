@@ -316,7 +316,7 @@ class VehicleDataResponse:
                 )
             )
             _LOGGER.debug(
-                f"Appended field with timestamp: textId={textId}, loc={loc}, val={val}, ts={ts}"
+                f"Found and appended field with timestamp: textId={textId}, loc={loc}, val={val}, ts={ts}"
             )
         else:
             if not val:
