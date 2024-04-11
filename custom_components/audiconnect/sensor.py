@@ -50,3 +50,8 @@ class AudiSensor(AudiEntity, SensorEntity):
     def state_class(self):
         """Return the state_class."""
         return self._instrument.state_class
+
+    @property
+    def entity_category(self):
+        """Return the entity_category."""
+        return self._instrument.entity_category
