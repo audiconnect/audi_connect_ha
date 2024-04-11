@@ -1074,7 +1074,13 @@ class AudiConnectVehicle:
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
         checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
-        if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear and checkSunRoof:
+        if (
+            checkLeftFront
+            and checkLeftRear
+            and checkRightFront
+            and checkRightRear
+            and checkSunRoof
+        ):
             return True
 
     @property
