@@ -899,7 +899,7 @@ class AudiConnectVehicle:
     @property
     def sun_roof(self):
         if self.sun_roof_supported:
-            return self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")           
+            return self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
 
     @property
     def sun_roof_supported(self):
