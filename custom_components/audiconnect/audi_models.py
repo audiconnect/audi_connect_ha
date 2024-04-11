@@ -334,7 +334,7 @@ class VehicleDataResponse:
             if not val:
                 _LOGGER.warning("Value for '%s' is missing; not appending field.", textId)
             elif not ts:
-                _LOGGER.warning("Timestamp for '%s' is missing; not appending field." textId)
+                _LOGGER.warning("Timestamp for '%s' is missing; not appending field.", textId)
 
     def _getFromJson(self, json, loc):
         child = json
