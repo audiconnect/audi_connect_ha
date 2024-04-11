@@ -376,7 +376,7 @@ class LastUpdate(Instrument):
         self.device_class = SensorDeviceClass.TIMESTAMP
         self.unit = None
         self.state_class = None
-        self.entity_category = EntityCategory.DIAGNOSTIC
+        self.entity_category = None
 
     @property
     def is_mutable(self):
