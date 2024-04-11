@@ -294,7 +294,9 @@ class VehicleDataResponse:
             if val is None:
                 _LOGGER.warning("Value for '%s' is None; not appending state.", name)
             elif not ts:
-                _LOGGER.warning("Timestamp for '%s' is None or missing; not appending state.", name)
+                _LOGGER.warning(
+                    "Timestamp for '%s' is None or missing; not appending state.", name
+                )
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
         _LOGGER.debug(
@@ -332,9 +334,13 @@ class VehicleDataResponse:
             )
         else:
             if not val:
-                _LOGGER.warning("Value for '%s' is missing; not appending field.", textId)
+                _LOGGER.warning(
+                    "Value for '%s' is missing; not appending field.", textId
+                )
             elif not ts:
-                _LOGGER.warning("Timestamp for '%s' is missing; not appending field.", textId)
+                _LOGGER.warning(
+                    "Timestamp for '%s' is missing; not appending field.", textId
+                )
 
     def _getFromJson(self, json, loc):
         child = json
