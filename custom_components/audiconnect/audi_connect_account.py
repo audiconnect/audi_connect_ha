@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import asyncio
 from typing import List
+import re
 
 from asyncio import TimeoutError
 from aiohttp import ClientResponseError
@@ -526,12 +527,37 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_position(self):
+        # Redact all but the last 4 characters of the VIN
+        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        _LOGGER.debug("Starting update_vehicle_position for VIN: %s", redacted_vin)
+
         if not self.support_position:
+            _LOGGER.debug(
+                "Position support is disabled for VIN: %s. Exiting update process.",
+                redacted_vin,
+            )
             return
 
         try:
+            _LOGGER.debug(
+                "Attempting to retrieve stored position for VIN: %s", redacted_vin
+            )
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
+
             if resp is not None:
+                redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
+                redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
+                timestamp = resp["data"]["carCapturedTimestamp"]
+                parktime = resp["data"]["carCapturedTimestamp"]
+                _LOGGER.debug(
+                    "Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
+                    redacted_vin,
+                    redacted_lat,
+                    redacted_lon,
+                    timestamp,
+                    parktime,
+                )
+
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
                     "longitude": resp["data"]["lon"],
@@ -539,28 +565,47 @@ class AudiConnectVehicle:
                     "parktime": resp["data"]["carCapturedTimestamp"],
                 }
 
-        except TimeoutError:
-            raise
-        except ClientResponseError as resp_exception:
-            if resp_exception.status == 403 or resp_exception.status == 502:
-                # _LOGGER.error(
-                #    "support_position set to False: {status}".format(
-                #        status=resp_exception.status
-                #    )
-                # )
-                self.support_position = False
-            # If error is 204 is returned, the position is currently not available
-            elif resp_exception.status != 204:
-                self.log_exception_once(
-                    resp_exception,
-                    "Unable to update the vehicle position of {}".format(
-                        self._vehicle.vin
-                    ),
+                _LOGGER.debug(
+                    "Vehicle position updated successfully for VIN: %s", redacted_vin
                 )
-        except Exception as exception:
-            self.log_exception_once(
-                exception,
-                "Unable to update the vehicle position of {}".format(self._vehicle.vin),
+            else:
+                _LOGGER.warning(
+                    "No position data received for VIN: %s. Response was None.",
+                    redacted_vin,
+                )
+
+        except TimeoutError:
+            _LOGGER.error(
+                "TimeoutError encountered while updating vehicle position for VIN: %s.",
+                redacted_vin,
+            )
+            raise
+        except ClientResponseError as cre:
+            if cre.status in (403, 502):
+                _LOGGER.error(
+                    "ClientResponseError with status %s for VIN: %s. Disabling position support.",
+                    cre.status,
+                    redacted_vin,
+                )
+                self.support_position = False
+            elif cre.status != 204:
+                _LOGGER.error(
+                    "ClientResponseError with status %s for VIN: %s. Error: %s",
+                    cre.status,
+                    redacted_vin,
+                    cre,
+                )
+            else:
+                _LOGGER.debug(
+                    "Position currently not available for VIN: %s. Received 204 status.",
+                    redacted_vin,
+                )
+
+        except Exception as e:
+            _LOGGER.error(
+                "An unexpected error occurred while updating vehicle position for VIN: %s. Error: %s",
+                redacted_vin,
+                e,
             )
 
     async def update_vehicle_climater(self):
