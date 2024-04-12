@@ -572,8 +572,8 @@ class AudiConnectVehicle:
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
                     "longitude": resp["data"]["lon"],
-                    "timestamp": resp["data"]["carCapturedTimestamp"],
-                    "parktime": resp["data"]["carCapturedTimestamp"],
+                    "timestamp": timestamp,
+                    "parktime": parktime,
                 }
 
                 _LOGGER.debug(
