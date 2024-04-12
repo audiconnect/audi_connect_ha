@@ -1074,12 +1074,14 @@ class AudiConnectVehicle:
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
         checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+        acceptable_window_states = ["3", "0", "unsupported"]
+    
         if (
             checkLeftFront
             and checkLeftRear
             and checkRightFront
             and checkRightRear
-            and checkSunRoof
+            and (checkSunRoof in acceptable_window_states)
         ):
             return True
 
@@ -1091,12 +1093,13 @@ class AudiConnectVehicle:
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
             checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+            acceptable_window_states = ["3", "unsupported"]
             return not (
                 checkLeftFront == "3"
                 and checkLeftRear == "3"
                 and checkRightFront == "3"
                 and checkRightRear == "3"
-                and checkSunRoof == "3"
+                and (checkSunRoof in acceptable_window_states)
             )
 
     @property
