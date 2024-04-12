@@ -547,7 +547,7 @@ class AudiConnectVehicle:
             if resp is not None:
                 redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
-                
+
                 # Check if 'carCapturedTimestamp' is available in the data
                 if "carCapturedTimestamp" in resp["data"]:
                     timestamp = resp["data"]["carCapturedTimestamp"]
