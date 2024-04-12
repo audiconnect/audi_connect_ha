@@ -40,7 +40,7 @@ def parse_float(val: str):
         return None
 
 
-def to_datetime(time_value):
+def parse_datetime(time_value):
     """Converts timestamp to datetime object if it's a string, or returns it directly if already datetime."""
     if isinstance(time_value, datetime):
         return time_value  # Return the datetime object directly if already datetime
