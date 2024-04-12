@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 
 from .audi_services import AudiService
 from .audi_api import AudiAPI
-from .util import log_exception, get_attr, parse_int, parse_float, to_datetime
+from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -494,7 +494,7 @@ class AudiConnectVehicle:
 
             # Update with the newest carCapturedTimestamp from data_fields
             for f in status.data_fields:
-                new_time = to_datetime(f.measure_time)
+                new_time = parse_datetime(f.measure_time)
                 if new_time:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
@@ -502,7 +502,7 @@ class AudiConnectVehicle:
 
             # Update with the newest carCapturedTimestamp from states
             for state in status.states:
-                new_time = to_datetime(state.get("measure_time"))
+                new_time = parse_datetime(state.get("measure_time"))
                 if new_time:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
