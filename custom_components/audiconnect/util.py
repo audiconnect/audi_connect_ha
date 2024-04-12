@@ -39,14 +39,15 @@ def parse_float(val: str):
     except (ValueError, TypeError):
         return None
 
+
 def to_datetime(time_value):
-    """ Converts timestamp to datetime object if it's a string, or returns it directly if already datetime. """
+    """Converts timestamp to datetime object if it's a string, or returns it directly if already datetime."""
     if isinstance(time_value, datetime):
         return time_value  # Return the datetime object directly if already datetime
     elif isinstance(time_value, str):
         formats = [
             "%Y-%m-%d %H:%M:%S%z",  # Format: 2024-04-12 05:56:17+00:00
-            "%Y-%m-%dT%H:%M:%S.%fZ"  # Format: 2024-04-12T05:56:13.025Z
+            "%Y-%m-%dT%H:%M:%S.%fZ",  # Format: 2024-04-12T05:56:13.025Z
         ]
         for fmt in formats:
             try:
