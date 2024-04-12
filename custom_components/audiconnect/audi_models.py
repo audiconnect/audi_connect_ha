@@ -292,9 +292,9 @@ class VehicleDataResponse:
             )
         else:
             if val is None:
-                _LOGGER.warning("Value for '%s' is None; not appending state.", name)
+                _LOGGER.debug("Value for '%s' is None; not appending state.", name)
             elif not ts:
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "Timestamp for '%s' is None or missing; not appending state.", name
                 )
 
@@ -334,11 +334,11 @@ class VehicleDataResponse:
             )
         else:
             if not val:
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "Value for '%s' is missing; not appending field.", textId
                 )
             elif not ts:
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "Timestamp for '%s' is missing; not appending field.", textId
                 )
 
