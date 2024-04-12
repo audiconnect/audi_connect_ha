@@ -1073,8 +1073,8 @@ class AudiConnectVehicle:
         checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
-        checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
-        acceptable_window_states = ["3", "0", "unsupported"]
+        checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER", None)
+        acceptable_window_states = ["3", "0", None]
 
         if (
             checkLeftFront
@@ -1092,8 +1092,8 @@ class AudiConnectVehicle:
             checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
-            checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
-            acceptable_window_states = ["3", "unsupported"]
+            checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER", None)
+            acceptable_window_states = ["3", None]
             return not (
                 checkLeftFront == "3"
                 and checkLeftRear == "3"
