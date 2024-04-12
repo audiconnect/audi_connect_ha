@@ -1,5 +1,5 @@
 from functools import reduce
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 _LOGGER = logging.getLogger(__name__)
