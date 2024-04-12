@@ -488,8 +488,10 @@ class AudiConnectVehicle:
             }
 
             # Initialize with a default very old datetime
-            self._vehicle.state["last_update_time"] = datetime(1970, 1, 1, tzinfo=timezone.utc)
-            
+            self._vehicle.state["last_update_time"] = datetime(
+                1970, 1, 1, tzinfo=timezone.utc
+            )
+
             # Update with the newest carCapturedTimestamp from data_fields
             for f in status.data_fields:
                 new_time = to_datetime(f.measure_time)
@@ -497,7 +499,7 @@ class AudiConnectVehicle:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
                     )
-            
+
             # Update with the newest carCapturedTimestamp from states
             for state in status.states:
                 new_time = to_datetime(state.get("measure_time"))
@@ -509,7 +511,7 @@ class AudiConnectVehicle:
             # Update other states
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
-                
+
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
@@ -518,12 +520,16 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     resp_exception,
-                    "Unable to obtain the vehicle status report of {}".format(self._vehicle.vin)
+                    "Unable to obtain the vehicle status report of {}".format(
+                        self._vehicle.vin
+                    ),
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle status report of {}".format(self._vehicle.vin)
+                "Unable to obtain the vehicle status report of {}".format(
+                    self._vehicle.vin
+                ),
             )
 
     async def update_vehicle_position(self):
