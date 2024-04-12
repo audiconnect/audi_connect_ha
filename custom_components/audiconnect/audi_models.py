@@ -334,9 +334,7 @@ class VehicleDataResponse:
             )
         else:
             if not val:
-                _LOGGER.debug(
-                    "Value for '%s' is missing; not appending field.", textId
-                )
+                _LOGGER.debug("Value for '%s' is missing; not appending field.", textId)
             elif not ts:
                 _LOGGER.debug(
                     "Timestamp for '%s' is missing; not appending field.", textId
