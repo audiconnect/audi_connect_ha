@@ -553,7 +553,7 @@ class AudiConnectVehicle:
                     timestamp = resp["data"]["carCapturedTimestamp"]
                     parktime = resp["data"]["carCapturedTimestamp"]
                 else:
-                    # Log a warning and use None or a placeholder for timestamp and parktime
+                    # Log and use None timestamp and parktime
                     timestamp = None
                     parktime = None
                     _LOGGER.debug(
