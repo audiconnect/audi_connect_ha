@@ -556,7 +556,7 @@ class AudiConnectVehicle:
                     # Log a warning and use None or a placeholder for timestamp and parktime
                     timestamp = None
                     parktime = None
-                    _LOGGER.warning(
+                    _LOGGER.debug(
                         "Timestamp not available for vehicle position data of VIN: %s.",
                         redacted_vin,
                     )
