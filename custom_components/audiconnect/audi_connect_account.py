@@ -480,50 +480,67 @@ class AudiConnectVehicle:
         if not self.support_status_report:
             return
 
+        def to_datetime(time_value):
+            """ Converts timestamp to datetime object if it's a string, or returns it directly if already datetime. """
+            if isinstance(time_value, datetime):
+                return time_value  # Return the datetime object directly if already datetime
+            elif isinstance(time_value, str):
+                formats = [
+                    "%Y-%m-%d %H:%M:%S%z",  # Format: 2024-04-12 05:56:17+00:00
+                    "%Y-%m-%dT%H:%M:%S.%fZ"  # Format: 2024-04-12T05:56:13.025Z
+                ]
+                for fmt in formats:
+                    try:
+                        return datetime.strptime(time_value, fmt).replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        continue
+            return None  # Return None if input is neither a valid string nor a datetime object
+
+
         try:
             status = await self._audi_service.get_stored_vehicle_data(self._vehicle.vin)
             self._vehicle.fields = {
                 status.data_fields[i].name: status.data_fields[i].value
-                for i in range(0, len(status.data_fields))
+                for i in range(len(status.data_fields))
             }
 
-            # last_update_time should be newest carCapturedTimestamp of all fields and states
-            self._vehicle.state["last_update_time"] = datetime(
-                1970, 1, 1, tzinfo=timezone.utc
-            )
+            # Initialize with a default very old datetime
+            self._vehicle.state["last_update_time"] = datetime(1970, 1, 1, tzinfo=timezone.utc)
+            
+            # Update with the newest carCapturedTimestamp from data_fields
             for f in status.data_fields:
-                self._vehicle.state["last_update_time"] = max(
-                    self._vehicle.state["last_update_time"], f.measure_time
-                )
+                new_time = to_datetime(f.measure_time)
+                if new_time:
+                    self._vehicle.state["last_update_time"] = max(
+                        self._vehicle.state["last_update_time"], new_time
+                    )
+            
+            # Update with the newest carCapturedTimestamp from states
             for state in status.states:
-                self._vehicle.state["last_update_time"] = max(
-                    self._vehicle.state["last_update_time"], state["measure_time"]
-                )
+                new_time = to_datetime(state.get("measure_time"))
+                if new_time:
+                    self._vehicle.state["last_update_time"] = max(
+                        self._vehicle.state["last_update_time"], new_time
+                    )
+
+            # Update other states
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
+                
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status == 403 or resp_exception.status == 502:
-                # _LOGGER.error(
-                #    "support_status_report set to False: {status}".format(
-                #        status=resp_exception.status
-                #    )
-                # )
+            if resp_exception.status in (403, 502):
                 self.support_status_report = False
             else:
                 self.log_exception_once(
                     resp_exception,
-                    "Unable to obtain the vehicle status report of {}".format(
-                        self._vehicle.vin
-                    ),
+                    "Unable to obtain the vehicle status report of {}".format(self._vehicle.vin)
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle status report of {}".format(
-                    self._vehicle.vin
-                ),
+                "Unable to obtain the vehicle status report of {}".format(self._vehicle.vin)
             )
 
     async def update_vehicle_position(self):
