@@ -1516,7 +1516,7 @@ class AudiConnectVehicle:
 
     @property
     def charging_complete_time(self):
-        """Calculate Charging Complete Time."""
+        """Return the datetime when charging is or was expected to be complete."""
         # Check if remaining charging time is not supported
         if not self.remaining_charging_time_supported:
             return None
