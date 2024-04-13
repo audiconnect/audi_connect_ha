@@ -547,8 +547,19 @@ class AudiConnectVehicle:
             if resp is not None:
                 redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
-                timestamp = resp["data"]["carCapturedTimestamp"]
-                parktime = resp["data"]["carCapturedTimestamp"]
+
+                # Check if 'carCapturedTimestamp' is available in the data
+                if "carCapturedTimestamp" in resp["data"]:
+                    timestamp = resp["data"]["carCapturedTimestamp"]
+                    parktime = resp["data"]["carCapturedTimestamp"]
+                else:
+                    # Log and use None timestamp and parktime
+                    timestamp = None
+                    parktime = None
+                    _LOGGER.debug(
+                        "Timestamp not available for vehicle position data of VIN: %s.",
+                        redacted_vin,
+                    )
                 _LOGGER.debug(
                     "Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
                     redacted_vin,
@@ -561,8 +572,8 @@ class AudiConnectVehicle:
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
                     "longitude": resp["data"]["lon"],
-                    "timestamp": resp["data"]["carCapturedTimestamp"],
-                    "parktime": resp["data"]["carCapturedTimestamp"],
+                    "timestamp": timestamp,
+                    "parktime": parktime,
                 }
 
                 _LOGGER.debug(
