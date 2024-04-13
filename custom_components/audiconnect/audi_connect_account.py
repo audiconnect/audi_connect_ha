@@ -1525,8 +1525,12 @@ class AudiConnectVehicle:
             return None
         # Calculate the complete time whenever there is a positive remaining time
         if self.remaining_charging_time > 0:
-            calculated_time = self.last_update_time + timedelta(minutes=self.remaining_charging_time)
-            self.charging_complete_time_frozen = calculated_time  # Always update the frozen time
+            calculated_time = self.last_update_time + timedelta(
+                minutes=self.remaining_charging_time
+            )
+            self.charging_complete_time_frozen = (
+                calculated_time  # Always update the frozen time
+            )
             return calculated_time
         # If the remaining time is zero or negative, and no frozen time is set, return last_update_time
         if self.charging_complete_time_frozen is None:
