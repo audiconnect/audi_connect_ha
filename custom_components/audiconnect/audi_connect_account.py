@@ -1447,7 +1447,7 @@ class AudiConnectVehicle:
     @property
     def secondary_engine_range_supported(self):
         check = self._vehicle.state.get("secondaryEngineRange")
-        if check and check != "unsupported":
+        if check is not None and check != "unsupported":
             return True
 
     @property
