@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 
 from .audi_services import AudiService
 from .audi_api import AudiAPI
-from .util import log_exception, get_attr, parse_int, parse_float
+from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -484,32 +484,38 @@ class AudiConnectVehicle:
             status = await self._audi_service.get_stored_vehicle_data(self._vehicle.vin)
             self._vehicle.fields = {
                 status.data_fields[i].name: status.data_fields[i].value
-                for i in range(0, len(status.data_fields))
+                for i in range(len(status.data_fields))
             }
 
-            # last_update_time should be newest carCapturedTimestamp of all fields and states
+            # Initialize with a default very old datetime
             self._vehicle.state["last_update_time"] = datetime(
                 1970, 1, 1, tzinfo=timezone.utc
             )
+
+            # Update with the newest carCapturedTimestamp from data_fields
             for f in status.data_fields:
-                self._vehicle.state["last_update_time"] = max(
-                    self._vehicle.state["last_update_time"], f.measure_time
-                )
+                new_time = parse_datetime(f.measure_time)
+                if new_time:
+                    self._vehicle.state["last_update_time"] = max(
+                        self._vehicle.state["last_update_time"], new_time
+                    )
+
+            # Update with the newest carCapturedTimestamp from states
             for state in status.states:
-                self._vehicle.state["last_update_time"] = max(
-                    self._vehicle.state["last_update_time"], state["measure_time"]
-                )
+                new_time = parse_datetime(state.get("measure_time"))
+                if new_time:
+                    self._vehicle.state["last_update_time"] = max(
+                        self._vehicle.state["last_update_time"], new_time
+                    )
+
+            # Update other states
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
+
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status == 403 or resp_exception.status == 502:
-                # _LOGGER.error(
-                #    "support_status_report set to False: {status}".format(
-                #        status=resp_exception.status
-                #    )
-                # )
+            if resp_exception.status in (403, 502):
                 self.support_status_report = False
             else:
                 self.log_exception_once(
