@@ -370,7 +370,9 @@ class TripData(Instrument):
     def extra_state_attributes(self):
         td = super().state
         attr = {
-            "averageElectricEngineConsumption": td.get("averageElectricEngineConsumption", None),
+            "averageElectricEngineConsumption": td.get(
+                "averageElectricEngineConsumption", None
+            ),
             "averageFuelConsumption": td.get("averageFuelConsumption", None),
             "averageSpeed": td.get("averageSpeed", None),
             "mileage": td.get("mileage", None),
