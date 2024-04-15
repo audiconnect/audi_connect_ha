@@ -1568,13 +1568,17 @@ class AudiConnectVehicle:
     def external_power(self):
         """Return external Power"""
         if self.external_power_supported:
-            return self._vehicle.state.get("externalPower")
+            external_power_status = self._vehicle.state.get("externalPower")
+            if external_power_status == "unavailable":
+                return "Not Ready"
+            elif external_power_status == "ready":
+                return "Ready"
+            else:
+                return external_power_status
 
     @property
     def external_power_supported(self):
-        check = self._vehicle.state.get("externalPower")
-        if check:
-            return True
+        return self._vehicle.state.get("externalPower") is not None
 
     @property
     def plug_led_color(self):
