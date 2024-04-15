@@ -612,6 +612,24 @@ def create_instruments():
             device_class=SensorDeviceClass.TEMPERATURE,
         ),
         Sensor(
+            attr="park_time",
+            name="Park Time",
+            icon="mdi:car-clock",
+            device_class=SensorDeviceClass.TIMESTAMP,
+        ),
+        Sensor(
+            attr="remaining_climatisation_time",
+            name="Remaining Climatisation Time",
+            icon="mdi:fan-clock",
+            unit=UnitOfTime.MINUTES,
+        ),
+        BinarySensor(
+            attr="glass_surface_heating",
+            name="Glass Surface Heating",
+            icon="mdi:car-defrost-front",
+            device_class=BinarySensorDeviceClass.RUNNING,
+        ),
+        Sensor(
             attr="preheater_duration",
             name="Preheater runtime",
             icon="mdi:clock",
