@@ -945,7 +945,9 @@ class AudiConnectVehicle:
     def oil_level(self):
         """Return oil level percentage"""
         if self.oil_level_supported:
-            return parse_float(self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
+            return parse_float(
+                self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
+            )
 
     @property
     def oil_level_supported(self):
@@ -961,7 +963,9 @@ class AudiConnectVehicle:
     @property
     def oil_level_binary_supported(self):
         """Check if oil level is supported."""
-        return isinstance(self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"), bool)
+        return isinstance(
+            self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"), bool
+        )
 
     @property
     def preheater_active(self):
