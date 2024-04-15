@@ -1092,13 +1092,14 @@ class AudiConnectVehicle:
         checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
-        checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+        checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER", None)
+        acceptable_window_states = ["3", "0", None]
         if (
             checkLeftFront
             and checkLeftRear
             and checkRightFront
             and checkRightRear
-            and checkSunRoof
+            and (checkSunRoof in acceptable_window_states)
         ):
             return True
 
@@ -1109,13 +1110,14 @@ class AudiConnectVehicle:
             checkLeftRear = self._vehicle.fields.get("STATE_LEFT_REAR_WINDOW")
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
-            checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER")
+            checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER", None)
+            acceptable_window_states = ["3", None]
             return not (
                 checkLeftFront == "3"
                 and checkLeftRear == "3"
                 and checkRightFront == "3"
                 and checkRightRear == "3"
-                and checkSunRoof == "3"
+                and (checkSunRoof in acceptable_window_states)
             )
 
     @property
@@ -1447,7 +1449,7 @@ class AudiConnectVehicle:
     @property
     def secondary_engine_range_supported(self):
         check = self._vehicle.state.get("secondaryEngineRange")
-        if check and check != "unsupported":
+        if check is not None and check != "unsupported":
             return True
 
     @property
