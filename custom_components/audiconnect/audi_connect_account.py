@@ -832,6 +832,7 @@ class AudiConnectVehicle:
                 "traveltime": td_cur.traveltime,
                 "timestamp": td_cur.timestamp,
                 "overallMileage": td_cur.overallMileage,
+                "zeroEmissionDistance": td_cur.zeroEmissionDistance,
             }
             self._vehicle.state[kind.lower() + "_reset"] = {
                 "tripID": td_rst.tripID,
@@ -843,6 +844,7 @@ class AudiConnectVehicle:
                 "traveltime": td_rst.traveltime,
                 "timestamp": td_rst.timestamp,
                 "overallMileage": td_rst.overallMileage,
+                "zeroEmissionDistance": td_rst.zeroEmissionDistance,
             }
 
         except TimeoutError:
