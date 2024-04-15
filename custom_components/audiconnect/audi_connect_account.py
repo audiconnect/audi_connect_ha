@@ -705,11 +705,11 @@ class AudiConnectVehicle:
                 )
 
         except Exception as e:
-        _LOGGER.error(
-            "An unexpected error occurred while updating climater for VIN: %s. Error: %s",
-            redacted_vin,
-            e,
-        )
+            _LOGGER.error(
+                "An unexpected error occurred while updating climater for VIN: %s. Error: %s",
+                redacted_vin,
+                e,
+            )
 
     async def update_vehicle_preheater(self):
         if not self.support_preheater:
