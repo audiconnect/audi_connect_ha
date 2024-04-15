@@ -628,6 +628,7 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_climater(self):
+        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
         if not self.support_climater:
             return
 
@@ -649,30 +650,59 @@ class AudiConnectVehicle:
                 else:
                     self._vehicle.state["outdoorTemperature"] = None
 
-        except TimeoutError:
-            raise
-        except ClientResponseError as resp_exception:
-            if resp_exception.status == 403 or resp_exception.status == 502:
-                # _LOGGER.error(
-                #    "support_climater set to False: {status}".format(
-                #        status=resp_exception.status
-                #    )
-                # )
-                self.support_climater = False
-            else:
-                self.log_exception_once(
-                    resp_exception,
-                    "Unable to obtain the vehicle climatisation state for {}".format(
-                        self._vehicle.vin
-                    ),
+                remainingClimatisationTime = get_attr(
+                    result,
+                    "climater.status.climatisationStatusData.remainingClimatisationTime.content"
                 )
-        except Exception as exception:
-            self.log_exception_once(
-                exception,
-                "Unable to obtain the vehicle climatisation state for {}".format(
-                    self._vehicle.vin
-                ),
+                self._vehicle.state["remainingClimatisationTime"] = remainingClimatisationTime
+                _LOGGER.debug("CLIMATER: remainingClimatisationTime: %s", remainingClimatisationTime)
+
+                vehicleParkingClock = get_attr(
+                    result,
+                    "climater.status.vehicleParkingClockStatusData.vehicleParkingClock.content"
+                )
+                self._vehicle.state["vehicleParkingClock"] = parse_datetime(vehicleParkingClock)
+                _LOGGER.debug("CLIMATER: vehicleParkingClock: %s", vehicleParkingClock)
+
+                isMirrorHeatingActive = get_attr(
+                    result,
+                    "climater.status.climatisationStatusData.climatisationElementStates.isMirrorHeatingActive.content"
+                )
+                self._vehicle.state["isMirrorHeatingActive"] = isMirrorHeatingActive
+                _LOGGER.debug("CLIMATER: isMirrorHeatingActive: %s", isMirrorHeatingActive)
+
+            else:
+                _LOGGER.debug(
+                    "No climater data received for VIN: %s. Response was None.",
+                    redacted_vin,
+                )
+
+        except TimeoutError:
+            _LOGGER.debug(
+                "TimeoutError encountered while updating climater for VIN: %s.",
+                redacted_vin,
             )
+            raise
+        except ClientResponseError as cre:
+            if cre.status in (403, 502):
+                _LOGGER.debug(
+                    "ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
+                    cre.status,
+                    redacted_vin,
+                )
+                self.support_position = False
+            elif cre.status != 204:
+                _LOGGER.debug(
+                    "ClientResponseError with status %s while updating climater for VIN: %s. Error: %s",
+                    cre.status,
+                    redacted_vin,
+                    cre,
+                )
+            else:
+                _LOGGER.debug(
+                    "Climater currently not available for VIN: %s. Received 204 status.",
+                    redacted_vin,
+                )
 
     async def update_vehicle_preheater(self):
         if not self.support_preheater:
@@ -1609,6 +1639,38 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("outdoorTemperature")
         if check:
             return True
+
+    @property
+    def glass_surface_heating(self):
+        if self.glass_surface_heating_supported:
+            return self._vehicle.state.get("isMirrorHeatingActive")
+
+    @property
+    def glass_surface_heating_supported(self):
+        return self._vehicle.state.get("isMirrorHeatingActive") is not None
+
+    @property
+    def park_time(self):
+        if self.park_time_supported:
+            return self._vehicle.state.get("vehicleParkingClock")
+
+    @property
+    def park_time_supported(self):
+        return self._vehicle.state.get("vehicleParkingClock") is not None
+
+    @property
+    def remaining_climatisation_time(self):
+        if self.remaining_climatisation_time_supported:
+            remaining_time = self._vehicle.state.get("remainingClimatisationTime")
+            if remaining_time is not None and remaining_time < 0:
+                return 0
+            elif remaining_time is not None:
+                return remaining_time
+        return None
+
+    @property
+    def remaining_climatisation_time_supported(self):
+        return self._vehicle.state.get("remainingClimatisationTime") is not None
 
     @property
     def preheater_state(self):
