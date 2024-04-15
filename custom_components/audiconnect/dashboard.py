@@ -145,7 +145,7 @@ class Sensor(Instrument):
         state_class=None,
         device_class=None,
         entity_category=None,
-        extra_state_attributes=None
+        extra_state_attributes=None,
     ):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
@@ -376,9 +376,10 @@ class TripData(Instrument):
             "startMileage": td["startMileage"],
             "traveltime": td["traveltime"],
             "timestamp": parse_datetime(td["timestamp"]),
-            "overallMileage": td["overallMileage"]
+            "overallMileage": td["overallMileage"],
         }
         return attr
+
 
 class LastUpdate(Instrument):
     def __init__(self):

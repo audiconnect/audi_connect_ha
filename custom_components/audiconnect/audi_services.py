@@ -337,7 +337,7 @@ class AudiService:
             key=lambda k: k["overallMileage"],
             reverse=True,
         )
-        #_LOGGER.debug("get_tripdata: td_sorted: %s", td_sorted)
+        # _LOGGER.debug("get_tripdata: td_sorted: %s", td_sorted)
         td_current = td_sorted[0]
         _LOGGER.debug("TRIP DATA: td_current: %s", td_current)
         # FIX, TR/2023-03-25: Assign just in case td_sorted contains only one item
