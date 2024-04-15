@@ -7,9 +7,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
 )
-
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfTime,
@@ -19,6 +17,7 @@ from homeassistant.const import (
     UnitOfElectricCurrent,
     EntityCategory,
 )
+from .util import parse_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,12 +145,14 @@ class Sensor(Instrument):
         state_class=None,
         device_class=None,
         entity_category=None,
+        extra_state_attributes=None
     ):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
         self._unit = unit
         self.state_class = state_class
         self.entity_category = entity_category
+        self.extra_state_attributes = extra_state_attributes
         self._convert = False
 
     @property
@@ -329,9 +330,10 @@ class Position(Instrument):
 class TripData(Instrument):
     def __init__(self, attr, name):
         super().__init__(component="sensor", attr=attr, name=name)
-        self.device_class = None
+        self.device_class = SensorDeviceClass.TIMESTAMP
         self.unit = None
         self.state_class = None
+        self.entity_category = None
 
     @property
     def is_mutable(self):
@@ -361,9 +363,22 @@ class TripData(Instrument):
 
     @property
     def state(self):
-        val = super().state
-        return val
+        td = super().state
+        return parse_datetime(td["timestamp"])
 
+    @property
+    def extra_state_attributes(self):
+        td = super().state
+        attr = {
+            "averageFuelConsumption": td["averageFuelConsumption"],
+            "averageSpeed": td["averageSpeed"],
+            "mileage": td["mileage"],
+            "startMileage": td["startMileage"],
+            "traveltime": td["traveltime"],
+            "timestamp": parse_datetime(td["timestamp"]),
+            "overallMileage": td["overallMileage"]
+        }
+        return attr
 
 class LastUpdate(Instrument):
     def __init__(self):
@@ -377,6 +392,7 @@ class LastUpdate(Instrument):
         self.unit = None
         self.state_class = None
         self.entity_category = None
+        self.extra_state_attributes = None
 
     @property
     def is_mutable(self):
