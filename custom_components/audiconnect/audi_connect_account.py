@@ -558,8 +558,8 @@ class AudiConnectVehicle:
 
                 # Check if 'carCapturedTimestamp' is available in the data
                 if "carCapturedTimestamp" in resp["data"]:
-                    timestamp = resp["data"]["carCapturedTimestamp"]
-                    parktime = resp["data"]["carCapturedTimestamp"]
+                    timestamp = parse_datetime(resp["data"]["carCapturedTimestamp"])
+                    parktime = parse_datetime(resp["data"]["carCapturedTimestamp"])
                 else:
                     # Log and use None timestamp and parktime
                     timestamp = None
