@@ -958,11 +958,11 @@ class AudiConnectVehicle:
     def oil_level_binary(self):
         """Return oil level binary."""
         if self.oil_level_binary_supported:
-            return self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
+            return not self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
 
     @property
     def oil_level_binary_supported(self):
-        """Check if oil level is supported."""
+        """Check if oil level binary is supported."""
         return isinstance(
             self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"), bool
         )
