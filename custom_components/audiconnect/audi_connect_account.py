@@ -407,6 +407,8 @@ class AudiConnectVehicle:
         self.support_preheater = True
         self.support_charger = True
 
+        self.charging_complete_time_frozen = None
+
     @property
     def vin(self):
         return self._vin
@@ -1516,18 +1518,27 @@ class AudiConnectVehicle:
 
     @property
     def charging_complete_time(self):
-        """Return the datetime when charging is expected to be complete."""
-        if self.remaining_charging_time_supported:
-            remaining_minutes = self.remaining_charging_time
-
-            if self.last_update_time is None or remaining_minutes is None:
-                return None
-
-            charging_complete_time = self.last_update_time + timedelta(
-                minutes=remaining_minutes
+        """Return the datetime when charging is or was expected to be complete."""
+        # Check if remaining charging time is not supported
+        if not self.remaining_charging_time_supported:
+            return None
+        # If there's no last update or remaining time, we can't calculate
+        if self.last_update_time is None or self.remaining_charging_time is None:
+            return None
+        # Calculate the complete time whenever there is a positive remaining time
+        if self.remaining_charging_time > 0:
+            calculated_time = self.last_update_time + timedelta(
+                minutes=self.remaining_charging_time
             )
-
-            return charging_complete_time
+            self.charging_complete_time_frozen = (
+                calculated_time  # Always update the frozen time
+            )
+            return calculated_time
+        # If the remaining time is zero or negative, and no frozen time is set, return last_update_time
+        if self.charging_complete_time_frozen is None:
+            return self.last_update_time
+        # Otherwise, return the frozen complete time
+        return self.charging_complete_time_frozen
 
     @property
     def plug_state(self):
