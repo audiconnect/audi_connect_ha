@@ -652,24 +652,33 @@ class AudiConnectVehicle:
 
                 remainingClimatisationTime = get_attr(
                     result,
-                    "climater.status.climatisationStatusData.remainingClimatisationTime.content"
+                    "climater.status.climatisationStatusData.remainingClimatisationTime.content",
                 )
-                self._vehicle.state["remainingClimatisationTime"] = remainingClimatisationTime
-                _LOGGER.debug("CLIMATER: remainingClimatisationTime: %s", remainingClimatisationTime)
+                self._vehicle.state["remainingClimatisationTime"] = (
+                    remainingClimatisationTime
+                )
+                _LOGGER.debug(
+                    "CLIMATER: remainingClimatisationTime: %s",
+                    remainingClimatisationTime,
+                )
 
                 vehicleParkingClock = get_attr(
                     result,
-                    "climater.status.vehicleParkingClockStatusData.vehicleParkingClock.content"
+                    "climater.status.vehicleParkingClockStatusData.vehicleParkingClock.content",
                 )
-                self._vehicle.state["vehicleParkingClock"] = parse_datetime(vehicleParkingClock)
+                self._vehicle.state["vehicleParkingClock"] = parse_datetime(
+                    vehicleParkingClock
+                )
                 _LOGGER.debug("CLIMATER: vehicleParkingClock: %s", vehicleParkingClock)
 
                 isMirrorHeatingActive = get_attr(
                     result,
-                    "climater.status.climatisationStatusData.climatisationElementStates.isMirrorHeatingActive.content"
+                    "climater.status.climatisationStatusData.climatisationElementStates.isMirrorHeatingActive.content",
                 )
                 self._vehicle.state["isMirrorHeatingActive"] = isMirrorHeatingActive
-                _LOGGER.debug("CLIMATER: isMirrorHeatingActive: %s", isMirrorHeatingActive)
+                _LOGGER.debug(
+                    "CLIMATER: isMirrorHeatingActive: %s", isMirrorHeatingActive
+                )
 
             else:
                 _LOGGER.debug(
