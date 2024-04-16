@@ -123,7 +123,7 @@ async def async_setup_entry(hass, config_entry):
     # Define a callback function for the timer to update data
     async def update_data(now):
         """Update the data with the latest information."""
-        _LOGGER.debug("Scheduled cloud update started...")
+        _LOGGER.debug("Requesting scheduled cloud data refresh...")
         await data.update(utcnow())
 
     # Schedule the update_data function if option is true
