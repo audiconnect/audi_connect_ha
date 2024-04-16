@@ -80,7 +80,9 @@ class AudiConnectAccount:
 
     async def try_login(self, logError):
         try:
+            _LOGGER.debug("Requesting login to Audi service...")
             await self._audi_service.login(self._username, self._password, False)
+            _LOGGER.debug("Login to Audi service successful")
             return True
         except Exception as exception:
             if logError is True:
