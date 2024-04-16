@@ -177,9 +177,9 @@ class AudiAccount(AudiConnectObserver):
 
     async def update(self, now):
         """Update status from the cloud."""
-        _LOGGER.info("Running update for Audi Connect service at %s", now)
+        _LOGGER.debug("Starting refresh cloud data...")
         if not await self.connection.update(None):
-            _LOGGER.warning("Failed to update from Audi Connect service")
+            _LOGGER.warning("Failed refresh cloud data")
             return False
 
         # Discover new vehicles that have not been added yet
@@ -187,7 +187,7 @@ class AudiAccount(AudiConnectObserver):
             x for x in self.connection._vehicles if x.vin not in self.vehicles
         ]
         if new_vehicles:
-            _LOGGER.info("Discovered %d vehicle(s)", len(new_vehicles))
+            _LOGGER.debug("Retrieved %d vehicle(s)", len(new_vehicles))
         self.discover_vehicles(new_vehicles)
 
         async_dispatcher_send(self.hass, SIGNAL_STATE_UPDATED)
@@ -196,7 +196,7 @@ class AudiAccount(AudiConnectObserver):
             for instrument in config_vehicle.device_trackers:
                 async_dispatcher_send(self.hass, TRACKER_UPDATE, instrument)
 
-        _LOGGER.info("Successfully updated Audi Connect service")
+        _LOGGER.debug("Successfully refreshed cloud data")
         return True
 
     async def execute_vehicle_action(self, service):
