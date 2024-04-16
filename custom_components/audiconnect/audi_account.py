@@ -275,11 +275,11 @@ class AudiAccount(AudiConnectObserver):
                 {"vin": redacted_vin},
             )
 
-        _LOGGER.info("Refreshing cloud data in %d seconds...", UPDATE_SLEEP)
+        _LOGGER.debug("Refreshing cloud data in %d seconds...", UPDATE_SLEEP)
         await asyncio.sleep(UPDATE_SLEEP)
 
         try:
-            _LOGGER.info("Refreshing cloud data now...")
+            _LOGGER.debug("Refreshing cloud data now...")
             await self.update(utcnow())
         except Exception as e:
             _LOGGER.exception("Refresh cloud data failed: %s", str(e))
