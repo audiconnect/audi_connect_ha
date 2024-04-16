@@ -540,18 +540,21 @@ class AudiConnectVehicle:
     async def update_vehicle_position(self):
         # Redact all but the last 4 characters of the VIN
         redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
-        _LOGGER.debug("Starting update_vehicle_position for VIN: %s", redacted_vin)
+        _LOGGER.debug(
+            "POSITION: Starting update_vehicle_position for VIN: %s", redacted_vin
+        )
 
         if not self.support_position:
             _LOGGER.debug(
-                "Position support is disabled for VIN: %s. Exiting update process.",
+                "POSITION: Vehicle position support is disabled for VIN: %s. Exiting update process.",
                 redacted_vin,
             )
             return
 
         try:
             _LOGGER.debug(
-                "Attempting to retrieve stored position for VIN: %s", redacted_vin
+                "POSITION: Attempting to retrieve stored vehicle position for VIN: %s",
+                redacted_vin,
             )
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
 
@@ -568,11 +571,11 @@ class AudiConnectVehicle:
                     timestamp = None
                     parktime = None
                     _LOGGER.debug(
-                        "Timestamp not available for vehicle position data of VIN: %s.",
+                        "POSITION: Timestamp not available for vehicle position data of VIN: %s.",
                         redacted_vin,
                     )
                 _LOGGER.debug(
-                    "Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
+                    "POSITION: Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
                     redacted_vin,
                     redacted_lat,
                     redacted_lon,
@@ -588,44 +591,45 @@ class AudiConnectVehicle:
                 }
 
                 _LOGGER.debug(
-                    "Vehicle position updated successfully for VIN: %s", redacted_vin
+                    "POSITION: Vehicle position updated successfully for VIN: %s",
+                    redacted_vin,
                 )
             else:
                 _LOGGER.warning(
-                    "No position data received for VIN: %s. Response was None.",
+                    "POSITION: No vehicle position data received for VIN: %s. Response was None.",
                     redacted_vin,
                 )
 
         except TimeoutError:
             _LOGGER.error(
-                "TimeoutError encountered while updating vehicle position for VIN: %s.",
+                "POSITION: TimeoutError encountered while updating vehicle position for VIN: %s.",
                 redacted_vin,
             )
             raise
         except ClientResponseError as cre:
             if cre.status in (403, 502):
                 _LOGGER.error(
-                    "ClientResponseError with status %s for VIN: %s. Disabling position support.",
+                    "POSITION: ClientResponseError with status %s for VIN: %s. Disabling vehicle position support.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_position = False
             elif cre.status != 204:
                 _LOGGER.error(
-                    "ClientResponseError with status %s for VIN: %s. Error: %s",
+                    "POSITION: ClientResponseError with status %s for VIN: %s. Error: %s",
                     cre.status,
                     redacted_vin,
                     cre,
                 )
             else:
                 _LOGGER.debug(
-                    "Position currently not available for VIN: %s. Received 204 status.",
+                    "POSITION: Vehicle position currently not available for VIN: %s. Received 204 status.",
                     redacted_vin,
                 )
 
         except Exception as e:
             _LOGGER.error(
-                "An unexpected error occurred while updating vehicle position for VIN: %s. Error: %s",
+                "POSITION: An unexpected error occurred while updating vehicle position for VIN: %s. Error: %s",
                 redacted_vin,
                 e,
             )
