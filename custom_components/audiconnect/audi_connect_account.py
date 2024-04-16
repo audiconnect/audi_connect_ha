@@ -867,6 +867,10 @@ class AudiConnectVehicle:
     async def update_vehicle_tripdata(self, kind: str):
         redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
         if not self.support_trip_data:
+            _LOGGER.debug(
+                "Trip data support is disabled for VIN: %s. Exiting update process.",
+                redacted_vin,
+            )
             return
         try:
             td_cur, td_rst = await self._audi_service.get_tripdata(
