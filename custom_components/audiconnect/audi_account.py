@@ -272,7 +272,7 @@ class AudiAccount(AudiConnectObserver):
             _LOGGER.debug("Refresh vehicle data failed for VIN: %s", redacted_vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT),
-                {"vin": redacted_vin}
+                {"vin": redacted_vin},
             )
 
         _LOGGER.info("Refreshing cloud data in %d seconds...", UPDATE_SLEEP)
