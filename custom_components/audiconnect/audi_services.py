@@ -14,7 +14,6 @@ from .audi_models import (
 )
 from .audi_api import AudiAPI
 from .util import to_byte_array, get_attr
-from .const import DOMAIN
 
 from hashlib import sha256, sha512
 import hmac

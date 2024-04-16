@@ -266,18 +266,20 @@ class VehicleDataResponse:
 
         ts = None
         val = self._getFromJson(json, loc)
-        #_LOGGER.debug("Initial value retrieved for '%s': %s", name, val)
+        # _LOGGER.debug("Initial value retrieved for '%s': %s", name, val)
 
         # Special handling for remainingChargingTime
         if name == "remainingChargingTime" and val is None:
             val = 0
-            _LOGGER.debug("TRY APPEND STATE: 'remainingChargingTime' adjusted to 0 due to None value")
+            _LOGGER.debug(
+                "TRY APPEND STATE: 'remainingChargingTime' adjusted to 0 due to None value"
+            )
 
         if val is not None:
             loc[tsoff:] = ["carCapturedTimestamp"]
-            #_LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
+            # _LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
             ts = self._getFromJson(json, loc)
-            #_LOGGER.debug("Timestamp retrieved for '%s': %s", name, ts)
+            # _LOGGER.debug("Timestamp retrieved for '%s': %s", name, ts)
 
         if val is not None and ts:
             self.states.append({"name": name, "value": val, "measure_time": ts})
@@ -291,10 +293,14 @@ class VehicleDataResponse:
             )
         else:
             if val is None:
-                _LOGGER.debug("TRY APPEND STATE: Value for '%s' is None; not appending state.", name)
+                _LOGGER.debug(
+                    "TRY APPEND STATE: Value for '%s' is None; not appending state.",
+                    name,
+                )
             elif not ts:
                 _LOGGER.debug(
-                    "TRY APPEND STATE: Timestamp for '%s' is None or missing; not appending state.", name
+                    "TRY APPEND STATE: Timestamp for '%s' is None or missing; not appending state.",
+                    name,
                 )
 
     def _tryAppendFieldWithTs(self, json, textId, loc):
@@ -306,13 +312,13 @@ class VehicleDataResponse:
 
         ts = None
         val = self._getFromJson(json, loc)
-        #_LOGGER.debug("Initial value retrieved for '%s': %s", textId, val)
+        # _LOGGER.debug("Initial value retrieved for '%s': %s", textId, val)
 
         if val:
             loc[-1:] = ["carCapturedTimestamp"]
-            #_LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
+            # _LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
             ts = self._getFromJson(json, loc)
-            #_LOGGER.debug("Timestamp retrieved for '%s': %s", textId, ts)
+            # _LOGGER.debug("Timestamp retrieved for '%s': %s", textId, ts)
 
         if val and ts:
             self.data_fields.append(
@@ -333,10 +339,14 @@ class VehicleDataResponse:
             )
         else:
             if not val:
-                _LOGGER.debug("TRY APPEND FIELD: Value for '%s' is missing; not appending field.", textId)
+                _LOGGER.debug(
+                    "TRY APPEND FIELD: Value for '%s' is missing; not appending field.",
+                    textId,
+                )
             elif not ts:
                 _LOGGER.debug(
-                    "TRY APPEND FIELD: Timestamp for '%s' is missing; not appending field.", textId
+                    "TRY APPEND FIELD: Timestamp for '%s' is missing; not appending field.",
+                    textId,
                 )
 
     def _getFromJson(self, json, loc):
