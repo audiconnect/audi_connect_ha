@@ -341,7 +341,7 @@ class AudiService:
         td_current = td_sorted[0]
         # FIX, TR/2023-03-25: Assign just in case td_sorted contains only one item
         td_reset_trip = td_sorted[0]
-        
+
         for trip in td_sorted:
             if (td_current["startMileage"] - trip["startMileage"]) > 2:
                 td_reset_trip = trip
