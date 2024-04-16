@@ -115,6 +115,7 @@ class AudiService:
         return username_post_url
 
     async def login(self, user: str, password: str, persist_token: bool = True):
+        _LOGGER.debug("LOGIN: Starting login to Audi service...")
         await self.login_request(user, password)
 
     async def refresh_vehicle_data(self, vin: str):
