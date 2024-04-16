@@ -44,6 +44,7 @@ class AudiConnectAccount:
         self._username = username
         self._password = password
         self._loggedin = False
+        self._support_vehicle_refresh = True
         self._logintime = 0
 
         self._connect_retries = 3
@@ -144,30 +145,71 @@ class AudiConnectAccount:
                         pass
 
     async def refresh_vehicle_data(self, vin: str):
+        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
         if not self._loggedin:
             await self.login()
 
         if not self._loggedin:
             return False
 
+        if not self._support_vehicle_refresh:
+            _LOGGER.debug(
+                "Vehicle refresh support is disabled for VIN: %s. Exiting update process.",
+                redacted_vin,
+            )
+            return "disabled"
+
         try:
             _LOGGER.debug(
-                "Sending command to refresh data to vehicle {vin}".format(vin=vin)
+                "Sending command to refresh vehicle data for VIN: %s",
+                redacted_vin,
             )
 
             await self._audi_service.refresh_vehicle_data(vin)
 
             _LOGGER.debug(
-                "Successfully refreshed data of vehicle {vin}".format(vin=vin)
+                "Successfully refreshed vehicle data for VIN: %s",
+                redacted_vin,
             )
 
             return True
-        except Exception as exception:
-            log_exception(
-                exception,
-                "Unable to refresh vehicle data of {}".format(vin),
-            )
 
+        except TimeoutError:
+            _LOGGER.debug(
+                "TimeoutError encountered while refreshing vehicle data for VIN: %s.",
+                redacted_vin,
+            )
+            return False
+        except ClientResponseError as cre:
+            if cre.status in (403, 502):
+                _LOGGER.debug(
+                    "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
+                    cre.status,
+                    redacted_vin,
+                )
+                self._support_vehicle_refresh = False
+                return "disabled"
+            elif cre.status != 204:
+                _LOGGER.debug(
+                    "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Error: %s",
+                    cre.status,
+                    redacted_vin,
+                    cre,
+                )
+                return False
+            else:
+                _LOGGER.debug(
+                    "Refresh vehicle data currently not available for VIN: %s. Received 204 status.",
+                    redacted_vin,
+                )
+                return False
+
+        except Exception as e:
+            _LOGGER.error(
+                "An unexpected error occurred while refreshing vehicle data for VIN: %s. Error: %s",
+                redacted_vin,
+                e,
+            )
             return False
 
     async def set_vehicle_lock(self, vin: str, lock: bool):
