@@ -88,7 +88,7 @@ async def async_setup(hass, config):
 
 async def async_setup_entry(hass, config_entry):
     """Set up this integration using UI."""
-
+    _LOGGER.debug("Audi Connect starting...")
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
@@ -123,30 +123,31 @@ async def async_setup_entry(hass, config_entry):
     # Define a callback function for the timer to update data
     async def update_data(now):
         """Update the data with the latest information."""
-        _LOGGER.info("Scheduled cloud update started...")
+        _LOGGER.debug("ACTIVE POLLING: Requesting scheduled cloud data refresh...")
         await data.update(utcnow())
 
     # Schedule the update_data function if option is true
     if _scan_active:
-        _LOGGER.info(
-            "Scheduling cloud update every %d minutes.", scan_interval.seconds / 60
+        _LOGGER.debug(
+            "ACTIVE POLLING: Scheduling cloud data refresh every %d minutes.",
+            scan_interval.seconds / 60,
         )
         async_track_time_interval(hass, update_data, scan_interval)
     else:
-        _LOGGER.info(
-            "Active Polling at Scan Interval is turned off in user options. Skipping scheduling..."
+        _LOGGER.debug(
+            "ACTIVE POLLING: Active Polling at Scan Interval is turned off in user options. Skipping scheduling..."
         )
 
     # Initially update the data if option is true
     if _scan_initial:
-        _LOGGER.info("Requesting initial cloud update...")
+        _LOGGER.debug("Requesting initial cloud data update...")
         return await data.update(utcnow())
     else:
-        _LOGGER.info(
+        _LOGGER.debug(
             "Cloud Update at Start is turned off in user options. Skipping initial update..."
         )
 
-    _LOGGER.debug("Audi Connect Setup Complete.")
+    _LOGGER.debug("Audi Connect Setup Complete")
     return True
 
 
