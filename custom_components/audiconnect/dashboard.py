@@ -737,6 +737,13 @@ def create_instruments():
             device_class=BinarySensorDeviceClass.SAFETY,
             icon="mdi:car-brake-abs",
         ),
+        BinarySensor(
+            attr="oil_level_binary",
+            name="Oil Level Binary",
+            icon="mdi:oil",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
     ]
 
 
