@@ -123,18 +123,18 @@ async def async_setup_entry(hass, config_entry):
     # Define a callback function for the timer to update data
     async def update_data(now):
         """Update the data with the latest information."""
-        _LOGGER.debug("Requesting scheduled cloud data refresh...")
+        _LOGGER.debug("ACTIVE POLLING: Requesting scheduled cloud data refresh...")
         await data.update(utcnow())
 
     # Schedule the update_data function if option is true
     if _scan_active:
         _LOGGER.debug(
-            "Scheduling cloud update every %d minutes.", scan_interval.seconds / 60
+            "ACTIVE POLLING: Scheduling cloud update every %d minutes.", scan_interval.seconds / 60
         )
         async_track_time_interval(hass, update_data, scan_interval)
     else:
         _LOGGER.debug(
-            "Active Polling at Scan Interval is turned off in user options. Skipping scheduling..."
+            "ACTIVE POLLING: Active Polling at Scan Interval is turned off in user options. Skipping scheduling..."
         )
 
     # Initially update the data if option is true
