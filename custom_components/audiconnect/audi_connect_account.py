@@ -406,6 +406,7 @@ class AudiConnectVehicle:
         self.support_climater = True
         self.support_preheater = True
         self.support_charger = True
+        self.support_trip_data = True
 
         self.charging_complete_time_frozen = None
 
@@ -864,6 +865,9 @@ class AudiConnectVehicle:
         await self.update_vehicle_tripdata("shortTerm")
 
     async def update_vehicle_tripdata(self, kind: str):
+        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        if not self.support_trip_data:
+            return
         try:
             td_cur, td_rst = await self._audi_service.get_tripdata(
                 self._vehicle.vin, kind
@@ -894,20 +898,37 @@ class AudiConnectVehicle:
             }
 
         except TimeoutError:
-            raise
-        except ClientResponseError as resp_exception:
-            self.log_exception_once(
-                resp_exception,
-                "Unable to obtain the vehicle {kind} tripdata of {vin} - {vehicle}".format(
-                    kind=kind, vin=self._vehicle.vin, vehicle=self._vehicle
-                ),
+            _LOGGER.debug(
+                "TimeoutError encountered while updating trip data for VIN: %s.",
+                redacted_vin,
             )
-        except Exception as exception:
-            self.log_exception_once(
-                exception,
-                "Unable to obtain the vehicle {kind} tripdata of {vin} - {vehicle}".format(
-                    kind=kind, vin=self._vehicle.vin, vehicle=self._vehicle
-                ),
+            raise
+        except ClientResponseError as cre:
+            if cre.status in (403, 502):
+                _LOGGER.debug(
+                    "ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
+                    cre.status,
+                    redacted_vin,
+                )
+                self.support_trip_data = False
+            elif cre.status != 204:
+                _LOGGER.debug(
+                    "ClientResponseError with status %s while updating trip data for VIN: %s. Error: %s",
+                    cre.status,
+                    redacted_vin,
+                    cre,
+                )
+            else:
+                _LOGGER.debug(
+                    "Trip data currently not available for VIN: %s. Received 204 status.",
+                    redacted_vin,
+                )
+
+        except Exception as e:
+            _LOGGER.error(
+                "An unexpected error occurred while updating trip data for VIN: %s. Error: %s",
+                redacted_vin,
+                e,
             )
 
     @property
