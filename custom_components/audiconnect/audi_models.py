@@ -444,6 +444,10 @@ class TripDataResponse:
         if "overallMileage" in data:
             self.overallMileage = int(data["overallMileage"])
 
+        self.zeroEmissionDistance = None
+        if "zeroEmissionDistance" in data:
+            self.zeroEmissionDistance = int(data["zeroEmissionDistance"])
+
 
 class Field:
     IDS = {
