@@ -129,7 +129,8 @@ async def async_setup_entry(hass, config_entry):
     # Schedule the update_data function if option is true
     if _scan_active:
         _LOGGER.debug(
-            "ACTIVE POLLING: Scheduling cloud update every %d minutes.", scan_interval.seconds / 60
+            "ACTIVE POLLING: Scheduling cloud update every %d minutes.",
+            scan_interval.seconds / 60,
         )
         async_track_time_interval(hass, update_data, scan_interval)
     else:
