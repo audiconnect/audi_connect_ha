@@ -538,7 +538,9 @@ class AudiConnectVehicle:
     async def update_vehicle_position(self):
         # Redact all but the last 4 characters of the VIN
         redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
-        _LOGGER.debug("POSITION: Starting update_vehicle_position for VIN: %s", redacted_vin)
+        _LOGGER.debug(
+            "POSITION: Starting update_vehicle_position for VIN: %s", redacted_vin
+        )
 
         if not self.support_position:
             _LOGGER.debug(
@@ -549,7 +551,8 @@ class AudiConnectVehicle:
 
         try:
             _LOGGER.debug(
-                "POSITION: Attempting to retrieve stored vehicle position for VIN: %s", redacted_vin
+                "POSITION: Attempting to retrieve stored vehicle position for VIN: %s",
+                redacted_vin,
             )
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
 
@@ -586,7 +589,8 @@ class AudiConnectVehicle:
                 }
 
                 _LOGGER.debug(
-                    "POSITION: Vehicle position updated successfully for VIN: %s", redacted_vin
+                    "POSITION: Vehicle position updated successfully for VIN: %s",
+                    redacted_vin,
                 )
             else:
                 _LOGGER.warning(
