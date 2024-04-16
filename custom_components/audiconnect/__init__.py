@@ -140,7 +140,7 @@ async def async_setup_entry(hass, config_entry):
 
     # Initially update the data if option is true
     if _scan_initial:
-        _LOGGER.debug("Requesting initial cloud update...")
+        _LOGGER.debug("Requesting initial cloud data update...")
         return await data.update(utcnow())
     else:
         _LOGGER.info(
