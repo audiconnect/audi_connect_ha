@@ -339,11 +339,9 @@ class AudiService:
         )
         # _LOGGER.debug("get_tripdata: td_sorted: %s", td_sorted)
         td_current = td_sorted[0]
-        _LOGGER.debug("TRIP DATA: td_current: %s", td_current)
         # FIX, TR/2023-03-25: Assign just in case td_sorted contains only one item
         td_reset_trip = td_sorted[0]
-        _LOGGER.debug("TRIP DATA: td_reset_trip: %s", td_reset_trip)
-
+        
         for trip in td_sorted:
             if (td_current["startMileage"] - trip["startMileage"]) > 2:
                 td_reset_trip = trip
@@ -351,6 +349,8 @@ class AudiService:
             else:
                 td_current["tripID"] = trip["tripID"]
                 td_current["startMileage"] = trip["startMileage"]
+        _LOGGER.debug("TRIP DATA: td_current: %s", td_current)
+        _LOGGER.debug("TRIP DATA: td_reset_trip: %s", td_reset_trip)
 
         return TripDataResponse(td_current), TripDataResponse(td_reset_trip)
 
