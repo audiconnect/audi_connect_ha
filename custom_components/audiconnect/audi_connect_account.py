@@ -952,10 +952,8 @@ class AudiConnectVehicle:
     @property
     def oil_level_supported(self):
         """Check if oil level is supported."""
-        return (
-            parse_float(self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE"))
-            is not None
-        )
+        check = self._vehicle.fields.get("OIL_LEVEL_DIPSTICKS_PERCENTAGE")
+        return not isinstance(check, bool) and check is not None
 
     @property
     def oil_level_binary(self):
