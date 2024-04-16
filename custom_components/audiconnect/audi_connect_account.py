@@ -72,7 +72,7 @@ class AudiConnectAccount:
 
             if i < self._connect_retries - 1:
                 _LOGGER.error(
-                    "Login to Audi service failed, trying again in {} seconds".format(
+                    "LOGIN: Login to Audi service failed, trying again in {} seconds".format(
                         self._connect_delay
                     )
                 )
@@ -80,11 +80,13 @@ class AudiConnectAccount:
 
     async def try_login(self, logError):
         try:
+            _LOGGER.debug("LOGIN: Requesting login to Audi service...")
             await self._audi_service.login(self._username, self._password, False)
+            _LOGGER.debug("LOGIN: Login to Audi service successful")
             return True
         except Exception as exception:
             if logError is True:
-                _LOGGER.error("Login to Audi service failed: " + str(exception))
+                _LOGGER.error("LOGIN: Login to Audi service failed: " + str(exception))
             return False
 
     async def update(self, vinlist):
