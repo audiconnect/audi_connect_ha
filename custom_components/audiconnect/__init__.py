@@ -143,7 +143,7 @@ async def async_setup_entry(hass, config_entry):
         _LOGGER.debug("Requesting initial cloud data update...")
         return await data.update(utcnow())
     else:
-        _LOGGER.info(
+        _LOGGER.debug(
             "Cloud Update at Start is turned off in user options. Skipping initial update..."
         )
 
