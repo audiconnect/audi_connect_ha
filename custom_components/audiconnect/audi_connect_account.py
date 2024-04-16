@@ -449,10 +449,10 @@ class AudiConnectVehicle:
             self._no_error = True
             info = "statusreport"
             await self.call_update(self.update_vehicle_statusreport, 3)
-            # info = "shortterm"
-            # await self.call_update(self.update_vehicle_shortterm, 3)
-            # info = "longterm"
-            # await self.call_update(self.update_vehicle_longterm, 3)
+            info = "shortterm"
+            await self.call_update(self.update_vehicle_shortterm, 3)
+            info = "longterm"
+            await self.call_update(self.update_vehicle_longterm, 3)
             info = "position"
             await self.call_update(self.update_vehicle_position, 3)
             info = "climater"
@@ -878,6 +878,7 @@ class AudiConnectVehicle:
                 "traveltime": td_cur.traveltime,
                 "timestamp": td_cur.timestamp,
                 "overallMileage": td_cur.overallMileage,
+                "zeroEmissionDistance": td_cur.zeroEmissionDistance,
             }
             self._vehicle.state[kind.lower() + "_reset"] = {
                 "tripID": td_rst.tripID,
@@ -889,6 +890,7 @@ class AudiConnectVehicle:
                 "traveltime": td_rst.traveltime,
                 "timestamp": td_rst.timestamp,
                 "overallMileage": td_rst.overallMileage,
+                "zeroEmissionDistance": td_rst.zeroEmissionDistance,
             }
 
         except TimeoutError:
