@@ -30,6 +30,6 @@ Run service refresh_cloud_data
 Disable Debug Logging
 
 **Your Vehicle Details**
-Model: 
-Year: 
-Type (ICE/PHEV/BEV): 
+Model:
+Year:
+Type (ICE/PHEV/BEV):
