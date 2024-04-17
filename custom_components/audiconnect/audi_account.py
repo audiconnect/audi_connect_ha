@@ -257,26 +257,29 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
+        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
         res = await self.connection.refresh_vehicle_data(vin)
 
         if res is True:
-            await self.update(utcnow())
+            _LOGGER.debug("Refresh vehicle data successful for VIN: %s", redacted_vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
-                {"vin": vin},
+                {"vin": redacted_vin},
             )
+        elif res == "disabled":
+            _LOGGER.debug("Refresh vehicle data is disabled for VIN: %s", redacted_vin)
         else:
-            _LOGGER.exception("Error refreshing vehicle data %s", vin)
+            _LOGGER.debug("Refresh vehicle data failed for VIN: %s", redacted_vin)
             self.hass.bus.fire(
-                "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT), {"vin": vin}
+                "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT),
+                {"vin": redacted_vin},
             )
 
-            _LOGGER.info("Trying cloud update in %d seconds...", UPDATE_SLEEP)
-            await asyncio.sleep(UPDATE_SLEEP)
+        _LOGGER.debug("Requesting to refresh cloud data in %d seconds...", UPDATE_SLEEP)
+        await asyncio.sleep(UPDATE_SLEEP)
 
-            try:
-                _LOGGER.info("Trying cloud update now...")
-                await self.update(utcnow())
-
-            except Exception as e:
-                _LOGGER.exception("Cloud update failed: %s", str(e))
+        try:
+            _LOGGER.debug("Requesting to refresh cloud data now...")
+            await self.update(utcnow())
+        except Exception as e:
+            _LOGGER.exception("Refresh cloud data failed: %s", str(e))
