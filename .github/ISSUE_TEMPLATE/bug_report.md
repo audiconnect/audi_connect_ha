@@ -28,3 +28,8 @@ How to enable audiconnect debugging?
 Settings > Integrations > Audi Connect > Enable Debug Logging
 Run service refresh_cloud_data
 Disable Debug Logging
+
+**Your Vehicle Details**
+Model:
+Year:
+Type (ICE/PHEV/BEV):
