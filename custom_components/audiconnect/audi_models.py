@@ -314,13 +314,13 @@ class VehicleDataResponse:
         val = self._getFromJson(json, loc)
         # _LOGGER.debug("Initial value retrieved for '%s': %s", textId, val)
 
-        if val:
+        if val is not None:
             loc[-1:] = ["carCapturedTimestamp"]
             # _LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
             ts = self._getFromJson(json, loc)
             # _LOGGER.debug("Timestamp retrieved for '%s': %s", textId, ts)
 
-        if val and ts:
+        if val is not None and ts:
             self.data_fields.append(
                 Field(
                     {
@@ -338,14 +338,14 @@ class VehicleDataResponse:
                 ts,
             )
         else:
-            if not val:
+            if val is None:
                 _LOGGER.debug(
-                    "TRY APPEND FIELD: Value for '%s' is missing; not appending field.",
+                    "TRY APPEND FIELD: Value for '%s' is None or missing; not appending field.",
                     textId,
                 )
             elif not ts:
                 _LOGGER.debug(
-                    "TRY APPEND FIELD: Timestamp for '%s' is missing; not appending field.",
+                    "TRY APPEND FIELD: Timestamp for '%s' is None or missing; not appending field.",
                     textId,
                 )
 
