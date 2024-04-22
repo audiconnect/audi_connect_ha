@@ -1680,7 +1680,7 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("targetstateOfCharge")
         if check and parse_float(check):
             return True
-    
+
     @property
     def plug_state(self):
         """Return plug state"""
