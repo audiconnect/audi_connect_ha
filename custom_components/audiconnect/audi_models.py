@@ -177,7 +177,6 @@ class VehicleDataResponse:
             -1,
             ["fuelStatus", "rangeStatus", "value", "totalRange_km"],
         )
-
         self._tryAppendStateWithTs(
             data,
             "stateOfCharge",
@@ -186,21 +185,9 @@ class VehicleDataResponse:
         )
         self._tryAppendStateWithTs(
             data,
-            "chargingMode",
+            "chargingState",
             -1,
-            ["charging", "chargingStatus", "value", "chargeType"],
-        )
-        self._tryAppendStateWithTs(
-            data,
-            "actualChargeRate",
-            -1,
-            ["charging", "chargingStatus", "value", "chargeRate_kmph"],
-        )
-        self._tryAppendStateWithTs(
-            data,
-            "chargingPower",
-            -1,
-            ["charging", "chargingStatus", "value", "chargePower_kW"],
+            ["charging", "chargingStatus", "value", "chargingState"],
         )
         self._tryAppendStateWithTs(
             data,
@@ -210,9 +197,27 @@ class VehicleDataResponse:
         )
         self._tryAppendStateWithTs(
             data,
-            "chargingState",
+            "chargingPower",
             -1,
-            ["charging", "chargingStatus", "value", "chargingState"],
+            ["charging", "chargingStatus", "value", "chargePower_kW"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "actualChargeRate",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeRate_kmph"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "chargingMode",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeType"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "targetstateOfCharge",
+            -1,
+            ["charging", "chargingSettings", "value", "targetSOC_pct"],
         )
         self._tryAppendStateWithTs(
             data,
