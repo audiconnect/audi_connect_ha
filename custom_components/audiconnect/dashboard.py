@@ -595,6 +595,12 @@ def create_instruments():
             device_class=SensorDeviceClass.TIMESTAMP,
         ),
         Sensor(
+            attr="target_state_of_charge",
+            name="Target State of charge",
+            icon="mdi:ev-station",
+            unit=PERCENTAGE,
+        ),
+        Sensor(
             attr="plug_state",
             name="Plug state",
             icon="mdi:ev-plug-type1",
