@@ -748,7 +748,7 @@ class AudiConnectVehicle:
                     cre.status,
                     redacted_vin,
                 )
-                self.support_position = False
+                self.support_climater = False
             elif cre.status != 204:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating climater for VIN: %s. Error: %s",
