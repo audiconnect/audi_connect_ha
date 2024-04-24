@@ -1464,8 +1464,7 @@ class AudiConnectVehicle:
     @property
     def charging_mode_supported(self):
         check = self._vehicle.state.get("chargingMode")
-        if check is not None:
-            return True
+        return check is not None and check != "unsupported"
 
     @property
     def energy_flow(self):
