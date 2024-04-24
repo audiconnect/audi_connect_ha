@@ -1640,7 +1640,7 @@ class AudiConnectVehicle:
     def remaining_charging_time(self):
         """Return remaining charging time"""
         if self.remaining_charging_time_supported:
-            return self._vehicle.state.get("remainingChargingTime")
+            return self._vehicle.state.get("remainingChargingTime", 0)
 
     @property
     def remaining_charging_time_unit(self):
@@ -1648,9 +1648,7 @@ class AudiConnectVehicle:
 
     @property
     def remaining_charging_time_supported(self):
-        check = self._vehicle.state.get("remainingChargingTime")
-        if check is not None:
-            return True
+        return self.car_type in ["hybrid", "electric"]
 
     @property
     def charging_complete_time(self):
@@ -1659,7 +1657,7 @@ class AudiConnectVehicle:
         if not self.remaining_charging_time_supported:
             return None
         # If there's no last update or remaining time, we can't calculate
-        if self.last_update_time is None or self.remaining_charging_time == 0:
+        if self.last_update_time is None or self.remaining_charging_time is None:
             return None
         # Calculate the complete time whenever there is a positive remaining time
         if self.remaining_charging_time > 0:
