@@ -599,7 +599,14 @@ class AudiConnectVehicle:
                 redacted_vin,
             )
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
-
+            # To enable detailed logging of raw vehicle position data for debugging purposes:
+            # 1. Remove the '#' from the start of the _LOGGER.debug line below.
+            # 2. Save the file.
+            # 3. Restart Home Assistant to apply the changes.
+            # Note: This will log sensitive data. To stop logging this data:
+            # 1. Add the '#' back at the start of the _LOGGER.debug line.
+            # 2. Save the file and restart Home Assistant again.
+            # _LOGGER.debug("POSITION - UNREDACTED SENSITIVE DATA: Raw vehicle position data: %s", resp)
             if resp is not None:
                 redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
