@@ -268,13 +268,6 @@ class VehicleDataResponse:
         val = self._getFromJson(json, loc)
         # _LOGGER.debug("Initial value retrieved for '%s': %s", name, val)
 
-        # Special handling for remainingChargingTime
-        if name == "remainingChargingTime" and val is None:
-            val = 0
-            _LOGGER.debug(
-                "TRY APPEND STATE: 'remainingChargingTime' adjusted to 0 due to None value"
-            )
-
         if val is not None:
             loc[tsoff:] = ["carCapturedTimestamp"]
             # _LOGGER.debug("Updated loc for timestamp retrieval: %s", loc)
