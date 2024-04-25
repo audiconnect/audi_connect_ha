@@ -1627,12 +1627,12 @@ class AudiConnectVehicle:
     def state_of_charge(self):
         """Return state of charge"""
         if self.state_of_charge_supported:
-            return parse_float(self._vehicle.state.get("stateOfCharge"))
+            return self._vehicle.state.get("stateOfCharge")
 
     @property
     def state_of_charge_supported(self):
         check = self._vehicle.state.get("stateOfCharge")
-        if check and parse_float(check):
+        if check:
             return True
 
     @property
