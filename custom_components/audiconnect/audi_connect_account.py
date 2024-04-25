@@ -606,7 +606,7 @@ class AudiConnectVehicle:
             # Note: This will log sensitive data. To stop logging this data:
             # 1. Add the '#' back at the start of the _LOGGER.debug line.
             # 2. Save the file and restart Home Assistant again.
-            #_LOGGER.debug("POSITION - UNREDACTED SENSITIVE DATA: Raw vehicle position data: %s", resp)
+            # _LOGGER.debug("POSITION - UNREDACTED SENSITIVE DATA: Raw vehicle position data: %s", resp)
             if resp is not None:
                 redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
@@ -1464,8 +1464,7 @@ class AudiConnectVehicle:
     @property
     def charging_mode_supported(self):
         check = self._vehicle.state.get("chargingMode")
-        if check is not None:
-            return True
+        return check is not None and check != "unsupported"
 
     @property
     def energy_flow(self):
