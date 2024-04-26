@@ -1672,6 +1672,16 @@ class AudiConnectVehicle:
         return self.charging_complete_time_frozen
 
     @property
+    def target_state_of_charge(self):
+        """Return state of charge"""
+        if self.target_state_of_charge_supported:
+            return parse_int(self._vehicle.state.get("targetstateOfCharge"))
+
+    @property
+    def target_state_of_charge_supported(self):
+        return parse_int(self._vehicle.state.get("targetstateOfCharge")) is not None
+
+    @property
     def plug_state(self):
         """Return plug state"""
         if self.plug_state_supported:
