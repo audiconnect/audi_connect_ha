@@ -361,13 +361,19 @@ class VehicleDataResponse:
         tsCarCapturedAccess = data["access"]["accessStatus"]["value"][
             "carCapturedTimestamp"
         ]
-        _LOGGER.debug("APPEND DOOR: Timestamp captured from car: %s", tsCarCapturedAccess)
+        _LOGGER.debug(
+            "APPEND DOOR: Timestamp captured from car: %s", tsCarCapturedAccess
+        )
         for door in doors:
             status = door["status"]
             name = door["name"]
-            _LOGGER.debug("APPEND DOOR: Processing door: %s with status: %s", name, status)
+            _LOGGER.debug(
+                "APPEND DOOR: Processing door: %s with status: %s", name, status
+            )
             if name + "Lock" not in self.OLDAPI_MAPPING:
-                _LOGGER.debug("APPEND DOOR: Skipping door not mapped in OLDAPI_MAPPING: %s", name)
+                _LOGGER.debug(
+                    "APPEND DOOR: Skipping door not mapped in OLDAPI_MAPPING: %s", name
+                )
                 continue
             lock = "0"
             open = "0"
@@ -386,7 +392,9 @@ class VehicleDataResponse:
                     "value": lock,
                     "tsCarCaptured": tsCarCapturedAccess,
                 }
-                _LOGGER.debug("APPEND DOOR: Appended door lock field: %s", doorFieldLock)
+                _LOGGER.debug(
+                    "APPEND DOOR: Appended door lock field: %s", doorFieldLock
+                )
                 self.data_fields.append(Field(doorFieldLock))
 
                 doorFieldOpen = {
@@ -394,7 +402,9 @@ class VehicleDataResponse:
                     "value": open,
                     "tsCarCaptured": tsCarCapturedAccess,
                 }
-                _LOGGER.debug("APPEND DOOR: Appended door open field: %s", doorFieldOpen)
+                _LOGGER.debug(
+                    "APPEND DOOR: Appended door open field: %s", doorFieldOpen
+                )
                 self.data_fields.append(Field(doorFieldOpen))
         _LOGGER.debug("APPEND DOOR: Finished appending doors")
 
@@ -404,15 +414,22 @@ class VehicleDataResponse:
         tsCarCapturedAccess = data["access"]["accessStatus"]["value"][
             "carCapturedTimestamp"
         ]
-        _LOGGER.debug("APPEND WINDOW: Timestamp captured from car: %s", tsCarCapturedAccess)
+        _LOGGER.debug(
+            "APPEND WINDOW: Timestamp captured from car: %s", tsCarCapturedAccess
+        )
         for window in windows:
             name = window["name"]
             status = window["status"]
-            _LOGGER.debug("APPEND WINDOW: Processing window: %s with status: %s", name, status)
+            _LOGGER.debug(
+                "APPEND WINDOW: Processing window: %s with status: %s", name, status
+            )
             if (
                 status[0] == "unsupported"
             ) or name + "Window" not in self.OLDAPI_MAPPING:
-                _LOGGER.debug("APPEND WINDOW: Skipping unsupported window or not mapped in OLDAPI_MAPPING: %s", name)
+                _LOGGER.debug(
+                    "APPEND WINDOW: Skipping unsupported window or not mapped in OLDAPI_MAPPING: %s",
+                    name,
+                )
                 continue
             windowField = {
                 "textId": self.OLDAPI_MAPPING[name + "Window"],
