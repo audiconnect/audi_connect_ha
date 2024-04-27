@@ -581,10 +581,12 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_position(self):
-        log_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:] if REDACT_LOGS else self._vehicle.vin
-        _LOGGER.debug(
-            "POSITION: Starting update_vehicle_position for VIN: %s", log_vin
+        log_vin = (
+            "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+            if REDACT_LOGS
+            else self._vehicle.vin
         )
+        _LOGGER.debug("POSITION: Starting update_vehicle_position for VIN: %s", log_vin)
 
         if not self.support_position:
             _LOGGER.debug(
@@ -630,7 +632,6 @@ class AudiConnectVehicle:
                         log_vin,
                         resp,
                     )
-                    
 
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
@@ -684,7 +685,11 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_climater(self):
-        log_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:] if REDACT_LOGS else self._vehicle.vin
+        log_vin = (
+            "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+            if REDACT_LOGS
+            else self._vehicle.vin
+        )
         if not self.support_climater:
             return
 
@@ -920,7 +925,11 @@ class AudiConnectVehicle:
         await self.update_vehicle_tripdata("shortTerm")
 
     async def update_vehicle_tripdata(self, kind: str):
-        log_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:] if REDACT_LOGS else self._vehicle.vin
+        log_vin = (
+            "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+            if REDACT_LOGS
+            else self._vehicle.vin
+        )
         if not self.support_trip_data:
             _LOGGER.debug(
                 "Trip data support is disabled for VIN: %s. Exiting update process.",

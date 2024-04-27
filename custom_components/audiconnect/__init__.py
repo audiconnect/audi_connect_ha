@@ -116,8 +116,9 @@ async def async_setup_entry(hass, config_entry):
     if REDACT_LOGS:
         _LOGGER.debug("Redacting user logs...")
     else:
-        _LOGGER.debug("User logs will not be redacted. Sensitive data may be visible...")
-
+        _LOGGER.debug(
+            "User logs will not be redacted. Sensitive data may be visible..."
+        )
 
     account = config_entry.data.get(CONF_USERNAME)
 
