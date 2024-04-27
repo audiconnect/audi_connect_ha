@@ -28,6 +28,7 @@ from .const import (
     MIN_UPDATE_INTERVAL,
     RESOURCES,
     COMPONENTS,
+    REDACT_LOGS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -111,6 +112,12 @@ async def async_setup_entry(hass, config_entry):
     # Get Active Scan Option - Default to True
     _scan_active = config_entry.options.get(CONF_SCAN_ACTIVE, True)
     _LOGGER.debug("User option for CONF_SCAN_ACTIVE is %s.", _scan_active)
+
+    if REDACT_LOGS:
+        _LOGGER.debug("Redacting user logs...")
+    else:
+        _LOGGER.debug("User logs will not be redacted. Sensitive data may be visible...")
+
 
     account = config_entry.data.get(CONF_USERNAME)
 
