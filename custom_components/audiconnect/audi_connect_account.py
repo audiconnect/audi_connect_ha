@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from .audi_services import AudiService
 from .audi_api import AudiAPI
 from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime
+from .const import REDACT_LOGS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -147,7 +148,7 @@ class AudiConnectAccount:
                         pass
 
     async def refresh_vehicle_data(self, vin: str):
-        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
+        log_vin = "*" * (len(vin) - 4) + vin[-4:] if REDACT_LOGS else vin
         if not self._loggedin:
             await self.login()
 
@@ -157,21 +158,21 @@ class AudiConnectAccount:
         if not self._support_vehicle_refresh:
             _LOGGER.debug(
                 "Vehicle refresh support is disabled for VIN: %s. Exiting update process.",
-                redacted_vin,
+                log_vin,
             )
             return "disabled"
 
         try:
             _LOGGER.debug(
                 "Sending command to refresh vehicle data for VIN: %s",
-                redacted_vin,
+                log_vin,
             )
 
             await self._audi_service.refresh_vehicle_data(vin)
 
             _LOGGER.debug(
                 "Successfully refreshed vehicle data for VIN: %s",
-                redacted_vin,
+                log_vin,
             )
 
             return True
@@ -179,7 +180,7 @@ class AudiConnectAccount:
         except TimeoutError:
             _LOGGER.debug(
                 "TimeoutError encountered while refreshing vehicle data for VIN: %s.",
-                redacted_vin,
+                log_vin,
             )
             return False
         except ClientResponseError as cre:
@@ -187,7 +188,7 @@ class AudiConnectAccount:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                 )
                 self._support_vehicle_refresh = False
                 return "disabled"
@@ -195,21 +196,21 @@ class AudiConnectAccount:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Error: %s",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                     cre,
                 )
                 return False
             else:
                 _LOGGER.debug(
                     "Refresh vehicle data currently not available for VIN: %s. Received 204 status.",
-                    redacted_vin,
+                    log_vin,
                 )
                 return False
 
         except Exception as e:
             _LOGGER.error(
                 "An unexpected error occurred while refreshing vehicle data for VIN: %s. Error: %s",
-                redacted_vin,
+                log_vin,
                 e,
             )
             return False
@@ -580,33 +581,24 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_position(self):
-        # Redact all but the last 4 characters of the VIN
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        log_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:] if REDACT_LOGS else self._vehicle.vin
         _LOGGER.debug(
-            "POSITION: Starting update_vehicle_position for VIN: %s", redacted_vin
+            "POSITION: Starting update_vehicle_position for VIN: %s", log_vin
         )
 
         if not self.support_position:
             _LOGGER.debug(
                 "POSITION: Vehicle position support is disabled for VIN: %s. Exiting update process.",
-                redacted_vin,
+                log_vin,
             )
             return
 
         try:
             _LOGGER.debug(
                 "POSITION: Attempting to retrieve stored vehicle position for VIN: %s",
-                redacted_vin,
+                log_vin,
             )
             resp = await self._audi_service.get_stored_position(self._vehicle.vin)
-            # To enable detailed logging of raw vehicle position data for debugging purposes:
-            # 1. Remove the '#' from the start of the _LOGGER.debug line below.
-            # 2. Save the file.
-            # 3. Restart Home Assistant to apply the changes.
-            # Note: This will log sensitive data. To stop logging this data:
-            # 1. Add the '#' back at the start of the _LOGGER.debug line.
-            # 2. Save the file and restart Home Assistant again.
-            # _LOGGER.debug("POSITION - UNREDACTED SENSITIVE DATA: Raw vehicle position data: %s", resp)
             if resp is not None:
                 redacted_lat = re.sub(r"\d", "#", str(resp["data"]["lat"]))
                 redacted_lon = re.sub(r"\d", "#", str(resp["data"]["lon"]))
@@ -621,16 +613,24 @@ class AudiConnectVehicle:
                     parktime = None
                     _LOGGER.debug(
                         "POSITION: Timestamp not available for vehicle position data of VIN: %s.",
-                        redacted_vin,
+                        log_vin,
                     )
-                _LOGGER.debug(
-                    "POSITION: Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
-                    redacted_vin,
-                    redacted_lat,
-                    redacted_lon,
-                    timestamp,
-                    parktime,
-                )
+                if REDACT_LOGS:
+                    _LOGGER.debug(
+                        "POSITION: Vehicle position data received for VIN: %s, lat: %s, lon: %s, timestamp: %s, parktime: %s",
+                        log_vin,
+                        redacted_lat,
+                        redacted_lon,
+                        timestamp,
+                        parktime,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "POSITION - UNREDACTED SENSITIVE DATA: Raw vehicle position data for VIN: %s: %s",
+                        log_vin,
+                        resp,
+                    )
+                    
 
                 self._vehicle.state["position"] = {
                     "latitude": resp["data"]["lat"],
@@ -641,18 +641,18 @@ class AudiConnectVehicle:
 
                 _LOGGER.debug(
                     "POSITION: Vehicle position updated successfully for VIN: %s",
-                    redacted_vin,
+                    log_vin,
                 )
             else:
                 _LOGGER.warning(
                     "POSITION: No vehicle position data received for VIN: %s. Response was None.",
-                    redacted_vin,
+                    log_vin,
                 )
 
         except TimeoutError:
             _LOGGER.error(
                 "POSITION: TimeoutError encountered while updating vehicle position for VIN: %s.",
-                redacted_vin,
+                log_vin,
             )
             raise
         except ClientResponseError as cre:
@@ -660,31 +660,31 @@ class AudiConnectVehicle:
                 _LOGGER.error(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Disabling vehicle position support.",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                 )
                 self.support_position = False
             elif cre.status != 204:
                 _LOGGER.error(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Error: %s",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                     cre,
                 )
             else:
                 _LOGGER.debug(
                     "POSITION: Vehicle position currently not available for VIN: %s. Received 204 status.",
-                    redacted_vin,
+                    log_vin,
                 )
 
         except Exception as e:
             _LOGGER.error(
                 "POSITION: An unexpected error occurred while updating vehicle position for VIN: %s. Error: %s",
-                redacted_vin,
+                log_vin,
                 e,
             )
 
     async def update_vehicle_climater(self):
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        log_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:] if REDACT_LOGS else self._vehicle.vin
         if not self.support_climater:
             return
 
@@ -739,13 +739,13 @@ class AudiConnectVehicle:
             else:
                 _LOGGER.debug(
                     "No climater data received for VIN: %s. Response was None.",
-                    redacted_vin,
+                    log_vin,
                 )
 
         except TimeoutError:
             _LOGGER.debug(
                 "TimeoutError encountered while updating climater for VIN: %s.",
-                redacted_vin,
+                log_vin,
             )
             raise
         except ClientResponseError as cre:
@@ -753,26 +753,26 @@ class AudiConnectVehicle:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                 )
                 self.support_climater = False
             elif cre.status != 204:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating climater for VIN: %s. Error: %s",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                     cre,
                 )
             else:
                 _LOGGER.debug(
                     "Climater currently not available for VIN: %s. Received 204 status.",
-                    redacted_vin,
+                    log_vin,
                 )
 
         except Exception as e:
             _LOGGER.error(
                 "An unexpected error occurred while updating climater for VIN: %s. Error: %s",
-                redacted_vin,
+                log_vin,
                 e,
             )
 
@@ -920,11 +920,11 @@ class AudiConnectVehicle:
         await self.update_vehicle_tripdata("shortTerm")
 
     async def update_vehicle_tripdata(self, kind: str):
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        log_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:] if REDACT_LOGS else self._vehicle.vin
         if not self.support_trip_data:
             _LOGGER.debug(
                 "Trip data support is disabled for VIN: %s. Exiting update process.",
-                redacted_vin,
+                log_vin,
             )
             return
         try:
@@ -959,7 +959,7 @@ class AudiConnectVehicle:
         except TimeoutError:
             _LOGGER.debug(
                 "TimeoutError encountered while updating trip data for VIN: %s.",
-                redacted_vin,
+                log_vin,
             )
             raise
         except ClientResponseError as cre:
@@ -967,26 +967,26 @@ class AudiConnectVehicle:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                 )
                 self.support_trip_data = False
             elif cre.status != 204:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating trip data for VIN: %s. Error: %s",
                     cre.status,
-                    redacted_vin,
+                    log_vin,
                     cre,
                 )
             else:
                 _LOGGER.debug(
                     "Trip data currently not available for VIN: %s. Received 204 status.",
-                    redacted_vin,
+                    log_vin,
                 )
 
         except Exception as e:
             _LOGGER.error(
                 "An unexpected error occurred while updating trip data for VIN: %s. Error: %s",
-                redacted_vin,
+                log_vin,
                 e,
             )
 
