@@ -34,6 +34,7 @@ from .const import (
     TRACKER_UPDATE,
     COMPONENTS,
     UPDATE_SLEEP,
+    REDACT_LOGS,
 )
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
@@ -257,22 +258,22 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
-        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
+        log_vin = "*" * (len(vin) - 4) + vin[-4:] if REDACT_LOGS else vin
         res = await self.connection.refresh_vehicle_data(vin)
 
         if res is True:
-            _LOGGER.debug("Refresh vehicle data successful for VIN: %s", redacted_vin)
+            _LOGGER.debug("Refresh vehicle data successful for VIN: %s", log_vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
-                {"vin": redacted_vin},
+                {"vin": log_vin},
             )
         elif res == "disabled":
-            _LOGGER.debug("Refresh vehicle data is disabled for VIN: %s", redacted_vin)
+            _LOGGER.debug("Refresh vehicle data is disabled for VIN: %s", log_vin)
         else:
-            _LOGGER.debug("Refresh vehicle data failed for VIN: %s", redacted_vin)
+            _LOGGER.debug("Refresh vehicle data failed for VIN: %s", log_vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT),
-                {"vin": redacted_vin},
+                {"vin": log_vin},
             )
 
         _LOGGER.debug("Requesting to refresh cloud data in %d seconds...", UPDATE_SLEEP)
