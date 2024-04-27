@@ -16,6 +16,8 @@ CONF_SCAN_ACTIVE = "scan_active"
 MIN_UPDATE_INTERVAL = 15
 DEFAULT_UPDATE_INTERVAL = 15
 UPDATE_SLEEP = 5
+# Set REDACT_LOGS to False to view unredacted logs, or True to keep logs redacted.
+REDACT_LOGS = True
 
 CONF_SPIN = "spin"
 CONF_REGION = "region"
