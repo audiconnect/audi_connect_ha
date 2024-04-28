@@ -57,13 +57,16 @@ def parse_datetime(time_value):
                 continue
     return None
 
+
 def log_account_email(email):
     if "@" not in email:
         return email
     if REDACT_LOGS:
         local_part, domain = email.split("@")
         if len(local_part) > 2:
-            redacted_local = local_part[0] + "*" * (len(local_part) - 2) + local_part[-1]
+            redacted_local = (
+                local_part[0] + "*" * (len(local_part) - 2) + local_part[-1]
+            )
         else:
             redacted_local = local_part[0] + "*" * (len(local_part) - 1)
         return redacted_local + "@" + domain
