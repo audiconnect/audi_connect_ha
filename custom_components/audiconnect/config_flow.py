@@ -167,9 +167,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         self.config_entry: config_entries.ConfigEntry = config_entry
         log_account = log_account_email(config_entry.title)
-        _LOGGER.debug(
-            "Initializing options flow for audiconnect: %s", log_account
-        )
+        _LOGGER.debug("Initializing options flow for audiconnect: %s", log_account)
 
     async def async_step_init(self, user_input=None):
         log_account = log_account_email(self.config_entry.title)
