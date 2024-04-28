@@ -21,6 +21,7 @@ from .const import (
     CONF_SCAN_INITIAL,
     CONF_SCAN_ACTIVE,
 )
+from .util import log_account_email
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -140,7 +141,8 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 raise Exception("Unexpected error communicating with the Audi server")
 
         except Exception:
-            _LOGGER.error("Invalid credentials for %s", username)
+            log_account = log_account_email(username)
+            _LOGGER.error("Invalid credentials for %s", log_account)
             return self.async_abort(reason="invalid_credentials")
 
         return self.async_create_entry(
@@ -164,31 +166,38 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         self.config_entry: config_entries.ConfigEntry = config_entry
+        log_account = log_account_email(config_entry.title)
         _LOGGER.debug(
-            "Initializing options flow for audiconnect: %s", config_entry.title
+            "Initializing options flow for audiconnect: %s", log_account
         )
 
     async def async_step_init(self, user_input=None):
+        log_account = log_account_email(self.config_entry.title)
         _LOGGER.debug(
-            "Options flow initiated for audiconnect: %s", self.config_entry.title
+            "Options flow initiated for audiconnect: %s",
+            log_account,
         )
         if user_input is not None:
-            _LOGGER.info("Received user input for options: %s", user_input)
+            _LOGGER.debug(
+                "Received user input for audiconnect %s options: %s",
+                log_account,
+                user_input,
+            )
             return self.async_create_entry(title="", data=user_input)
 
         current_scan_interval = self.config_entry.options.get(
             CONF_SCAN_INTERVAL,
             self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
-        _LOGGER.info(
+        _LOGGER.debug(
             "Retrieved current scan interval for audiconnect %s: %s minutes",
-            self.config_entry.title,
+            log_account,
             current_scan_interval,
         )
 
         _LOGGER.debug(
             "Preparing options form for %s with default scan interval: %s minutes, initial scan: %s, active scan: %s",
-            self.config_entry.title,
+            log_account,
             current_scan_interval,
             self.config_entry.options.get(CONF_SCAN_INITIAL, True),
             self.config_entry.options.get(CONF_SCAN_ACTIVE, True),
