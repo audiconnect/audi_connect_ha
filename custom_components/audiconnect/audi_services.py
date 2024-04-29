@@ -14,7 +14,6 @@ from .audi_models import (
 )
 from .audi_api import AudiAPI
 from .util import to_byte_array, get_attr, log_vin
-from .const import REDACT_LOGS
 
 from hashlib import sha256, sha512
 import hmac
