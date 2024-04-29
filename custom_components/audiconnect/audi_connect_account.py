@@ -1232,6 +1232,7 @@ class AudiConnectVehicle:
         checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
         checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
         checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER", None)
+        checkRoofCover = self._vehicle.fields.get("STATE_ROOF_COVER_WINDOW", None)
         acceptable_window_states = ["3", "0", None]
         if (
             checkLeftFront
@@ -1239,6 +1240,7 @@ class AudiConnectVehicle:
             and checkRightFront
             and checkRightRear
             and (checkSunRoof in acceptable_window_states)
+            and (checkRoofCover in acceptable_window_states)
         ):
             return True
 
@@ -1250,6 +1252,7 @@ class AudiConnectVehicle:
             checkRightFront = self._vehicle.fields.get("STATE_RIGHT_FRONT_WINDOW")
             checkRightRear = self._vehicle.fields.get("STATE_RIGHT_REAR_WINDOW")
             checkSunRoof = self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER", None)
+            checkRoofCover = self._vehicle.fields.get("STATE_ROOF_COVER_WINDOW", None)
             acceptable_window_states = ["3", None]
             return not (
                 checkLeftFront == "3"
@@ -1257,6 +1260,7 @@ class AudiConnectVehicle:
                 and checkRightFront == "3"
                 and checkRightRear == "3"
                 and (checkSunRoof in acceptable_window_states)
+                and (checkRoofCover in acceptable_window_states)
             )
 
     @property
@@ -1303,6 +1307,15 @@ class AudiConnectVehicle:
     def sun_roof(self):
         if self.sun_roof_supported:
             return self._vehicle.fields.get("STATE_SUN_ROOF_MOTOR_COVER") != "3"
+
+    @property
+    def roof_cover_supported(self):
+        return self._vehicle.fields.get("STATE_ROOF_COVER_WINDOW")
+
+    @property
+    def roof_cover(self):
+        if self.roof_cover_supported:
+            return self._vehicle.fields.get("STATE_ROOF_COVER_WINDOW") != "3"
 
     @property
     def any_door_unlocked_supported(self):
