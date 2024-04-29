@@ -12,7 +12,14 @@ from abc import ABC, abstractmethod
 
 from .audi_services import AudiService
 from .audi_api import AudiAPI
-from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime, log_vin
+from .util import (
+    log_exception,
+    get_attr,
+    parse_int,
+    parse_float,
+    parse_datetime,
+    log_vin,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
