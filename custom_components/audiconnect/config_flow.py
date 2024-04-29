@@ -20,6 +20,7 @@ from .const import (
     MIN_UPDATE_INTERVAL,
     CONF_SCAN_INITIAL,
     CONF_SCAN_ACTIVE,
+    REDACT_LOGS,
 )
 from .util import log_account_email
 
