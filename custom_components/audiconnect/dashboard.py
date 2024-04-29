@@ -674,6 +674,11 @@ def create_instruments():
             device_class=BinarySensorDeviceClass.WINDOW,
         ),
         BinarySensor(
+            attr="roof_cover",
+            name="Roof Cover",
+            device_class=BinarySensorDeviceClass.WINDOW,
+        ),
+        BinarySensor(
             attr="parking_light",
             name="Parking light",
             device_class=BinarySensorDeviceClass.SAFETY,

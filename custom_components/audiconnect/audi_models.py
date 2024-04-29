@@ -40,6 +40,7 @@ class VehicleDataResponse:
         "frontRightWindow": "STATE_RIGHT_FRONT_WINDOW",
         "rearLeftWindow": "STATE_LEFT_REAR_WINDOW",
         "rearRightWindow": "STATE_RIGHT_REAR_WINDOW",
+        "roofCoverWindow": "STATE_ROOF_COVER_WINDOW",
     }
 
     def __init__(self, data):
