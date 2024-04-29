@@ -16,6 +16,7 @@ from homeassistant.const import (
 from .dashboard import Dashboard
 from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
 from .audi_models import VehicleData
+from .util import log_vin
 
 from .const import (
     DOMAIN,
@@ -34,7 +35,6 @@ from .const import (
     TRACKER_UPDATE,
     COMPONENTS,
     UPDATE_SLEEP,
-    REDACT_LOGS,
 )
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
@@ -258,7 +258,7 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
-        log_vin = "*" * (len(vin) - 4) + vin[-4:] if REDACT_LOGS else vin
+        log_vin = log_vin(vin)
         res = await self.connection.refresh_vehicle_data(vin)
 
         if res is True:
