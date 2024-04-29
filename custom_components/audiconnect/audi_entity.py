@@ -74,10 +74,15 @@ class AudiEntity(Entity):
 
     @property
     def device_info(self):
-        model_only = self._instrument.vehicle_model.replace("Audi ", "")
+        if self._instrument.vehicle_model:
+            model_info = self._instrument.vehicle_model.replace("Audi ", "")
+        elif self._instrument.vehicle_name:
+            model_info = self._instrument.vehicle_name
+        else:
+            model_info = "Unknown"
         return DeviceInfo(
             identifiers={(DOMAIN, self._instrument.vehicle_name)},
             manufacturer="Audi",
             name=self._instrument.vehicle_name,
-            model="{} ({})".format(model_only, self._instrument.vehicle_model_year),
+            model="{} ({})".format(model_info, self._instrument.vehicle_model_year),
         )
