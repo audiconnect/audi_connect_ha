@@ -13,7 +13,7 @@ from .audi_models import (
     VehiclesResponse,
 )
 from .audi_api import AudiAPI
-from .util import to_byte_array, get_attr
+from .util import to_byte_array, get_attr, log_vin
 from .const import REDACT_LOGS
 
 from hashlib import sha256, sha512
@@ -162,7 +162,7 @@ class AudiService:
         )
 
     async def get_stored_vehicle_data(self, vin: str):
-        log_vin = "*" * (len(vin) - 4) + vin[-4:] if REDACT_LOGS else vin
+        log_vin = log_vin(vin)
         JOBS2QUERY = {
             "access",
             "activeVentilation",
