@@ -113,7 +113,7 @@ async def async_setup_entry(hass, config_entry):
     _scan_active = config_entry.options.get(CONF_SCAN_ACTIVE, True)
     _LOGGER.debug("User option for CONF_SCAN_ACTIVE is %s.", _scan_active)
 
-    if REDACT_LOGS:
+    if config_entry.options.get(REDACT_LOGS, True):
         _LOGGER.debug("Redacting user logs...")
     else:
         _LOGGER.debug(
