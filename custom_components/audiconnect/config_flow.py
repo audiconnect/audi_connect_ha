@@ -194,11 +194,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         _LOGGER.debug(
-            "Preparing options form for %s with default scan interval: %s minutes, initial scan: %s, active scan: %s",
+            "Preparing options form for %s with scan interval: %s minutes, initial scan: %s, active scan: %s, redact logs: %s",
             log_account,
             current_scan_interval,
             self.config_entry.options.get(CONF_SCAN_INITIAL, True),
             self.config_entry.options.get(CONF_SCAN_ACTIVE, True),
+            self.config_entry.options.get(REDACT_LOGS, True),
         )
 
         return self.async_show_form(
@@ -216,6 +217,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
+                    vol.Required(
+                        REDACT_LOGS,
+                        default=self.config_entry.options.get(REDACT_LOGS, True),
+                    ): bool,
                 }
             ),
         )
