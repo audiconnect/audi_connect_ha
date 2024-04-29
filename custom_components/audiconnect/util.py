@@ -59,6 +59,7 @@ def parse_datetime(time_value):
 
 
 def log_account_email(email):
+    """Redacts users account email address from logs based on user option REDACT_LOGS"""
     if "@" not in email:
         return email
     if REDACT_LOGS:
@@ -72,3 +73,11 @@ def log_account_email(email):
         return redacted_local + "@" + domain
     else:
         return email
+
+
+def log_vin(vin):
+    """Redacts vehicle vin from logs based on user option REDACT_LOGS"""
+    if REDACT_LOGS:
+        return "*" * (len(vin) - 4) + vin[-4:]
+    else:
+        return vin
