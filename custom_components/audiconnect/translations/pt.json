@@ -1,0 +1,40 @@
+{
+  "config": {
+    "abort": {
+      "invalid_credentials": "Credenciais inválidas",
+      "user_already_configured": "A conta já foi configurada"
+    },
+    "create_entry": {},
+    "error": {
+      "invalid_credentials": "Credenciais inválidas",
+      "invalid_username": "Nome de utilizador inválido",
+      "unexpected": "Erro inesperado na comunicação com o servidor Audi Connect",
+      "user_already_configured": "A conta já foi configurada"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Senha",
+          "username": "Nome de utilizador",
+          "spin": "S-PIN",
+          "region": "Região",
+          "scan_interval": "Intervalo de pesquisa"
+        },
+        "title": "Informações da conta Audi Connect "
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Intervalo de pesquisa"
+        },
+        "title": "Opções Audi Connect",
+        "data_description": {
+          "scan_interval": "(Minutos) É necessário reiniciar para que o novo intervalo de verificação entre em vigor."
+        }
+      }
+    }
+  }
+}
