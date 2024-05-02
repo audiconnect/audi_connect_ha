@@ -293,6 +293,7 @@ class AudiConnectAccount:
         seat_rl: bool,
         seat_rr: bool,
     ):
+        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
         if not self._loggedin:
             await self.login()
 
@@ -300,10 +301,6 @@ class AudiConnectAccount:
             return False
 
         try:
-            _LOGGER.debug(
-                f"Sending command to start climate control for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}"
-            )
-
             await self._audi_service.start_climate_control(
                 vin,
                 temp_f,
@@ -315,7 +312,7 @@ class AudiConnectAccount:
                 seat_rr,
             )
 
-            _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
+            _LOGGER.debug("Successfully started climate control of vehicle with VIN: %s", redacted_vin)
 
             await self.notify(vin, ACTION_CLIMATISATION)
 
@@ -323,7 +320,9 @@ class AudiConnectAccount:
 
         except Exception as exception:
             _LOGGER.error(
-                f"Unable to start climate control of vehicle {vin}. Error: {exception}",
+                "Unable to start climate control of vehicle with VIN: %s. Error: %s",
+                redacted_vin,
+                exception,
                 exc_info=True,
             )
             return False
