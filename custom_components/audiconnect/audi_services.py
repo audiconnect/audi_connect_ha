@@ -591,6 +591,10 @@ class AudiService:
         seat_rl: bool,
         seat_rr: bool,
     ):
+        seat_fl = False if seat_fl is None else seat_fl
+        seat_fr = False if seat_fr is None else seat_fr
+        seat_rl = False if seat_rl is None else seat_rl
+        seat_rr = False if seat_rr is None else seat_rr
         target_temperature = None
         if temp_f is not None:
             target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
