@@ -1,0 +1,130 @@
+{
+  "config": {
+    "abort": {
+      "invalid_credentials": "Informations d'identification invalides",
+      "user_already_configured": "Le compte a déjà été configuré"
+    },
+    "create_entry": {},
+    "error": {
+      "invalid_credentials": "Informations d'identification invalides",
+      "invalid_username": "Nom d'utilisateur invalide",
+      "unexpected": "Erreur inattendue lors de la communication avec le serveur Audi Connect",
+      "user_already_configured": "Le compte a déjà été configuré"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Mot de passe",
+          "username": "Nom d'utilisateur",
+          "spin": "S-PIN",
+          "region": "Région",
+          "scan_interval": "Intervalle de scan"
+        },
+        "title": "Informations sur le compte Audi Connect"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_initial": "Mise à jour du cloud au démarrage",
+          "scan_active": "Intervalle de mises à jour actives",
+          "scan_interval": "Intervalle de mises à jour"
+        },
+        "title": "Options Audi Connect",
+        "data_description": {
+          "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
+          "scan_active": "Effectuer une mise à jour du cloud à intervalle régulier défini.",
+          "scan_interval": "Minutes entre les mises à jour actives. Si 'Intervalle de mises à jour actives' est désactivé, cette valeur n'aura aucun impact."
+        }
+      }
+    }
+  },
+  "selector": {
+    "vehicle_actions": {
+      "options": {
+        "lock": "Verrouiller",
+        "unlock": "Déverrouiller",
+        "start_climatisation": "Démarrer climatisation (Hérité)",
+        "stop_climatisation": "Arrêter climatisation",
+        "start_charger": "Démarrer chargeur",
+        "start_timed_charger": "Démarrage chronométré du chargeur",
+        "stop_charger": "Arrêter Chargeur",
+        "start_preheater": "Démarrer préchauffage",
+        "stop_preheater": "Arrêter préchauffage",
+        "start_window_heating": "Démarrer chauffage des fenêtres",
+        "stop_window_heating": "Arrêter chauffage des fenêtres"
+      }
+    }
+  },
+  "services": {
+    "refresh_vehicle_data": {
+      "name": "Actualiser les données du véhicule",
+      "description": "Demande directement une mise à jour de l'état du véhicule, contrairement au mécanisme de mise à jour normal qui récupère uniquement les données du cloud.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Le Vehicle Identification Number (VIN) du véhicule Audi. Il doit s'agir d'un identifiant de 17 caractères unique à chaque véhicule."
+        }
+      }
+    },
+    "execute_vehicle_action": {
+      "name": "Exécuter l'action du véhicule",
+      "description": "Effectue diverses actions sur le véhicule.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Le Vehicle Identification Number (VIN) du véhicule Audi. Il doit s'agir d'un identifiant de 17 caractères unique à chaque véhicule."
+        },
+        "action": {
+          "name": "Action",
+          "description": "L'action spécifique à effectuer sur le véhicule. Noter que les actions disponibles peuvent varier en fonction du véhicule.",
+          "example": "Verrouiller"
+        }
+      }
+    },
+    "start_climate_control": {
+      "name": "Démarrer la climatisation",
+      "description": "Démarrez la climatisation avec des options de température, de chauffage des vitres et de confort des sièges auto.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Le Vehicle Identification Number (VIN) du véhicule Audi. Il doit s'agir d'un identifiant de 17 caractères unique à chaque véhicule."
+        },
+        "temp_f": {
+          "name": "Température cible (Fahrenheit)",
+          "description": "(Optionel) Régler la température en °F. La valeur par défaut est 70°F si elle n'est pas fournie. Remplace 'temp_c'."
+        },
+        "temp_c": {
+          "name": "Température cible (Celsius)",
+          "description": "(Facultatif) Régler la température en °C. La valeur par défaut est 21°C si elle n'est pas fournie. Remplacé si 'temp_f' est fourni."
+        },
+        "glass_heating": {
+          "name": "Chauffage des vitres",
+          "description": "(Facultatif) Activer ou désactiver le chauffage des surfaces vitrées."
+        },
+        "seat_fl": {
+          "name": "Confort du siège auto: Avant-Gauche",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège avant gauche."
+        },
+        "seat_fr": {
+          "name": "Confort du siège auto: Avant-Droit",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège avant droit."
+        },
+        "seat_rl": {
+          "name": "Confort du siège auto: Arrière-Gauche",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège arrière gauche."
+        },
+        "seat_rr": {
+          "name": "Confort du siège auto: Arrière-Droit",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège arrière droit."
+        }
+      }
+    },
+    "refresh_cloud_data": {
+      "name": "Actualiser les données cloud",
+      "description": "Récupère les données cloud actuelles sans déclencher une actualisation du véhicule. Les données peuvent être obsolètes si le véhicule n'a pas été vérifié récemment."
+    }
+  }
+}
