@@ -11,7 +11,7 @@ jobs:
 
       - name: Gets semantic release info
         id: semantic_release_info
-        uses: jossef/action-semantic-release-info@v2
+        uses: jossef/action-semantic-release-info@v3.0.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Update Version and Commit
@@ -34,7 +34,7 @@ jobs:
 
       - name: Create GitHub Release
         if: ${{steps.semantic_release_info.outputs.version != ''}}
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1.14.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
