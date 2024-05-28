@@ -740,7 +740,7 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    # TR/2022-12-20: New secrect for X_QMAuth
+    # TR/2022-12-20: New secret for X_QMAuth
     def _calculate_X_QMAuth(self):
         # Calculate X-QMAuth value
         gmtime_100sec = int(
