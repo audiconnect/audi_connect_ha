@@ -591,17 +591,21 @@ class AudiService:
         seat_rl: bool,
         seat_rr: bool,
     ):
-        seat_fl = False if seat_fl is None else seat_fl
-        seat_fr = False if seat_fr is None else seat_fr
-        seat_rl = False if seat_rl is None else seat_rl
-        seat_rr = False if seat_rr is None else seat_rr
+        # Handle None values for glass and seat heating
+        glass_heating = glass_heating if glass_heating is not None else False
+        seat_fl = seat_fl if seat_fl is not None else False
+        seat_fr = seat_fr if seat_fr is not None else False
+        seat_rl = seat_rl if seat_rl is not None else False
+        seat_rr = seat_rr if seat_rr is not None else False
+
+        # Temperature Conversion
         target_temperature = None
         if temp_f is not None:
             target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
         elif temp_c is not None:
             target_temperature = int(temp_c * 10 + 2731)
 
-        # Default Temp
+        # Default Temperature if None is provided
         target_temperature = target_temperature or 2941
 
         # Construct Zone Settings
