@@ -16,6 +16,7 @@ from homeassistant.const import (
 from .dashboard import Dashboard
 from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
 from .audi_models import VehicleData
+from .util import log_vin
 
 from .const import (
     DOMAIN,
@@ -257,22 +258,22 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):
-        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
+        log_vin = log_vin(vin)
         res = await self.connection.refresh_vehicle_data(vin)
 
         if res is True:
-            _LOGGER.debug("Refresh vehicle data successful for VIN: %s", redacted_vin)
+            _LOGGER.debug("Refresh vehicle data successful for VIN: %s", log_vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_COMPLETED_EVENT),
-                {"vin": redacted_vin},
+                {"vin": log_vin},
             )
         elif res == "disabled":
-            _LOGGER.debug("Refresh vehicle data is disabled for VIN: %s", redacted_vin)
+            _LOGGER.debug("Refresh vehicle data is disabled for VIN: %s", log_vin)
         else:
-            _LOGGER.debug("Refresh vehicle data failed for VIN: %s", redacted_vin)
+            _LOGGER.debug("Refresh vehicle data failed for VIN: %s", log_vin)
             self.hass.bus.fire(
                 "{}_{}".format(DOMAIN, REFRESH_VEHICLE_DATA_FAILED_EVENT),
-                {"vin": redacted_vin},
+                {"vin": log_vin},
             )
 
         _LOGGER.debug("Requesting to refresh cloud data in %d seconds...", UPDATE_SLEEP)
