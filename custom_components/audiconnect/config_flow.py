@@ -38,6 +38,7 @@ def configured_accounts(hass):
 class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize."""
+        VERSION = 2
         self._username = vol.UNDEFINED
         self._password = vol.UNDEFINED
         self._spin = vol.UNDEFINED

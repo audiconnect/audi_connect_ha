@@ -2,7 +2,7 @@ import logging
 import voluptuous as vol
 import asyncio
 
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_send,
 )
@@ -38,7 +38,6 @@ from .const import (
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
-
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
 SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema(
     {
@@ -200,7 +199,9 @@ class AudiAccount(AudiConnectObserver):
         return True
 
     async def execute_vehicle_action(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         action = service.data.get(CONF_ACTION).lower()
 
         if action == "lock":
@@ -253,7 +254,9 @@ class AudiAccount(AudiConnectObserver):
         await self._refresh_vehicle_data(vin)
 
     async def refresh_vehicle_data(self, service):
-        vin = service.data.get(CONF_VIN).lower()
+        device_id = service.data.get(CONF_VIN).lower()
+        device = dr.async_get(self.hass).async_get(device_id)
+        vin = dict(device.identifiers).get(DOMAIN)
         await self._refresh_vehicle_data(vin)
 
     async def _refresh_vehicle_data(self, vin):

@@ -2,22 +2,21 @@
 
 refresh_vehicle_data:
   fields:
-    vin:
+    device_id:
       required: true
-      example: WBANXXXXXX1234567
       selector:
-        text:
+        device:
+          integration: audiconnect
 
 execute_vehicle_action:
   fields:
-    vin:
+    device_id:
       required: true
-      example: WBANXXXXXX1234567
       selector:
-        text:
+        device:
+          integration: audiconnect
     action:
       required: true
-      example: "lock"
       selector:
         select:
           translation_key: vehicle_actions
@@ -36,11 +35,11 @@ execute_vehicle_action:
 
 start_climate_control:
   fields:
-    vin:
+    device_id:
       required: true
-      example: WBANXXXXXX1234567
       selector:
-        text:
+        device:
+          integration: audiconnect
     temp_f:
       selector:
         number:

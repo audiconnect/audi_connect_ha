@@ -15,7 +15,7 @@ class AudiEntity(Entity):
         """Initialize the entity."""
         self._data = data
         self._instrument = instrument
-        self._vin = self._instrument.vehicle_name
+        self._vin = self._instrument.vehicle_vin
         self._component = self._instrument.component
         self._attribute = self._instrument.attr
 
@@ -70,7 +70,7 @@ class AudiEntity(Entity):
 
     @property
     def unique_id(self):
-        return self._instrument.full_name
+        return self._instrument.vehicle_vin
 
     @property
     def device_info(self):
