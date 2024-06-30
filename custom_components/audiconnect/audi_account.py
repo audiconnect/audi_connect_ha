@@ -227,16 +227,29 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, False)
 
     async def start_climate_control(self, service):
-        _LOGGER.info("Initiating Start Climate Control Service...")
+        _LOGGER.debug("Initiating Start Climate Control Service...")
         vin = service.data.get(CONF_VIN).lower()
+        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
         # Optional Parameters
         temp_f = service.data.get(CONF_CLIMATE_TEMP_F, None)
         temp_c = service.data.get(CONF_CLIMATE_TEMP_C, None)
-        glass_heating = service.data.get(CONF_CLIMATE_GLASS, False)
-        seat_fl = service.data.get(CONF_CLIMATE_SEAT_FL, False)
-        seat_fr = service.data.get(CONF_CLIMATE_SEAT_FR, False)
-        seat_rl = service.data.get(CONF_CLIMATE_SEAT_RL, False)
-        seat_rr = service.data.get(CONF_CLIMATE_SEAT_RR, False)
+        glass_heating = service.data.get(CONF_CLIMATE_GLASS, None)
+        seat_fl = service.data.get(CONF_CLIMATE_SEAT_FL, None)
+        seat_fr = service.data.get(CONF_CLIMATE_SEAT_FR, None)
+        seat_rl = service.data.get(CONF_CLIMATE_SEAT_RL, None)
+        seat_rr = service.data.get(CONF_CLIMATE_SEAT_RR, None)
+
+        _LOGGER.debug(
+            "Sending command to start climate control for vehicle %s with settings - Temp(F): %s, Temp(C): %s, Glass Heating: %s, Seat FL: %s, Seat FR: %s, Seat RL: %s, Seat RR: %s",
+            redacted_vin,
+            temp_f,
+            temp_c,
+            glass_heating,
+            seat_fl,
+            seat_fr,
+            seat_rl,
+            seat_rr,
+        )
 
         await self.connection.start_climate_control(
             vin,
