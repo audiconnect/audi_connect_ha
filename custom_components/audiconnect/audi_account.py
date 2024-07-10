@@ -119,7 +119,7 @@ class AudiAccount(AudiConnectObserver):
         # """Return true if the user has enabled the resource."""
         # return attr in config[DOMAIN].get(CONF_RESOURCES, [attr])
 
-    def discover_vehicles(self, vehicles):
+    async def discover_vehicles(self, vehicles):
         if len(vehicles) > 0:
             for vehicle in vehicles:
                 vin = vehicle.vin.lower()
@@ -149,30 +149,20 @@ class AudiAccount(AudiConnectObserver):
                     if instrument._component == "lock":
                         cfg_vehicle.locks.add(instrument)
 
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "sensor"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, "sensor"
             )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "binary_sensor"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, "binary_sensor"
             )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "switch"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, "switch"
             )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "device_tracker"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, "device_tracker"
             )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "lock"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, "lock"
             )
 
     async def update(self, now):
@@ -188,7 +178,7 @@ class AudiAccount(AudiConnectObserver):
         ]
         if new_vehicles:
             _LOGGER.debug("Retrieved %d vehicle(s)", len(new_vehicles))
-        self.discover_vehicles(new_vehicles)
+        await self.discover_vehicles(new_vehicles)
 
         async_dispatcher_send(self.hass, SIGNAL_STATE_UPDATED)
 
