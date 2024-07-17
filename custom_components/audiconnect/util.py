@@ -1,5 +1,6 @@
 from functools import reduce
 from datetime import datetime, timezone
+from .const import REDACT_LOGS
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,3 +56,28 @@ def parse_datetime(time_value):
             except ValueError:
                 continue
     return None
+
+
+def log_account_email(email):
+    """Redacts users account email address from logs based on user option REDACT_LOGS"""
+    if "@" not in email:
+        return email
+    if REDACT_LOGS:
+        local_part, domain = email.split("@")
+        if len(local_part) > 2:
+            redacted_local = (
+                local_part[0] + "*" * (len(local_part) - 2) + local_part[-1]
+            )
+        else:
+            redacted_local = local_part[0] + "*" * (len(local_part) - 1)
+        return redacted_local + "@" + domain
+    else:
+        return email
+
+
+def log_vin(vin):
+    """Redacts vehicle vin from logs based on user option REDACT_LOGS"""
+    if REDACT_LOGS:
+        return "*" * (len(vin) - 4) + vin[-4:]
+    else:
+        return vin

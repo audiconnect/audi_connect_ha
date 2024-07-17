@@ -13,7 +13,7 @@ from .audi_models import (
     VehiclesResponse,
 )
 from .audi_api import AudiAPI
-from .util import to_byte_array, get_attr
+from .util import to_byte_array, get_attr, log_vin
 
 from hashlib import sha256, sha512
 import hmac
@@ -161,7 +161,7 @@ class AudiService:
         )
 
     async def get_stored_vehicle_data(self, vin: str):
-        redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
+        log_vin = log_vin(vin)
         JOBS2QUERY = {
             "access",
             "activeVentilation",
@@ -195,7 +195,7 @@ class AudiService:
                 jobs=",".join(JOBS2QUERY),
             )
         )
-        _LOGGER.debug("Vehicle data returned for VIN: %s: %s", redacted_vin, data)
+        _LOGGER.debug("Vehicle data returned for VIN: %s: %s", log_vin, data)
         return VehicleDataResponse(data)
 
     async def get_charger(self, vin: str):
