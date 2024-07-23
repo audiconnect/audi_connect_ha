@@ -1,40 +1,35 @@
-import logging
-import voluptuous as vol
 import asyncio
+import logging
 
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_send,
-)
+import voluptuous as vol
+
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.dt import utcnow
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-)
 
-from .dashboard import Dashboard
 from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
 from .audi_models import VehicleData
-
 from .const import (
-    DOMAIN,
-    CONF_VIN,
+    COMPONENTS,
     CONF_ACTION,
-    CONF_CLIMATE_TEMP_F,
-    CONF_CLIMATE_TEMP_C,
     CONF_CLIMATE_GLASS,
     CONF_CLIMATE_SEAT_FL,
     CONF_CLIMATE_SEAT_FR,
     CONF_CLIMATE_SEAT_RL,
     CONF_CLIMATE_SEAT_RR,
+    CONF_CLIMATE_TEMP_C,
+    CONF_CLIMATE_TEMP_F,
     CONF_REGION,
     CONF_SPIN,
+    CONF_VIN,
+    DOMAIN,
     SIGNAL_STATE_UPDATED,
     TRACKER_UPDATE,
-    COMPONENTS,
     UPDATE_SLEEP,
 )
+from .dashboard import Dashboard
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
