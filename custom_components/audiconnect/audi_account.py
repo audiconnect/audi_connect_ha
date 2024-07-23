@@ -8,10 +8,7 @@ from homeassistant.helpers.dispatcher import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util.dt import utcnow
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-)
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 
 from .dashboard import Dashboard
 from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
@@ -64,6 +61,14 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
         vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
     }
 )
+
+PLATFORMS: list[str] = [
+    Platform.BINARY_SENSOR,
+    Platform.SENSOR,
+    Platform.DEVICE_TRACKER,
+    Platform.LOCK,
+    Platform.SWITCH,
+]
 
 SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
@@ -150,19 +155,7 @@ class AudiAccount(AudiConnectObserver):
                         cfg_vehicle.locks.add(instrument)
 
             await self.hass.config_entries.async_forward_entry_setups(
-                self.config_entry, "sensor"
-            )
-            await self.hass.config_entries.async_forward_entry_setups(
-                self.config_entry, "binary_sensor"
-            )
-            await self.hass.config_entries.async_forward_entry_setups(
-                self.config_entry, "switch"
-            )
-            await self.hass.config_entries.async_forward_entry_setups(
-                self.config_entry, "device_tracker"
-            )
-            await self.hass.config_entries.async_forward_entry_setups(
-                self.config_entry, "lock"
+                self.config_entry, PLATFORMS
             )
 
     async def update(self, now):
