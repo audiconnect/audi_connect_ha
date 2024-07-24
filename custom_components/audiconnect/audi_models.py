@@ -262,6 +262,13 @@ class VehicleDataResponse:
             -1,
             ["climatisation", "auxiliaryHeatingStatus", "value", "climatisationState"],
         )
+        # 2024 Q4 updated data structure for climate data
+        self._tryAppendStateWithTs(
+            data,
+            "climatisationState",
+            -1,
+            ["climatisation", "climatisationStatus", "value", "climatisationState"],
+        )
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         _LOGGER.debug(
