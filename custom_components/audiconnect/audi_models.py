@@ -269,6 +269,12 @@ class VehicleDataResponse:
             -1,
             ["climatisation", "climatisationStatus", "value", "climatisationState"],
         )
+        self._tryAppendStateWithTs(
+            data,
+            "remainingClimatisationTime",
+            -1,
+            ["climatisation", "climatisationStatus", "value", "remainingClimatisationTime_min"],
+        )
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         _LOGGER.debug(
