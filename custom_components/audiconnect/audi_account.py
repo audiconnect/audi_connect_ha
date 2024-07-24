@@ -3,7 +3,7 @@ import logging
 
 import voluptuous as vol
 
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -60,6 +60,14 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
     }
 )
 
+PLATFORMS: list[str] = [
+    Platform.BINARY_SENSOR,
+    Platform.SENSOR,
+    Platform.DEVICE_TRACKER,
+    Platform.LOCK,
+    Platform.SWITCH,
+]
+
 SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
 _LOGGER = logging.getLogger(__name__)
@@ -114,7 +122,7 @@ class AudiAccount(AudiConnectObserver):
         # """Return true if the user has enabled the resource."""
         # return attr in config[DOMAIN].get(CONF_RESOURCES, [attr])
 
-    def discover_vehicles(self, vehicles):
+    async def discover_vehicles(self, vehicles):
         if len(vehicles) > 0:
             for vehicle in vehicles:
                 vin = vehicle.vin.lower()
@@ -144,30 +152,8 @@ class AudiAccount(AudiConnectObserver):
                     if instrument._component == "lock":
                         cfg_vehicle.locks.add(instrument)
 
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "sensor"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "binary_sensor"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "switch"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "device_tracker"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "lock"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, PLATFORMS
             )
 
     async def update(self, now):
@@ -183,7 +169,7 @@ class AudiAccount(AudiConnectObserver):
         ]
         if new_vehicles:
             _LOGGER.debug("Retrieved %d vehicle(s)", len(new_vehicles))
-        self.discover_vehicles(new_vehicles)
+        await self.discover_vehicles(new_vehicles)
 
         async_dispatcher_send(self.hass, SIGNAL_STATE_UPDATED)
 
