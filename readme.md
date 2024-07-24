@@ -44,7 +44,8 @@ Configuration is done through the Home Assistant UI.
 
 To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
-![Configuration](ha_config.png)
+![image](https://github.com/user-attachments/assets/facff84e-f40f-4090-9e44-80f698385426)
+
 
 ### Configuration Variables
 
