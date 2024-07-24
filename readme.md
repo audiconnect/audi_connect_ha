@@ -46,7 +46,6 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 ![image](https://github.com/user-attachments/assets/facff84e-f40f-4090-9e44-80f698385426)
 
-
 ### Configuration Variables
 
 **username**
