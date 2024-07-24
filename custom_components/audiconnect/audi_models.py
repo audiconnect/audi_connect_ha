@@ -1,5 +1,4 @@
 import logging
-
 from .util import get_attr
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +41,7 @@ class VehicleDataResponse:
         "frontRightWindow": "STATE_RIGHT_FRONT_WINDOW",
         "rearLeftWindow": "STATE_LEFT_REAR_WINDOW",
         "rearRightWindow": "STATE_RIGHT_REAR_WINDOW",
+        "roofCoverWindow": "STATE_ROOF_COVER_WINDOW",
     }
 
     def __init__(self, data):
@@ -179,7 +179,6 @@ class VehicleDataResponse:
             -1,
             ["fuelStatus", "rangeStatus", "value", "totalRange_km"],
         )
-
         self._tryAppendStateWithTs(
             data,
             "stateOfCharge",
@@ -188,21 +187,9 @@ class VehicleDataResponse:
         )
         self._tryAppendStateWithTs(
             data,
-            "chargingMode",
+            "chargingState",
             -1,
-            ["charging", "chargingStatus", "value", "chargeType"],
-        )
-        self._tryAppendStateWithTs(
-            data,
-            "actualChargeRate",
-            -1,
-            ["charging", "chargingStatus", "value", "chargeRate_kmph"],
-        )
-        self._tryAppendStateWithTs(
-            data,
-            "chargingPower",
-            -1,
-            ["charging", "chargingStatus", "value", "chargePower_kW"],
+            ["charging", "chargingStatus", "value", "chargingState"],
         )
         self._tryAppendStateWithTs(
             data,
@@ -212,9 +199,27 @@ class VehicleDataResponse:
         )
         self._tryAppendStateWithTs(
             data,
-            "chargingState",
+            "chargingPower",
             -1,
-            ["charging", "chargingStatus", "value", "chargingState"],
+            ["charging", "chargingStatus", "value", "chargePower_kW"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "actualChargeRate",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeRate_kmph"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "chargingMode",
+            -1,
+            ["charging", "chargingStatus", "value", "chargeType"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "targetstateOfCharge",
+            -1,
+            ["charging", "chargingSettings", "value", "targetSOC_pct"],
         )
         self._tryAppendStateWithTs(
             data,
@@ -269,13 +274,6 @@ class VehicleDataResponse:
         ts = None
         val = self._getFromJson(json, loc)
         # _LOGGER.debug("Initial value retrieved for '%s': %s", name, val)
-
-        # Special handling for remainingChargingTime
-        if name == "remainingChargingTime" and val is None:
-            val = 0
-            _LOGGER.debug(
-                "TRY APPEND STATE: 'remainingChargingTime' adjusted to 0 due to None value"
-            )
 
         if val is not None:
             loc[tsoff:] = ["carCapturedTimestamp"]
@@ -360,22 +358,32 @@ class VehicleDataResponse:
         return child
 
     def appendDoorState(self, data):
+        _LOGGER.debug("APPEND DOOR: Starting to append doors...")
         doors = get_attr(data, "access.accessStatus.value.doors", [])
         tsCarCapturedAccess = get_attr(
             data, "access.accessStatus.value.carCapturedTimestamp"
         )
+        _LOGGER.debug(
+            "APPEND DOOR: Timestamp captured from car: %s", tsCarCapturedAccess
+        )
         for door in doors:
             status = door["status"]
             name = door["name"]
+            _LOGGER.debug(
+                "APPEND DOOR: Processing door: %s with status: %s", name, status
+            )
             if name + "Lock" not in self.OLDAPI_MAPPING:
+                _LOGGER.debug(
+                    "APPEND DOOR: Skipping door not mapped in OLDAPI_MAPPING: %s", name
+                )
                 continue
-            status = door["status"]
             lock = "0"
             open = "0"
             unsupported = False
             for state in status:
                 if state == "unsupported":
                     unsupported = True
+                    _LOGGER.debug("APPEND DOOR: Unsupported state for door: %s", name)
                 if state == "locked":
                     lock = "2"
                 if state == "closed":
@@ -386,6 +394,9 @@ class VehicleDataResponse:
                     "value": lock,
                     "tsCarCaptured": tsCarCapturedAccess,
                 }
+                _LOGGER.debug(
+                    "APPEND DOOR: Appended door lock field: %s", doorFieldLock
+                )
                 self.data_fields.append(Field(doorFieldLock))
 
                 doorFieldOpen = {
@@ -393,27 +404,43 @@ class VehicleDataResponse:
                     "value": open,
                     "tsCarCaptured": tsCarCapturedAccess,
                 }
+                _LOGGER.debug(
+                    "APPEND DOOR: Appended door open field: %s", doorFieldOpen
+                )
                 self.data_fields.append(Field(doorFieldOpen))
+        _LOGGER.debug("APPEND DOOR: Finished appending doors")
 
     def appendWindowState(self, data):
+        _LOGGER.debug("APPEND WINDOW: Starting to append windows...")
         windows = get_attr(data, "access.accessStatus.value.windows", [])
         tsCarCapturedAccess = get_attr(
             data, "access.accessStatus.value.carCapturedTimestamp"
         )
-
+        _LOGGER.debug(
+            "APPEND WINDOW: Timestamp captured from car: %s", tsCarCapturedAccess
+        )
         for window in windows:
             name = window["name"]
             status = window["status"]
+            _LOGGER.debug(
+                "APPEND WINDOW: Processing window: %s with status: %s", name, status
+            )
             if (
                 status[0] == "unsupported"
             ) or name + "Window" not in self.OLDAPI_MAPPING:
+                _LOGGER.debug(
+                    "APPEND WINDOW: Skipping unsupported window or not mapped in OLDAPI_MAPPING: %s",
+                    name,
+                )
                 continue
             windowField = {
                 "textId": self.OLDAPI_MAPPING[name + "Window"],
                 "value": "3" if status[0] == "closed" else "0",
                 "tsCarCaptured": tsCarCapturedAccess,
             }
+            _LOGGER.debug("APPEND WINDOW: Appended window field: %s", windowField)
             self.data_fields.append(Field(windowField))
+        _LOGGER.debug("APPEND WINDOW: Finished appending windows")
 
 
 class TripDataResponse:
