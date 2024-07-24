@@ -13,7 +13,6 @@ def get_attr(dictionary, keys, default=None):
     )
 
 
-
 def to_byte_array(hexString: str):
     result = []
     for i in range(0, len(hexString), 2):
