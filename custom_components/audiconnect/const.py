@@ -77,3 +77,15 @@ COMPONENTS = {
     "device_tracker": "device_tracker",
     "switch": "switch",
 }
+
+REGION_EUROPE: str = "DE"
+REGION_CANADA: str = "CA"
+REGION_USA: str = "US"
+REGION_CHINA: str = "CN"
+
+REGIONS = {
+    1: REGION_EUROPE,
+    2: REGION_CANADA,
+    3: REGION_USA,
+    4: REGION_CHINA,
+}
