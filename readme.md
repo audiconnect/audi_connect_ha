@@ -62,7 +62,7 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 **region**
 
-- (string)(Optional) The region where your Audi Connect account is registered.
+- (string)(Required) The region where your Audi Connect account is registered.
   - 'DE' for Europe (or leave unset)
   - 'US' for United States of America
   - 'CA' for Canada
