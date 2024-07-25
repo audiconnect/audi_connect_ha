@@ -751,7 +751,7 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404, 502):
                 _LOGGER.debug(
-                    "ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
+                    "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
                     cre.status,
                     redacted_vin,
                 )
