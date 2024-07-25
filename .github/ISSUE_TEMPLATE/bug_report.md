@@ -32,5 +32,5 @@ Disable Debug Logging
 **Your Vehicle Details**
 Model:
 Year:
-Type (Combustion/Hybrid/Electric):
+Type (Gas/Hybrid/Electric):
 Region (EU/US/CA/CN):
