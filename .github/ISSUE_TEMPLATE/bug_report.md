@@ -32,5 +32,5 @@ Disable Debug Logging
 **Your Vehicle Details**
 Model:
 Year:
-Type (ICE/PHEV/BEV):
+Type (Combustion/Hybrid/Electric):
 Region (EU/US/CA/CN):
