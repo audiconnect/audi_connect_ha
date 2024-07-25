@@ -33,4 +33,4 @@ Disable Debug Logging
 Model:
 Year:
 Type (ICE/PHEV/BEV):
-Region (EU/US/CA/CN): 
+Region (EU/US/CA/CN):
