@@ -20,6 +20,7 @@ from .const import (
     MIN_UPDATE_INTERVAL,
     CONF_SCAN_INITIAL,
     CONF_SCAN_ACTIVE,
+    REGIONS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._username = user_input[CONF_USERNAME]
             self._password = user_input[CONF_PASSWORD]
             self._spin = user_input.get(CONF_SPIN)
-            self._region = user_input.get(CONF_REGION)
+            self._region = REGIONS[user_input.get(CONF_REGION)]
             self._scan_interval = user_input[CONF_SCAN_INTERVAL]
 
             try:
@@ -94,7 +95,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema[vol.Required(CONF_USERNAME, default=self._username)] = str
         data_schema[vol.Required(CONF_PASSWORD, default=self._password)] = str
         data_schema[vol.Optional(CONF_SPIN, default=self._spin)] = str
-        data_schema[vol.Optional(CONF_REGION, default=self._region)] = str
+        data_schema[vol.Required(CONF_REGION, default=self._region)] = vol.In(REGIONS)
         data_schema[
             vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_UPDATE_INTERVAL)
         ] = int
@@ -116,7 +117,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         region = "DE"
         if user_input.get(CONF_REGION):
-            region = user_input.get(CONF_REGION)
+            region = REGIONS[user_input.get(CONF_REGION)]
 
         scan_interval = DEFAULT_UPDATE_INTERVAL
 

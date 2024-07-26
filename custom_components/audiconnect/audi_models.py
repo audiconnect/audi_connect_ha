@@ -1,4 +1,5 @@
 import logging
+from .util import get_attr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -261,6 +262,24 @@ class VehicleDataResponse:
             -1,
             ["climatisation", "auxiliaryHeatingStatus", "value", "climatisationState"],
         )
+        # 2024 Q4 updated data structure for climate data
+        self._tryAppendStateWithTs(
+            data,
+            "climatisationState",
+            -1,
+            ["climatisation", "climatisationStatus", "value", "climatisationState"],
+        )
+        self._tryAppendStateWithTs(
+            data,
+            "remainingClimatisationTime",
+            -1,
+            [
+                "climatisation",
+                "climatisationStatus",
+                "value",
+                "remainingClimatisationTime_min",
+            ],
+        )
 
     def _tryAppendStateWithTs(self, json, name, tsoff, loc):
         _LOGGER.debug(
@@ -358,10 +377,10 @@ class VehicleDataResponse:
 
     def appendDoorState(self, data):
         _LOGGER.debug("APPEND DOOR: Starting to append doors...")
-        doors = data["access"]["accessStatus"]["value"]["doors"]
-        tsCarCapturedAccess = data["access"]["accessStatus"]["value"][
-            "carCapturedTimestamp"
-        ]
+        doors = get_attr(data, "access.accessStatus.value.doors", [])
+        tsCarCapturedAccess = get_attr(
+            data, "access.accessStatus.value.carCapturedTimestamp"
+        )
         _LOGGER.debug(
             "APPEND DOOR: Timestamp captured from car: %s", tsCarCapturedAccess
         )
@@ -411,10 +430,10 @@ class VehicleDataResponse:
 
     def appendWindowState(self, data):
         _LOGGER.debug("APPEND WINDOW: Starting to append windows...")
-        windows = data["access"]["accessStatus"]["value"]["windows"]
-        tsCarCapturedAccess = data["access"]["accessStatus"]["value"][
-            "carCapturedTimestamp"
-        ]
+        windows = get_attr(data, "access.accessStatus.value.windows", [])
+        tsCarCapturedAccess = get_attr(
+            data, "access.accessStatus.value.carCapturedTimestamp"
+        )
         _LOGGER.debug(
             "APPEND WINDOW: Timestamp captured from car: %s", tsCarCapturedAccess
         )

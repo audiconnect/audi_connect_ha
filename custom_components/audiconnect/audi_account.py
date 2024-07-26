@@ -1,40 +1,35 @@
-import logging
-import voluptuous as vol
 import asyncio
+import logging
 
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_send,
-)
+import voluptuous as vol
+
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.dt import utcnow
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-)
 
-from .dashboard import Dashboard
 from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
 from .audi_models import VehicleData
-
 from .const import (
-    DOMAIN,
-    CONF_VIN,
+    COMPONENTS,
     CONF_ACTION,
-    CONF_CLIMATE_TEMP_F,
-    CONF_CLIMATE_TEMP_C,
     CONF_CLIMATE_GLASS,
     CONF_CLIMATE_SEAT_FL,
     CONF_CLIMATE_SEAT_FR,
     CONF_CLIMATE_SEAT_RL,
     CONF_CLIMATE_SEAT_RR,
+    CONF_CLIMATE_TEMP_C,
+    CONF_CLIMATE_TEMP_F,
     CONF_REGION,
     CONF_SPIN,
+    CONF_VIN,
+    DOMAIN,
     SIGNAL_STATE_UPDATED,
     TRACKER_UPDATE,
-    COMPONENTS,
     UPDATE_SLEEP,
 )
+from .dashboard import Dashboard
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
@@ -64,6 +59,14 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
         vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
     }
 )
+
+PLATFORMS: list[str] = [
+    Platform.BINARY_SENSOR,
+    Platform.SENSOR,
+    Platform.DEVICE_TRACKER,
+    Platform.LOCK,
+    Platform.SWITCH,
+]
 
 SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
@@ -119,7 +122,7 @@ class AudiAccount(AudiConnectObserver):
         # """Return true if the user has enabled the resource."""
         # return attr in config[DOMAIN].get(CONF_RESOURCES, [attr])
 
-    def discover_vehicles(self, vehicles):
+    async def discover_vehicles(self, vehicles):
         if len(vehicles) > 0:
             for vehicle in vehicles:
                 vin = vehicle.vin.lower()
@@ -149,30 +152,8 @@ class AudiAccount(AudiConnectObserver):
                     if instrument._component == "lock":
                         cfg_vehicle.locks.add(instrument)
 
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "sensor"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "binary_sensor"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "switch"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "device_tracker"
-                )
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
-                    self.config_entry, "lock"
-                )
+            await self.hass.config_entries.async_forward_entry_setups(
+                self.config_entry, PLATFORMS
             )
 
     async def update(self, now):
@@ -188,7 +169,7 @@ class AudiAccount(AudiConnectObserver):
         ]
         if new_vehicles:
             _LOGGER.debug("Retrieved %d vehicle(s)", len(new_vehicles))
-        self.discover_vehicles(new_vehicles)
+        await self.discover_vehicles(new_vehicles)
 
         async_dispatcher_send(self.hass, SIGNAL_STATE_UPDATED)
 

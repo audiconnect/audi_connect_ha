@@ -183,7 +183,7 @@ class AudiConnectAccount:
             )
             return False
         except ClientResponseError as cre:
-            if cre.status in (403, 502):
+            if cre.status in (403, 404):
                 _LOGGER.debug(
                     "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
                     cre.status,
@@ -564,7 +564,7 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status in (403, 502):
+            if resp_exception.status in (403, 404):
                 self.support_status_report = False
             else:
                 self.log_exception_once(
@@ -658,7 +658,7 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 502):
+            if cre.status in (403, 404):
                 _LOGGER.error(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Disabling vehicle position support.",
                     cre.status,
@@ -751,9 +751,9 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 502):
+            if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
+                    "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
                     cre.status,
                     redacted_vin,
                 )
@@ -793,7 +793,7 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status == 403 or resp_exception.status == 502:
+            if resp_exception.status in (403, 404):
                 # _LOGGER.error(
                 #    "support_preheater set to False: {status}".format(
                 #        status=resp_exception.status
@@ -893,7 +893,7 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status == 403 or resp_exception.status == 502:
+            if resp_exception.status in (403, 404):
                 # _LOGGER.error(
                 #    "support_charger set to False: {status}".format(
                 #        status=resp_exception.status
@@ -965,7 +965,7 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 502):
+            if cre.status in (403, 404):
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
                     cre.status,
