@@ -13,6 +13,15 @@ from .audi_models import (
     VehiclesResponse,
 )
 from .audi_api import AudiAPI
+from .const import (
+    HDR_XAPP_VERSION,
+    HDR_USER_AGENT,
+    URL_INFO_VEHICLE,
+    URL_INFO_VEHICLE_US,
+    URL_HOST_ACTION,
+    URL_HOST_ACTION_US,
+    REGION_USA
+    )
 from .util import to_byte_array, get_attr
 
 from hashlib import sha256, sha512
@@ -140,10 +149,7 @@ class AudiService:
     async def request_current_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.post(
-            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+            "https://na.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
                 vin=vin.upper(),
             )
         )
@@ -260,12 +266,12 @@ class AudiService:
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-App-Name": "myAudi",
-            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "X-App-Version": HDR_XAPP_VERSION,
             "Accept-Language": "{l}-{c}".format(
                 l=self._language, c=self._country.upper()
             ),
             "X-User-Country": self._country.upper(),
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Authorization": "Bearer " + self.audiToken["access_token"],
             "Content-Type": "application/json; charset=utf-8",
         }
@@ -274,9 +280,9 @@ class AudiService:
         }
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
-            "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
+            URL_INFO_VEHICLE_US
             if self._country.upper() == "US"
-            else "https://app-api.live-my.audi.com/vgql/v1/graphql",  # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
+            else URL_INFO_VEHICLE,  # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             json.dumps(req_data),
             headers=headers,
             allow_redirects=False,
@@ -309,9 +315,9 @@ class AudiService:
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-App-Name": "myAudi",
-            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-Client-ID": self.xclientId,
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Authorization": "Bearer " + self.vwToken["access_token"],
         }
         td_reqdata = {
@@ -455,9 +461,9 @@ class AudiService:
 
     def _get_vehicle_action_header(self, content_type: str, security_token: str):
         headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "Host": "msg.volkswagen.de",
-            "X-App-Version": "3.14.0",
+            "User-Agent": "Android/4.26.0 (Build 800240850.root project 'onetouch-android'.ext.buildTime) Android/13",
+            "Host": "mal-3a.prd.eu.dp.vwg-connect.com",
+            "X-App-Version": "4.26.0",
             "X-App-Name": "myAudi",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
             "Accept-charset": "UTF-8",
@@ -474,39 +480,71 @@ class AudiService:
         security_token = await self._get_security_token(
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
         )
-        data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
-            action="lock" if lock else "unlock"
-        )
-        headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
-        )
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(
+
+        if self._country.upper() == REGION_USA:
+            data = None
+            headers = self._get_vehicle_action_header(
+                "application/json;charset=utf-8", security_token
+            )
+            res = await self._api.request(
+                "POST",
+                "{host}/rlu/v1/vehicles/{vin}/{action}".format(
+                    host=URL_HOST_ACTION_US,
+                    vin=vin.upper(),
+                    action="lock" if lock else "unlock"
+                ),
+                headers=headers,
+                data=data,
+            )
+
+            checkUrl = "{host}/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
+                host=URL_HOST_ACTION_US,
+                vin=vin.upper(),
+                requestId=res["rluActionResponse"]["requestId"],
+            )
+
+            await self.check_request_succeeded(
+                checkUrl,
+                "lock vehicle" if lock else "unlock vehicle",
+                REQUEST_SUCCESSFUL,
+                REQUEST_FAILED,
+                "requestStatusResponse.status",
+            )
+
+        else:
+            data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
+                action="lock" if lock else "unlock"
+            )
+            headers = self._get_vehicle_action_header(
+                "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
+            )
+            res = await self._api.request(
+                "POST",
+                "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(
+                    homeRegion=await self._get_home_region(vin.upper()),
+                    type=self._type,
+                    country=self._country,
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            )
+
+            checkUrl = "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
                 homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type,
                 country=self._country,
                 vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
+                requestId=res["rluActionResponse"]["requestId"],
+            )
 
-        checkUrl = "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            requestId=res["rluActionResponse"]["requestId"],
-        )
-
-        await self.check_request_succeeded(
-            checkUrl,
-            "lock vehicle" if lock else "unlock vehicle",
-            REQUEST_SUCCESSFUL,
-            REQUEST_FAILED,
-            "requestStatusResponse.status",
-        )
+            await self.check_request_succeeded(
+                checkUrl,
+                "lock vehicle" if lock else "unlock vehicle",
+                REQUEST_SUCCESSFUL,
+                REQUEST_FAILED,
+                "requestStatusResponse.status",
+            )
 
     async def set_battery_charger(self, vin: str, start: bool, timer: bool):
         if start and timer:
@@ -546,39 +584,70 @@ class AudiService:
         )
 
     async def set_climatisation(self, vin: str, start: bool):
-        if start:
-            data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
-        else:
-            data = '{"action":{"type": "stopClimatisation"}}'
+        if self._country.upper() == REGION_USA:
+            if start:
+                data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+            else:
+                data = '{"action":{"type": "stopClimatisation"}}'
 
-        headers = self._get_vehicle_action_header("application/json", None)
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+            headers = self._get_vehicle_action_header("application/json", None)
+            res = await self._api.request(
+                "POST",
+                "{host}/climatisation/v1/vehicles/{vin}/climater/actions".format(
+                    host=URL_HOST_ACTION_US,
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            )
+
+            checkUrl = "{host}/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
+                host=URL_HOST_ACTION_US,
+                vin=vin.upper(),
+                actionid=res["action"]["actionId"],
+            )
+
+            await self.check_request_succeeded(
+                checkUrl,
+                "start climatisation" if start else "stop climatisation",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
+        else:
+            if start:
+                data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+            else:
+                data = '{"action":{"type": "stopClimatisation"}}'
+
+            headers = self._get_vehicle_action_header("application/json", None)
+            res = await self._api.request(
+                "POST",
+                "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                    homeRegion=await self._get_home_region(vin.upper()),
+                    type=self._type,
+                    country=self._country,
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            )
+
+            checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
                 homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type,
                 country=self._country,
                 vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
+                actionid=res["action"]["actionId"],
+            )
 
-        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
-
-        await self.check_request_succeeded(
-            checkUrl,
-            "start climatisation" if start else "stop climatisation",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+            await self.check_request_succeeded(
+                checkUrl,
+                "start climatisation" if start else "stop climatisation",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
 
     async def start_climate_control(
         self,
@@ -592,23 +661,28 @@ class AudiService:
         seat_rr: bool,
     ):
         # Handle None values for glass and seat heating
-        glass_heating = glass_heating if glass_heating is not None else False
-        seat_fl = seat_fl if seat_fl is not None else False
-        seat_fr = seat_fr if seat_fr is not None else False
-        seat_rl = seat_rl if seat_rl is not None else False
-        seat_rr = seat_rr if seat_rr is not None else False
+        glass_heating = glass_heating if glass_heating else False
+        seat_fl = seat_fl if seat_fl else False
+        seat_fr = seat_fr if seat_fr else False
+        seat_rl = seat_rl if seat_rl else False
+        seat_rr = seat_rr if seat_rr else False
 
         # Temperature Conversion
         target_temperature = None
         if temp_f is not None:
             target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
+            target_temperature_raw = temp_f
+            target_temperature_unit = "fahrenheit"
         elif temp_c is not None:
             target_temperature = int(temp_c * 10 + 2731)
+            target_temperature_raw = temp_c
+            target_temperature_unit = "celcius"
 
         # Default Temperature if None is provided
         target_temperature = target_temperature or 2941
 
-        # Construct Zone Settings
+        # API 1
+        # Construct Zone Settings for API 1
         zone_settings = [
             {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
             {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
@@ -616,7 +690,7 @@ class AudiService:
             {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
         ]
 
-        data = {
+        data_1 = {
             "action": {
                 "type": "startClimatisation",
                 "settings": {
@@ -632,36 +706,74 @@ class AudiService:
             }
         }
 
-        data = json.dumps(data)
+        data_1 = json.dumps(data_1)
+
+        # API 2
+        data_2 = {
+                    "targetTemperature": target_temperature_raw,
+                    "targetTemperatureUnit": target_temperature_unit,
+                    "climatisationWithoutExternalPower": True,
+                    "climatizationAtUnlock": False,
+                    "windowHeatingEnabled": glass_heating,
+                    "zoneFrontLeftEnabled": seat_fl,
+                    "zoneFrontRightEnabled": seat_fr,
+                    "zoneRearLeftEnabled": seat_rl,
+                    "zoneRearRightEnabled": seat_rr,
+                }
+
+        data_2 = json.dumps(data_2)
 
         headers = self._get_vehicle_action_header("application/json", None)
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+        if self._country.upper() == REGION_USA:
+            res = await self._api.request(
+                "POST",
+                "{host}/climatisation/v1/vehicles/{vin}/climater/actions".format(
+                    host=URL_HOST_ACTION_US,
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data_1,
+            )
+
+            checkUrl = "{host}/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
+                host=URL_HOST_ACTION_US,
                 vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
+                actionid=res["action"]["actionId"],
+            )
 
-        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
+            await self.check_request_succeeded(
+                checkUrl,
+                "Start Climate Control",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
 
-        await self.check_request_succeeded(
-            checkUrl,
-            "start climatisation",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+        else:
+            res = await self._api.request(
+                "POST",
+                "{host}/{vin}/climatisation/start".format(
+                    host=URL_HOST_ACTION,
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data_2,
+            )
+
+            checkUrl = "{host}/{vin}/pendingrequests".format(
+                host=URL_HOST_ACTION,
+                vin=vin.upper(),
+            )
+
+            actionID = res["data"]["requestID"]
+
+            await self.check_request_succeeded(
+                checkUrl,
+                "Start Climate Control",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
 
     async def set_window_heating(self, vin: str, start: bool):
         data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
@@ -748,7 +860,7 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    # TR/2022-12-20: New secret for X_QMAuth
+    # TR/2022-12-20: New secrect for X_QMAuth
     def _calculate_X_QMAuth(self):
         # Calculate X-QMAuth value
         gmtime_100sec = int(
@@ -817,7 +929,7 @@ class AudiService:
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
-                "User-Agent": AudiAPI.HDR_USER_AGENT,
+                "User-Agent": HDR_USER_AGENT,
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-Client-ID": self.xclientId,
             }
@@ -851,7 +963,7 @@ class AudiService:
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
                 "X-QMAuth": self._calculate_X_QMAuth(),
-                "User-Agent": AudiAPI.HDR_USER_AGENT,
+                "User-Agent": HDR_USER_AGENT,
                 "Content-Type": "application/x-www-form-urlencoded",
             }
             # IDK token request data
@@ -879,9 +991,9 @@ class AudiService:
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
-                "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+                "X-App-Version": HDR_XAPP_VERSION,
                 "X-App-Name": "myAudi",
-                "User-Agent": AudiAPI.HDR_USER_AGENT,
+                "User-Agent": HDR_USER_AGENT,
                 "Content-Type": "application/json; charset=utf-8",
             }
             asz_req_data = {
@@ -997,9 +1109,9 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
         }
         idk_data = {
             "response_type": "code",
@@ -1102,7 +1214,7 @@ class AudiService:
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-QMAuth": self._calculate_X_QMAuth(),
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
         }
         # IDK token request data
@@ -1132,9 +1244,9 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Content-Type": "application/json; charset=utf-8",
         }
         asz_req_data = {
@@ -1158,7 +1270,7 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Content-Type": "application/json; charset=utf-8",
         }
         mbboauth_reg_data = {
@@ -1166,7 +1278,7 @@ class AudiService:
             "platform": "google",
             "client_brand": "Audi",
             "appName": "myAudi",
-            "appVersion": AudiAPI.HDR_XAPP_VERSION,
+            "appVersion": HDR_XAPP_VERSION,
             "appId": "de.myaudi.mobile.assistant",
         }
         mbboauth_client_reg_rsp, mbboauth_client_reg_rsptxt = await self._api.request(
@@ -1185,7 +1297,7 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
             "X-Client-ID": self.xclientId,
         }
@@ -1213,7 +1325,7 @@ class AudiService:
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
             "X-Client-ID": self.xclientId,
         }
