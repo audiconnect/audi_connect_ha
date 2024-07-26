@@ -16,6 +16,8 @@ CONF_SCAN_ACTIVE = "scan_active"
 MIN_UPDATE_INTERVAL = 15
 DEFAULT_UPDATE_INTERVAL = 15
 UPDATE_SLEEP = 5
+API_LEVEL = 1
+# API Options are 1 or 2. 1 being the old API (2023 or older) and 2 being the new API (2024 or newer)
 
 CONF_SPIN = "spin"
 CONF_REGION = "region"
