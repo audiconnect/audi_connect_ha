@@ -154,6 +154,7 @@ class AudiAccount(AudiConnectObserver):
 
             await self.hass.config_entries.async_forward_entry_setups(
                 self.config_entry, PLATFORMS
+            )
 
     async def update(self, now):
         """Update status from the cloud."""
