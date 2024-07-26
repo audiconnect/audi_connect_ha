@@ -465,7 +465,7 @@ class AudiService:
     def _get_vehicle_action_header(self, content_type: str, security_token: str):
         headers = {
             "User-Agent": HDR_USER_AGENT,
-            "Host": "mal-3a.prd.eu.dp.vwg-connect.com",
+            "Host": "mal-3a.prd.eu.dp.vwg-connect.com" if self._country.upper() == REGION_USA else "msg.volkswagen.de",
             "X-App-Version": "4.26.0",
             "X-App-Name": "myAudi",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
