@@ -20,8 +20,8 @@ from .const import (
     URL_INFO_VEHICLE_US,
     URL_HOST_ACTION,
     URL_HOST_ACTION_US,
-    REGION_USA
-    )
+    REGION_USA,
+)
 from .util import to_byte_array, get_attr
 
 from hashlib import sha256, sha512
@@ -491,16 +491,18 @@ class AudiService:
                 "{host}/rlu/v1/vehicles/{vin}/{action}".format(
                     host=URL_HOST_ACTION_US,
                     vin=vin.upper(),
-                    action="lock" if lock else "unlock"
+                    action="lock" if lock else "unlock",
                 ),
                 headers=headers,
                 data=data,
             )
 
-            checkUrl = "{host}/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
-                host=URL_HOST_ACTION_US,
-                vin=vin.upper(),
-                requestId=res["rluActionResponse"]["requestId"],
+            checkUrl = (
+                "{host}/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
+                    host=URL_HOST_ACTION_US,
+                    vin=vin.upper(),
+                    requestId=res["rluActionResponse"]["requestId"],
+                )
             )
 
             await self.check_request_succeeded(
@@ -710,16 +712,16 @@ class AudiService:
 
         # API 2
         data_2 = {
-                    "targetTemperature": target_temperature_raw,
-                    "targetTemperatureUnit": target_temperature_unit,
-                    "climatisationWithoutExternalPower": True,
-                    "climatizationAtUnlock": False,
-                    "windowHeatingEnabled": glass_heating,
-                    "zoneFrontLeftEnabled": seat_fl,
-                    "zoneFrontRightEnabled": seat_fr,
-                    "zoneRearLeftEnabled": seat_rl,
-                    "zoneRearRightEnabled": seat_rr,
-                }
+            "targetTemperature": target_temperature_raw,
+            "targetTemperatureUnit": target_temperature_unit,
+            "climatisationWithoutExternalPower": True,
+            "climatizationAtUnlock": False,
+            "windowHeatingEnabled": glass_heating,
+            "zoneFrontLeftEnabled": seat_fl,
+            "zoneFrontRightEnabled": seat_fr,
+            "zoneRearLeftEnabled": seat_rl,
+            "zoneRearRightEnabled": seat_rr,
+        }
 
         data_2 = json.dumps(data_2)
 
