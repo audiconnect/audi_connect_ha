@@ -412,8 +412,8 @@ class AudiService:
     async def _get_security_token(self, vin: str, action: str):
         # Challenge
         headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "X-App-Version": "3.14.0",
+            "User-Agent": HDR_USER_AGENT,
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
@@ -447,9 +447,9 @@ class AudiService:
         }
 
         headers = {
-            "User-Agent": "okhttp/3.7.0",
+            "User-Agent": HDR_USER_AGENT,
             "Content-Type": "application/json",
-            "X-App-Version": "3.14.0",
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
@@ -471,7 +471,7 @@ class AudiService:
             "Host": "mal-3a.prd.eu.dp.vwg-connect.com"
             if self._country.upper() == REGION_USA
             else "msg.volkswagen.de",
-            "X-App-Version": "4.26.0",
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
             "Accept-charset": "UTF-8",
