@@ -149,7 +149,10 @@ class AudiService:
     async def request_current_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.post(
-            "https://na.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
+                homeRegion=await self._get_home_region(vin.upper()),
+                type=self._type,
+                country=self._country,
                 vin=vin.upper(),
             )
         )
