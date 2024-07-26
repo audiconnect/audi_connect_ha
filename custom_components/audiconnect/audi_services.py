@@ -683,7 +683,7 @@ class AudiService:
         elif temp_c is not None:
             target_temperature = int(temp_c * 10 + 2731)
             target_temperature_raw = temp_c
-            target_temperature_unit = "celcius"
+            target_temperature_unit = "celsius"
 
         # Default Temperature if None is provided
         target_temperature = target_temperature or 2941
