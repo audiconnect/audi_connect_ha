@@ -688,47 +688,44 @@ class AudiService:
         # Default Temperature if None is provided
         target_temperature = target_temperature or 2941
 
-        # API 1
-        # Construct Zone Settings for API 1
-        zone_settings = [
-            {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
-            {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
-            {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
-            {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
-        ]
+        if API_LEVEL == 1:
+            zone_settings = [
+                {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
+                {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
+                {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
+                {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
+            ]
 
-        data_1 = {
-            "action": {
-                "type": "startClimatisation",
-                "settings": {
-                    "targetTemperature": target_temperature,
-                    "climatisationWithoutHVpower": True,
-                    "heaterSource": "electric",
-                    "climaterElementSettings": {
-                        "isClimatisationAtUnlock": False,
-                        "isMirrorHeatingEnabled": glass_heating,
-                        "zoneSettings": {"zoneSetting": zone_settings},
+            data = {
+                "action": {
+                    "type": "startClimatisation",
+                    "settings": {
+                        "targetTemperature": target_temperature,
+                        "climatisationWithoutHVpower": True,
+                        "heaterSource": "electric",
+                        "climaterElementSettings": {
+                            "isClimatisationAtUnlock": False,
+                            "isMirrorHeatingEnabled": glass_heating,
+                            "zoneSettings": {"zoneSetting": zone_settings},
+                        },
                     },
-                },
+                }
             }
-        }
 
-        data_1 = json.dumps(data_1)
+        elif API_LEVEL = 2:
+            data = {
+                        "targetTemperature": target_temperature_raw,
+                        "targetTemperatureUnit": target_temperature_unit,
+                        "climatisationWithoutExternalPower": True,
+                        "climatizationAtUnlock": False,
+                        "windowHeatingEnabled": glass_heating,
+                        "zoneFrontLeftEnabled": seat_fl,
+                        "zoneFrontRightEnabled": seat_fr,
+                        "zoneRearLeftEnabled": seat_rl,
+                        "zoneRearRightEnabled": seat_rr,
+                    }
 
-        # API 2
-        data_2 = {
-            "targetTemperature": target_temperature_raw,
-            "targetTemperatureUnit": target_temperature_unit,
-            "climatisationWithoutExternalPower": True,
-            "climatizationAtUnlock": False,
-            "windowHeatingEnabled": glass_heating,
-            "zoneFrontLeftEnabled": seat_fl,
-            "zoneFrontRightEnabled": seat_fr,
-            "zoneRearLeftEnabled": seat_rl,
-            "zoneRearRightEnabled": seat_rr,
-        }
-
-        data_2 = json.dumps(data_2)
+        data = json.dumps(data)
 
         headers = self._get_vehicle_action_header("application/json", None)
         if self._country.upper() == REGION_USA:
@@ -739,7 +736,7 @@ class AudiService:
                     vin=vin.upper(),
                 ),
                 headers=headers,
-                data=data_1,
+                data=data,
             )
 
             checkUrl = "{host}/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
@@ -764,7 +761,7 @@ class AudiService:
                     vin=vin.upper(),
                 ),
                 headers=headers,
-                data=data_2,
+                data=data,
             )
 
             checkUrl = "{host}/{vin}/pendingrequests".format(
