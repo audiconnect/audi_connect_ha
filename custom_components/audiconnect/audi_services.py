@@ -20,6 +20,8 @@ from .const import (
     URL_INFO_VEHICLE_US,
     URL_HOST_ACTION,
     URL_HOST_ACTION_US,
+    URL_HOST_INFO,
+    URL_HOST_INFO_US,
     REGION_USA,
     API_LEVEL,
 )
@@ -150,10 +152,8 @@ class AudiService:
     async def request_current_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         data = await self._api.post(
-            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+            "{host}/{vin}/vehiclewakeup".format(
+                host=URL_HOST_INFO_US if self._country.upper() == REGION_USA else URL_HOST_INFO,
                 vin=vin.upper(),
             )
         )
