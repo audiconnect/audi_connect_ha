@@ -153,7 +153,9 @@ class AudiService:
         self._api.use_token(self.vwToken)
         data = await self._api.post(
             "{host}/{vin}/vehiclewakeup".format(
-                host=URL_HOST_INFO_US if self._country.upper() == REGION_USA else URL_HOST_INFO,
+                host=URL_HOST_INFO_US
+                if self._country.upper() == REGION_USA
+                else URL_HOST_INFO,
                 vin=vin.upper(),
             )
         )
