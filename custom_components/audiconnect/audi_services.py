@@ -287,7 +287,7 @@ class AudiService:
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
             URL_INFO_VEHICLE_US
-            if self._country.upper() == "US"
+            if self._country.upper() == REGION_USA
             else URL_INFO_VEHICLE,  # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             json.dumps(req_data),
             headers=headers,
