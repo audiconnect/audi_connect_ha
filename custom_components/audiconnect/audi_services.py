@@ -21,6 +21,7 @@ from .const import (
     URL_HOST_ACTION,
     URL_HOST_ACTION_US,
     REGION_USA,
+    API_LEVEL,
 )
 from .util import to_byte_array, get_attr, get_status_by_id
 
