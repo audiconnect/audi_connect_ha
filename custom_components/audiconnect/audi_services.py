@@ -464,7 +464,7 @@ class AudiService:
 
     def _get_vehicle_action_header(self, content_type: str, security_token: str):
         headers = {
-            "User-Agent": "Android/4.26.0 (Build 800240850.root project 'onetouch-android'.ext.buildTime) Android/13",
+            "User-Agent": HDR_USER_AGENT,
             "Host": "mal-3a.prd.eu.dp.vwg-connect.com",
             "X-App-Version": "4.26.0",
             "X-App-Name": "myAudi",
@@ -865,7 +865,7 @@ class AudiService:
 
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
-    # TR/2022-12-20: New secrect for X_QMAuth
+    # TR/2022-12-20: New secret for X_QMAuth
     def _calculate_X_QMAuth(self):
         # Calculate X-QMAuth value
         gmtime_100sec = int(
