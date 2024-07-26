@@ -22,7 +22,7 @@ from .const import (
     URL_HOST_ACTION_US,
     REGION_USA,
 )
-from .util import to_byte_array, get_attr
+from .util import to_byte_array, get_attr, get_status_by_id
 
 from hashlib import sha256, sha512
 import hmac
@@ -779,7 +779,7 @@ class AudiService:
                 "Start Climate Control",
                 SUCCEEDED,
                 FAILED,
-                "action.actionState",
+                res["data"]["requestID"],
             )
 
     async def set_window_heating(self, vin: str, start: bool):
@@ -853,7 +853,11 @@ class AudiService:
             self._api.use_token(self.vwToken)
             res = await self._api.get(url)
 
-            status = get_attr(res, path)
+            if "pendingrequests" in url:
+                target_id = path
+                status = get_status_by_id(res, target_id)
+            else:
+                status = get_attr(res, path)
 
             if status is None or (failedCode is not None and status == failedCode):
                 raise Exception(
