@@ -772,8 +772,6 @@ class AudiService:
                 vin=vin.upper(),
             )
 
-            actionID = res["data"]["requestID"]
-
             await self.check_request_succeeded(
                 checkUrl,
                 "Start Climate Control",
