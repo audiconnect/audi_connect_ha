@@ -715,16 +715,16 @@ class AudiService:
 
         elif API_LEVEL == 2:
             data = {
-                        "targetTemperature": target_temperature_raw,
-                        "targetTemperatureUnit": target_temperature_unit,
-                        "climatisationWithoutExternalPower": True,
-                        "climatizationAtUnlock": False,
-                        "windowHeatingEnabled": glass_heating,
-                        "zoneFrontLeftEnabled": seat_fl,
-                        "zoneFrontRightEnabled": seat_fr,
-                        "zoneRearLeftEnabled": seat_rl,
-                        "zoneRearRightEnabled": seat_rr,
-                    }
+                "targetTemperature": target_temperature_raw,
+                "targetTemperatureUnit": target_temperature_unit,
+                "climatisationWithoutExternalPower": True,
+                "climatizationAtUnlock": False,
+                "windowHeatingEnabled": glass_heating,
+                "zoneFrontLeftEnabled": seat_fl,
+                "zoneFrontRightEnabled": seat_fr,
+                "zoneRearLeftEnabled": seat_rl,
+                "zoneRearRightEnabled": seat_rr,
+            }
 
         data = json.dumps(data)
 
