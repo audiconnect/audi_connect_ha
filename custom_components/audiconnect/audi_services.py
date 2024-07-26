@@ -713,7 +713,7 @@ class AudiService:
                 }
             }
 
-        elif API_LEVEL = 2:
+        elif API_LEVEL == 2:
             data = {
                         "targetTemperature": target_temperature_raw,
                         "targetTemperatureUnit": target_temperature_unit,
