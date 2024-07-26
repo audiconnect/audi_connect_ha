@@ -17,7 +17,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
-
     def __init__(self, session, proxy=None):
         self.__token = None
         self.__xclientid = None
@@ -37,7 +36,7 @@ class AudiAPI:
         self,
         method,
         url,
-        data = None,
+        data=None,
         headers: Dict[str, str] = None,
         raw_reply: bool = False,
         raw_contents: bool = False,
