@@ -7,6 +7,7 @@ import async_timeout
 from asyncio import TimeoutError, CancelledError
 from aiohttp import ClientResponseError
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
+from .const import HDR_XAPP_VERSION, HDR_USER_AGENT
 
 from typing import Dict
 
@@ -16,8 +17,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
-    HDR_XAPP_VERSION = "4.23.1"
-    HDR_USER_AGENT = "Android/4.23.1 (Build 800240120.root project 'onetouch-android'.ext.buildTime) Android/11"
 
     def __init__(self, session, proxy=None):
         self.__token = None
@@ -38,7 +37,7 @@ class AudiAPI:
         self,
         method,
         url,
-        data,
+        data = None,
         headers: Dict[str, str] = None,
         raw_reply: bool = False,
         raw_contents: bool = False,
@@ -129,9 +128,9 @@ class AudiAPI:
         data = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-App-Version": self.HDR_XAPP_VERSION,
+            "X-App-Version": HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
-            "User-Agent": self.HDR_USER_AGENT,
+            "User-Agent": HDR_USER_AGENT,
         }
         if self.__token is not None:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")
