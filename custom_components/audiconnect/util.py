@@ -56,8 +56,9 @@ def parse_datetime(time_value):
                 continue
     return None
 
+
 def get_status_by_id(data, target_id):
-    for item in data['data']:
-        if item['id'] == target_id:
-            return item['status']
+    for item in data["data"]:
+        if item["id"] == target_id:
+            return item["status"]
     return None
