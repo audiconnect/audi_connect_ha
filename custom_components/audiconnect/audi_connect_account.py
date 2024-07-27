@@ -185,15 +185,22 @@ class AudiConnectAccount:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
+                    "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
                     cre.status,
                     redacted_vin,
                 )
                 self._support_vehicle_refresh = False
                 return "disabled"
+            elif cre.status == 502:
+                _LOGGER.warning(
+                    "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                    cre.status,
+                    redacted_vin,
+                )
+                return False
             elif cre.status != 204:
                 _LOGGER.debug(
-                    "ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Error: %s",
+                    "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Error: %s",
                     cre.status,
                     redacted_vin,
                     cre,
@@ -201,14 +208,14 @@ class AudiConnectAccount:
                 return False
             else:
                 _LOGGER.debug(
-                    "Refresh vehicle data currently not available for VIN: %s. Received 204 status.",
+                    "VEHICLE REFRESH: Refresh vehicle data currently not available for VIN: %s. Received 204 status.",
                     redacted_vin,
                 )
                 return False
 
         except Exception as e:
             _LOGGER.error(
-                "An unexpected error occurred while refreshing vehicle data for VIN: %s. Error: %s",
+                "VEHICLE REFRESH: An unexpected error occurred while refreshing vehicle data for VIN: %s. Error: %s",
                 redacted_vin,
                 e,
             )
@@ -663,6 +670,12 @@ class AudiConnectVehicle:
                     redacted_vin,
                 )
                 self.support_position = False
+            elif cre.status == 502:
+                _LOGGER.warning(
+                    "POSITION: ClientResponseError with status %s while updating vehicle position for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                    cre.status,
+                    redacted_vin,
+                )
             elif cre.status != 204:
                 _LOGGER.error(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Error: %s",
@@ -756,6 +769,12 @@ class AudiConnectVehicle:
                     redacted_vin,
                 )
                 self.support_climater = False
+            elif cre.status == 502:
+                _LOGGER.warning(
+                    "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                    cre.status,
+                    redacted_vin,
+                )
             elif cre.status != 204:
                 _LOGGER.debug(
                     "ClientResponseError with status %s while updating climater for VIN: %s. Error: %s",
@@ -777,6 +796,7 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_preheater(self):
+        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
         if not self.support_preheater:
             return
 
@@ -790,17 +810,23 @@ class AudiConnectVehicle:
 
         except TimeoutError:
             raise
-        except ClientResponseError as resp_exception:
-            if resp_exception.status in (403, 404):
-                # _LOGGER.error(
-                #    "support_preheater set to False: {status}".format(
-                #        status=resp_exception.status
-                #    )
-                # )
+        except ClientResponseError as cre:
+            if cre.status in (403, 404):
+                _LOGGER.debug(
+                    "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. Disabling preheater support.",
+                    cre.status,
+                    redacted_vin,
+                )
                 self.support_preheater = False
+            elif cre.status == 502:
+                _LOGGER.warning(
+                    "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                    cre.status,
+                    redacted_vin,
+                )
             else:
                 self.log_exception_once(
-                    resp_exception,
+                    cre,
                     "Unable to obtain the vehicle preheater state for {}".format(
                         self._vehicle.vin
                     ),
@@ -814,6 +840,7 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_charger(self):
+        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
         if not self.support_charger:
             return
 
@@ -890,17 +917,23 @@ class AudiConnectVehicle:
 
         except TimeoutError:
             raise
-        except ClientResponseError as resp_exception:
-            if resp_exception.status in (403, 404):
-                # _LOGGER.error(
-                #    "support_charger set to False: {status}".format(
-                #        status=resp_exception.status
-                #    )
-                # )
+        except ClientResponseError as cre:
+            if cre.status in (403, 404):
+                _LOGGER.debug(
+                    "CHARGER: ClientResponseError with status %s while updating charger for VIN: %s. Disabling charger support.",
+                    cre.status,
+                    redacted_vin,
+                )
                 self.support_charger = False
+            elif cre.status == 502:
+                _LOGGER.warning(
+                    "CHARGER: ClientResponseError with status %s while updating charger for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                    cre.status,
+                    redacted_vin,
+                )
             else:
                 self.log_exception_once(
-                    resp_exception,
+                    cre,
                     "Unable to obtain the vehicle charger state for {}".format(
                         self._vehicle.vin
                     ),
@@ -923,7 +956,7 @@ class AudiConnectVehicle:
         redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
         if not self.support_trip_data:
             _LOGGER.debug(
-                "Trip data support is disabled for VIN: %s. Exiting update process.",
+                "TRIP DATA: Trip data support is disabled for VIN: %s. Exiting update process.",
                 redacted_vin,
             )
             return
@@ -958,34 +991,40 @@ class AudiConnectVehicle:
 
         except TimeoutError:
             _LOGGER.debug(
-                "TimeoutError encountered while updating trip data for VIN: %s.",
+                "TRIP DATA: TimeoutError encountered while updating trip data for VIN: %s.",
                 redacted_vin,
             )
             raise
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
+                    "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_trip_data = False
+            elif cre.status == 502:
+                _LOGGER.warning(
+                    "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                    cre.status,
+                    redacted_vin,
+                )
             elif cre.status != 204:
                 _LOGGER.debug(
-                    "ClientResponseError with status %s while updating trip data for VIN: %s. Error: %s",
+                    "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. Error: %s",
                     cre.status,
                     redacted_vin,
                     cre,
                 )
             else:
                 _LOGGER.debug(
-                    "Trip data currently not available for VIN: %s. Received 204 status.",
+                    "TRIP DATA: Trip data currently not available for VIN: %s. Received 204 status.",
                     redacted_vin,
                 )
 
         except Exception as e:
             _LOGGER.error(
-                "An unexpected error occurred while updating trip data for VIN: %s. Error: %s",
+                "TRIP DATA: An unexpected error occurred while updating trip data for VIN: %s. Error: %s",
                 redacted_vin,
                 e,
             )
