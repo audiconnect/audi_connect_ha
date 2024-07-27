@@ -192,7 +192,7 @@ class AudiConnectAccount:
                 self._support_vehicle_refresh = False
                 return "disabled"
             elif cre.status == 502:
-                _LOGGER.debug(
+                _LOGGER.warning(
                     "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
                     cre.status,
                     redacted_vin,
@@ -671,7 +671,7 @@ class AudiConnectVehicle:
                 )
                 self.support_position = False
             elif cre.status == 502:
-                _LOGGER.debug(
+                _LOGGER.warning(
                     "POSITION: ClientResponseError with status %s while updating vehicle position for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
                     cre.status,
                     redacted_vin,
@@ -770,7 +770,7 @@ class AudiConnectVehicle:
                 )
                 self.support_climater = False
             elif cre.status == 502:
-                _LOGGER.debug(
+                _LOGGER.warning(
                     "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
                     cre.status,
                     redacted_vin,
@@ -819,7 +819,7 @@ class AudiConnectVehicle:
                 )
                 self.support_preheater = False
             elif cre.status == 502:
-                _LOGGER.debug(
+                _LOGGER.warning(
                     "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
                     cre.status,
                     redacted_vin,
@@ -926,7 +926,7 @@ class AudiConnectVehicle:
                 )
                 self.support_charger = False
             elif cre.status == 502:
-                _LOGGER.debug(
+                _LOGGER.warning(
                     "CHARGER: ClientResponseError with status %s while updating charger for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
                     cre.status,
                     redacted_vin,
@@ -1004,7 +1004,7 @@ class AudiConnectVehicle:
                 )
                 self.support_trip_data = False
             elif cre.status == 502:
-                _LOGGER.debug(
+                _LOGGER.warning(
                     "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
                     cre.status,
                     redacted_vin,
