@@ -826,7 +826,7 @@ class AudiConnectVehicle:
                 )
             else:
                 self.log_exception_once(
-                    resp_exception,
+                    cre,
                     "Unable to obtain the vehicle preheater state for {}".format(
                         self._vehicle.vin
                     ),
@@ -933,7 +933,7 @@ class AudiConnectVehicle:
                 )
             else:
                 self.log_exception_once(
-                    resp_exception,
+                    cre,
                     "Unable to obtain the vehicle charger state for {}".format(
                         self._vehicle.vin
                     ),
