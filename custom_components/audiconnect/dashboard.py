@@ -621,10 +621,10 @@ def create_instruments():
             icon="mdi:ev-plug-type1",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
-        Sensor(
+        BinarySensor(
             attr="doors_trunk_status",
             name="Doors/trunk state",
-            icon="mdi:car-door",
+            device_class=BinarySensorDeviceClass.DOOR,
         ),
         Sensor(
             attr="climatisation_state",
