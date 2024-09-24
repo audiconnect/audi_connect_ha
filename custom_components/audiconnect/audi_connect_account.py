@@ -1446,19 +1446,19 @@ class AudiConnectVehicle:
 
     @property
     def doors_trunk_status(self):
-            checkLeftFront = self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR")
-            checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
-            checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
-            checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
-            checkTrunk = self._vehicle.fields.get("OPEN_STATE_TRUNK_LID")
-            return not (
-                checkLeftFront == "3"
-                and checkLeftRear == "3"
-                and checkRightFront == "3"
-                and checkRightRear == "3"
-                and checkTrunk == "3"
-            )
-                
+        checkLeftFront = self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR")
+        checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
+        checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
+        checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
+        checkTrunk = self._vehicle.fields.get("OPEN_STATE_TRUNK_LID")
+        return not (
+            checkLeftFront == "3"
+            and checkLeftRear == "3"
+            and checkRightFront == "3"
+            and checkRightRear == "3"
+            and checkTrunk == "3"
+        )
+
     @property
     def trunk_unlocked(self):
         if self.trunk_unlocked_supported:
