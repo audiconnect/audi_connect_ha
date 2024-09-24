@@ -1446,19 +1446,19 @@ class AudiConnectVehicle:
 
     @property
     def doors_trunk_status(self):
-        if (
-            self.any_door_open_supported
-            and self.any_door_unlocked_supported
-            and self.trunk_open_supported
-            and self.trunk_unlocked_supported
-        ):
-            if self.any_door_open or self.trunk_open:
-                return "Open"
-            elif self.any_door_unlocked or self.trunk_unlocked:
-                return "Closed"
-            else:
-                return "Locked"
-
+            checkLeftFront = self._vehicle.fields.get("OPEN_STATE_LEFT_FRONT_DOOR")
+            checkLeftRear = self._vehicle.fields.get("OPEN_STATE_LEFT_REAR_DOOR")
+            checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
+            checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
+            checkTrunk = self._vehicle.fields.get("OPEN_STATE_TRUNK_LID")
+            return not (
+                checkLeftFront == "3"
+                and checkLeftRear == "3"
+                and checkRightFront == "3"
+                and checkRightRear == "3"
+                and checkTrunk == "3"
+            )
+                
     @property
     def trunk_unlocked(self):
         if self.trunk_unlocked_supported:
