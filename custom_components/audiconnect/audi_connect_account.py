@@ -1442,7 +1442,13 @@ class AudiConnectVehicle:
         checkRightFront = self._vehicle.fields.get("OPEN_STATE_RIGHT_FRONT_DOOR")
         checkRightRear = self._vehicle.fields.get("OPEN_STATE_RIGHT_REAR_DOOR")
         checkTrunk = self._vehicle.fields.get("OPEN_STATE_TRUNK_LID")
-        if checkLeftFront and checkLeftRear and checkRightFront and checkRightRear and checkTrunk:
+        if (
+            checkLeftFront
+            and checkLeftRear
+            and checkRightFront
+            and checkRightRear
+            and checkTrunk
+        ):
             return True
 
     @property
