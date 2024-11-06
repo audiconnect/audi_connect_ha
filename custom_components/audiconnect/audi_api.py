@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 
-import async_timeout
+import asyncio
 
 from asyncio import TimeoutError, CancelledError
 from aiohttp import ClientResponseError
@@ -46,7 +46,7 @@ class AudiAPI:
         **kwargs,
     ):
         try:
-            with async_timeout.timeout(TIMEOUT):
+            async with asyncio.timeout(TIMEOUT):
                 async with self._session.request(
                     method, url, headers=headers, data=data, **kwargs
                 ) as response:
