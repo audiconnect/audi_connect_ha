@@ -547,38 +547,27 @@ class AudiService:
 
     async def set_climatisation(self, vin: str, start: bool):
         if start:
-            data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+            data = '{ "targetTemperature": 23, "targetTemperatureUnit": "celsius", "climatisationWithoutExternalPower": true, "climatizationAtUnlock": false, "windowHeatingEnabled": true, "zoneFrontLeftEnabled": false, "zoneFrontRightEnabled": false, "zoneRearLeftEnabled": false,  "zoneRearRightEnabled": false }'
+            headers = { "Authorization": "Bearer " + self._bearer_token_json["access_token"] }
+            res = await self._api.request(
+                "POST",
+                "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            ) 
         else:
-            data = '{"action":{"type": "stopClimatisation"}}'
-
-        headers = self._get_vehicle_action_header("application/json", None)
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
-
-        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
-
-        await self.check_request_succeeded(
-            checkUrl,
-            "start climatisation" if start else "stop climatisation",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+            data = ''
+            headers = { "Authorization": "Bearer " + self._bearer_token_json["access_token"] }
+            res = await self._api.request(
+                "POST",
+                "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            )
 
     async def start_climate_control(
         self,
