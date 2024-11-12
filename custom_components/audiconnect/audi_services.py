@@ -548,7 +548,9 @@ class AudiService:
     async def set_climatisation(self, vin: str, start: bool):
         if start:
             data = '{ "targetTemperature": 23, "targetTemperatureUnit": "celsius", "climatisationWithoutExternalPower": true, "climatizationAtUnlock": false, "windowHeatingEnabled": true, "zoneFrontLeftEnabled": false, "zoneFrontRightEnabled": false, "zoneRearLeftEnabled": false,  "zoneRearRightEnabled": false }'
-            headers = { "Authorization": "Bearer " + self._bearer_token_json["access_token"] }
+            headers = {
+                "Authorization": "Bearer " + self._bearer_token_json["access_token"]
+            }
             res = await self._api.request(
                 "POST",
                 "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
@@ -556,10 +558,12 @@ class AudiService:
                 ),
                 headers=headers,
                 data=data,
-            ) 
+            )
         else:
-            data = ''
-            headers = { "Authorization": "Bearer " + self._bearer_token_json["access_token"] }
+            data = ""
+            headers = {
+                "Authorization": "Bearer " + self._bearer_token_json["access_token"]
+            }
             res = await self._api.request(
                 "POST",
                 "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
