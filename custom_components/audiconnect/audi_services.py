@@ -551,7 +551,7 @@ class AudiService:
             headers = {
                 "Authorization": "Bearer " + self._bearer_token_json["access_token"]
             }
-            res = await self._api.request(
+            await self._api.request(
                 "POST",
                 "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
                     vin=vin.upper(),
@@ -564,7 +564,7 @@ class AudiService:
             headers = {
                 "Authorization": "Bearer " + self._bearer_token_json["access_token"]
             }
-            res = await self._api.request(
+            await self._api.request(
                 "POST",
                 "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
                     vin=vin.upper(),
