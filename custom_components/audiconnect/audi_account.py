@@ -264,3 +264,11 @@ class AudiAccount(AudiConnectObserver):
             await self.update(utcnow())
         except Exception as e:
             _LOGGER.exception("Refresh cloud data failed: %s", str(e))
+
+    def is_charging_and_etron(self):
+        for vehicle in self.config_vehicles:
+            if vehicle.vehicle.model_family.lower() == "etron":
+                charging_state = vehicle.vehicle.state.get("chargingState")
+                if charging_state and float(charging_state) > 0:
+                    return True
+        return False

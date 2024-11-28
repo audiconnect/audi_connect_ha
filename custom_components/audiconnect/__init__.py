@@ -124,7 +124,19 @@ async def async_setup_entry(hass, config_entry):
     async def update_data(now):
         """Update the data with the latest information."""
         _LOGGER.debug("ACTIVE POLLING: Requesting scheduled cloud data refresh...")
+
+        # Check if the car is being charged and is an e-tron
+        if data.is_charging_and_etron():
+            _LOGGER.debug("Car is being charged and is an e-tron. Adjusting polling interval to 30 seconds.")
+            polling_interval = timedelta(seconds=30)
+        else:
+            _LOGGER.debug("Car is not being charged or is not an e-tron. Using default polling interval.")
+            polling_interval = scan_interval
+
         await data.update(utcnow())
+
+        # Schedule the next update based on the polling interval
+        async_track_time_interval(hass, update_data, polling_interval)
 
     # Schedule the update_data function if option is true
     if _scan_active:
