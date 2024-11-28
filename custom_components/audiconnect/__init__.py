@@ -127,10 +127,14 @@ async def async_setup_entry(hass, config_entry):
 
         # Check if the car is being charged and is an e-tron
         if data.is_charging_and_etron():
-            _LOGGER.debug("Car is being charged and is an e-tron. Adjusting polling interval to 30 seconds.")
+            _LOGGER.debug(
+                "Car is being charged and is an e-tron. Adjusting polling interval to 30 seconds."
+            )
             polling_interval = timedelta(seconds=30)
         else:
-            _LOGGER.debug("Car is not being charged or is not an e-tron. Using default polling interval.")
+            _LOGGER.debug(
+                "Car is not being charged or is not an e-tron. Using default polling interval."
+            )
             polling_interval = scan_interval
 
         await data.update(utcnow())
