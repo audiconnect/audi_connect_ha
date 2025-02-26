@@ -16,6 +16,8 @@ CONF_SCAN_ACTIVE = "scan_active"
 MIN_UPDATE_INTERVAL = 15
 DEFAULT_UPDATE_INTERVAL = 15
 UPDATE_SLEEP = 5
+API_LEVEL = 1
+# API Options are 1 or 2. 1 being the old API (2023 or older) and 2 being the new API (2024 or newer)
 
 CONF_SPIN = "spin"
 CONF_REGION = "region"
@@ -89,3 +91,12 @@ REGIONS = {
     3: REGION_USA,
     4: REGION_CHINA,
 }
+
+HDR_XAPP_VERSION = "4.26.0"
+HDR_USER_AGENT = "Android/4.26.0 (Build 800240850.root project 'onetouch-android'.ext.buildTime) Android/13"
+URL_HOST_ACTION = "https://emea.bff.cariad.digital/vehicle/v1/vehicles"
+URL_HOST_ACTION_US = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs"
+URL_HOST_INFO = "https://emea.bff.cariad.digital/vehicle/v1/vehicles"
+URL_HOST_INFO_US = "https://na.bff.cariad.digital/vehicle/v1/vehicles"
+URL_INFO_VEHICLE = "https://app-api.live-my.audi.com/vgql/v1/graphql"
+URL_INFO_VEHICLE_US = "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
