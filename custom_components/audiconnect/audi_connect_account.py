@@ -646,6 +646,8 @@ class AudiConnectVehicle:
                     "parktime": parktime,
                 }
 
+                self._vehicle.state['is_moving'] = False
+
                 _LOGGER.debug(
                     "POSITION: Vehicle position updated successfully for VIN: %s",
                     redacted_vin,
@@ -685,9 +687,12 @@ class AudiConnectVehicle:
                 )
             else:
                 _LOGGER.debug(
-                    "POSITION: Vehicle position currently not available for VIN: %s. Received 204 status.",
+                    "POSITION: Vehicle position currently not available for VIN: %s (Is moving?!). Received 204 status.",
                     redacted_vin,
                 )
+                # we receive a 204 when the vehicle is moving.
+                self._vehicle.state['is_moving'] = True
+
 
         except Exception as e:
             _LOGGER.error(
@@ -1915,3 +1920,14 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("longterm_reset")
         if check:
             return True
+
+    @property
+    def is_moving(self):
+        """Return true if the vehicle is moving."""
+        if self.is_moving_supported:
+            return self._vehicle.state.get("is_moving")
+
+    @property
+    def is_moving_supported(self):
+        """Return true if vehicle can move."""
+        return True
