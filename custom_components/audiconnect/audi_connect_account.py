@@ -646,7 +646,7 @@ class AudiConnectVehicle:
                     "parktime": parktime,
                 }
 
-                self._vehicle.state['is_moving'] = False
+                self._vehicle.state["is_moving"] = False
 
                 _LOGGER.debug(
                     "POSITION: Vehicle position updated successfully for VIN: %s",
@@ -691,8 +691,7 @@ class AudiConnectVehicle:
                     redacted_vin,
                 )
                 # we receive a 204 when the vehicle is moving.
-                self._vehicle.state['is_moving'] = True
-
+                self._vehicle.state["is_moving"] = True
 
         except Exception as e:
             _LOGGER.error(
