@@ -164,35 +164,35 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
-        self.config_entry: config_entries.ConfigEntry = config_entry
+        self._config_entry: config_entries.ConfigEntry = config_entry
         _LOGGER.debug(
             "Initializing options flow for audiconnect: %s", config_entry.title
         )
 
     async def async_step_init(self, user_input=None):
         _LOGGER.debug(
-            "Options flow initiated for audiconnect: %s", self.config_entry.title
+            "Options flow initiated for audiconnect: %s", self._config_entry.title
         )
         if user_input is not None:
             _LOGGER.info("Received user input for options: %s", user_input)
             return self.async_create_entry(title="", data=user_input)
 
-        current_scan_interval = self.config_entry.options.get(
+        current_scan_interval = self._config_entry.options.get(
             CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+            self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
         _LOGGER.info(
             "Retrieved current scan interval for audiconnect %s: %s minutes",
-            self.config_entry.title,
+            self._config_entry.title,
             current_scan_interval,
         )
 
         _LOGGER.debug(
             "Preparing options form for %s with default scan interval: %s minutes, initial scan: %s, active scan: %s",
-            self.config_entry.title,
+            self._config_entry.title,
             current_scan_interval,
-            self.config_entry.options.get(CONF_SCAN_INITIAL, True),
-            self.config_entry.options.get(CONF_SCAN_ACTIVE, True),
+            self._config_entry.options.get(CONF_SCAN_INITIAL, True),
+            self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
         )
 
         return self.async_show_form(
@@ -201,11 +201,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_SCAN_INITIAL,
-                        default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
+                        default=self._config_entry.options.get(CONF_SCAN_INITIAL, True),
                     ): bool,
                     vol.Required(
                         CONF_SCAN_ACTIVE,
-                        default=self.config_entry.options.get(CONF_SCAN_ACTIVE, True),
+                        default=self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
                     ): bool,
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
