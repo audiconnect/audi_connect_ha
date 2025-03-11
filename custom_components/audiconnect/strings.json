@@ -54,7 +54,8 @@
         "start_preheater": "Start Preheater",
         "stop_preheater": "Stop Preheater",
         "start_window_heating": "Start Window heating",
-        "stop_window_heating": "Stop Windows heating"
+        "stop_window_heating": "Stop Windows heating",
+        "is_moving": "Is moving"
       }
     }
   },
