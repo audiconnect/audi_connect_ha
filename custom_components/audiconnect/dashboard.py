@@ -779,7 +779,7 @@ def create_instruments():
         BinarySensor(
             attr="is_moving",
             name="Is moving",
-            icon="mdi:motion",
+            icon="mdi:motion-outline",
             device_class=BinarySensorDeviceClass.MOTION,
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
