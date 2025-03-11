@@ -68,6 +68,7 @@ RESOURCES = [
     "left_rear_window_open",
     "right_rear_window_open",
     "braking_status",
+    "is_moving",
 ]
 
 COMPONENTS = {
