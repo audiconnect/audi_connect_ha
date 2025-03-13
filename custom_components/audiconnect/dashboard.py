@@ -605,10 +605,11 @@ def create_instruments():
             name="Plug state",
             icon="mdi:ev-plug-type1",
         ),
-        Sensor(
+        BinarySensor(
             attr="plug_lock_state",
             name="Plug Lock state",
             icon="mdi:ev-plug-type1",
+            device_class=BinarySensorDeviceClass.PLUG,
         ),
         Sensor(
             attr="external_power",
