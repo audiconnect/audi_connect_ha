@@ -600,15 +600,17 @@ def create_instruments():
             icon="mdi:ev-station",
             unit=PERCENTAGE,
         ),
-        Sensor(
+        BinarySensor(
             attr="plug_state",
             name="Plug state",
             icon="mdi:ev-plug-type1",
+            device_class=BinarySensorDeviceClass.PLUG,
         ),
-        Sensor(
+        BinarySensor(
             attr="plug_lock_state",
             name="Plug Lock state",
             icon="mdi:ev-plug-type1",
+            device_class=BinarySensorDeviceClass.LOCK,
         ),
         Sensor(
             attr="external_power",
