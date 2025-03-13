@@ -1753,7 +1753,8 @@ class AudiConnectVehicle:
     def plug_lock_state(self):
         """Return plug lock state"""
         if self.plug_lock_state_supported:
-            return self._vehicle.state.get("plugLockState")
+            check = self._vehicle.state.get("plugLockState")
+            return check != "unlocked"
 
     @property
     def plug_lock_state_supported(self):
