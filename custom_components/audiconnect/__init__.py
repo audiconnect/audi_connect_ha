@@ -28,9 +28,10 @@ from .const import (
     MIN_UPDATE_INTERVAL,
     RESOURCES,
     COMPONENTS,
+    CONF_DEBUG_LOGS,
 )
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(DOMAIN)
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -53,6 +54,7 @@ CONFIG_SCHEMA = vol.Schema(
                 ),
                 vol.Optional(CONF_REGION): cv.string,
                 vol.Optional(CONF_MUTABLE, default=True): cv.boolean,
+                vol.Optional(CONF_DEBUG_LOGS, default=False): cv.boolean,
             }
         )
     },
@@ -86,9 +88,31 @@ async def async_setup(hass, config):
     return True
 
 
+async def async_update_listener(hass, config_entry):
+    """Handle updated options."""
+    debug_mode = config_entry.options.get(CONF_DEBUG_LOGS, False)
+    new_level = logging.DEBUG if debug_mode else logging.INFO
+    logger = logging.getLogger(DOMAIN)
+    logger.setLevel(new_level)
+    for handler in logger.handlers:
+        handler.setLevel(new_level)
+    logger.debug("Options updated: debug logs is %s", debug_mode)
+    return True
+
+
 async def async_setup_entry(hass, config_entry):
     """Set up this integration using UI."""
     _LOGGER.debug("Audi Connect starting...")
+    
+    # Set logger level initially based on config options.
+    if config_entry.options.get(CONF_DEBUG_LOGS, False):
+        logging.getLogger(DOMAIN).setLevel(logging.DEBUG)
+    else:
+        logging.getLogger(DOMAIN).setLevel(logging.INFO)
+    
+    # Register the update listener so that changes to options are applied immediately.
+    config_entry.async_on_unload(config_entry.add_update_listener(async_update_listener))
+    
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
