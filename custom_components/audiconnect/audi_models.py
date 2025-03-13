@@ -1,7 +1,8 @@
 import logging
 from .util import get_attr
 
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN
+_LOGGER = logging.getLogger(DOMAIN)
 
 
 class VehicleData:
