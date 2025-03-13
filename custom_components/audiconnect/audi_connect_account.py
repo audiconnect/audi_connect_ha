@@ -14,7 +14,8 @@ from .audi_services import AudiService
 from .audi_api import AudiAPI
 from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime
 
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN
+_LOGGER = logging.getLogger(DOMAIN)
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
