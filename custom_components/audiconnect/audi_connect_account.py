@@ -1741,7 +1741,8 @@ class AudiConnectVehicle:
     def plug_state(self):
         """Return plug state"""
         if self.plug_state_supported:
-            return self._vehicle.state.get("plugState")
+            check = self._vehicle.state.get("plugState")
+            return check != "disconnected"
 
     @property
     def plug_state_supported(self):
