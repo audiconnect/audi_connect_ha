@@ -13,7 +13,7 @@ from homeassistant.const import CONF_USERNAME
 
 from .const import DOMAIN, TRACKER_UPDATE
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(DOMAIN)
 
 
 async def async_setup_scanner(hass, config, async_see, discovery_info=None):
