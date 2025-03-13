@@ -26,7 +26,7 @@ from bs4 import BeautifulSoup
 from requests import RequestException
 
 from typing import Dict
-
+from .const import DOMAIN
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
@@ -36,7 +36,7 @@ FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
 REQUEST_FAILED = "request_failed"
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(DOMAIN)
 
 
 class BrowserLoginResponse:
