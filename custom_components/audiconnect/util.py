@@ -1,8 +1,9 @@
 from functools import reduce
 from datetime import datetime, timezone
 import logging
+from .const import DOMAIN
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(DOMAIN)
 
 
 def get_attr(dictionary, keys, default=None):
