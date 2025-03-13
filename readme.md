@@ -79,7 +79,7 @@ Find configuration options under **Settings ➤ Devices & Services ➤ Integrati
 - **Cloud Update at Startup (`bool`)**: Toggle cloud updates at integration startup. Ideal for development or frequent HA restarts.
 - **Active Polling at Scan Interval (`bool`)**: Enable or disable active polling.
 - **Scan Interval (`int`)**: Defines polling frequency in minutes (minimum 15). Effective only if "Active Polling at Scan Interval" is enabled.
-- **Debug Logs (`bool`)**: Turns on DEBUG level logging. Helpful for development or troubleshooting. This change is effective immediately without  the need for a restart.
+- **Debug Logs (`bool`)**: Turns on DEBUG level logging. Helpful for development or troubleshooting. This change is effective immediately without the need for a restart.
 
 _Note: A Home Assistant restart is required for changes to take effect._
 
