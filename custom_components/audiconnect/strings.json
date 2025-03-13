@@ -30,13 +30,15 @@
         "data": {
           "scan_initial": "Cloud Update at Startup",
           "scan_active": "Active Polling at Scan Interval",
-          "scan_interval": "Scan Interval"
+          "scan_interval": "Scan Interval",
+          "debug": "Debug Logs"
         },
         "title": "Audi Connect Options",
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
           "scan_active": "Perform a cloud update at the set scan interval.",
-          "scan_interval": "Minutes between active polling. If 'Active Polling at Scan Interval' is off, this value will have no impact."
+          "scan_interval": "Minutes between active polling. If 'Active Polling at Scan Interval' is off, this value will have no impact.",
+          "debug": "Turns on DEBUG level logging."
         }
       }
     }
@@ -54,8 +56,7 @@
         "start_preheater": "Start Preheater",
         "stop_preheater": "Stop Preheater",
         "start_window_heating": "Start Window heating",
-        "stop_window_heating": "Stop Windows heating",
-        "is_moving": "Is moving"
+        "stop_window_heating": "Stop Windows heating"
       }
     }
   },
