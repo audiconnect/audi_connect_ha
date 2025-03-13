@@ -211,7 +211,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
-                    vol.Optional(CONF_DEBUG_LOGS, default=self._config_entry.options.get(CONF_DEBUG_LOGS, False)): bool,
+                    vol.Optional(
+                        CONF_DEBUG_LOGS,
+                        default=self._config_entry.options.get(CONF_DEBUG_LOGS, False),
+                    ): bool,
                 }
             ),
         )

@@ -103,16 +103,18 @@ async def async_update_listener(hass, config_entry):
 async def async_setup_entry(hass, config_entry):
     """Set up this integration using UI."""
     _LOGGER.debug("Audi Connect starting...")
-    
+
     # Set logger level initially based on config options.
     if config_entry.options.get(CONF_DEBUG_LOGS, False):
         logging.getLogger(DOMAIN).setLevel(logging.DEBUG)
     else:
         logging.getLogger(DOMAIN).setLevel(logging.INFO)
-    
+
     # Register the update listener so that changes to options are applied immediately.
-    config_entry.async_on_unload(config_entry.add_update_listener(async_update_listener))
-    
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(async_update_listener)
+    )
+
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 

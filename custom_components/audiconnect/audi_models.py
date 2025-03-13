@@ -2,6 +2,7 @@ import logging
 from .util import get_attr
 
 from .const import DOMAIN
+
 _LOGGER = logging.getLogger(DOMAIN)
 
 

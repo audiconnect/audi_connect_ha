@@ -12,6 +12,7 @@ from typing import Dict
 
 TIMEOUT = 30
 from .const import DOMAIN
+
 _LOGGER = logging.getLogger(DOMAIN)
 
 
