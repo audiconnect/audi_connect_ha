@@ -9,9 +9,9 @@ from aiohttp import ClientResponseError
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
 
 from typing import Dict
+from .const import DOMAIN
 
 TIMEOUT = 30
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(DOMAIN)
 
