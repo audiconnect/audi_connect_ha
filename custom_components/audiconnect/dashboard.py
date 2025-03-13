@@ -18,8 +18,8 @@ from homeassistant.const import (
     EntityCategory,
 )
 from .util import parse_datetime
-
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN
+_LOGGER = logging.getLogger(DOMAIN)
 
 
 class Instrument:
@@ -50,7 +50,7 @@ class Instrument:
         self._vehicle = vehicle
 
         if not mutable and self.is_mutable:
-            _LOGGER.info("Skipping %s because mutable", self)
+            _LOGGER.debug("Skipping %s because mutable", self)
             return False
 
         if not self.is_supported:
