@@ -174,14 +174,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             "Options flow initiated for audiconnect: %s", self._config_entry.title
         )
         if user_input is not None:
-            _LOGGER.info("Received user input for options: %s", user_input)
+            _LOGGER.debug("Received user input for options: %s", user_input)
             return self.async_create_entry(title="", data=user_input)
 
         current_scan_interval = self._config_entry.options.get(
             CONF_SCAN_INTERVAL,
             self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
-        _LOGGER.info(
+        _LOGGER.debug(
             "Retrieved current scan interval for audiconnect %s: %s minutes",
             self._config_entry.title,
             current_scan_interval,
