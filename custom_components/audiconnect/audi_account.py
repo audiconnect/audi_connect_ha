@@ -208,7 +208,7 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, False)
 
     async def start_climate_control(self, service):
-        _LOGGER.info("Initiating Start Climate Control Service...")
+        _LOGGER.debug("Initiating Start Climate Control Service...")
         vin = service.data.get(CONF_VIN).lower()
         # Optional Parameters
         temp_f = service.data.get(CONF_CLIMATE_TEMP_F, None)
