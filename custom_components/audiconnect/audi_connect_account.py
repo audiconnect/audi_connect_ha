@@ -1767,13 +1767,7 @@ class AudiConnectVehicle:
     def external_power(self):
         """Return external Power"""
         if self.external_power_supported:
-            external_power_status = self._vehicle.state.get("externalPower")
-            if external_power_status == "unavailable":
-                return "Not Ready"
-            elif external_power_status == "ready":
-                return "Ready"
-            else:
-                return external_power_status
+            return self._vehicle.state.get("externalPower") == "ready"
 
     @property
     def external_power_supported(self):
@@ -1794,7 +1788,7 @@ class AudiConnectVehicle:
     @property
     def climatisation_state(self):
         if self.climatisation_state_supported:
-            return self._vehicle.state.get("climatisationState")
+            return self._vehicle.state.get("climatisationState") is True
 
     @property
     def climatisation_state_supported(self):

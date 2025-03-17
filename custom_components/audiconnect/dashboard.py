@@ -612,10 +612,11 @@ def create_instruments():
             icon="mdi:ev-plug-type1",
             device_class=BinarySensorDeviceClass.LOCK,
         ),
-        Sensor(
+        BinarySensor(
             attr="external_power",
             name="External Power",
             icon="mdi:ev-station",
+            device_class=BinarySensorDeviceClass.POWER,
         ),
         Sensor(
             attr="plug_led_color",
@@ -628,10 +629,11 @@ def create_instruments():
             name="Doors/trunk state",
             icon="mdi:car-door",
         ),
-        Sensor(
+        BinarySensor(
             attr="climatisation_state",
             name="Climatisation state",
             icon="mdi:air-conditioner",
+            device_class=BinarySensorDeviceClass.RUNNING,
         ),
         Sensor(
             attr="outdoor_temperature",
