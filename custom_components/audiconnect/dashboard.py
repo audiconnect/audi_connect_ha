@@ -495,10 +495,11 @@ def create_instruments():
             icon="mdi:oil",
             unit=PERCENTAGE,
         ),
-        Sensor(
+        BinarySensor(
             attr="charging_state",
             name="Charging state",
             icon="mdi:car-battery",
+            device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         ),
         Sensor(
             attr="charging_mode",
