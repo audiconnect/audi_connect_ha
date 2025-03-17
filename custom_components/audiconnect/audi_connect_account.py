@@ -1503,7 +1503,7 @@ class AudiConnectVehicle:
     def charging_state(self):
         """Return charging state"""
         if self.charging_state_supported:
-            return self._vehicle.state.get("chargingState") == "readyForCharging"
+            return self._vehicle.state.get("chargingState") == "charging"
 
     @property
     def charging_state_supported(self):
