@@ -1788,7 +1788,7 @@ class AudiConnectVehicle:
     @property
     def climatisation_state(self):
         if self.climatisation_state_supported:
-            return self._vehicle.state.get("climatisationState") is True
+            return self._vehicle.state.get("climatisationState") == "heating"
 
     @property
     def climatisation_state_supported(self):
