@@ -22,6 +22,7 @@ from .const import (
     CONF_SCAN_ACTIVE,
     REGIONS,
     CONF_API_LEVEL,
+    DEFAULT_API_LEVEL,
     API_LEVELS,
 )
 
@@ -212,9 +213,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
-                    vol.Optional(CONF_API_LEVEL, default=API_LEVELS[0]): vol.In(
-                        API_LEVELS
-                    ),
+                    vol.Optional(
+                        CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]
+                    ): vol.In(API_LEVELS),
                 }
             ),
         )
