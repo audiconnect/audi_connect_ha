@@ -89,7 +89,7 @@ async def async_setup(hass, config):
 
 
 async def async_update_listener(hass, config_entry):
-    # _LOGGER.debug("The Update Listener has not been configured yet...")
+    _LOGGER.debug("The update listener actions have not been configured yet...")
     raise NotImplementedError
 
 
