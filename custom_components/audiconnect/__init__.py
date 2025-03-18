@@ -28,8 +28,6 @@ from .const import (
     MIN_UPDATE_INTERVAL,
     RESOURCES,
     COMPONENTS,
-    CONF_API_LEVEL,
-    API_LEVELS,
 )
 
 _LOGGER = logging.getLogger(__name__)
