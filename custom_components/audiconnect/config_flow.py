@@ -213,11 +213,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
                     vol.Optional(
-                        CONF_API_LEVEL,
-                        default=self._config_entry.options.get(
-                            CONF_API_LEVEL, API_LEVELS[0]
-                        ),
-                    ): vol.Coerce(int),
+                        CONF_API_LEVEL, default=API_LEVELS[0]
+                    ): vol.In(API_LEVELS),
                 }
             ),
         )
