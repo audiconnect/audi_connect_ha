@@ -83,13 +83,13 @@ class AudiAPI:
                             message=response.reason,
                         )
         except CancelledError:
-            _LOGGER.error("Request cancelled (Timeout error)")
+            # _LOGGER.error("Request cancelled (Timeout error)")
             raise TimeoutError("Timeout error")
         except TimeoutError:
-            _LOGGER.error("Request timed out")
+            # _LOGGER.error("Request timed out")
             raise TimeoutError("Timeout error")
         except Exception:
-            _LOGGER.exception("An unexpected error occurred during request")
+            # _LOGGER.exception("An unexpected error occurred during request")
             raise
 
     async def get(
