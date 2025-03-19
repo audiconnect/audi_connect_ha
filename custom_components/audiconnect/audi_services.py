@@ -13,6 +13,7 @@ from .audi_models import (
     VehiclesResponse,
 )
 from .audi_api import AudiAPI
+from .const import DEFAULT_API_LEVEL
 from .util import to_byte_array, get_attr
 
 from hashlib import sha256, sha512
@@ -67,7 +68,7 @@ class BrowserLoginResponse:
 
 
 class AudiService:
-    def __init__(self, api: AudiAPI, country: str, spin: str):
+    def __init__(self, api: AudiAPI, country: str, spin: str, api_level: int):
         self._api = api
         self._country = country
         self._language = None
@@ -82,6 +83,10 @@ class AudiService:
         self._bearer_token_json = None
         self._client_id = ""
         self._authorizationServerBaseURLLive = ""
+        self._api_level = api_level
+
+        if self._api_level is None:
+            self._api_level = DEFAULT_API_LEVEL
 
         if self._country is None:
             self._country = "DE"
@@ -400,8 +405,8 @@ class AudiService:
     async def _get_security_token(self, vin: str, action: str):
         # Challenge
         headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "X-App-Version": "3.14.0",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
@@ -435,9 +440,9 @@ class AudiService:
         }
 
         headers = {
-            "User-Agent": "okhttp/3.7.0",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/json",
-            "X-App-Version": "3.14.0",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
@@ -455,9 +460,9 @@ class AudiService:
 
     def _get_vehicle_action_header(self, content_type: str, security_token: str):
         headers = {
-            "User-Agent": "okhttp/3.7.0",
-            "Host": "msg.volkswagen.de",
-            "X-App-Version": "3.14.0",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Host": "mal-3a.prd.eu.dp.vwg-connect.com",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
             "Accept-charset": "UTF-8",
@@ -591,69 +596,147 @@ class AudiService:
         seat_rl: bool,
         seat_rr: bool,
     ):
+        api_level = self._api_level
+        country = self._country
         target_temperature = None
-        if temp_f is not None:
-            target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
-        elif temp_c is not None:
-            target_temperature = int(temp_c * 10 + 2731)
 
-        # Default Temp
-        target_temperature = target_temperature or 2941
+        _LOGGER.debug(f"Attempting to start climate control with API Level {api_level} and country {country}.")
 
-        # Construct Zone Settings
-        zone_settings = [
-            {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
-            {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
-            {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
-            {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
-        ]
+        if api_level == 0:
+            target_temperature = None
+            if temp_f is not None:
+                target_temperature = int(((temp_f - 32) * (5 / 9)) * 10 + 2731)
+            elif temp_c is not None:
+                target_temperature = int(temp_c * 10 + 2731)
 
-        data = {
-            "action": {
-                "type": "startClimatisation",
-                "settings": {
-                    "targetTemperature": target_temperature,
-                    "climatisationWithoutHVpower": True,
-                    "heaterSource": "electric",
-                    "climaterElementSettings": {
-                        "isClimatisationAtUnlock": False,
-                        "isMirrorHeatingEnabled": glass_heating,
-                        "zoneSettings": {"zoneSetting": zone_settings},
+            # Default Temp
+            target_temperature = target_temperature or 2941
+
+            # Construct Zone Settings
+            zone_settings = [
+                {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
+                {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
+                {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
+                {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
+            ]
+
+            data = {
+                "action": {
+                    "type": "startClimatisation",
+                    "settings": {
+                        "targetTemperature": target_temperature,
+                        "climatisationWithoutHVpower": True,
+                        "heaterSource": "electric",
+                        "climaterElementSettings": {
+                            "isClimatisationAtUnlock": False,
+                            "isMirrorHeatingEnabled": glass_heating,
+                            "zoneSettings": {"zoneSetting": zone_settings},
+                        },
                     },
-                },
+                }
             }
-        }
 
-        data = json.dumps(data)
+            data = json.dumps(data)
 
-        headers = self._get_vehicle_action_header("application/json", None)
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+        elif api_level == 1:
+            
+            if temp_f is not None:
+                target_temperature = int((temp_f - 32) * (5 / 9))
+            elif temp_c is not None:
+                target_temperature = int(temp_c)
+
+            target_temperature = target_temperature or 21
+
+            data = { 
+                "targetTemperature": target_temperature, 
+                "targetTemperatureUnit": "celsius", 
+                "climatisationWithoutExternalPower": True, 
+                "climatizationAtUnlock": False, 
+                "windowHeatingEnabled": glass_heating, 
+                "zoneFrontLeftEnabled": seat_fl, 
+                "zoneFrontRightEnabled": seat_fr, 
+                "zoneRearLeftEnabled": seat_rl,  
+                "zoneRearRightEnabled": seat_rr,
+                }
+
+            data = json.dumps(data)
+
+        if country == "DE":
+            headers = self._get_vehicle_action_header("application/json", None)
+            res = await self._api.request(
+                "POST",
+                "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            ) 
+
+            # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+            #     vin=vin.upper(),
+            #     actionid=res["action"]["actionId"],
+            # )
+
+            # await self.check_request_succeeded(
+            #     checkUrl,
+            #     "startClimatisation",
+            #     SUCCEEDED,
+            #     FAILED,
+            #     "action.actionState",
+            # )
+
+        elif country == "US":
+            headers = self._get_vehicle_action_header("application/json", None)
+            res = await self._api.request(
+                "POST",
+                "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            )
+
+            checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
+                vin=vin.upper(),
+                actionid=res["action"]["actionId"],
+            )
+
+            await self.check_request_succeeded(
+                checkUrl,
+                "startClimatisation",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
+        else:
+            headers = self._get_vehicle_action_header("application/json", None)
+            res = await self._api.request(
+                "POST",
+                "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                    homeRegion=await self._get_home_region(vin.upper()),
+                    type=self._type,
+                    country=self._country,
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=data,
+            )
+
+            checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
                 homeRegion=await self._get_home_region(vin.upper()),
                 type=self._type,
                 country=self._country,
                 vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
+                actionid=res["action"]["actionId"],
+            )
 
-        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
-
-        await self.check_request_succeeded(
-            checkUrl,
-            "start climatisation",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+            await self.check_request_succeeded(
+                checkUrl,
+                "start climatisation",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
 
     async def set_window_heating(self, vin: str, start: bool):
         data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
