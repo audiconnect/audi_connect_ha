@@ -16,8 +16,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
-    HDR_XAPP_VERSION = "4.23.1"
-    HDR_USER_AGENT = "Android/4.23.1 (Build 800240120.root project 'onetouch-android'.ext.buildTime) Android/11"
+    HDR_XAPP_VERSION = "4.31.0"
+    HDR_USER_AGENT = "Android/4.31.0 (Build 800341641.root project 'myaudi_android'.ext.buildTime) Android/13"
 
     def __init__(self, session, proxy=None):
         self.__token = None
@@ -45,25 +45,29 @@ class AudiAPI:
         rsp_wtxt: bool = False,
         **kwargs,
     ):
+        _LOGGER.debug("Request initiated: method=%s, url=%s, data=%s, headers=%s, kwargs=%s",
+                    method, url, data, headers, kwargs)
         try:
             async with asyncio.timeout(TIMEOUT):
-                async with self._session.request(
-                    method, url, headers=headers, data=data, **kwargs
-                ) as response:
+                async with self._session.request(method, url, headers=headers, data=data, **kwargs) as response:
+                    # _LOGGER.debug("Response received: status=%s, headers=%s", response.status, response.headers)
                     if raw_reply:
+                        # _LOGGER.debug("Returning raw reply")
                         return response
                     if rsp_wtxt:
                         txt = await response.text()
+                        # _LOGGER.debug("Returning response text; length=%d", len(txt))
                         return response, txt
                     elif raw_contents:
-                        return await response.read()
-                    elif (
-                        response.status == 200
-                        or response.status == 202
-                        or response.status == 207
-                    ):
-                        return await response.json(loads=json_loads)
+                        contents = await response.read()
+                        # _LOGGER.debug("Returning raw contents; length=%d", len(contents))
+                        return contents
+                    elif response.status in (200, 202, 207):
+                        json_data = await response.json(loads=json_loads)
+                        # _LOGGER.debug("Returning JSON data: %s", json_data)
+                        return json_data
                     else:
+                        # _LOGGER.error("Unexpected response: status=%s, reason=%s", response.status, response.reason)
                         raise ClientResponseError(
                             response.request_info,
                             response.history,
@@ -71,11 +75,15 @@ class AudiAPI:
                             message=response.reason,
                         )
         except CancelledError:
+            _LOGGER.error("Request cancelled (Timeout error)")
             raise TimeoutError("Timeout error")
         except TimeoutError:
+            _LOGGER.error("Request timed out")
             raise TimeoutError("Timeout error")
-        except Exception:
+        except Exception as exc:
+            _LOGGER.exception("An unexpected error occurred during request")
             raise
+
 
     async def get(
         self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs
