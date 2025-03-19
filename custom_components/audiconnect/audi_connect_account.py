@@ -36,7 +36,13 @@ class AudiConnectAccount:
     """Representation of an Audi Connect Account."""
 
     def __init__(
-        self, session, username: str, password: str, country: str, spin: str, api_level: int
+        self,
+        session,
+        username: str,
+        password: str,
+        country: str,
+        spin: str,
+        api_level: int,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)

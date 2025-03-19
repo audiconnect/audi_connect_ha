@@ -45,11 +45,19 @@ class AudiAPI:
         rsp_wtxt: bool = False,
         **kwargs,
     ):
-        _LOGGER.debug("Request initiated: method=%s, url=%s, data=%s, headers=%s, kwargs=%s",
-                    method, url, data, headers, kwargs)
+        _LOGGER.debug(
+            "Request initiated: method=%s, url=%s, data=%s, headers=%s, kwargs=%s",
+            method,
+            url,
+            data,
+            headers,
+            kwargs,
+        )
         try:
             async with asyncio.timeout(TIMEOUT):
-                async with self._session.request(method, url, headers=headers, data=data, **kwargs) as response:
+                async with self._session.request(
+                    method, url, headers=headers, data=data, **kwargs
+                ) as response:
                     # _LOGGER.debug("Response received: status=%s, headers=%s", response.status, response.headers)
                     if raw_reply:
                         # _LOGGER.debug("Returning raw reply")
@@ -80,10 +88,9 @@ class AudiAPI:
         except TimeoutError:
             _LOGGER.error("Request timed out")
             raise TimeoutError("Timeout error")
-        except Exception as exc:
+        except Exception:
             _LOGGER.exception("An unexpected error occurred during request")
             raise
-
 
     async def get(
         self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs

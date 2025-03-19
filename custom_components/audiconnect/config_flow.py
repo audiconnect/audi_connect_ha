@@ -10,7 +10,6 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import selector
 from homeassistant.core import callback
 
 from .audi_connect_account import AudiConnectAccount
@@ -214,7 +213,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
-                    vol.Optional(CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]): vol.In(API_LEVELS),
+                    vol.Optional(
+                        CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]
+                    ): vol.In(API_LEVELS),
                 }
             ),
         )

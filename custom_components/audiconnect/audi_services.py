@@ -459,7 +459,15 @@ class AudiService:
         return body["securityToken"]
 
     def _get_vehicle_action_header(self, content_type: str, security_token: str):
-        host = "emea.bff.cariad.digital" if self._country == "DE" else ("mal-3a.prd.eu.dp.vwg-connect.com" if self._country == "US" else "msg.volkswagen.de")
+        host = (
+            "emea.bff.cariad.digital"
+            if self._country == "DE"
+            else (
+                "mal-3a.prd.eu.dp.vwg-connect.com"
+                if self._country == "US"
+                else "msg.volkswagen.de"
+            )
+        )
         headers = {
             "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Host": host,
@@ -601,7 +609,9 @@ class AudiService:
         country = self._country
         target_temperature = None
 
-        _LOGGER.debug(f"Attempting to start climate control with API Level {api_level} and country {country}.")
+        _LOGGER.debug(
+            f"Attempting to start climate control with API Level {api_level} and country {country}."
+        )
 
         if api_level == 0:
             target_temperature = None
@@ -640,7 +650,6 @@ class AudiService:
             data = json.dumps(data)
 
         elif api_level == 1:
-            
             if temp_f is not None:
                 target_temperature = int((temp_f - 32) * (5 / 9))
             elif temp_c is not None:
@@ -648,17 +657,17 @@ class AudiService:
 
             target_temperature = target_temperature or 21
 
-            data = { 
-                "targetTemperature": target_temperature, 
-                "targetTemperatureUnit": "celsius", 
-                "climatisationWithoutExternalPower": True, 
-                "climatizationAtUnlock": False, 
-                "windowHeatingEnabled": glass_heating, 
-                "zoneFrontLeftEnabled": seat_fl, 
-                "zoneFrontRightEnabled": seat_fr, 
-                "zoneRearLeftEnabled": seat_rl,  
+            data = {
+                "targetTemperature": target_temperature,
+                "targetTemperatureUnit": "celsius",
+                "climatisationWithoutExternalPower": True,
+                "climatizationAtUnlock": False,
+                "windowHeatingEnabled": glass_heating,
+                "zoneFrontLeftEnabled": seat_fl,
+                "zoneFrontRightEnabled": seat_fr,
+                "zoneRearLeftEnabled": seat_rl,
                 "zoneRearRightEnabled": seat_rr,
-                }
+            }
 
             data = json.dumps(data)
 
@@ -671,7 +680,7 @@ class AudiService:
                 ),
                 headers=headers,
                 data=data,
-            ) 
+            )
 
             # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
             #     vin=vin.upper(),
