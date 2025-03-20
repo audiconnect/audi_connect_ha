@@ -56,7 +56,9 @@ CONFIG_SCHEMA = vol.Schema(
                 ),
                 vol.Optional(CONF_REGION): cv.string,
                 vol.Optional(CONF_MUTABLE, default=True): cv.boolean,
-                vol.Optional(CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]): vol.All(vol.Coerce(int), vol.In(API_LEVELS)),
+                vol.Optional(
+                    CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]
+                ): vol.All(vol.Coerce(int), vol.In(API_LEVELS)),
             }
         )
     },
