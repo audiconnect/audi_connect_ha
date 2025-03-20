@@ -405,8 +405,8 @@ class AudiService:
     async def _get_security_token(self, vin: str, action: str):
         # Challenge
         headers = {
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
-            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "User-Agent": "okhttp/3.7.0",
+            "X-App-Version": "3.14.0",
             "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
@@ -440,9 +440,9 @@ class AudiService:
         }
 
         headers = {
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "User-Agent": "okhttp/3.7.0",
             "Content-Type": "application/json",
-            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "X-App-Version": "3.14.0",
             "X-App-Name": "myAudi",
             "Accept": "application/json",
             "Authorization": "Bearer " + self.vwToken.get("access_token"),
