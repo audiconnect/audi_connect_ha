@@ -94,7 +94,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_SPIN: self._spin,
                             CONF_REGION: self._region,
                             CONF_SCAN_INTERVAL: self._scan_interval,
-                            CONF_API_LEVEL: self._api_level
+                            CONF_API_LEVEL: self._api_level,
                         },
                     )
 
@@ -229,9 +229,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
-                    vol.Optional(
-                        CONF_API_LEVEL, default=current_api_level
-                    ): vol.All(vol.Coerce(int), vol.In(API_LEVELS)),
+                    vol.Optional(CONF_API_LEVEL, default=current_api_level): vol.All(
+                        vol.Coerce(int), vol.In(API_LEVELS)
+                    ),
                 }
             ),
         )
