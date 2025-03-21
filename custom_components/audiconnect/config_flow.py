@@ -21,6 +21,9 @@ from .const import (
     CONF_SCAN_INITIAL,
     CONF_SCAN_ACTIVE,
     REGIONS,
+    CONF_API_LEVEL,
+    DEFAULT_API_LEVEL,
+    API_LEVELS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +47,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._spin = vol.UNDEFINED
         self._region = vol.UNDEFINED
         self._scan_interval = DEFAULT_UPDATE_INTERVAL
+        self._api_level = DEFAULT_API_LEVEL
 
     async def async_step_user(self, user_input=None):
         """Handle a user initiated config flow."""
@@ -55,6 +59,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._spin = user_input.get(CONF_SPIN)
             self._region = REGIONS[user_input.get(CONF_REGION)]
             self._scan_interval = user_input[CONF_SCAN_INTERVAL]
+            self._api_level = user_input[CONF_API_LEVEL]
 
             try:
                 # pylint: disable=no-value-for-parameter
@@ -65,6 +70,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     password=self._password,
                     country=self._region,
                     spin=self._spin,
+                    api_level=self._api_level,
                 )
 
                 if await connection.try_login(False) is False:
@@ -88,6 +94,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_SPIN: self._spin,
                             CONF_REGION: self._region,
                             CONF_SCAN_INTERVAL: self._scan_interval,
+                            CONF_API_LEVEL: self._api_level,
                         },
                     )
 
@@ -99,6 +106,9 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema[
             vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_UPDATE_INTERVAL)
         ] = int
+        data_schema[
+            vol.Optional(CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL])
+        ] = vol.All(vol.Coerce(int), vol.In(API_LEVELS))
 
         return self.async_show_form(
             step_id="user",
@@ -110,6 +120,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Import a config flow from configuration."""
         username = user_input[CONF_USERNAME]
         password = user_input[CONF_PASSWORD]
+        api_level = user_input[CONF_API_LEVEL]
 
         spin = None
         if user_input.get(CONF_SPIN):
@@ -135,6 +146,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 password=password,
                 country=region,
                 spin=spin,
+                api_level=api_level,
             )
 
             if await connection.try_login(False) is False:
@@ -152,6 +164,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_SPIN: spin,
                 CONF_REGION: region,
                 CONF_SCAN_INTERVAL: scan_interval,
+                CONF_API_LEVEL: api_level,
             },
         )
 
@@ -181,6 +194,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             CONF_SCAN_INTERVAL,
             self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
+
+        current_api_level = self._config_entry.options.get(
+            CONF_API_LEVEL,
+            self._config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
+        )
+
         _LOGGER.debug(
             "Retrieved current scan interval for audiconnect %s: %s minutes",
             self._config_entry.title,
@@ -210,6 +229,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SCAN_INTERVAL, default=current_scan_interval
                     ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
+                    vol.Optional(CONF_API_LEVEL, default=current_api_level): vol.All(
+                        vol.Coerce(int), vol.In(API_LEVELS)
+                    ),
                 }
             ),
         )

@@ -28,6 +28,9 @@ from .const import (
     SIGNAL_STATE_UPDATED,
     TRACKER_UPDATE,
     UPDATE_SLEEP,
+    CONF_API_LEVEL,
+    DEFAULT_API_LEVEL,
+    API_LEVELS,
 )
 from .dashboard import Dashboard
 
@@ -89,6 +92,12 @@ class AudiAccount(AudiConnectObserver):
             password=self.config_entry.data.get(CONF_PASSWORD),
             country=self.config_entry.data.get(CONF_REGION),
             spin=self.config_entry.data.get(CONF_SPIN),
+            api_level=self.config_entry.options.get(
+                CONF_API_LEVEL,
+                self.config_entry.data.get(
+                    CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
+                ),
+            ),
         )
 
         self.hass.services.async_register(

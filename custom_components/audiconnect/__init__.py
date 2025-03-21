@@ -28,6 +28,9 @@ from .const import (
     MIN_UPDATE_INTERVAL,
     RESOURCES,
     COMPONENTS,
+    CONF_API_LEVEL,
+    DEFAULT_API_LEVEL,
+    API_LEVELS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +56,9 @@ CONFIG_SCHEMA = vol.Schema(
                 ),
                 vol.Optional(CONF_REGION): cv.string,
                 vol.Optional(CONF_MUTABLE, default=True): cv.boolean,
+                vol.Optional(
+                    CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]
+                ): vol.All(vol.Coerce(int), vol.In(API_LEVELS)),
             }
         )
     },
@@ -76,6 +82,7 @@ async def async_setup(hass, config):
     data[CONF_PASSWORD] = config[DOMAIN].get(CONF_PASSWORD)
     data[CONF_SCAN_INTERVAL] = config[DOMAIN].get(CONF_SCAN_INTERVAL).seconds / 60
     data[CONF_REGION] = config[DOMAIN].get(CONF_REGION)
+    data[CONF_API_LEVEL] = config[DOMAIN].get(CONF_API_LEVEL)
 
     hass.async_create_task(
         hass.config_entries.flow.async_init(
@@ -86,9 +93,20 @@ async def async_setup(hass, config):
     return True
 
 
+async def async_update_listener(hass, config_entry):
+    _LOGGER.debug("Updates detected, reloading configuration...")
+    await hass.config_entries.async_reload(config_entry.entry_id)
+
+
 async def async_setup_entry(hass, config_entry):
     """Set up this integration using UI."""
     _LOGGER.debug("Audi Connect starting...")
+
+    # Register the update listener so that changes to configuration options are applied immediately.
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(async_update_listener)
+    )
+
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
