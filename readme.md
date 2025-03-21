@@ -315,7 +315,7 @@ The card uses the following code in `ui-lovelace.yaml` (or wherever your Dashboa
 [buymecoffee]: https://buymeacoff.ee/arjenvrh
 [buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20beer-donate-yellow.svg?style=for-the-badge
 [commits-shield]: https://img.shields.io/github/commit-activity/y/arjenvrh/audi_connect_ha?style=for-the-badge
-[commits]: https://github.com/arjenvrh/audi_connect_ha/commits/master
+[commits]: https://github.com/audiconnect/audi_connect_ha/commits/master
 [hacs]: https://github.com/custom-components/hacs
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/arjenvrh/audi_connect_ha?style=for-the-badge
