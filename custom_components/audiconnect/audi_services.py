@@ -482,20 +482,14 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+            "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/lock".format(
                 vin=vin.upper(),
             ),
             headers=headers,
             data=data,
         )
 
-        checkUrl = "{homeRegion}/fs-car/bs/rlu/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/status".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
+        checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
             vin=vin.upper(),
             requestId=res["rluActionResponse"]["requestId"],
         )
