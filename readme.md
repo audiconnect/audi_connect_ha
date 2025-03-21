@@ -8,12 +8,11 @@
 
 ## Notice
 
-Due to API changes it might be that currently not all functionality is given. Please open a issue to report the topics you are missing.
+Due to API changes, currently not all functionality is available. Please open a issue to report the topics you are missing.
 
 ## Maintainers Wanted
 
-Due to time limitations this project is not actively maintained anymore. It will continue to work as long as Audi does not change the API again.
-However, I'm open to someone else taking the lead. If you would like to become a maintainer, please contact me.
+Always looking for more help from the community :)
 
 ## Description
 
@@ -44,7 +43,8 @@ Configuration is done through the Home Assistant UI.
 
 To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
-![image](https://github.com/user-attachments/assets/facff84e-f40f-4090-9e44-80f698385426)
+![image](https://github.com/user-attachments/assets/68f4a38b-f09d-4486-a1a1-ab8a564095ab)
+
 
 ### Configuration Variables
 
@@ -72,6 +72,11 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 - (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
 
+**api_level**
+- (number)(Required) For Audi vehicles, the API request data structure varies by model. Newer models use an updated structure, while older models use a legacy format. Setting the API level ensures that the system automatically applies the correct structure for each vehicle. You can update this setting later from the CONFIGURE menu if needed.
+  - Level `0`: _Typically_ for gas vehicles
+  - Level `1`: _Typically_ for e-tron (electric) vehicles.
+
 ## Options
 
 Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ Audi Connect ➤ Configure**:
@@ -79,8 +84,11 @@ Find configuration options under **Settings ➤ Devices & Services ➤ Integrati
 - **Cloud Update at Startup (`bool`)**: Toggle cloud updates at integration startup. Ideal for development or frequent HA restarts.
 - **Active Polling at Scan Interval (`bool`)**: Enable or disable active polling.
 - **Scan Interval (`int`)**: Defines polling frequency in minutes (minimum 15). Effective only if "Active Polling at Scan Interval" is enabled.
+- **API Level (`int`)**: For Audi vehicles, the API request data structure varies by model. Newer models use an updated structure, while older models use a legacy format. Setting the API level ensures that the system automatically applies the correct structure for each vehicle.
+  - Level `0`: _Typically_ for gas vehicles
+  - Level `1`: _Typically_ for e-tron (electric) vehicles.
 
-_Note: A Home Assistant restart is required for changes to take effect._
+_Note: The integration will reload automatically upon clicking `Submit`, but a Home Assistant restart is suggested._
 
 ## Services
 
