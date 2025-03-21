@@ -18,9 +18,13 @@
           "username": "Benutzername",
           "spin": "S-PIN",
           "region": "Region",
-          "scan_interval": "Abfrageintervall"
+          "scan_interval": "Abfrageintervall",
+          "api_level": "API-Level"
         },
-        "title": "Audi Connect Kontoinformationen"
+        "title": "Audi Connect Kontoinformationen",
+        "data_description": {
+          "api_level": "Die Datenstruktur des API-Requests variiert je nach Audi-Modell. Neuere Fahrzeuge verwenden eine aktualisierte Struktur im Vergleich zu älteren Modellen. Durch die Anpassung des API-Levels wird sichergestellt, dass das Fahrzeug die korrekte, fahrzeugspezifische Datenstruktur nutzt. Diese Einstellung kann später unter „KONFIGURATION“ geändert werden."
+        }
       }
     }
   },
@@ -30,13 +34,15 @@
         "data": {
           "scan_initial": "Cloud-Update beim Start",
           "scan_active": "Aktive Abfrage im Scanintervall",
-          "scan_interval": "Abfrageintervall"
+          "scan_interval": "Abfrageintervall",
+          "api_level": "API-Level"
         },
         "title": "Audi Connect-Optionen",
         "data_description": {
           "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
           "scan_active": "Führen Sie im festgelegten Scanintervall ein Cloud-Update durch.",
-          "scan_interval": "Minuten zwischen aktiven Abfragen. Wenn „Aktive Abfrage im Scan-Intervall“ deaktiviert ist, hat dieser Wert keine Auswirkung."
+          "scan_interval": "Minuten zwischen aktiven Abfragen. Wenn „Aktive Abfrage im Scanintervall“ deaktiviert ist, hat dieser Wert keine Auswirkung.",
+          "api_level": "Die Datenstruktur des API-Requests variiert je nach Audi-Modell. Neuere Fahrzeuge verwenden eine aktualisierte Struktur im Vergleich zu älteren Modellen. Durch die Anpassung des API-Levels wird sichergestellt, dass das Fahrzeug die korrekte, fahrzeugspezifische Datenstruktur nutzt. Diese Einstellung kann später unter „KONFIGURATION“ geändert werden."
         }
       }
     }
