@@ -44,3 +44,8 @@ class AudiSensor(AudiEntity, BinarySensorEntity):
     def entity_category(self):
         """Return the entity_category."""
         return self._instrument.entity_category
+
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        return self._instrument.extra_state_attributes

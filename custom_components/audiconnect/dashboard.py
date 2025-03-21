@@ -180,10 +180,11 @@ class Sensor(Instrument):
 
 
 class BinarySensor(Instrument):
-    def __init__(self, attr, name, device_class=None, icon=None, entity_category=None):
+    def __init__(self, attr, name, device_class=None, icon=None, entity_category=None, extra_state_attributes=None):
         super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
         self.entity_category = entity_category
+        self.extra_state_attributes = extra_state_attributes
 
     @property
     def is_mutable(self):
