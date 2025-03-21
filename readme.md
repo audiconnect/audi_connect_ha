@@ -45,7 +45,6 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 ![image](https://github.com/user-attachments/assets/68f4a38b-f09d-4486-a1a1-ab8a564095ab)
 
-
 ### Configuration Variables
 
 **username**
@@ -73,6 +72,7 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 - (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
 
 **api_level**
+
 - (number)(Required) For Audi vehicles, the API request data structure varies by model. Newer models use an updated structure, while older models use a legacy format. Setting the API level ensures that the system automatically applies the correct structure for each vehicle. You can update this setting later from the CONFIGURE menu if needed.
   - Level `0`: _Typically_ for gas vehicles
   - Level `1`: _Typically_ for e-tron (electric) vehicles.
