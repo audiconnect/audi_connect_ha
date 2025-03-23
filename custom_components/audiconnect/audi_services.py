@@ -517,14 +517,6 @@ class AudiService:
             "requestStatusResponse.status",
         )
 
-        await self.check_request_succeeded(
-            checkUrl,
-            "lock vehicle" if lock else "unlock vehicle",
-            REQUEST_SUCCESSFUL,
-            REQUEST_FAILED,
-            "requestStatusResponse.status",
-        )
-
     async def set_battery_charger(self, vin: str, start: bool, timer: bool):
         if start and timer:
             data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
