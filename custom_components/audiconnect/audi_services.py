@@ -496,8 +496,9 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/lock".format(
+            "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/{action}".format(
                 vin=vin.upper(),
+                action="lock" if lock else "unlock",
             ),
             headers=headers,
             data=data,
@@ -506,6 +507,14 @@ class AudiService:
         checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
             vin=vin.upper(),
             requestId=res["rluActionResponse"]["requestId"],
+        )
+
+        await self.check_request_succeeded(
+            checkUrl,
+            "lock vehicle" if lock else "unlock vehicle",
+            REQUEST_SUCCESSFUL,
+            REQUEST_FAILED,
+            "requestStatusResponse.status",
         )
 
         await self.check_request_succeeded(
