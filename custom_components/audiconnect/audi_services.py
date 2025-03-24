@@ -566,7 +566,7 @@ class AudiService:
                 "Please use the 'Start Climate Control' service instead."
             )
             # data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
-            return
+
         else:
             if api_level == 0:
                 data = '{"action":{"type": "stopClimatisation"}}'
