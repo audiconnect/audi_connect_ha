@@ -559,39 +559,65 @@ class AudiService:
         )
 
     async def set_climatisation(self, vin: str, start: bool):
+        api_level = self._api_level
         if start:
-            data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+            _LOGGER.warning(
+                "The 'Start Climatisation (Legacy)' service is deprecated and will be removed in a future release. "
+                "Please use the 'Start Climate Control' service instead."
+            )
+            # data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+            return
         else:
-            data = '{"action":{"type": "stopClimatisation"}}'
+            if api_level == 0:
+                data = '{"action":{"type": "stopClimatisation"}}'
+                headers = self._get_vehicle_action_header("application/json", None)
+                res = await self._api.request(
+                    "POST",
+                    "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
+                        vin=vin.upper(),
+                    ),
+                    headers=headers,
+                    data=data,
+                )
+                checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
+                    vin=vin.upper(),
+                    actionid=res["action"]["actionId"],
+                )
 
-        headers = self._get_vehicle_action_header("application/json", None)
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
+                await self.check_request_succeeded(
+                    checkUrl,
+                    "start climatisation" if start else "stop climatisation",
+                    SUCCEEDED,
+                    FAILED,
+                    "action.actionState",
+                )
 
-        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
+            elif api_level == 1:
+                data = None
+                headers = {
+                    "Authorization": "Bearer " + self._bearer_token_json["access_token"]
+                }
+                res = await self._api.request(
+                    "POST",
+                    "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
+                        vin=vin.upper(),
+                    ),
+                    headers=headers,
+                    data=data,
+                )
 
-        await self.check_request_succeeded(
-            checkUrl,
-            "start climatisation" if start else "stop climatisation",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+                # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+                #     vin=vin.upper(),
+                #     actionid=res["action"]["actionId"],
+                # )
+
+                # await self.check_request_succeeded(
+                #     checkUrl,
+                #     "startClimatisation",
+                #     SUCCEEDED,
+                #     FAILED,
+                #     "action.actionState",
+                # )
 
     async def start_climate_control(
         self,
