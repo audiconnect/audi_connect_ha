@@ -561,8 +561,8 @@ class AudiService:
     async def set_climatisation(self, vin: str, start: bool):
         api_level = self._api_level
         if start:
-            _LOGGER.warning(
-                "The 'Start Climatisation (Legacy)' service is deprecated and will be removed in a future release. "
+            raise NotImplementedError(
+                "The 'Start Climatisation (Legacy)' service is deprecated and no longer functional. "
                 "Please use the 'Start Climate Control' service instead."
             )
             # data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
