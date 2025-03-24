@@ -460,7 +460,10 @@ class AudiService:
         return body["securityToken"]
 
     def _get_vehicle_action_header(
-        self, content_type: str, security_token: str, host: Optional[str] = None
+        self,
+        content_type: str,
+        security_token: str,
+        host: Optional[str] = None
     ):
         if not host:
             host = (
@@ -490,11 +493,11 @@ class AudiService:
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
         )
         # deprecated data removed on 24Mar2025
-        # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
-        #     action="lock" if lock else "unlock"
-        # )
+            # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
+            #     action="lock" if lock else "unlock"
+            # )
         data = None
-
+        
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
         )
@@ -559,39 +562,66 @@ class AudiService:
         )
 
     async def set_climatisation(self, vin: str, start: bool):
+        api_level = self._api_level
         if start:
-            data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
+            raise NotImplementedError(
+                "The 'Start Climatisation (Legacy)' service is deprecated and no longer functional. "
+                "Please use the 'Start Climate Control' service instead."
+            )
+            # data = '{"action":{"type": "startClimatisation","settings": {"targetTemperature": 2940,"climatisationWithoutHVpower": true,"heaterSource": "electric","climaterElementSettings": {"isClimatisationAtUnlock": false, "isMirrorHeatingEnabled": true,}}}}'
         else:
-            data = '{"action":{"type": "stopClimatisation"}}'
+            if api_level == 0:
+                data = '{"action":{"type": "stopClimatisation"}}'
+                headers = self._get_vehicle_action_header("application/json", None)
+                res = await self._api.request(
+                    "POST",
+                    "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
+                        vin=vin.upper(),
+                    ),
+                    headers=headers,
+                    data=data,
+                )
+                checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
+                    vin=vin.upper(),
+                    actionid=res["action"]["actionId"],
+                )
 
-        headers = self._get_vehicle_action_header("application/json", None)
-        res = await self._api.request(
-            "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            ),
-            headers=headers,
-            data=data,
-        )
+                await self.check_request_succeeded(
+                    url=checkUrl,
+                    action="stop climatisation",
+                    successCode=SUCCEEDED,
+                    failedCode=FAILED,
+                    path="action.actionState",
+                )
 
-        checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
+            elif api_level == 1:
+                data = None
+                headers = {
+                    "Authorization": "Bearer " + self._bearer_token_json["access_token"]
+                }
+                res = await self._api.request(
+                    "POST",
+                    "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
+                        vin=vin.upper(),
+                    ),
+                    headers=headers,
+                    data=data,
+                )
 
-        await self.check_request_succeeded(
-            checkUrl,
-            "start climatisation" if start else "stop climatisation",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+                request_id = res["data"]["requestID"]
+                checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+                    vin=vin.upper(),
+                )
+
+                await self.check_request_succeeded(
+                    url=checkUrl,
+                    action="climatisation stop",
+                    successCode="successful",
+                    failedCode=FAILED,
+                    path="",
+                    api_level=1,
+                    request_id=request_id,
+                )
 
     async def start_climate_control(
         self,
@@ -686,18 +716,20 @@ class AudiService:
                 data=data,
             )
 
-            # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
-            #     vin=vin.upper(),
-            #     actionid=res["action"]["actionId"],
-            # )
+            request_id = res["data"]["requestID"]
+            checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+                vin=vin.upper(),
+            )
 
-            # await self.check_request_succeeded(
-            #     checkUrl,
-            #     "startClimatisation",
-            #     SUCCEEDED,
-            #     FAILED,
-            #     "action.actionState",
-            # )
+            await self.check_request_succeeded(
+                url=checkUrl,
+                action="climatisation start",
+                successCode="successful",
+                failedCode=FAILED,
+                path="",
+                api_level=1,
+                request_id=request_id,
+            )
 
         elif country == "US":
             headers = self._get_vehicle_action_header("application/json", None)
@@ -814,8 +846,39 @@ class AudiService:
             data=data,
         )
 
+    # async def check_request_succeeded(
+    #     self, url: str, action: str, successCode: str, failedCode: str, path: str
+    # ):
+    #     for _ in range(MAX_RESPONSE_ATTEMPTS):
+    #         await asyncio.sleep(REQUEST_STATUS_SLEEP)
+
+    #         self._api.use_token(self.vwToken)
+    #         res = await self._api.get(url)
+
+    #         status = get_attr(res, path)
+
+    #         if status is None or (failedCode is not None and status == failedCode):
+    #             raise Exception(
+    #                 "Cannot {action}, return code '{code}'".format(
+    #                     action=action, code=status
+    #                 )
+    #             )
+
+    #         if status == successCode:
+    #             return
+
+    #     raise Exception("Cannot {action}, operation timed out".format(action=action))
+
     async def check_request_succeeded(
-        self, url: str, action: str, successCode: str, failedCode: str, path: str
+        self,
+        url: str,
+        action: str,
+        successCode: str,
+        failedCode: str,
+        path: str,
+        *,
+        api_level: int = DEFAULT_API_LEVEL,
+        request_id: str = None,
     ):
         for _ in range(MAX_RESPONSE_ATTEMPTS):
             await asyncio.sleep(REQUEST_STATUS_SLEEP)
@@ -823,19 +886,27 @@ class AudiService:
             self._api.use_token(self.vwToken)
             res = await self._api.get(url)
 
-            status = get_attr(res, path)
+            if api_level == 0:
+                # Legacy format using a single action object and a dotted path
+                status = get_attr(res, path)
+            else:
+                # New format: list of requests in res["data"], find matching id
+                entries = res.get("data", [])
+                status = None
+                for entry in entries:
+                    if entry.get("id") == request_id:
+                        status = entry.get("status")
+                        break
 
             if status is None or (failedCode is not None and status == failedCode):
                 raise Exception(
-                    "Cannot {action}, return code '{code}'".format(
-                        action=action, code=status
-                    )
+                    f"Cannot {action}, return code '{status}'"
                 )
 
             if status == successCode:
                 return
 
-        raise Exception("Cannot {action}, operation timed out".format(action=action))
+        raise Exception(f"Cannot {action}, operation timed out")
 
     # TR/2022-12-20: New secret for X_QMAuth
     def _calculate_X_QMAuth(self):
