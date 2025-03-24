@@ -5,6 +5,7 @@ import os
 import re
 import logging
 from datetime import timedelta, datetime
+from typing import Optional
 
 from .audi_models import (
     TripDataResponse,
@@ -458,16 +459,16 @@ class AudiService:
         )
         return body["securityToken"]
 
-    def _get_vehicle_action_header(self, content_type: str, security_token: str):
-        host = (
-            "emea.bff.cariad.digital"
-            if self._country == "DE"
-            else (
+    def _get_vehicle_action_header(
+        self, content_type: str, security_token: str, host: Optional[str] = None
+    ):
+        if not host:
+            host = (
                 "mal-3a.prd.eu.dp.vwg-connect.com"
-                if self._country == "US"
+                if self._country in {"DE", "US"}
                 else "msg.volkswagen.de"
             )
-        )
+
         headers = {
             "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Host": host,
@@ -479,8 +480,8 @@ class AudiService:
             "Accept": "application/json, application/vnd.vwg.mbb.ChargerAction_v1_0_0+xml,application/vnd.volkswagenag.com-error-v1+xml,application/vnd.vwg.mbb.genericError_v1_0_2+xml, application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml, application/vnd.vwg.mbb.genericError_v1_0_2+xml,application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml,*/*",
         }
 
-        if security_token is not None:
-            headers["x-mbbSecToken"] = security_token
+        if security_token:
+            headers["x-securityToken"] = security_token
 
         return headers
 
@@ -488,16 +489,20 @@ class AudiService:
         security_token = await self._get_security_token(
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
         )
-        data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
-            action="lock" if lock else "unlock"
-        )
+        # deprecated data removed on 24Mar2025
+        # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
+        #     action="lock" if lock else "unlock"
+        # )
+        data = None
+
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
         )
         res = await self._api.request(
             "POST",
-            "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/lock".format(
+            "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/{action}".format(
                 vin=vin.upper(),
+                action="lock" if lock else "unlock",
             ),
             headers=headers,
             data=data,
