@@ -460,10 +460,7 @@ class AudiService:
         return body["securityToken"]
 
     def _get_vehicle_action_header(
-        self,
-        content_type: str,
-        security_token: str,
-        host: Optional[str] = None
+        self, content_type: str, security_token: str, host: Optional[str] = None
     ):
         if not host:
             host = (
@@ -493,11 +490,11 @@ class AudiService:
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
         )
         # deprecated data removed on 24Mar2025
-            # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
-            #     action="lock" if lock else "unlock"
-            # )
+        # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
+        #     action="lock" if lock else "unlock"
+        # )
         data = None
-        
+
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
         )
