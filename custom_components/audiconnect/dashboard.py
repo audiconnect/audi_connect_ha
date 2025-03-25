@@ -782,7 +782,7 @@ def create_instruments():
             attr="is_moving",
             name="Is moving",
             icon="mdi:motion-outline",
-            device_class=BinarySensorDeviceClass.MOTION,
+            device_class=BinarySensorDeviceClass.MOVING,
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
     ]
