@@ -523,40 +523,45 @@ class AudiService:
 
     async def set_battery_charger(self, vin: str, start: bool, timer: bool):
         if start and timer:
-            data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
+            raise NotImplementedError(
+                "The 'Start Timed Charger' service is not currently implemented."
+            )
+            # data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
         elif start:
-            data = '{ "action": { "type": "start" }}'
+            # data = '{ "action": { "type": "start" }}'
+            data = { "preferredChargeMode": "manual" }
+            data = json.dumps(data)
         else:
-            data = '{ "action": { "type": "stop" }}'
+            raise NotImplementedError(
+                "The 'Stop Charger' service is not currently implemented."
+            )
+            # data = '{ "action": { "type": "stop" }}'
 
-        headers = self._get_vehicle_action_header("application/json", None)
+        headers = self._get_vehicle_action_header("application/json", None, "emea.bff.cariad.digital")
         res = await self._api.request(
             "POST",
-            "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
                 vin=vin.upper(),
             ),
             headers=headers,
             data=data,
         )
 
-        checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            actionid=res["action"]["actionId"],
-        )
+        # checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
+        #     homeRegion=await self._get_home_region(vin.upper()),
+        #     type=self._type,
+        #     country=self._country,
+        #     vin=vin.upper(),
+        #     actionid=res["action"]["actionId"],
+        # )
 
-        await self.check_request_succeeded(
-            checkUrl,
-            "start charger" if start else "stop charger",
-            SUCCEEDED,
-            FAILED,
-            "action.actionState",
-        )
+        # await self.check_request_succeeded(
+        #     checkUrl,
+        #     "start charger" if start else "stop charger",
+        #     SUCCEEDED,
+        #     FAILED,
+        #     "action.actionState",
+        # )
 
     async def set_climatisation(self, vin: str, start: bool):
         api_level = self._api_level
