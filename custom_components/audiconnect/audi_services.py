@@ -826,7 +826,7 @@ class AudiService:
         # )
         data = {
             "duration_min": 10,
-            "spin": "1234",
+            "spin": self._spin,
         }
         data = json.dumps(data)
 
