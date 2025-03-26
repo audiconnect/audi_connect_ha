@@ -540,7 +540,7 @@ class AudiService:
         headers = self._get_vehicle_action_header(
             "application/json", None, "emea.bff.cariad.digital"
         )
-        res = await self._api.request(
+        await self._api.request(
             "POST",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
                 vin=vin.upper(),
