@@ -529,7 +529,7 @@ class AudiService:
             # data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
         elif start:
             # data = '{ "action": { "type": "start" }}'
-            data = { "preferredChargeMode": "manual" }
+            data = {"preferredChargeMode": "manual"}
             data = json.dumps(data)
         else:
             raise NotImplementedError(
@@ -537,7 +537,9 @@ class AudiService:
             )
             # data = '{ "action": { "type": "stop" }}'
 
-        headers = self._get_vehicle_action_header("application/json", None, "emea.bff.cariad.digital")
+        headers = self._get_vehicle_action_header(
+            "application/json", None, "emea.bff.cariad.digital"
+        )
         res = await self._api.request(
             "POST",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
