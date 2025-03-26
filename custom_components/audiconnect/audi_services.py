@@ -819,21 +819,23 @@ class AudiService:
             vin, "rheating_v1/operations/P_QSACT"
         )
 
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-            input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
-            if activate
-            else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
-        )
-
+        # data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
+        #     input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
+        #     if activate
+        #     else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
+        # )
+        data = {
+            "duration_min": 10,
+            "spin": "1234",
+        }
+        data = json.dumps(data)
+        
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
         )
         await self._api.request(
             "POST",
-            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/start".format(
                 vin=vin.upper(),
             ),
             headers=headers,
