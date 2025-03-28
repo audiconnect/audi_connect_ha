@@ -831,7 +831,7 @@ class AudiService:
         data = json.dumps(data)
 
         headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml",
+            "application/json",
             security_token,
             "emea.bff.cariad.digital",
         )
