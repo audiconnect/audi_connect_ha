@@ -22,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Audi device tracker entities."""
     account = config_entry.data.get(CONF_USERNAME)
@@ -103,20 +103,24 @@ class AudiDeviceTracker(TrackerEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         attrs = dict(getattr(self._instrument, "attributes", {}))
-        attrs.update({
-            "model": f"{getattr(self._instrument, 'vehicle_model', 'Unknown')}/{self._instrument.vehicle_name}",
-            "model_year": getattr(self._instrument, "vehicle_model_year", None),
-            "model_family": getattr(self._instrument, "vehicle_model_family", None),
-            "csid": getattr(self._instrument, "vehicle_csid", None),
-            "vin": getattr(self._instrument, "vehicle_vin", None),
-        })
+        attrs.update(
+            {
+                "model": f"{getattr(self._instrument, 'vehicle_model', 'Unknown')}/{self._instrument.vehicle_name}",
+                "model_year": getattr(self._instrument, "vehicle_model_year", None),
+                "model_family": getattr(self._instrument, "vehicle_model_family", None),
+                "csid": getattr(self._instrument, "vehicle_csid", None),
+                "vin": getattr(self._instrument, "vehicle_vin", None),
+            }
+        )
         return {k: v for k, v in attrs.items() if v is not None}
 
     async def async_added_to_hass(self) -> None:
         """Register update dispatcher."""
         await super().async_added_to_hass()
         self.async_on_remove(
-            async_dispatcher_connect(self.hass, TRACKER_UPDATE, self._async_receive_data)
+            async_dispatcher_connect(
+                self.hass, TRACKER_UPDATE, self._async_receive_data
+            )
         )
         _LOGGER.debug("%s registered for updates", self.entity_id)
 
