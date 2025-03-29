@@ -465,7 +465,7 @@ class AudiService:
         if not host:
             host = (
                 "mal-3a.prd.eu.dp.vwg-connect.com"
-                if self._country in {"DE", "US"}
+                if self._country in {"DE", "US", "CA"}
                 else "msg.volkswagen.de"
             )
 
@@ -725,7 +725,7 @@ class AudiService:
             #     "action.actionState",
             # )
 
-        elif country == "US":
+        elif country in {"US", "CA"}:
             headers = self._get_vehicle_action_header("application/json", None)
             res = await self._api.request(
                 "POST",
