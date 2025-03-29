@@ -523,23 +523,19 @@ class AudiService:
 
     async def set_battery_charger(self, vin: str, start: bool, timer: bool):
         if start and timer:
-            raise NotImplementedError(
-                "The 'Start Timed Charger' service is not currently implemented."
-            )
-            # data = '{ "action": { "type": "selectChargingMode", "settings": { "chargeModeSelection": { "value": "timerBasedCharging" } } }}'
+            data = {"preferredChargeMode": "timer"}
         elif start:
-            # data = '{ "action": { "type": "start" }}'
             data = {"preferredChargeMode": "manual"}
-            data = json.dumps(data)
         else:
             raise NotImplementedError(
-                "The 'Stop Charger' service is not currently implemented."
+                "The 'Stop Charger' service is deprecated and no longer functional."
             )
-            # data = '{ "action": { "type": "stop" }}'
 
-        headers = self._get_vehicle_action_header(
-            "application/json", None, "emea.bff.cariad.digital"
-        )
+        data = json.dumps(data)
+        headers = {
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"]
+        }
+
         await self._api.request(
             "PUT",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
