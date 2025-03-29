@@ -532,9 +532,7 @@ class AudiService:
             )
 
         data = json.dumps(data)
-        headers = {
-            "Authorization": "Bearer " + self._bearer_token_json["access_token"]
-        }
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
 
         await self._api.request(
             "PUT",
