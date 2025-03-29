@@ -541,7 +541,7 @@ class AudiService:
             "application/json", None, "emea.bff.cariad.digital"
         )
         await self._api.request(
-            "POST",
+            "PUT",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
                 vin=vin.upper(),
             ),
