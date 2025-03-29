@@ -528,7 +528,7 @@ class AudiService:
             data = {"preferredChargeMode": "manual"}
         else:
             raise NotImplementedError(
-                "The 'Stop Charger' service is deprecated and no longer functional."
+                "The 'Stop Charger' service is deprecated and will be removed in a future release."
             )
 
         data = json.dumps(data)
