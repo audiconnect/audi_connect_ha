@@ -829,12 +829,8 @@ class AudiService:
             "spin": self._spin,
         }
         data = json.dumps(data)
-
-        headers = self._get_vehicle_action_header(
-            "application/json",
-            security_token,
-            "emea.bff.cariad.digital",
-        )
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        
         await self._api.request(
             "POST",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/start".format(
