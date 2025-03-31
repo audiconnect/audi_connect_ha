@@ -562,7 +562,7 @@ class AudiService:
     async def set_climatisation(self, vin: str, start: bool):
         api_level = self._api_level
         country = self._country
-        
+
         if start:
             raise NotImplementedError(
                 "The 'Start Climatisation (Legacy)' service is deprecated and no longer functional. "
@@ -572,7 +572,7 @@ class AudiService:
         else:
             if api_level == 0:
                 data = '{"action":{"type": "stopClimatisation"}}'
-                
+
                 if country == "US":
                     headers = self._get_vehicle_action_header("application/json", None)
                     res = await self._api.request(
@@ -587,9 +587,11 @@ class AudiService:
                         vin=vin.upper(),
                         actionid=res["action"]["actionId"],
                     )
-                    
+
                 else:
-                    headers = self._get_vehicle_action_header("application/json", None, "msg.volkswagen.de")
+                    headers = self._get_vehicle_action_header(
+                        "application/json", None, "msg.volkswagen.de"
+                    )
                     res = await self._api.request(
                         "POST",
                         "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
