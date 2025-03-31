@@ -691,7 +691,7 @@ class AudiService:
                     actionid=res["action"]["actionId"],
                 )
             else:
-                headers = self._get_vehicle_action_header("application/json", None)
+                headers = self._get_vehicle_action_header("application/json", None, "msg.volkswagen.de")
                 res = await self._api.request(
                     "POST",
                     "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
