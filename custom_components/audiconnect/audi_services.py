@@ -815,9 +815,9 @@ class AudiService:
         )
 
     async def set_pre_heater(self, vin: str, activate: bool):
-        security_token = await self._get_security_token(
-            vin, "rheating_v1/operations/P_QSACT"
-        )
+        # security_token = await self._get_security_token(
+        #     vin, "rheating_v1/operations/P_QSACT"
+        # )
 
         # data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
         #     input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
