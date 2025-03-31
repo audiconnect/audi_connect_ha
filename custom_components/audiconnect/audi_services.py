@@ -675,6 +675,51 @@ class AudiService:
 
             data = json.dumps(data)
 
+            if country == "US":
+                headers = self._get_vehicle_action_header("application/json", None)
+                res = await self._api.request(
+                    "POST",
+                    "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
+                        vin=vin.upper(),
+                    ),
+                    headers=headers,
+                    data=data,
+                )
+
+                checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
+                    vin=vin.upper(),
+                    actionid=res["action"]["actionId"],
+                )
+            else:
+                headers = self._get_vehicle_action_header("application/json", None)
+                res = await self._api.request(
+                    "POST",
+                    "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
+                        homeRegion=await self._get_home_region(vin.upper()),
+                        type=self._type,
+                        country=self._country,
+                        vin=vin.upper(),
+                    ),
+                    headers=headers,
+                    data=data,
+                )
+
+                checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
+                    homeRegion=await self._get_home_region(vin.upper()),
+                    type=self._type,
+                    country=self._country,
+                    vin=vin.upper(),
+                    actionid=res["action"]["actionId"],
+                )
+
+            await self.check_request_succeeded(
+                checkUrl,
+                "startClimatisation",
+                SUCCEEDED,
+                FAILED,
+                "action.actionState",
+            )
+
         elif api_level == 1:
             if temp_f is not None:
                 target_temperature = int((temp_f - 32) * (5 / 9))
@@ -696,11 +741,6 @@ class AudiService:
             }
 
             data = json.dumps(data)
-
-        if country == "DE":
-            # old headers
-            # headers = self._get_vehicle_action_header("application/json", None)
-            # new headers for EU
             headers = {
                 "Authorization": "Bearer " + self._bearer_token_json["access_token"]
             }
@@ -725,59 +765,6 @@ class AudiService:
             #     FAILED,
             #     "action.actionState",
             # )
-
-        elif country == "US":
-            headers = self._get_vehicle_action_header("application/json", None)
-            res = await self._api.request(
-                "POST",
-                "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
-                    vin=vin.upper(),
-                ),
-                headers=headers,
-                data=data,
-            )
-
-            checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions/{actionid}".format(
-                vin=vin.upper(),
-                actionid=res["action"]["actionId"],
-            )
-
-            await self.check_request_succeeded(
-                checkUrl,
-                "startClimatisation",
-                SUCCEEDED,
-                FAILED,
-                "action.actionState",
-            )
-        else:
-            headers = self._get_vehicle_action_header("application/json", None)
-            res = await self._api.request(
-                "POST",
-                "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                    homeRegion=await self._get_home_region(vin.upper()),
-                    type=self._type,
-                    country=self._country,
-                    vin=vin.upper(),
-                ),
-                headers=headers,
-                data=data,
-            )
-
-            checkUrl = "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions/{actionid}".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-                actionid=res["action"]["actionId"],
-            )
-
-            await self.check_request_succeeded(
-                checkUrl,
-                "start climatisation",
-                SUCCEEDED,
-                FAILED,
-                "action.actionState",
-            )
 
     async def set_window_heating(self, vin: str, start: bool):
         data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
