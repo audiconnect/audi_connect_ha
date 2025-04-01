@@ -836,7 +836,7 @@ class AudiService:
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
                 vin=vin.upper(),
                 action="start" if activate else "stop",
-            )
+            ),
             headers=headers,
             data=data,
         )
