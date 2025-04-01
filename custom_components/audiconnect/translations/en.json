@@ -142,7 +142,157 @@
         },
         "duration": {
           "name": "Duration",
-          "description": "The number of minutes the preheater should run before turning off. Defaults to 20 minutes if not provided."
+          "description": "{
+  "config": {
+    "abort": {
+      "invalid_credentials": "Invalid credentials",
+      "user_already_configured": "Account has already been configured"
+    },
+    "create_entry": {},
+    "error": {
+      "invalid_credentials": "Invalid credentials",
+      "invalid_username": "Invalid username",
+      "unexpected": "Unexpected error communicating with Audi Connect server",
+      "user_already_configured": "Account has already been configured"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Password",
+          "username": "Username",
+          "spin": "S-PIN",
+          "region": "Region",
+          "scan_interval": "Scan interval",
+          "api_level": "API Level"
+        },
+        "title": "Audi Connect Account Info",
+        "data_description": {
+          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be updated from the CONFIGURE menu later, if needed."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_initial": "Cloud Update at Startup",
+          "scan_active": "Active Polling at Scan Interval",
+          "scan_interval": "Scan Interval",
+          "api_level": "API Level"
+        },
+        "title": "Audi Connect Options",
+        "data_description": {
+          "scan_initial": "Perform a cloud update immediately upon startup.",
+          "scan_active": "Perform a cloud update at the set scan interval.",
+          "scan_interval": "Minutes between active polling. If 'Active Polling at Scan Interval' is off, this value will have no impact.",
+          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle."
+        }
+      }
+    }
+  },
+  "selector": {
+    "vehicle_actions": {
+      "options": {
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "start_climatisation": "Start Climatisation (Legacy)",
+        "stop_climatisation": "Stop Climatisation",
+        "start_charger": "Start Charger",
+        "start_timed_charger": "Start timed Charger",
+        "stop_charger": "Stop Charger",
+        "start_preheater": "Start Preheater (Legacy)",
+        "stop_preheater": "Stop Preheater",
+        "start_window_heating": "Start Window heating",
+        "stop_window_heating": "Stop Windows heating"
+      }
+    }
+  },
+  "services": {
+    "refresh_vehicle_data": {
+      "name": "Refresh Vehicle Data",
+      "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        }
+      }
+    },
+    "execute_vehicle_action": {
+      "name": "Execute Vehicle Action",
+      "description": "Performs various actions on the vehicle.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "action": {
+          "name": "Action",
+          "description": "The specific action to perform on the vehicle. Note that available actions may vary based on the vehicle.",
+          "example": "lock"
+        }
+      }
+    },
+    "start_climate_control": {
+      "name": "Start Climate Control",
+      "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "temp_f": {
+          "name": "Target Temperature (Fahrenheit)",
+          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
+        },
+        "temp_c": {
+          "name": "Target Temperature (Celsius)",
+          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
+        },
+        "glass_heating": {
+          "name": "Glass Surface Heating",
+          "description": "(Optional) Enable or disable glass surface heating."
+        },
+        "seat_fl": {
+          "name": "Auto Seat Comfort: Front-Left",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the front-left seat."
+        },
+        "seat_fr": {
+          "name": "Auto Seat Comfort: Front-Right",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the front-right seat."
+        },
+        "seat_rl": {
+          "name": "Auto Seat Comfort: Rear-Left",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-left seat."
+        },
+        "seat_rr": {
+          "name": "Auto Seat Comfort: Rear-Right",
+          "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-right seat."
+        }
+      }
+    },
+    "refresh_cloud_data": {
+      "name": "Refresh Cloud Data",
+      "description": "Retrieves current cloud data without triggering a vehicle refresh. Data may be outdated if the vehicle has not checked in recently."
+    },
+    "start_auxiliary_heating": {
+      "name": "Start Auxiliary Heating",
+      "description": "Start auxiliary heating the vehicle, with option for duration.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "The number of minutes the auxiliary heater should run before turning off. Default is 20 minutes if not provided."
+        }
+      }
+    }
+  }
+}
+."
         }
       }
     }
