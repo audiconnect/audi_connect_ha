@@ -2,7 +2,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import logging
 import asyncio
-from typing import List
+from typing import List, Optional
 import re
 
 from asyncio import TimeoutError
@@ -413,7 +413,7 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_pre_heater(self, vin: str, activate: bool):
+    async def set_vehicle_pre_heater(self, vin: str, activate: bool, preheater_duration: Optional[int] = None):
         if not self._loggedin:
             await self.login()
 
