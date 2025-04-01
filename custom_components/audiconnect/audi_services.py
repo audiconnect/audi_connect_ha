@@ -814,31 +814,34 @@ class AudiService:
             "action.actionState",
         )
 
-    async def set_pre_heater(self, vin: str, activate: bool):
-        # security_token = await self._get_security_token(
-        #     vin, "rheating_v1/operations/P_QSACT"
-        # )
-
-        # data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-        #     input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
-        #     if activate
-        #     else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
-        # )
+    async def set_pre_heater(self, vin: str, activate: bool, preheater_duration: Optional[int] = None):
+        if not preheater_duration:
+            preheater_duration = 30
         data = {
-            "duration_min": 10,
+            "duration_min": preheater_duration,
             "spin": self._spin,
         }
         data = json.dumps(data)
-        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
-
+        
+        headers = {
+            "Accept": "application/json",
+            "Accept-charset": "utf-8",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept-encoding": "gzip",
+        } 
         await self._api.request(
             "POST",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/start".format(
-                vin=vin.upper(),
-            ),
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
+                vin=vin.upper(), 
+                action="start" if activate else "stop",
+            )
             headers=headers,
             data=data,
         )
+
+        #TO DO: Add check_request_succeeded
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
