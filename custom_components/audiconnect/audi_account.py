@@ -259,7 +259,7 @@ class AudiAccount(AudiConnectObserver):
 
         vin = service.data.get(CONF_VIN)
         # Optional Parameters
-        preheater_duration = service.data.get(CONF_PREHEATER_DURATION, None)
+        preheater_duration = service.data.get(CONF_PREHEATER_DIESEL_DURATION, None)
 
         await self.connection.set_pre_heater(vin, True, preheater_duration)
 
