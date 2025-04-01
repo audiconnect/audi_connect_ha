@@ -142,7 +142,7 @@
         },
         "duration": {
           "name": "Duration",
-          "description": "Duration the preheater should run before turning off."
+          "description": "The number of minutes the preheater should run before turning off."
         }
       }
     }
