@@ -64,8 +64,8 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
     }
 )
 
-SERVICE_START_PREHEATER_DIESEL = "start_preheater_diesel"
-SERVICE_START_PREHEATER_DIESEL_SCHEMA = vol.Schema(
+SERVICE_START_AUXILIARY_HEATING = "start_auxiliary_heating"
+SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_VIN): cv.string,
         vol.Optional(CONF_DURATION): cv.positive_int,
@@ -134,9 +134,9 @@ class AudiAccount(AudiConnectObserver):
         )
         self.hass.services.async_register(
             DOMAIN,
-            SERVICE_START_PREHEATER_DIESEL,
-            self.start_preheater_diesel,
-            schema=SERVICE_START_PREHEATER_DIESEL_SCHEMA,
+            SERVICE_START_AUXILIARY_HEATING,
+            self.start_auxiliary_heating,
+            schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
         )
 
         self.connection.add_observer(self)
@@ -225,7 +225,7 @@ class AudiAccount(AudiConnectObserver):
         if action == "start_preheater":
             _LOGGER.warning(
                 'The "Start Preheater (Legacy)" action is deprecated and will be removed in a future release.'
-                'Please use the "Start Preheater (Diesel)" service instead.'
+                'Please use the "Start Auxiliary Heating" service instead.'
             )
             await self.connection.set_vehicle_pre_heater(vin, True)
         if action == "stop_preheater":
@@ -258,17 +258,17 @@ class AudiAccount(AudiConnectObserver):
             seat_rr,
         )
 
-    async def start_preheater_diesel(self, service):
+    async def start_auxiliary_heating(self, service):
         vin = service.data.get(CONF_VIN)
 
         # Optional Parameters
         duration = service.data.get(CONF_DURATION, None)
 
         if duration is None:
-            _LOGGER.debug('Initiating "Start Preheater (Diesel)" action...')
+            _LOGGER.debug('Initiating "Start Auxiliary Heating" action...')
         else:
             _LOGGER.debug(
-                f'Initiating "Start Preheater (Diesel)" action for {duration} minutes...'
+                f'Initiating "Start Auxiliary Heating" action for {duration} minutes...'
             )
 
         await self.connection.set_vehicle_pre_heater(
