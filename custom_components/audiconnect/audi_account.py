@@ -223,6 +223,10 @@ class AudiAccount(AudiConnectObserver):
         if action == "stop_charger":
             await self.connection.set_battery_charger(vin, False, False)
         if action == "start_preheater":
+            _LOGGER.warning(
+                'The "Start Preheater (Legacy)" action is deprecated and will be removed in a future release.'
+                'Please use the "Start Preheater (Diesel)" service instead.'
+            )
             await self.connection.set_vehicle_pre_heater(vin, True)
         if action == "stop_preheater":
             await self.connection.set_vehicle_pre_heater(vin, False)
@@ -255,12 +259,15 @@ class AudiAccount(AudiConnectObserver):
         )
 
     async def start_preheater_diesel(self, service):
-        _LOGGER.debug('Initiating "Start Preheater (Diesel)" action...')
-
         vin = service.data.get(CONF_VIN)
 
         # Optional Parameters
         duration = service.data.get(CONF_DURATION, None)
+        
+        if duration is None:
+            _LOGGER.debug('Initiating "Start Preheater (Diesel)" action...')
+        else:
+            _LOGGER.debug(f'Initiating "Start Preheater (Diesel)" action for {duration} minutes...')
 
         await self.connection.set_vehicle_pre_heater(
             vin=vin,
