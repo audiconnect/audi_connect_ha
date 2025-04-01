@@ -23,7 +23,7 @@
         },
         "title": "Audi Connect Account Info",
         "data_description": {
-          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be updated from the CONFIGURE menu later, if needed."
+          "api_level":"For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be updated from the CONFIGURE menu later, if needed."
         }
       }
     }
@@ -60,8 +60,7 @@
         "start_preheater": "Start Preheater",
         "stop_preheater": "Stop Preheater",
         "start_window_heating": "Start Window heating",
-        "stop_window_heating": "Stop Windows heating",
-        "is_moving": "Is moving"
+        "stop_window_heating": "Stop Windows heating"
       }
     }
   },
