@@ -10,10 +10,10 @@ CONF_CLIMATE_SEAT_FL = "seat_fl"
 CONF_CLIMATE_SEAT_FR = "seat_fr"
 CONF_CLIMATE_SEAT_RL = "seat_rl"
 CONF_CLIMATE_SEAT_RR = "seat_rr"
-CONF_PREHEATER_DIESEL_DURATION = "preheater_duration"
 CONF_SCAN_INITIAL = "scan_initial"
 CONF_SCAN_ACTIVE = "scan_active"
 CONF_API_LEVEL = "api_level"
+CONF_DURATION = "duration"
 
 MIN_UPDATE_INTERVAL = 15
 DEFAULT_UPDATE_INTERVAL = 15
