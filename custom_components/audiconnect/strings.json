@@ -142,7 +142,7 @@
         },
         "duration": {
           "name": "Duration",
-          "description": "The number of minutes the preheater should run before turning off. Defaults to 20 minutes if not provided."
+          "description": "The number of minutes the auxiliary heater should run before turning off. Default is 20 minutes if not provided."
         }
       }
     }
