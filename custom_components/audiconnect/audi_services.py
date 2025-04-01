@@ -814,7 +814,9 @@ class AudiService:
             "action.actionState",
         )
 
-    async def set_pre_heater(self, vin: str, activate: bool, preheater_duration: Optional[int] = None):
+    async def set_pre_heater(
+        self, vin: str, activate: bool, preheater_duration: Optional[int] = None
+    ):
         if not preheater_duration:
             preheater_duration = 30
         data = {
@@ -841,7 +843,7 @@ class AudiService:
             data=data,
         )
 
-        #TO DO: Add check_request_succeeded
+        # TO DO: Add check_request_succeeded
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
