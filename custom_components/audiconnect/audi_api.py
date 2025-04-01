@@ -45,14 +45,14 @@ class AudiAPI:
         rsp_wtxt: bool = False,
         **kwargs,
     ):
-        _LOGGER.debug(
-            "Request initiated: method=%s, url=%s, data=%s, headers=%s, kwargs=%s",
-            method,
-            url,
-            data,
-            headers,
-            kwargs,
-        )
+        # _LOGGER.debug(
+        #     "Request initiated: method=%s, url=%s, data=%s, headers=%s, kwargs=%s",
+        #     method,
+        #     url,
+        #     data,
+        #     headers,
+        #     kwargs,
+        # )
         try:
             async with asyncio.timeout(TIMEOUT):
                 async with self._session.request(
