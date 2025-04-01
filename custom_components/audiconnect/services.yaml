@@ -66,3 +66,18 @@ start_climate_control:
     seat_rr:
       selector:
         boolean:
+
+start_auxiliary_heating:
+  fields:
+    vin:
+      required: true
+      example: WBANXXXXXX1234567
+      selector:
+        text:
+    duration:
+      selector:
+        number:
+          min: 10
+          max: 60
+          step: 10
+          unit_of_measurement: "minutes"

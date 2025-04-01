@@ -31,6 +31,7 @@ from .const import (
     CONF_API_LEVEL,
     DEFAULT_API_LEVEL,
     API_LEVELS,
+    CONF_DURATION,
 )
 from .dashboard import Dashboard
 
@@ -60,6 +61,14 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
         vol.Optional(CONF_CLIMATE_SEAT_FR): cv.boolean,
         vol.Optional(CONF_CLIMATE_SEAT_RL): cv.boolean,
         vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
+    }
+)
+
+SERVICE_START_AUXILIARY_HEATING = "start_auxiliary_heating"
+SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VIN): cv.string,
+        vol.Optional(CONF_DURATION): cv.positive_int,
     }
 )
 
@@ -122,6 +131,12 @@ class AudiAccount(AudiConnectObserver):
             DOMAIN,
             SERVICE_REFRESH_CLOUD_DATA,
             self.update,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_START_AUXILIARY_HEATING,
+            self.start_auxiliary_heating,
+            schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
         )
 
         self.connection.add_observer(self)
@@ -208,6 +223,10 @@ class AudiAccount(AudiConnectObserver):
         if action == "stop_charger":
             await self.connection.set_battery_charger(vin, False, False)
         if action == "start_preheater":
+            _LOGGER.warning(
+                'The "Start Preheater (Legacy)" action is deprecated and will be removed in a future release.'
+                'Please use the "Start Auxiliary Heating" service instead.'
+            )
             await self.connection.set_vehicle_pre_heater(vin, True)
         if action == "stop_preheater":
             await self.connection.set_vehicle_pre_heater(vin, False)
@@ -237,6 +256,25 @@ class AudiAccount(AudiConnectObserver):
             seat_fr,
             seat_rl,
             seat_rr,
+        )
+
+    async def start_auxiliary_heating(self, service):
+        vin = service.data.get(CONF_VIN)
+
+        # Optional Parameters
+        duration = service.data.get(CONF_DURATION, None)
+
+        if duration is None:
+            _LOGGER.debug('Initiating "Start Auxiliary Heating" action...')
+        else:
+            _LOGGER.debug(
+                f'Initiating "Start Auxiliary Heating" action for {duration} minutes...'
+            )
+
+        await self.connection.set_vehicle_pre_heater(
+            vin=vin,
+            activate=True,
+            duration=duration,
         )
 
     async def handle_notification(self, vin: str, action: str) -> None:

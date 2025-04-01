@@ -129,12 +129,12 @@ This service allows you to perform actions on your Audi vehicle, specified by th
 - **`action`**: The specific action to perform on the vehicle. Available actions include:
   - **`lock`**: Lock the vehicle.
   - **`unlock`**: Unlock the vehicle.
-  - **`start_climatisation`**: Start the vehicle's climatisation system. (Legacy)
+  - **`start_climatisation`**: Start the vehicle's climatisation system. (Legacy) -- Deprecated
   - **`stop_climatisation`**: Stop the vehicle's climatisation system.
   - **`start_charger`**: Start charging the vehicle.
   - **`start_timed_charger`**: Start the vehicle's charger with a timer.
   - **`stop_charger`**: Stop charging the vehicle.
-  - **`start_preheater`**: Start the vehicle's preheater system.
+  - **`start_preheater`**: Start the vehicle's preheater system. (Legacy) -- Deprecated
   - **`stop_preheater`**: Stop the vehicle's preheater system.
   - **`start_window_heating`**: Start heating the vehicle's windows.
   - **`stop_window_heating`**: Stop heating the vehicle's windows.
@@ -191,6 +191,33 @@ data:
 - The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
 - If neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
 - Certain action require the S-PIN to be set in the configuration.
+- When the action is successfully performed, an update request is automatically triggered.
+
+### Audi Connect: Start Auxiliary Heating
+
+`audiconnect.start_auxiliary_heating`
+
+This service call action allows you to start auxiliary heating the vehicle, with option for duration.
+
+#### Service Parameters
+
+- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`duration`** (_optional_): The number of minutes the auxiliary heater should run before turning off. Default is `20` minutes if not provided.
+
+#### Usage Example
+
+To start the auxiliary heater for a vehicle with VIN `WAUZZZ4G7EN123456`, and a duration of 40 minutes, use the following service call action:
+
+```yaml
+service: audiconnect.start_auxiliary_heating
+data:
+  vin: "WAUZZZ4G7EN123456"
+  duration: 40
+```
+
+#### Notes
+
+- Requires the S-PIN to be set in the configuration.
 - When the action is successfully performed, an update request is automatically triggered.
 
 ## Example Dashboard Card

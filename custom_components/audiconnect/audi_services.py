@@ -831,31 +831,41 @@ class AudiService:
             "action.actionState",
         )
 
-    async def set_pre_heater(self, vin: str, activate: bool):
-        security_token = await self._get_security_token(
-            vin, "rheating_v1/operations/P_QSACT"
-        )
+    async def set_pre_heater(
+        self, vin: str, activate: bool, duration: Optional[int] = None
+    ):
+        if activate:
+            if not duration:
+                duration = 30
+            data = {
+                "duration_min": int(duration),
+                "spin": self._spin,
+            }
 
-        data = '<?xml version="1.0" encoding= "UTF-8" ?>{input}'.format(
-            input='<performAction xmlns="http://audi.de/connect/rs"><quickstart><active>true</active></quickstart></performAction>'
-            if activate
-            else '<performAction xmlns="http://audi.de/connect/rs"><quickstop><active>false</active></quickstop></performAction>'
-        )
+        else:
+            data = None
 
-        headers = self._get_vehicle_action_header(
-            "application/vnd.vwg.mbb.RemoteStandheizung_v2_0_0+xml", security_token
-        )
+        data = json.dumps(data)
+
+        headers = {
+            "Accept": "application/json",
+            "Accept-charset": "utf-8",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept-encoding": "gzip",
+        }
         await self._api.request(
             "POST",
-            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/action".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
                 vin=vin.upper(),
+                action="start" if activate else "stop",
             ),
             headers=headers,
             data=data,
         )
+
+        # TO DO: Add check_request_succeeded
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
