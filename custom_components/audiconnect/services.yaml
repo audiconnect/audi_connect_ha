@@ -67,7 +67,7 @@ start_climate_control:
       selector:
         boolean:
 
-start_preheater_diesel:
+start_auxiliary_heating:
   fields:
     vin:
       required: true
