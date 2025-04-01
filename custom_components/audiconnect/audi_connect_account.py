@@ -413,7 +413,9 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_pre_heater(self, vin: str, activate: bool, preheater_duration: Optional[int] = None):
+    async def set_vehicle_pre_heater(
+        self, vin: str, activate: bool, preheater_duration: Optional[int] = None
+    ):
         if not self._loggedin:
             await self.login()
 
