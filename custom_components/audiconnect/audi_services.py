@@ -822,7 +822,7 @@ class AudiService:
             "spin": self._spin,
         }
         data = json.dumps(data)
-        
+
         headers = {
             "Accept": "application/json",
             "Accept-charset": "utf-8",
@@ -830,11 +830,11 @@ class AudiService:
             "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/json; charset=utf-8",
             "Accept-encoding": "gzip",
-        } 
+        }
         await self._api.request(
             "POST",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
-                vin=vin.upper(), 
+                vin=vin.upper(),
                 action="start" if activate else "stop",
             )
             headers=headers,
