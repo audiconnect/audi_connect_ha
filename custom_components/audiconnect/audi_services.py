@@ -814,17 +814,20 @@ class AudiService:
             "action.actionState",
         )
 
-    async def set_pre_heater(
-        self, vin: str, activate: bool, preheater_duration: Optional[int] = None
-    ):
-        if not preheater_duration:
-            preheater_duration = 30
-        data = {
-            "duration_min": preheater_duration,
-            "spin": self._spin,
-        }
-        data = json.dumps(data)
+    async def set_pre_heater(self, vin: str, activate: bool, duration: Optional[int] = None):
+        if activate:
+            if not duration:
+                duration = 30
+            data = {
+                "duration_min": int(duration),
+                "spin": self._spin,
+            }
 
+        else:
+            data = None
+
+        data = json.dumps(data)
+        
         headers = {
             "Accept": "application/json",
             "Accept-charset": "utf-8",
@@ -832,18 +835,18 @@ class AudiService:
             "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/json; charset=utf-8",
             "Accept-encoding": "gzip",
-        }
+        } 
         await self._api.request(
             "POST",
             "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
-                vin=vin.upper(),
+                vin=vin.upper(), 
                 action="start" if activate else "stop",
             ),
             headers=headers,
             data=data,
         )
 
-        # TO DO: Add check_request_succeeded
+        #TO DO: Add check_request_succeeded
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
