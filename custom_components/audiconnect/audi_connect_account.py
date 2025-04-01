@@ -2,7 +2,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import logging
 import asyncio
-from typing import List, Optional
+from typing import List
 import re
 
 from asyncio import TimeoutError
@@ -413,9 +413,7 @@ class AudiConnectAccount:
                 ),
             )
 
-    async def set_vehicle_pre_heater(
-        self, vin: str, activate: bool, preheater_duration: Optional[int] = None
-    ):
+    async def set_vehicle_pre_heater(self, vin: str, activate: bool, **kwargs):
         if not self._loggedin:
             await self.login()
 
@@ -429,7 +427,8 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self._audi_service.set_pre_heater(vin, activate)
+            # Pass **kwargs down
+            await self._audi_service.set_pre_heater(vin, activate, **kwargs)
 
             _LOGGER.debug(
                 "Successfully {action} pre-heater of vehicle {vin}".format(
