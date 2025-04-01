@@ -57,11 +57,10 @@
         "start_charger": "Start Charger",
         "start_timed_charger": "Start timed Charger",
         "stop_charger": "Stop Charger",
-        "start_preheater": "Start Preheater",
+        "start_preheater": "Start Preheater (Legacy)",
         "stop_preheater": "Stop Preheater",
         "start_window_heating": "Start Window heating",
-        "stop_window_heating": "Stop Windows heating",
-        "is_moving": "Is moving"
+        "stop_window_heating": "Stop Windows heating"
       }
     }
   },
@@ -132,6 +131,20 @@
     "refresh_cloud_data": {
       "name": "Refresh Cloud Data",
       "description": "Retrieves current cloud data without triggering a vehicle refresh. Data may be outdated if the vehicle has not checked in recently."
+    },
+    "start_auxiliary_heating": {
+      "name": "Start Auxiliary Heating",
+      "description": "Start auxiliary heating the vehicle, with option for duration.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "The number of minutes the auxiliary heater should run before turning off. Default is 20 minutes if not provided."
+        }
+      }
     }
   }
 }
