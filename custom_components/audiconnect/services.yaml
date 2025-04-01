@@ -74,7 +74,7 @@ start_preheater_diesel:
       example: WBANXXXXXX1234567
       selector:
         text:
-    preheater_duration:
+    duration:
       selector:
         number:
           min: 10
