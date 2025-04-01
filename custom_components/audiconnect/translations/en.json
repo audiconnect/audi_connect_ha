@@ -140,9 +140,9 @@
           "name": "VIN",
           "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
         },
-        "preheater_duration": {
-          "name": "Preheater Duration",
-          "description": "Duration the preheater should run before turning off."
+        "duration": {
+          "name": "Duration",
+          "description": "The number of minutes the preheater should run before turning off."
         }
       }
     }
