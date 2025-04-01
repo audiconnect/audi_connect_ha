@@ -31,6 +31,7 @@ from .const import (
     CONF_API_LEVEL,
     DEFAULT_API_LEVEL,
     API_LEVELS,
+    CONF_PREHEATER_DIESEL_DURATION,
 )
 from .dashboard import Dashboard
 
@@ -60,6 +61,14 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
         vol.Optional(CONF_CLIMATE_SEAT_FR): cv.boolean,
         vol.Optional(CONF_CLIMATE_SEAT_RL): cv.boolean,
         vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
+    }
+)
+
+SERVICE_START_PREHEATER_DIESEL = "start_preheater_diesel"
+SERVICE_START_PREHEATER_DIESEL_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VIN): cv.string,
+        vol.Optional(CONF_PREHEATER_DIESEL_DURATION): cv.positive_int,
     }
 )
 
@@ -122,6 +131,12 @@ class AudiAccount(AudiConnectObserver):
             DOMAIN,
             SERVICE_REFRESH_CLOUD_DATA,
             self.update,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_START_PREHEATER_DIESEL,
+            self.start_preheater_diesel,
+            schema=SERVICE_START_PREHEATER_DIESEL_SCHEMA,
         )
 
         self.connection.add_observer(self)
@@ -238,6 +253,15 @@ class AudiAccount(AudiConnectObserver):
             seat_rl,
             seat_rr,
         )
+
+    async def start_preheater_diesel(self, service):
+        _LOGGER.debug('Initiating "Start Preheater (Diesel)" action...')
+        
+        vin = service.data.get(CONF_VIN)
+        # Optional Parameters
+        preheater_duration = service.data.get(CONF_PREHEATER_DURATION, None)
+
+        await self.connection.set_pre_heater(vin, True, preheater_duration)
 
     async def handle_notification(self, vin: str, action: str) -> None:
         await self._refresh_vehicle_data(vin)
