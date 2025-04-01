@@ -263,11 +263,13 @@ class AudiAccount(AudiConnectObserver):
 
         # Optional Parameters
         duration = service.data.get(CONF_DURATION, None)
-        
+
         if duration is None:
             _LOGGER.debug('Initiating "Start Preheater (Diesel)" action...')
         else:
-            _LOGGER.debug(f'Initiating "Start Preheater (Diesel)" action for {duration} minutes...')
+            _LOGGER.debug(
+                f'Initiating "Start Preheater (Diesel)" action for {duration} minutes...'
+            )
 
         await self.connection.set_vehicle_pre_heater(
             vin=vin,
