@@ -190,7 +190,6 @@ data:
 
 - The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
 - If neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
-- Certain action require the S-PIN to be set in the configuration.
 - When the action is successfully performed, an update request is automatically triggered.
 
 ### Audi Connect: Start Auxiliary Heating
