@@ -3,7 +3,6 @@
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE.md)
 [![Code Style][blackbadge]][black]
-
 [![hacs][hacsbadge]](hacs)
 
 ## Notices
@@ -14,7 +13,8 @@ Due to API changes, **currently not all functionality is available**. Please ope
 
 ## Maintainers Wanted
 
-Always looking for more help from the community :)
+- Looking for maintainers for Translation documents.
+- Always looking for more help from the community. If you can resolve an issue, please submit a PR or reach out to the maintainers with the working code.
 
 ## Description
 
