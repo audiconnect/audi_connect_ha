@@ -3,16 +3,18 @@
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE.md)
 [![Code Style][blackbadge]][black]
-
 [![hacs][hacsbadge]](hacs)
 
-## Notice
+## Notices
 
-Due to API changes, currently not all functionality is available. Please open a issue to report the topics you are missing.
+Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
+
+⚠️ Warning: Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
 
 ## Maintainers Wanted
 
-Always looking for more help from the community :)
+- Looking for maintainers for Translation documents.
+- Always looking for more help from the community. If you can resolve an issue, please submit a PR or reach out to the maintainers with the working code.
 
 ## Description
 
@@ -43,62 +45,39 @@ Configuration is done through the Home Assistant UI.
 
 To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
-![image](https://github.com/user-attachments/assets/68f4a38b-f09d-4486-a1a1-ab8a564095ab)
-
 ### Configuration Variables
 
-**username**
-
-- (string)(Required) The username associated with your Audi Connect account.
-
-**password**
-
-- (string)(Required) The password for your Audi Connect account.
-
-**S-PIN**
-
-- (string)(Optional) The S-PIN for your Audi Connect account.
-
-**region**
-
-- (Required) The region where your Audi Connect account is registered.
-  - 'DE' for Europe (or leave unset)
-  - 'US' for United States of America
-  - 'CA' for Canada
-  - 'CN' for China
-
-**scan_interval**
-
-- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
-
-**api_level**
-
-- (number)(Required) For Audi vehicles, the API request data structure varies by model. Newer models use an updated structure, while older models use a legacy format. Setting the API level ensures that the system automatically applies the correct structure for each vehicle. You can update this setting later from the CONFIGURE menu if needed.
-  - Level `0`: _Typically_ for gas vehicles
-  - Level `1`: _Typically_ for e-tron (electric) vehicles.
+| Name            | Type     | Default | Description                                                                                                                                                                                                                          |
+| --------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Username`      | `string` | –       | The username associated with your Audi Connect account.                                                                                                                                                                              |
+| `Password`      | `string` | –       | The password for your Audi Connect account.                                                                                                                                                                                          |
+| `S-PIN`         | `string` | –       | The S-PIN for your Audi Connect account to perform certain service actions.<br>(**Optional**)                                                                                                                                        |
+| `Region`        | `string` | `DE`    | The region where your Audi Connect account is registered:<br>• `DE` – Europe<br>• `US` – United States<br>• `CA` – Canada<br>• `CN` – China                                                                                          |
+| `Scan Interval` | `int`    | `15`    | Frequency (in minutes) to fetch status data from Audi Connect.<br>Minimum allowed is 15 minutes.<br>\* _Can be updated later via the CONFIGURE menu._                                                                                |
+| `API Level`     | `int`    | `0`     | Determines the API structure used for service action calls:<br>• `0` – _Typically_ Gas vehicles (legacy format)<br>• `1` – _Typically_ e-tron (electric vehicles, newer format)<br>\* _Can be updated later via the CONFIGURE menu._ |
 
 ## Options
 
 Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ Audi Connect ➤ Configure**:
 
-- **Cloud Update at Startup (`bool`)**: Toggle cloud updates at integration startup. Ideal for development or frequent HA restarts.
-- **Active Polling at Scan Interval (`bool`)**: Enable or disable active polling.
-- **Scan Interval (`int`)**: Defines polling frequency in minutes (minimum 15). Effective only if "Active Polling at Scan Interval" is enabled.
-- **API Level (`int`)**: For Audi vehicles, the API request data structure varies by model. Newer models use an updated structure, while older models use a legacy format. Setting the API level ensures that the system automatically applies the correct structure for each vehicle.
-  - Level `0`: _Typically_ for gas vehicles
-  - Level `1`: _Typically_ for e-tron (electric) vehicles.
+| Name                              | Type   | Description                                                                                                                                                                     |
+| --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Cloud Update at Startup`         | `bool` | Toggle the initial cloud update when the integration starts. Useful for development or frequent Home Assistant restarts.                                                        |
+| `Active Polling at Scan Interval` | `bool` | Enable or disable active polling.                                                                                                                                               |
+| `Scan Interval`                   | `int`  | Defines polling frequency in minutes (minimum 15). Only effective if **Active Polling** is enabled.                                                                             |
+| `API Level`                       | `int`  | Determines the API structure used for service action calls:<br>• `0` – _Typically_ Gas vehicles (legacy format)<br>• `1` – _Typically_ e-tron (electric vehicles, newer format) |
 
 _Note: The integration will reload automatically upon clicking `Submit`, but a Home Assistant restart is suggested._
 
-## Services
+## Service Actions
 
 ### Audi Connect: Refresh Vehicle Data
 
 `audiconnect.refresh_vehicle_data`
 
-Normal updates retrieve data from the Audi Connect cloud service, and don't interact directly with the vehicle. _This_ service triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service requires a vehicle identification number (VIN) as a parameter.
+Normal updates retrieve data from the Audi Connect cloud service, and don't interact directly with the vehicle. _This_ service action triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service action requires a vehicle identification number (VIN) as a parameter.
 
-#### Service Parameters
+#### Parameters
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 
@@ -106,14 +85,14 @@ Normal updates retrieve data from the Audi Connect cloud service, and don't inte
 
 `audiconnect.refresh_cloud_data`
 
-_This_ service triggers an update request from the cloud.
+_This_ service action triggers an update request from the cloud.
 
 - Functionality: Updates data for all vehicles from the online source, mirroring the action performed at integration startup or during scheduled refresh intervals.
 - Behavior: Does not force a vehicle-side data refresh. Consequently, if vehicles haven't recently pushed updates, retrieved data might be outdated.
-- Note: This service replicates the function of active polling without scheduling, offering a more granular control over data refresh moments.
-- **IMPORTANT:** This service has no built in usage limits. Excessive use may result in a temporary suspension of your account.
+- Note: This service action replicates the function of active polling without scheduling, offering a more granular control over data refresh moments.
+- **IMPORTANT:** This service action has no built in usage limits. Excessive use may result in a temporary suspension of your account.
 
-#### Service Parameters
+#### Parameters
 
 - `none`
 
@@ -121,7 +100,7 @@ _This_ service triggers an update request from the cloud.
 
 `audiconnect.execute_vehicle_action`
 
-This service allows you to perform actions on your Audi vehicle, specified by the vehicle identification number (VIN) and the desired action.
+This service action allows you to perform actions on your Audi vehicle, specified by the vehicle identification number (VIN) and the desired action.
 
 #### Service Parameters
 
@@ -152,16 +131,16 @@ data:
 
 #### Notes
 
-- Certain action require the S-PIN to be set in the configuration.
-- When the action is successfully performed, an update request is automatically triggered.
+- Certain service actions require the S-PIN to be set in the configuration.
+- When the service action is successfully performed, an update request is automatically triggered.
 
 ### Audi Connect: Start Climate Control
 
 `audiconnect.start_climate_control`
 
-This service allows you to start the climate control with options for temperature, glass surface heating, and auto seat comfort.
+This service action allows you to start the climate control with options for temperature, glass surface heating, and auto seat comfort.
 
-#### Service Parameters
+#### Parameters
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 - **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `70`.
@@ -190,16 +169,15 @@ data:
 
 - The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
 - If neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
-- Certain action require the S-PIN to be set in the configuration.
-- When the action is successfully performed, an update request is automatically triggered.
+- When the service action is successfully performed, an update request is automatically triggered.
 
 ### Audi Connect: Start Auxiliary Heating
 
 `audiconnect.start_auxiliary_heating`
 
-This service call action allows you to start auxiliary heating the vehicle, with option for duration.
+This service action allows you to start auxiliary heating the vehicle, with option for duration.
 
-#### Service Parameters
+#### Parameters
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 - **`duration`** (_optional_): The number of minutes the auxiliary heater should run before turning off. Default is `20` minutes if not provided.
@@ -218,7 +196,7 @@ data:
 #### Notes
 
 - Requires the S-PIN to be set in the configuration.
-- When the action is successfully performed, an update request is automatically triggered.
+- When the service action is successfully performed, an update request is automatically triggered.
 
 ## Example Dashboard Card
 
@@ -344,6 +322,6 @@ The card uses the following code in `ui-lovelace.yaml` (or wherever your Dashboa
 [hacs]: https://github.com/custom-components/hacs
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/audiconnect/audi_connect_ha?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-Arjen%20van%20Rhijn%20%40arjenvrh-blue.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-audiconnect-blue.svg?style=for-the-badge
 [blackbadge]: https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge
 [black]: https://github.com/ambv/black
