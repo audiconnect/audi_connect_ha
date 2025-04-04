@@ -24,6 +24,8 @@ The `audiconnect` component provides an integration with the Audi Connect cloud 
 
 Credit for initial API discovery go to the guys at the ioBroker VW-Connect forum, who were able to figure out how the API and the PIN hashing works. Also some implementation credit to davidgiga1993 of the original [AudiAPI](https://github.com/davidgiga1993/AudiAPI) Python package, on which some of this code is loosely based.
 
+Full credit for this integration goes to @arjenvrh for their outstanding work in putting it all together. We wouldn’t have this without their contributions.
+
 ## Installation
 
 There are two ways this integration can be installed into [Home Assistant](https://www.home-assistant.io).
