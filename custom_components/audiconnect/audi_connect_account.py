@@ -96,7 +96,7 @@ class AudiConnectAccount:
                 _LOGGER.error(
                     "LOGIN: Failed to log in to the Audi service: %s."
                     "You may need to open the myAudi app, or log in via a web browser, to accept updated terms and conditions.",
-                    str(exception)
+                    str(exception),
                 )
             return False
 
