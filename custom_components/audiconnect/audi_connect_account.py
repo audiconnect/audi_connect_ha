@@ -93,7 +93,11 @@ class AudiConnectAccount:
             return True
         except Exception as exception:
             if logError is True:
-                _LOGGER.error("LOGIN: Login to Audi service failed: " + str(exception))
+                _LOGGER.error(
+                    "LOGIN: Failed to log in to the Audi service: %s."
+                    "You may need to open the myAudi app, or log in via a web browser, to accept updated terms and conditions.",
+                    str(exception),
+                )
             return False
 
     async def update(self, vinlist):
