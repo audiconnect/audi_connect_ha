@@ -1,0 +1,150 @@
+{
+  "config": {
+    "abort": {
+      "invalid_credentials": "Virheelliset tunnistetiedot",
+      "user_already_configured": "Tili on jo määritetty"
+    },
+    "create_entry": {},
+    "error": {
+      "invalid_credentials": "Virheelliset tunnistetiedot",
+      "invalid_username": "Virheellinen käyttäjätunnus",
+      "unexpected": "Odottamaton virhe yhdistettäessä Audi Connect -palveluun",
+      "user_already_configured": "Tili on jo määritetty"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Salasana",
+          "username": "Käyttäjätunnus",
+          "spin": "S-PIN",
+          "region": "Alue",
+          "scan_interval": "Skannausväli",
+          "api_level": "API-taso"
+        },
+        "title": "Audi Connect -tilin tiedot",
+        "data_description": {
+          "api_level": "Audi-ajoneuvoissa API-pyynnön tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot käyttävät päivitettyä tietorakennetta verrattuna vanhempiin malleihin. API-tason säätäminen varmistaa, että järjestelmä käyttää kussakin ajoneuvossa oikeaa tietorakennetta. Tätä voi myöhemmin muuttaa ASETUKSET-valikon kautta tarvittaessa."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_initial": "Päivitä pilvestä käynnistyksessä",
+          "scan_active": "Aktiivinen tarkistus aikavälein",
+          "scan_interval": "Aikaväli",
+          "api_level": "API-taso"
+        },
+        "title": "Audi Connect -asetukset",
+        "data_description": {
+          "scan_initial": "Päivitä pilvestä heti käynnistyksen yhteydessä.",
+          "scan_active": "Päivitä pilvestä aikavälein.",
+          "scan_interval": "Minuutit aktiivisten tarkistusten välillä. Jos 'Aktiivinen tarkistus aikavälein' ei ole käytössä, tämä arvo ei vaikuta.",
+          "api_level": "Audi-ajoneuvoissa API-pyynnön tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot käyttävät päivitettyä tietorakennetta verrattuna vanhempiin malleihin. API-tason säätäminen varmistaa, että järjestelmä käyttää kussakin ajoneuvossa oikeaa tietorakennetta."
+        }
+      }
+    }
+  },
+  "selector": {
+    "vehicle_actions": {
+      "options": {
+        "lock": "Lukitse",
+        "unlock": "Avaa lukitus",
+        "start_climatisation": "Käynnistä ilmastointi (perinteinen)",
+        "stop_climatisation": "Pysäytä ilmastointi",
+        "start_charger": "Käynnistä laturi",
+        "start_timed_charger": "Aloita ajastettu lataus",
+        "stop_charger": "Pysäytä laturi",
+        "start_preheater": "Käynnistä lisälämmitin (perinteinen)",
+        "stop_preheater": "Pysäytä lisälämmitin",
+        "start_window_heating": "Käynnistä ikkunalämmitys",
+        "stop_window_heating": "Pysäytä ikkunalämmitys"
+      }
+    }
+  },
+  "services": {
+    "refresh_vehicle_data": {
+      "name": "Päivitä ajoneuvon tiedot",
+      "description": "Pyytää ajoneuvon tilan päivitystä suoraan, pilvestä päivitystä odottamatta - toisin kuin normaali päivitys, joka hakee vain pilvitietoja.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Ajoneuvon tunnistenumero (VIN). Sen tulee olla 17-merkkinen yksilöllinen tunnus jokaiselle ajoneuvolle."
+        }
+      }
+    },
+    "execute_vehicle_action": {
+      "name": "Suorita ajoneuvotoiminto",
+      "description": "Suorittaa erilaisia toimintoja ajoneuvolle.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Ajoneuvon tunnistenumero (VIN). VIN on 17-merkkiä pitkä, yksilöllinen tunnus."
+        },
+        "action": {
+          "name": "Toiminto",
+          "description": "Ajoneuvolle suoritettava toiminto. Huomaa, että saatavilla olevat toiminnot voivat vaihdella ajoneuvon mukaan.",
+          "example": "lukitse"
+        }
+      }
+    },
+    "start_climate_control": {
+      "name": "Käynnistä ilmastointi",
+      "description": "Käynnistä ilmastointi lämpötila-, ikkunalämmitys- ja automaattisen istuinmukavuuden asetuksilla.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Ajoneuvon tunnistenumero (VIN). VIN on 17-merkkiä pitkä, yksilöllinen tunnus."
+        },
+        "temp_f": {
+          "name": "Kohdelämpötila (Fahrenheit)",
+          "description": "(Valinnainen) Näytä lämpötila Fahrenheit-asteina. Oletusarvo on 70 °F, jos arvoa ei anneta. Ohittaa 'temp_c'-asetuksen."
+        },
+        "temp_c": {
+          "name": "Kohdelämpötila (Celsius)",
+          "description": "(Valinnainen) Näytä lämpötila Celsius-asteina. Oletusarvo on 21 °C, jos arvoa ei anneta. Ohitetaan, jos 'temp_f' on asetettu."
+        },
+        "glass_heating": {
+          "name": "Ikkunan lämmitys",
+          "description": "(Valinnainen) Ota ikkunan lämmitys käyttöön tai pois käytöstä."
+        },
+        "seat_fl": {
+          "name": "Automaattinen istuimen mukavuustoiminto: vasen etuistuin",
+          "description": "(Valinnainen) Ota vasemman etuistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
+        },
+        "seat_fr": {
+          "name": "Automaattinen istuimen mukavuustoiminto: oikea etuistuin",
+          "description": "(Valinnainen) Ota oikean etuistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
+        },
+        "seat_rl": {
+          "name": "Automaattinen istuimen mukavuustoiminto: vasen takaistuin",
+          "description": "(Valinnainen) Ota vasemman takaistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
+        },
+        "seat_rr": {
+          "name": "Automaattinen istuimen mukavuustoiminto: oikea takaistuin",
+          "description": "(Valinnainen) Ota oikean takaistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
+        }
+      }
+    },
+    "refresh_cloud_data": {
+      "name": "Päivitä pilvitiedot",
+      "description": "Hakee nykyiset pilvitiedot käynnistämättä ajoneuvon päivitystä. Tiedot voivat olla vanhentuneita, jos ajoneuvo ei ole äskettäin ollut yhteydessä."
+    },
+    "start_auxiliary_heating": {
+      "name": "Käynnistä lisälämmitys",
+      "description": "Käynnistä ajoneuvon lisälämmitys, kestoasetuksen valinta.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Ajoneuvon tunnistenumero (VIN). VIN on 17-merkkiä pitkä, yksilöllinen tunnus."
+        },
+        "duration": {
+          "name": "Kesto",
+          "description": "Lisälämmittimen käyntiaika minuutteina ennen sammuttamista. Oletusarvo on 20 minuuttia, jos arvoa ei anneta."
+        }
+      }
+    }
+  }
+}
