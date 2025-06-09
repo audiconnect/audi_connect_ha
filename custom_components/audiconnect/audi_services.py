@@ -1381,6 +1381,9 @@ class AudiService:
         self.vwToken = json.loads(mbboauth_refresh_rsptxt)
 
     def _generate_security_pin_hash(self, challenge):
+        if self._spin is None:
+            raise Exception("sPin is required to perform this action")
+
         pin = to_byte_array(self._spin)
         byteChallenge = to_byte_array(challenge)
         b = bytes(pin + byteChallenge)
