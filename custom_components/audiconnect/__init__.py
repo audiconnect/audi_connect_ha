@@ -6,6 +6,7 @@ import logging
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.core import HomeAssistant
 from homeassistant.util.dt import utcnow
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
