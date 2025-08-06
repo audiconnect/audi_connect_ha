@@ -6,8 +6,10 @@ import logging
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.core import HomeAssistant
 from homeassistant.util.dt import utcnow
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_NAME,
     CONF_PASSWORD,
@@ -15,6 +17,8 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
+from homeassistant.helpers.device_registry import DeviceEntry
+
 
 from .audi_account import AudiAccount
 
@@ -181,4 +185,11 @@ async def async_unload_entry(hass, config_entry):
 
     del hass.data[DOMAIN][account]
 
+    return True
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """Remove a config entry from a device."""
     return True
