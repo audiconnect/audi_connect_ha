@@ -657,6 +657,7 @@ class AudiService:
         seat_fr: bool,
         seat_rl: bool,
         seat_rr: bool,
+        climatisation_at_unlock: bool = False,
     ):
         api_level = self._api_level
         country = self._country
@@ -692,7 +693,7 @@ class AudiService:
                         "climatisationWithoutHVpower": True,
                         "heaterSource": "electric",
                         "climaterElementSettings": {
-                            "isClimatisationAtUnlock": False,
+                            "isClimatisationAtUnlock": climatisation_at_unlock,
                             "isMirrorHeatingEnabled": glass_heating,
                             "zoneSettings": {"zoneSetting": zone_settings},
                         },
@@ -761,7 +762,7 @@ class AudiService:
                 "targetTemperature": target_temperature,
                 "targetTemperatureUnit": "celsius",
                 "climatisationWithoutExternalPower": True,
-                "climatizationAtUnlock": False,
+                "climatizationAtUnlock": climatisation_at_unlock,
                 "windowHeatingEnabled": glass_heating,
                 "zoneFrontLeftEnabled": seat_fl,
                 "zoneFrontRightEnabled": seat_fr,

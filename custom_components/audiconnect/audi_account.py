@@ -19,6 +19,7 @@ from .const import (
     CONF_CLIMATE_SEAT_FR,
     CONF_CLIMATE_SEAT_RL,
     CONF_CLIMATE_SEAT_RR,
+    CONF_CLIMATE_AT_UNLOCK,
     CONF_CLIMATE_TEMP_C,
     CONF_CLIMATE_TEMP_F,
     CONF_REGION,
@@ -61,6 +62,7 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
         vol.Optional(CONF_CLIMATE_SEAT_FR): cv.boolean,
         vol.Optional(CONF_CLIMATE_SEAT_RL): cv.boolean,
         vol.Optional(CONF_CLIMATE_SEAT_RR): cv.boolean,
+        vol.Optional(CONF_CLIMATE_AT_UNLOCK): cv.boolean,
     }
 )
 
@@ -246,6 +248,7 @@ class AudiAccount(AudiConnectObserver):
         seat_fr = service.data.get(CONF_CLIMATE_SEAT_FR, False)
         seat_rl = service.data.get(CONF_CLIMATE_SEAT_RL, False)
         seat_rr = service.data.get(CONF_CLIMATE_SEAT_RR, False)
+        climatisation_at_unlock = service.data.get(CONF_CLIMATE_AT_UNLOCK, False)
 
         await self.connection.start_climate_control(
             vin,
@@ -256,6 +259,7 @@ class AudiAccount(AudiConnectObserver):
             seat_fr,
             seat_rl,
             seat_rr,
+            climatisation_at_unlock,
         )
 
     async def start_auxiliary_heating(self, service):
