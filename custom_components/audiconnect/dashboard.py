@@ -803,4 +803,3 @@ class Dashboard:
             for instrument in create_instruments()
             if instrument.setup(connection, vehicle, **config)
         ]
-
