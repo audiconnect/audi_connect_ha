@@ -61,7 +61,7 @@ class AudiSensor(AudiEntity, SensorEntity):
         """Return additional state attributes."""
         return self._instrument.extra_state_attributes
 
-    @cached_property
+    @property
     def suggested_display_precision(self):
         """Return the suggested number of decimal digits for display."""
         return self._instrument.suggested_display_precision
