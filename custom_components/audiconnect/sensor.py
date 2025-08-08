@@ -65,4 +65,3 @@ class AudiSensor(AudiEntity, SensorEntity):
     def suggested_display_precision(self):
         """Return the suggested number of decimal digits for display."""
         return self._instrument.suggested_display_precision
-
