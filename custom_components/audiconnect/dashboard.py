@@ -146,6 +146,7 @@ class Sensor(Instrument):
         device_class=None,
         entity_category=None,
         extra_state_attributes=None,
+        suggested_display_precision=None
     ):
         super().__init__(component="sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
@@ -153,6 +154,7 @@ class Sensor(Instrument):
         self.state_class = state_class
         self.entity_category = entity_category
         self.extra_state_attributes = extra_state_attributes
+        self.suggested_display_precision = suggested_display_precision
         self._convert = False
 
     @property
@@ -803,3 +805,4 @@ class Dashboard:
             for instrument in create_instruments()
             if instrument.setup(connection, vehicle, **config)
         ]
+
