@@ -67,7 +67,6 @@ start_climate_control:
       selector:
         boolean:
     climatisation_at_unlock:
-      description: "Enable climate control to start when vehicle is unlocked"
       selector:
         boolean:
 
