@@ -145,6 +145,20 @@
           "description": "The number of minutes the auxiliary heater should run before turning off. Default is 20 minutes if not provided."
         }
       }
+    },
+    "set_target_soc": {
+      "name": "Set Target State of Charge",
+      "description": "Set the target state of charge (battery %) for the vehicle.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        },
+        "target_soc": {
+          "name": "Target State of Charge",
+          "description": "Target state of charge percentage (20-100%)."
+        }
+      }
     }
   }
 }

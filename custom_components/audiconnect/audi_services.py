@@ -559,6 +559,27 @@ class AudiService:
         #     "action.actionState",
         # )
 
+    async def set_target_state_of_charge(self, vin: str, target_soc: int):
+        """Set the target state of charge (battery percentage)."""
+        if not (20 <= target_soc <= 100):
+            raise ValueError(
+                "Target state of charge must be between 20 and 100 percent"
+            )
+
+        # Use Cariad BFF API (requires API level 1)
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+
+        data = {"targetSOC_pct": target_soc}
+
+        await self._api.request(
+            "PUT",
+            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/settings".format(
+                vin=vin.upper(),
+            ),
+            headers=headers,
+            data=json.dumps(data),
+        )
+
     async def set_climatisation(self, vin: str, start: bool):
         api_level = self._api_level
         country = self._country
