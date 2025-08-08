@@ -84,19 +84,15 @@ start_auxiliary_heating:
           unit_of_measurement: "minutes"
 
 set_target_soc:
-  name: "Set Target State of Charge"
-  description: "Set the target state of charge (battery %) for the vehicle"
   fields:
     vin:
       required: true
       example: WBANXXXXXX1234567
-      description: "Vehicle Identification Number (VIN)"
       selector:
         text:
     target_soc:
       required: true
       example: 80
-      description: "Target state of charge percentage (20-100%)"
       selector:
         number:
           min: 20
