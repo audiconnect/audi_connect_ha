@@ -125,6 +125,10 @@
         "seat_rr": {
           "name": "Auto Seat Comfort: Rear-Right",
           "description": "(Optional) Enable or disable Auto Seat Comfort for the rear-right seat."
+        },
+        "climatisation_at_unlock": {
+          "name": "Climatisation at Unlock",
+          "description": "(Optional) Enable climate control to continue when vehicle is unlocked."
         }
       }
     },

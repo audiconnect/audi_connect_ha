@@ -66,6 +66,9 @@ start_climate_control:
     seat_rr:
       selector:
         boolean:
+    climatisation_at_unlock:
+      selector:
+        boolean:
 
 start_auxiliary_heating:
   fields:
