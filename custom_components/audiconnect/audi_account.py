@@ -33,6 +33,7 @@ from .const import (
     DEFAULT_API_LEVEL,
     API_LEVELS,
     CONF_DURATION,
+    CONF_TARGET_SOC,
 )
 from .dashboard import Dashboard
 
@@ -71,6 +72,16 @@ SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_VIN): cv.string,
         vol.Optional(CONF_DURATION): cv.positive_int,
+    }
+)
+
+SERVICE_SET_TARGET_SOC = "set_target_soc"
+SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VIN): cv.string,
+        vol.Required(CONF_TARGET_SOC): vol.All(
+            cv.positive_int, vol.Range(min=20, max=100)
+        ),
     }
 )
 
@@ -139,6 +150,12 @@ class AudiAccount(AudiConnectObserver):
             SERVICE_START_AUXILIARY_HEATING,
             self.start_auxiliary_heating,
             schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
+        )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_TARGET_SOC,
+            self.set_target_soc,
+            schema=SERVICE_SET_TARGET_SOC_SCHEMA,
         )
 
         self.connection.add_observer(self)
@@ -280,6 +297,17 @@ class AudiAccount(AudiConnectObserver):
             activate=True,
             duration=duration,
         )
+
+    async def set_target_soc(self, service):
+        """Set the target state of charge for the vehicle battery."""
+        vin = service.data.get(CONF_VIN).lower()
+        target_soc = service.data.get(CONF_TARGET_SOC)
+
+        _LOGGER.debug(
+            f"Initiating 'Set Target SOC' action to {target_soc}% for VIN {vin}..."
+        )
+
+        await self.connection.set_target_state_of_charge(vin, target_soc)
 
     async def handle_notification(self, vin: str, action: str) -> None:
         await self._refresh_vehicle_data(vin)

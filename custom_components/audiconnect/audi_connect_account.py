@@ -265,6 +265,38 @@ class AudiConnectAccount:
                 ),
             )
 
+    async def set_target_state_of_charge(self, vin: str, target_soc: int):
+        """Set the target state of charge for the vehicle battery."""
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug(
+                "Setting target state of charge to %d%% for vehicle %s",
+                target_soc,
+                vin,
+            )
+
+            await self._audi_service.set_target_state_of_charge(vin, target_soc)
+
+            _LOGGER.debug(
+                "Successfully set target state of charge to %d%% for vehicle %s",
+                target_soc,
+                vin,
+            )
+
+            return True
+
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to set target state of charge for vehicle {}".format(vin),
+            )
+            return False
+
     async def set_vehicle_climatisation(self, vin: str, activate: bool):
         if not self._loggedin:
             await self.login()

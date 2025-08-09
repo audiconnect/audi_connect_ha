@@ -15,6 +15,7 @@ CONF_SCAN_INITIAL = "scan_initial"
 CONF_SCAN_ACTIVE = "scan_active"
 CONF_API_LEVEL = "api_level"
 CONF_DURATION = "duration"
+CONF_TARGET_SOC = "target_soc"
 
 MIN_UPDATE_INTERVAL = 15
 DEFAULT_UPDATE_INTERVAL = 15
