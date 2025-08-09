@@ -23,13 +23,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Instrument:
-    def __init__(self, component, attr, name, icon=None):
+    def __init__(
+        self, component, attr, name, icon=None, suggested_display_precision=None
+    ):
         self._attr = attr
         self._component = component
         self._name = name
         self._connection = None
         self._vehicle = None
         self._icon = icon
+        self._suggested_display_precision = suggested_display_precision
 
     def __repr__(self):
         return self.full_name
@@ -78,6 +81,10 @@ class Instrument:
     @property
     def attr(self):
         return self._attr
+
+    @property
+    def suggested_display_precision(self):
+        return self._suggested_display_precision
 
     @property
     def vehicle_name(self):
@@ -148,13 +155,18 @@ class Sensor(Instrument):
         extra_state_attributes=None,
         suggested_display_precision=None,
     ):
-        super().__init__(component="sensor", attr=attr, name=name, icon=icon)
+        super().__init__(
+            component="sensor",
+            attr=attr,
+            name=name,
+            icon=icon,
+            suggested_display_precision=suggested_display_precision,
+        )
         self.device_class = device_class
         self._unit = unit
         self.state_class = state_class
         self.entity_category = entity_category
         self.extra_state_attributes = extra_state_attributes
-        self.suggested_display_precision = suggested_display_precision
         self._convert = False
 
     @property
