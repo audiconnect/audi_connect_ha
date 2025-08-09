@@ -23,13 +23,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Instrument:
-    def __init__(self, component, attr, name, icon=None):
+    def __init__(
+        self, component, attr, name, icon=None, suggested_display_precision=None
+    ):
         self._attr = attr
         self._component = component
         self._name = name
         self._connection = None
         self._vehicle = None
         self._icon = icon
+        self._suggested_display_precision = suggested_display_precision
 
     def __repr__(self):
         return self.full_name
@@ -78,6 +81,10 @@ class Instrument:
     @property
     def attr(self):
         return self._attr
+
+    @property
+    def suggested_display_precision(self):
+        return self._suggested_display_precision
 
     @property
     def vehicle_name(self):
@@ -146,8 +153,15 @@ class Sensor(Instrument):
         device_class=None,
         entity_category=None,
         extra_state_attributes=None,
+        suggested_display_precision=None,
     ):
-        super().__init__(component="sensor", attr=attr, name=name, icon=icon)
+        super().__init__(
+            component="sensor",
+            attr=attr,
+            name=name,
+            icon=icon,
+            suggested_display_precision=suggested_display_precision,
+        )
         self.device_class = device_class
         self._unit = unit
         self.state_class = state_class
@@ -437,6 +451,7 @@ def create_instruments():
             state_class=SensorStateClass.TOTAL_INCREASING,
             device_class=SensorDeviceClass.DISTANCE,
             entity_category=EntityCategory.DIAGNOSTIC,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="service_adblue_distance",
@@ -444,6 +459,7 @@ def create_instruments():
             icon="mdi:map-marker-distance",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="range",
@@ -451,6 +467,7 @@ def create_instruments():
             icon="mdi:map-marker-distance",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="hybrid_range",
@@ -458,6 +475,7 @@ def create_instruments():
             icon="mdi:map-marker-distance",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="service_inspection_time",
@@ -473,6 +491,7 @@ def create_instruments():
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
             entity_category=EntityCategory.DIAGNOSTIC,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="oil_change_time",
@@ -488,6 +507,7 @@ def create_instruments():
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
             entity_category=EntityCategory.DIAGNOSTIC,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="oil_level",
@@ -533,6 +553,7 @@ def create_instruments():
             icon="mdi:map-marker-distance",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="secondary_engine_range",
@@ -540,6 +561,7 @@ def create_instruments():
             icon="mdi:map-marker-distance",
             unit=UnitOfLength.KILOMETERS,
             device_class=SensorDeviceClass.DISTANCE,
+            suggested_display_precision=0,
         ),
         Sensor(
             attr="primary_engine_range_percent",
