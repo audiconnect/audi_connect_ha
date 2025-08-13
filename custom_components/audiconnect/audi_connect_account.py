@@ -19,6 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 PASSWORD_INVALID_MARKER = "error=login.errors.password_invalid"
+THROTTLED_MARKER = "error=login.error.throttled"
 
 ACTION_LOCK = "lock"
 ACTION_CLIMATISATION = "climatisation"
@@ -57,6 +58,7 @@ class AudiConnectAccount:
         self._connect_retries = 3
         self._connect_delay = 10
         self._invalid_credentials = False
+        self._throttled = False
 
         self._update_listeners = []
 
@@ -74,6 +76,7 @@ class AudiConnectAccount:
 
     async def login(self):
         self._invalid_credentials = False  # reset each login attempt
+        self._throttled = False
         for i in range(self._connect_retries):
             self._loggedin = await self.try_login(i == self._connect_retries - 1)
             if self._loggedin is True:
@@ -84,6 +87,10 @@ class AudiConnectAccount:
             if self._invalid_credentials:
                 _LOGGER.error("LOGIN: Invalid credentials detected; not retrying.")
                 break
+            # bail immediately if login is being throttled
+            if self._throttled:
+                _LOGGER.error("LOGIN: Your login attempts are being throttled. Give it some time.")
+                break
 
             if i < self._connect_retries - 1:
                 _LOGGER.error(
@@ -91,6 +98,7 @@ class AudiConnectAccount:
                     self._connect_delay,
                 )
                 await asyncio.sleep(self._connect_delay)
+
 
     async def try_login(self, logError):
         try:
@@ -106,6 +114,11 @@ class AudiConnectAccount:
                 _LOGGER.error("LOGIN: Invalid username or password. %s", msg)
                 return False
 
+            if THROTTLED_MARKER in msg:
+                self._throttled = True
+                _LOGGER.error("LOGIN: Login throttled. %s", msg)
+                return False
+
             if logError is True:
                 _LOGGER.error(
                     "LOGIN: Failed to log in to the Audi service: %s. "
@@ -114,6 +127,7 @@ class AudiConnectAccount:
                     msg,
                 )
             return False
+
 
     async def update(self, vinlist):
         if not self._loggedin:
