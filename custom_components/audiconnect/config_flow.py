@@ -193,7 +193,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         if user_input is not None:
-            _LOGGER.debug("Received user input for options: %s", {k: "****" if k == CONF_PASSWORD else v for k, v in user_input.items()})
+            _LOGGER.debug(
+                "Received user input for options: %s",
+                {k: "****" if k == CONF_PASSWORD else v for k, v in user_input.items()},
+            )
 
             # Pull password out of options payload
             new_password = user_input.pop(CONF_PASSWORD, None)
@@ -202,8 +205,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if new_password:
                 new_data = dict(self._config_entry.data)
                 new_data[CONF_PASSWORD] = new_password
-                _LOGGER.debug("Updating config_entry.data with new password for %s", self._config_entry.title)
-                self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
+                _LOGGER.debug(
+                    "Updating config_entry.data with new password for %s",
+                    self._config_entry.title,
+                )
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry, data=new_data
+                )
 
             # Store the remaining items as options as usual
             return self.async_create_entry(title="", data=user_input)
@@ -239,9 +247,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SCAN_ACTIVE,
                     default=self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
                 ): bool,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval): vol.All(
-                    vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)
-                ),
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=current_scan_interval
+                ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
                 vol.Optional(CONF_API_LEVEL, default=current_api_level): vol.All(
                     vol.Coerce(int), vol.In(API_LEVELS)
                 ),
