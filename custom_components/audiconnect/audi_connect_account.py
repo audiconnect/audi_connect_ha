@@ -92,7 +92,6 @@ class AudiConnectAccount:
                 )
                 await asyncio.sleep(self._connect_delay)
 
-
     async def try_login(self, logError):
         try:
             _LOGGER.debug("LOGIN: Requesting login to Audi service...")
@@ -115,7 +114,6 @@ class AudiConnectAccount:
                     msg,
                 )
             return False
-
 
     async def update(self, vinlist):
         if not self._loggedin:
