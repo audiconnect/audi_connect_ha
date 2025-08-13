@@ -18,6 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
+PASSWORD_INVALID_MARKER = "error=login.errors.password_invalid"
 
 ACTION_LOCK = "lock"
 ACTION_CLIMATISATION = "climatisation"
@@ -55,6 +56,7 @@ class AudiConnectAccount:
 
         self._connect_retries = 3
         self._connect_delay = 10
+        self._invalid_credentials = False
 
         self._update_listeners = []
 
@@ -71,19 +73,25 @@ class AudiConnectAccount:
             await observer.handle_notification(vin, action)
 
     async def login(self):
+        self._invalid_credentials = False  # reset each login attempt
         for i in range(self._connect_retries):
             self._loggedin = await self.try_login(i == self._connect_retries - 1)
             if self._loggedin is True:
                 self._logintime = time.time()
                 break
 
+            # bail immediately on known bad credentials
+            if self._invalid_credentials:
+                _LOGGER.error("LOGIN: Invalid credentials detected; not retrying.")
+                break
+
             if i < self._connect_retries - 1:
                 _LOGGER.error(
-                    "LOGIN: Login to Audi service failed, trying again in {} seconds".format(
-                        self._connect_delay
-                    )
+                    "LOGIN: Login to Audi service failed, trying again in %s seconds",
+                    self._connect_delay,
                 )
                 await asyncio.sleep(self._connect_delay)
+
 
     async def try_login(self, logError):
         try:
@@ -92,13 +100,22 @@ class AudiConnectAccount:
             _LOGGER.debug("LOGIN: Login to Audi service successful")
             return True
         except Exception as exception:
+            msg = str(exception)
+
+            if PASSWORD_INVALID_MARKER in msg:
+                self._invalid_credentials = True
+                _LOGGER.error("LOGIN: Invalid username or password. %s", msg)
+                return False
+
             if logError is True:
                 _LOGGER.error(
-                    "LOGIN: Failed to log in to the Audi service: %s."
-                    "You may need to open the myAudi app, or log in via a web browser, to accept updated terms and conditions.",
-                    str(exception),
+                    "LOGIN: Failed to log in to the Audi service: %s. "
+                    "You may need to open the myAudi app, or log in via a web browser, "
+                    "to accept updated terms and conditions.",
+                    msg,
                 )
             return False
+
 
     async def update(self, vinlist):
         if not self._loggedin:
