@@ -1999,4 +1999,3 @@ class AudiConnectVehicle:
     def is_moving_supported(self):
         """Return true if vehicle can move."""
         return True
-
