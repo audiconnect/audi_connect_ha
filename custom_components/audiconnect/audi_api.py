@@ -17,6 +17,7 @@ DEBUG_VERBOSE = False
 TIMEOUT = 30
 _LOGGER = logging.getLogger(__name__)
 
+
 class AudiAPI:
     HDR_XAPP_VERSION = "4.31.0"
     HDR_USER_AGENT = "Android/4.31.0 (Build 800341641.root project 'myaudi_android'.ext.buildTime) Android/13"
@@ -62,7 +63,6 @@ class AudiAPI:
                 async with self._session.request(
                     method, url, headers=headers, data=data, **kwargs
                 ) as response:
-
                     if DEBUG_VERBOSE:
                         _LOGGER.debug("[RESPONSE RECEIVED]")
                         _LOGGER.debug("Status: %s", response.status)
@@ -79,7 +79,9 @@ class AudiAPI:
                         if DEBUG_VERBOSE:
                             _LOGGER.debug("Response text (full): %s", txt)
                         else:
-                            _LOGGER.debug("Returning response text; length=%d", len(txt))
+                            _LOGGER.debug(
+                                "Returning response text; length=%d", len(txt)
+                            )
                         return response, txt
 
                     elif raw_contents:
@@ -87,13 +89,17 @@ class AudiAPI:
                         if DEBUG_VERBOSE:
                             _LOGGER.debug("Raw contents (bytes): %s", contents)
                         else:
-                            _LOGGER.debug("Returning raw contents; length=%d", len(contents))
+                            _LOGGER.debug(
+                                "Returning raw contents; length=%d", len(contents)
+                            )
                         return contents
 
                     elif response.status in (200, 202, 207):
                         raw_body = await response.text()
                         if DEBUG_VERBOSE:
-                            _LOGGER.debug("Raw JSON text (before parsing): %s", raw_body)
+                            _LOGGER.debug(
+                                "Raw JSON text (before parsing): %s", raw_body
+                            )
                         json_data = json_loads(raw_body)
                         if DEBUG_VERBOSE:
                             _LOGGER.debug("Parsed JSON data (full): %s", json_data)
@@ -102,7 +108,11 @@ class AudiAPI:
                         return json_data
 
                     else:
-                        _LOGGER.error("Unexpected response: status=%s, reason=%s", response.status, response.reason)
+                        _LOGGER.error(
+                            "Unexpected response: status=%s, reason=%s",
+                            response.status,
+                            response.reason,
+                        )
                         if DEBUG_VERBOSE:
                             _LOGGER.error("Response body: %s", await response.text())
                         raise ClientResponseError(
@@ -127,7 +137,9 @@ class AudiAPI:
                 _LOGGER.exception("Unexpected exception during request: %s", e)
             raise
 
-    async def get(self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs):
+    async def get(
+        self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs
+    ):
         full_headers = self.__get_headers()
         if DEBUG_VERBOSE:
             _LOGGER.debug("[GET] URL: %s | Headers: %s", url, full_headers)
@@ -146,7 +158,9 @@ class AudiAPI:
         if headers:
             full_headers.update(headers)
         if DEBUG_VERBOSE:
-            _LOGGER.debug("[PUT] URL: %s | Data: %s | Headers: %s", url, data, full_headers)
+            _LOGGER.debug(
+                "[PUT] URL: %s | Data: %s | Headers: %s", url, data, full_headers
+            )
         return await self.request(METH_PUT, url, headers=full_headers, data=data)
 
     async def post(
@@ -165,7 +179,9 @@ class AudiAPI:
         if use_json and data is not None:
             data = json.dumps(data)
         if DEBUG_VERBOSE:
-            _LOGGER.debug("[POST] URL: %s | Data: %s | Headers: %s", url, data, full_headers)
+            _LOGGER.debug(
+                "[POST] URL: %s | Data: %s | Headers: %s", url, data, full_headers
+            )
         return await self.request(
             METH_POST,
             url,
