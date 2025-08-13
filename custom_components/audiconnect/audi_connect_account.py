@@ -89,7 +89,9 @@ class AudiConnectAccount:
                 break
             # bail immediately if login is being throttled
             if self._throttled:
-                _LOGGER.error("LOGIN: Your login attempts are being throttled. Give it some time.")
+                _LOGGER.error(
+                    "LOGIN: Your login attempts are being throttled. Give it some time."
+                )
                 break
 
             if i < self._connect_retries - 1:
@@ -98,7 +100,6 @@ class AudiConnectAccount:
                     self._connect_delay,
                 )
                 await asyncio.sleep(self._connect_delay)
-
 
     async def try_login(self, logError):
         try:
@@ -127,7 +128,6 @@ class AudiConnectAccount:
                     msg,
                 )
             return False
-
 
     async def update(self, vinlist):
         if not self._loggedin:
