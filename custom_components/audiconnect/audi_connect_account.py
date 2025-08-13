@@ -90,7 +90,8 @@ class AudiConnectAccount:
             # bail immediately if login is being throttled
             if self._throttled:
                 _LOGGER.error(
-                    "LOGIN: Your login attempts are being throttled. Give it some time."
+                    "LOGIN: Your login attempts are being throttled; not retrying."
+                    "It's suggested to wait at least 15 minutes before retrying."
                 )
                 break
 
@@ -1998,3 +1999,4 @@ class AudiConnectVehicle:
     def is_moving_supported(self):
         """Return true if vehicle can move."""
         return True
+
