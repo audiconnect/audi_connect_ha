@@ -1,17 +1,20 @@
 import json
 import logging
 from datetime import datetime
-
 import asyncio
-
 from asyncio import TimeoutError, CancelledError
 from aiohttp import ClientResponseError
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
-
 from typing import Dict
 
-TIMEOUT = 30
+# ===========================================
+# VERBOSE DEBUG TOGGLE
+# Set to True to log EVERYTHING (full headers, full body, raw JSON, etc.)
+# Set to False for normal operation (minimal debug output)
+DEBUG_VERBOSE = False
+# ===========================================
 
+TIMEOUT = 30
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -23,16 +26,17 @@ class AudiAPI:
         self.__token = None
         self.__xclientid = None
         self._session = session
-        if proxy is not None:
-            self.__proxy = {"http": proxy, "https": proxy}
-        else:
-            self.__proxy = None
+        self.__proxy = {"http": proxy, "https": proxy} if proxy else None
 
     def use_token(self, token):
         self.__token = token
+        if DEBUG_VERBOSE:
+            _LOGGER.debug("[use_token] Token set: %s", token)
 
     def set_xclient_id(self, xclientid):
         self.__xclientid = xclientid
+        if DEBUG_VERBOSE:
+            _LOGGER.debug("[set_xclient_id] X-Client-ID set: %s", xclientid)
 
     async def request(
         self,
@@ -45,58 +49,101 @@ class AudiAPI:
         rsp_wtxt: bool = False,
         **kwargs,
     ):
-        # _LOGGER.debug(
-        #     "Request initiated: method=%s, url=%s, data=%s, headers=%s, kwargs=%s",
-        #     method,
-        #     url,
-        #     data,
-        #     headers,
-        #     kwargs,
-        # )
+        if DEBUG_VERBOSE:
+            _LOGGER.debug("[REQUEST INITIATED]")
+            _LOGGER.debug("Method: %s", method)
+            _LOGGER.debug("URL: %s", url)
+            _LOGGER.debug("Data: %s", data)
+            _LOGGER.debug("Headers: %s", headers)
+            _LOGGER.debug("Kwargs: %s", kwargs)
+            _LOGGER.debug("Proxy: %s", self.__proxy)
+
         try:
             async with asyncio.timeout(TIMEOUT):
                 async with self._session.request(
                     method, url, headers=headers, data=data, **kwargs
                 ) as response:
-                    # _LOGGER.debug("Response received: status=%s, headers=%s", response.status, response.headers)
+                    if DEBUG_VERBOSE:
+                        _LOGGER.debug("[RESPONSE RECEIVED]")
+                        _LOGGER.debug("Status: %s", response.status)
+                        _LOGGER.debug("Reason: %s", response.reason)
+                        _LOGGER.debug("Headers: %s", dict(response.headers))
+
                     if raw_reply:
-                        # _LOGGER.debug("Returning raw reply")
+                        if DEBUG_VERBOSE:
+                            _LOGGER.debug("Returning raw reply object.")
                         return response
+
                     if rsp_wtxt:
                         txt = await response.text()
-                        # _LOGGER.debug("Returning response text; length=%d", len(txt))
+                        if DEBUG_VERBOSE:
+                            _LOGGER.debug("Response text (full): %s", txt)
+                        else:
+                            _LOGGER.debug(
+                                "Returning response text; length=%d", len(txt)
+                            )
                         return response, txt
+
                     elif raw_contents:
                         contents = await response.read()
-                        # _LOGGER.debug("Returning raw contents; length=%d", len(contents))
+                        if DEBUG_VERBOSE:
+                            _LOGGER.debug("Raw contents (bytes): %s", contents)
+                        else:
+                            _LOGGER.debug(
+                                "Returning raw contents; length=%d", len(contents)
+                            )
                         return contents
+
                     elif response.status in (200, 202, 207):
-                        json_data = await response.json(loads=json_loads)
-                        # _LOGGER.debug("Returning JSON data: %s", json_data)
+                        raw_body = await response.text()
+                        if DEBUG_VERBOSE:
+                            _LOGGER.debug(
+                                "Raw JSON text (before parsing): %s", raw_body
+                            )
+                        json_data = json_loads(raw_body)
+                        if DEBUG_VERBOSE:
+                            _LOGGER.debug("Parsed JSON data (full): %s", json_data)
+                        else:
+                            _LOGGER.debug("Returning JSON data: %s", json_data)
                         return json_data
+
                     else:
-                        # _LOGGER.error("Unexpected response: status=%s, reason=%s", response.status, response.reason)
+                        _LOGGER.error(
+                            "Unexpected response: status=%s, reason=%s",
+                            response.status,
+                            response.reason,
+                        )
+                        if DEBUG_VERBOSE:
+                            _LOGGER.error("Response body: %s", await response.text())
                         raise ClientResponseError(
                             response.request_info,
                             response.history,
                             status=response.status,
                             message=response.reason,
                         )
+
         except CancelledError:
-            # _LOGGER.error("Request cancelled (Timeout error)")
+            if DEBUG_VERBOSE:
+                _LOGGER.error("Request cancelled (CancelledError).")
             raise TimeoutError("Timeout error")
+
         except TimeoutError:
-            # _LOGGER.error("Request timed out")
+            if DEBUG_VERBOSE:
+                _LOGGER.error("Request timed out after %s seconds.", TIMEOUT)
             raise TimeoutError("Timeout error")
-        except Exception:
-            # _LOGGER.exception("An unexpected error occurred during request")
+
+        except Exception as e:
+            if DEBUG_VERBOSE:
+                _LOGGER.exception("Unexpected exception during request: %s", e)
             raise
 
     async def get(
         self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs
     ):
         full_headers = self.__get_headers()
-        r = await self.request(
+        if DEBUG_VERBOSE:
+            _LOGGER.debug("[GET] URL: %s | Headers: %s", url, full_headers)
+        return await self.request(
             METH_GET,
             url,
             data=None,
@@ -105,14 +152,16 @@ class AudiAPI:
             raw_contents=raw_contents,
             **kwargs,
         )
-        return r
 
     async def put(self, url, data=None, headers: Dict[str, str] = None):
         full_headers = self.__get_headers()
-        if headers is not None:
+        if headers:
             full_headers.update(headers)
-        r = await self.request(METH_PUT, url, headers=full_headers, data=data)
-        return r
+        if DEBUG_VERBOSE:
+            _LOGGER.debug(
+                "[PUT] URL: %s | Data: %s | Headers: %s", url, data, full_headers
+            )
+        return await self.request(METH_PUT, url, headers=full_headers, data=data)
 
     async def post(
         self,
@@ -125,11 +174,15 @@ class AudiAPI:
         **kwargs,
     ):
         full_headers = self.__get_headers()
-        if headers is not None:
+        if headers:
             full_headers.update(headers)
         if use_json and data is not None:
             data = json.dumps(data)
-        r = await self.request(
+        if DEBUG_VERBOSE:
+            _LOGGER.debug(
+                "[POST] URL: %s | Data: %s | Headers: %s", url, data, full_headers
+            )
+        return await self.request(
             METH_POST,
             url,
             headers=full_headers,
@@ -138,7 +191,6 @@ class AudiAPI:
             raw_contents=raw_contents,
             **kwargs,
         )
-        return r
 
     def __get_headers(self):
         data = {
@@ -152,7 +204,8 @@ class AudiAPI:
             data["Authorization"] = "Bearer " + self.__token.get("access_token")
         if self.__xclientid is not None:
             data["X-Client-ID"] = self.__xclientid
-
+        if DEBUG_VERBOSE:
+            _LOGGER.debug("[HEADERS BUILT]: %s", data)
         return data
 
 
