@@ -460,10 +460,7 @@ class AudiService:
         return body["securityToken"]
 
     def _get_vehicle_action_header(
-        self,
-        content_type: str,
-        security_token: str,
-        host: Optional[str] = None
+        self, content_type: str, security_token: str, host: Optional[str] = None
     ):
         if not host:
             host = (
@@ -493,11 +490,11 @@ class AudiService:
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
         )
         # deprecated data removed on 24Mar2025
-            # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
-            #     action="lock" if lock else "unlock"
-            # )
+        # data = '<?xml version="1.0" encoding= "UTF-8" ?><rluAction xmlns="http://audi.de/connect/rlu"><action>{action}</action></rluAction>'.format(
+        #     action="lock" if lock else "unlock"
+        # )
         data = None
-        
+
         headers = self._get_vehicle_action_header(
             "application/vnd.vwg.mbb.RemoteLockUnlock_v1_0_0+xml", security_token
         )
@@ -807,20 +804,18 @@ class AudiService:
                 data=data,
             )
 
-            request_id = res["data"]["requestID"]
-            checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
-                vin=vin.upper(),
-            )
+            # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+            #     vin=vin.upper(),
+            #     actionid=res["action"]["actionId"],
+            # )
 
-            await self.check_request_succeeded(
-                url=checkUrl,
-                action="climatisation start",
-                successCode="successful",
-                failedCode=FAILED,
-                path="",
-                api_level=1,
-                request_id=request_id,
-            )
+            # await self.check_request_succeeded(
+            #     checkUrl,
+            #     "startClimatisation",
+            #     SUCCEEDED,
+            #     FAILED,
+            #     "action.actionState",
+            # )
 
     async def set_window_heating(self, vin: str, start: bool):
         data = '<?xml version="1.0" encoding= "UTF-8" ?><action><type>{action}</type></action>'.format(
@@ -895,15 +890,7 @@ class AudiService:
         # TO DO: Add check_request_succeeded
 
     async def check_request_succeeded(
-        self,
-        url: str,
-        action: str,
-        successCode: str,
-        failedCode: str,
-        path: str,
-        *,
-        api_level: int = DEFAULT_API_LEVEL,
-        request_id: str = None,
+        self, url: str, action: str, successCode: str, failedCode: str, path: str
     ):
         for _ in range(MAX_RESPONSE_ATTEMPTS):
             await asyncio.sleep(REQUEST_STATUS_SLEEP)
@@ -911,27 +898,19 @@ class AudiService:
             self._api.use_token(self.vwToken)
             res = await self._api.get(url)
 
-            if api_level == 0:
-                # Legacy format using a single action object and a dotted path
-                status = get_attr(res, path)
-            else:
-                # New format: list of requests in res["data"], find matching id
-                entries = res.get("data", [])
-                status = None
-                for entry in entries:
-                    if entry.get("id") == request_id:
-                        status = entry.get("status")
-                        break
+            status = get_attr(res, path)
 
             if status is None or (failedCode is not None and status == failedCode):
                 raise Exception(
-                    f"Cannot {action}, return code '{status}'"
+                    "Cannot {action}, return code '{code}'".format(
+                        action=action, code=status
+                    )
                 )
 
             if status == successCode:
                 return
 
-        raise Exception(f"Cannot {action}, operation timed out")
+        raise Exception("Cannot {action}, operation timed out".format(action=action))
 
     # TR/2022-12-20: New secret for X_QMAuth
     def _calculate_X_QMAuth(self):
