@@ -1588,7 +1588,7 @@ class AudiConnectVehicle:
     @property
     def charging_type_supported(self):
         check = self._vehicle.state.get("chargeType")
-        if check:
+        if check and check != "unsupported":
             return True
 
     @property
@@ -1981,3 +1981,4 @@ class AudiConnectVehicle:
     def is_moving_supported(self):
         """Return true if vehicle can move."""
         return True
+
