@@ -211,7 +211,7 @@ class VehicleDataResponse:
         )
         self._tryAppendStateWithTs(
             data,
-            "chargingMode",
+            "chargeType",
             -1,
             ["charging", "chargingStatus", "value", "chargeType"],
         )

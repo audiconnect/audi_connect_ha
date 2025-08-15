@@ -525,6 +525,10 @@ def create_instruments():
             name="Charging mode",
         ),
         Sensor(
+            attr="charging_type",
+            name="Charging type",
+        ),
+        Sensor(
             attr="energy_flow",
             name="Energy flow",
         ),

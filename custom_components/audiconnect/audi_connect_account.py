@@ -1560,11 +1560,11 @@ class AudiConnectVehicle:
     def charging_mode(self):
         """Return charging mode"""
         if self.charging_mode_supported:
-            return self._vehicle.state.get("chargingMode")
+            return self._vehicle.state.get("chargeMode")
 
     @property
     def charging_mode_supported(self):
-        check = self._vehicle.state.get("chargingMode")
+        check = self._vehicle.state.get("chargeMode")
         return check is not None and check != "unsupported"
 
     @property
@@ -1577,6 +1577,18 @@ class AudiConnectVehicle:
     def energy_flow_supported(self):
         check = self._vehicle.state.get("energyFlow")
         if check is not None:
+            return True
+
+    @property
+    def charging_type(self):
+        """Return charging type"""
+        if self.charging_type_supported:
+            return self._vehicle.state.get("chargeType")
+
+    @property
+    def charging_type_supported(self):
+        check = self._vehicle.state.get("chargeType")
+        if check and check != "unsupported":
             return True
 
     @property

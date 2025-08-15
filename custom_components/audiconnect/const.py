@@ -47,6 +47,7 @@ RESOURCES = [
     "oil_level",
     "charging_state",
     "charging_mode",
+    "charging_type",
     "energy_flow",
     "max_charge_current",
     "engine_type1",
