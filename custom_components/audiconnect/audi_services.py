@@ -679,6 +679,7 @@ class AudiService:
         seat_rl: bool,
         seat_rr: bool,
         climatisation_at_unlock: bool = False,
+        climatisation_mode: str = "comfort"
     ):
         api_level = self._api_level
         country = self._country
@@ -780,6 +781,7 @@ class AudiService:
             target_temperature = target_temperature or 21
 
             data = {
+                "climatisationMode": climatisation_mode,
                 "targetTemperature": target_temperature,
                 "targetTemperatureUnit": "celsius",
                 "climatisationWithoutExternalPower": True,
