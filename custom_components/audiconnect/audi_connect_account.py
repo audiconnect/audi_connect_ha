@@ -342,7 +342,7 @@ class AudiConnectAccount:
         seat_rl: bool,
         seat_rr: bool,
         climatisation_at_unlock: bool,
-        climatisation_mode: str
+        climatisation_mode: str,
     ):
         if not self._loggedin:
             await self.login()
@@ -365,7 +365,7 @@ class AudiConnectAccount:
                 seat_rl,
                 seat_rr,
                 climatisation_at_unlock,
-                climatisation_mode
+                climatisation_mode,
             )
 
             _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")

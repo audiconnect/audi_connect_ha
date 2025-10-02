@@ -280,7 +280,7 @@ class AudiAccount(AudiConnectObserver):
             seat_rl,
             seat_rr,
             climatisation_at_unlock,
-            climatisation_mode
+            climatisation_mode,
         )
 
     async def start_auxiliary_heating(self, service):

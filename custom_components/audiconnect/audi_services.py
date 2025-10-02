@@ -679,7 +679,7 @@ class AudiService:
         seat_rl: bool,
         seat_rr: bool,
         climatisation_at_unlock: bool = False,
-        climatisation_mode: str = "comfort"
+        climatisation_mode: str = "comfort",
     ):
         api_level = self._api_level
         country = self._country
