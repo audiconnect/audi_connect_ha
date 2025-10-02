@@ -132,7 +132,7 @@
         },
         "climatisation_mode": {
           "name": "Climatisation Mode",
-          "description": "(Optional) Maximal comfort (comfort) or energy-saving (econonmy). Default is comfort."
+          "description": "(Optional) Maximum comfort (Comfort) or energy-saving (Economy). Default is Comfort."
         }
       }
     },
