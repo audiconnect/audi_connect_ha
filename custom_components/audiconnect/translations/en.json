@@ -129,6 +129,10 @@
         "climatisation_at_unlock": {
           "name": "Climatisation at Unlock",
           "description": "(Optional) Enable climate control to continue when vehicle is unlocked."
+        },
+        "climatisation_mode": {
+          "name": "Climatisation Mode",
+          "description": "(Optional) Maximum comfort (Comfort) or energy-saving (Economy). Default is Comfort."
         }
       }
     },

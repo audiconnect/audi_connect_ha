@@ -70,6 +70,13 @@ start_climate_control:
     climatisation_at_unlock:
       selector:
         boolean:
+    climatisation_mode:
+      example: "comfort"
+      selector:
+        select:
+          options:
+            - comfort
+            - economy
 
 start_auxiliary_heating:
   fields:
