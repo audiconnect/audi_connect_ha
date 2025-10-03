@@ -61,7 +61,7 @@ class AudiAPI:
         try:
             async with asyncio.timeout(TIMEOUT):
                 async with self._session.request(
-                    method, url, headers=headers, data=data, ssl=False, **kwargs
+                    method, url, headers=headers, data=data, **kwargs
                 ) as response:
                     if DEBUG_VERBOSE:
                         _LOGGER.debug("[RESPONSE RECEIVED]")
