@@ -194,10 +194,19 @@ class Sensor(Instrument):
 
 
 class BinarySensor(Instrument):
-    def __init__(self, attr, name, device_class=None, icon=None, entity_category=None):
+    def __init__(
+        self,
+        attr,
+        name,
+        device_class=None,
+        icon=None,
+        entity_category=None,
+        extra_state_attributes=None,
+    ):
         super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
         self.entity_category = entity_category
+        self.extra_state_attributes = extra_state_attributes
 
     @property
     def is_mutable(self):
@@ -515,10 +524,11 @@ def create_instruments():
             icon="mdi:oil",
             unit=PERCENTAGE,
         ),
-        Sensor(
+        BinarySensor(
             attr="charging_state",
             name="Charging state",
             icon="mdi:car-battery",
+            device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         ),
         Sensor(
             attr="charging_mode",
@@ -638,10 +648,11 @@ def create_instruments():
             icon="mdi:ev-plug-type1",
             device_class=BinarySensorDeviceClass.LOCK,
         ),
-        Sensor(
+        BinarySensor(
             attr="external_power",
             name="External Power",
             icon="mdi:ev-station",
+            device_class=BinarySensorDeviceClass.POWER,
         ),
         Sensor(
             attr="plug_led_color",
@@ -654,10 +665,11 @@ def create_instruments():
             name="Doors/trunk state",
             icon="mdi:car-door",
         ),
-        Sensor(
+        BinarySensor(
             attr="climatisation_state",
             name="Climatisation state",
             icon="mdi:air-conditioner",
+            device_class=BinarySensorDeviceClass.RUNNING,
         ),
         Sensor(
             attr="outdoor_temperature",
