@@ -94,7 +94,11 @@ class AudiAPI:
                             )
                         return contents
 
-                    elif response.status in (200, 202, 207):
+                    elif response.status in (200, 202, 204, 207):
+                        if response.status == 204:
+                            if DEBUG_VERBOSE:
+                                _LOGGER.debug("No content (204), returning None")
+                            return None
                         raw_body = await response.text()
                         if DEBUG_VERBOSE:
                             _LOGGER.debug(
@@ -114,7 +118,9 @@ class AudiAPI:
                             response.reason,
                         )
                         if DEBUG_VERBOSE:
-                            _LOGGER.error("Response body: %s", await response.text())
+                            _LOGGER.error(
+                                "Response url: %s, body: %s", url, await response.text()
+                            )
                         raise ClientResponseError(
                             response.request_info,
                             response.history,

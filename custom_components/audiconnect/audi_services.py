@@ -362,6 +362,13 @@ class AudiService:
         return TripDataResponse(td_current), TripDataResponse(td_reset_trip)
 
     async def _fill_home_region(self, vin: str):
+        # the home-region endpoint returns
+        # https://ha-5a.prd.eu.vwg.vwautocloud.net which is no valid endpoint
+        # (at least not in DE region). set it statically.
+        if self._country.upper() != "US" and self._api_level == 1:
+            self._homeRegion[vin] = "https://mal-3a.prd.eu.dp.vwg-connect.com"
+            self._homeRegionSetter[vin] = "https://mal-3a.prd.eu.dp.vwg-connect.com"
+            return
         self._homeRegion[vin] = "https://msg.volkswagen.de"
         self._homeRegionSetter[vin] = "https://mal-1a.prd.ece.vwg-connect.com"
 
