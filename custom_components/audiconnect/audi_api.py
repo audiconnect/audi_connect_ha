@@ -108,13 +108,23 @@ class AudiAPI:
                         return json_data
 
                     else:
-                        _LOGGER.error(
-                            "Unexpected response: status=%s, reason=%s",
-                            response.status,
-                            response.reason,
-                        )
-                        if DEBUG_VERBOSE:
-                            _LOGGER.error("Response body: %s", await response.text())
+                        # this should be refactored:
+                        # 204 is a valid response for some requests (e.g. update_vehicle_position)
+                        # and should not raise an error.
+                        # request should return a tuple indicating the response itself and the
+                        # http-status
+                        if response.status != 204:
+                            _LOGGER.error(
+                                "Unexpected response: status=%s, reason=%s",
+                                response.status,
+                                response.reason,
+                            )
+                            if DEBUG_VERBOSE:
+                                _LOGGER.error(
+                                    "Response url: %s, body: %s",
+                                    url,
+                                    await response.text(),
+                                )
                         raise ClientResponseError(
                             response.request_info,
                             response.history,
