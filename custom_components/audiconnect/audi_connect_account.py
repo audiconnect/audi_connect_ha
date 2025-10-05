@@ -1780,9 +1780,10 @@ class AudiConnectVehicle:
                 calculated_time  # Always update the frozen time
             )
             return calculated_time
-        # If the remaining time is zero or negative, and no frozen time is set, return last_update_time
+        # If the remaining time is zero or negative, and no frozen time is set,
+        # we have no knowledge of the last completion time, so return None
         if self.charging_complete_time_frozen is None:
-            return self.last_update_time
+            return None
         # Otherwise, return the frozen complete time
         return self.charging_complete_time_frozen
 
