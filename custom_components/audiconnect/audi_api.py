@@ -94,11 +94,7 @@ class AudiAPI:
                             )
                         return contents
 
-                    elif response.status in (200, 202, 204, 207):
-                        if response.status == 204:
-                            if DEBUG_VERBOSE:
-                                _LOGGER.debug("No content (204), returning None")
-                            return None
+                    elif response.status in (200, 202, 207):
                         raw_body = await response.text()
                         if DEBUG_VERBOSE:
                             _LOGGER.debug(
@@ -112,15 +108,23 @@ class AudiAPI:
                         return json_data
 
                     else:
-                        _LOGGER.error(
-                            "Unexpected response: status=%s, reason=%s",
-                            response.status,
-                            response.reason,
-                        )
-                        if DEBUG_VERBOSE:
+                        # this should be refactored:
+                        # 204 is a valid response for some requests (e.g. update_vehicle_position)
+                        # and should not raise an error.
+                        # request should return a tuple indicating the response itself and the
+                        # http-status
+                        if response.status != 204:
                             _LOGGER.error(
-                                "Response url: %s, body: %s", url, await response.text()
+                                "Unexpected response: status=%s, reason=%s",
+                                response.status,
+                                response.reason,
                             )
+                            if DEBUG_VERBOSE:
+                                _LOGGER.error(
+                                    "Response url: %s, body: %s",
+                                    url,
+                                    await response.text(),
+                                )
                         raise ClientResponseError(
                             response.request_info,
                             response.history,
