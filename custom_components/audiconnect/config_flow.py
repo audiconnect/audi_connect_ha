@@ -11,6 +11,11 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .audi_connect_account import AudiConnectAccount
 from .const import (
@@ -176,18 +181,39 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    def __init__(self, config_entry):
-        self._config_entry: config_entries.ConfigEntry = config_entry
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self._config_entry = config_entry
         _LOGGER.debug(
             "Initializing options flow for audiconnect: %s", config_entry.title
         )
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(self, user_input: dict | None = None):
         _LOGGER.debug(
             "Options flow initiated for audiconnect: %s", self._config_entry.title
         )
+
         if user_input is not None:
-            _LOGGER.debug("Received user input for options: %s", user_input)
+            _LOGGER.debug(
+                "Received user input for options: %s",
+                {k: "****" if k == CONF_PASSWORD else v for k, v in user_input.items()},
+            )
+
+            # Pull password out of options payload
+            new_password = user_input.pop(CONF_PASSWORD, None)
+
+            # Update the entry data only if user actually provided a new password
+            if new_password:
+                new_data = dict(self._config_entry.data)
+                new_data[CONF_PASSWORD] = new_password
+                _LOGGER.debug(
+                    "Updating config_entry.data with new password for %s",
+                    self._config_entry.title,
+                )
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry, data=new_data
+                )
+
+            # Store the remaining items as options as usual
             return self.async_create_entry(title="", data=user_input)
 
         current_scan_interval = self._config_entry.options.get(
@@ -207,31 +233,30 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         _LOGGER.debug(
-            "Preparing options form for %s with default scan interval: %s minutes, initial scan: %s, active scan: %s",
+            "Preparing options form for %s with defaults",
             self._config_entry.title,
-            current_scan_interval,
-            self._config_entry.options.get(CONF_SCAN_INITIAL, True),
-            self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
         )
 
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_SCAN_INITIAL,
-                        default=self._config_entry.options.get(CONF_SCAN_INITIAL, True),
-                    ): bool,
-                    vol.Required(
-                        CONF_SCAN_ACTIVE,
-                        default=self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
-                    ): bool,
-                    vol.Optional(
-                        CONF_SCAN_INTERVAL, default=current_scan_interval
-                    ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
-                    vol.Optional(CONF_API_LEVEL, default=current_api_level): vol.All(
-                        vol.Coerce(int), vol.In(API_LEVELS)
-                    ),
-                }
-            ),
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SCAN_INITIAL,
+                    default=self._config_entry.options.get(CONF_SCAN_INITIAL, True),
+                ): bool,
+                vol.Required(
+                    CONF_SCAN_ACTIVE,
+                    default=self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
+                ): bool,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=current_scan_interval
+                ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_UPDATE_INTERVAL)),
+                vol.Optional(CONF_API_LEVEL, default=current_api_level): vol.All(
+                    vol.Coerce(int), vol.In(API_LEVELS)
+                ),
+                vol.Optional(CONF_PASSWORD): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                ),
+            }
         )
+
+        return self.async_show_form(step_id="init", data_schema=schema)
