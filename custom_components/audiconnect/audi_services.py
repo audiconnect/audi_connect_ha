@@ -543,8 +543,10 @@ class AudiService:
 
         await self._api.request(
             "PUT",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
+            "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
                 vin=vin.upper(),
+                region="emea" if self._country.upper() != "US" else "na",
+
             ),
             headers=headers,
             data=data,
@@ -580,8 +582,10 @@ class AudiService:
 
         await self._api.request(
             "PUT",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/settings".format(
+            "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/settings".format(
                 vin=vin.upper(),
+                region="emea" if self._country.upper() != "US" else "na",
+
             ),
             headers=headers,
             data=json.dumps(data),
@@ -655,8 +659,10 @@ class AudiService:
                 }
                 res = await self._api.request(
                     "POST",
-                    "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
+                    "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
                         vin=vin.upper(),
+                        region="emea" if self._country.upper() != "US" else "na",
+
                     ),
                     headers=headers,
                     data=data,
@@ -806,8 +812,10 @@ class AudiService:
             }
             res = await self._api.request(
                 "POST",
-                "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
+                "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
                     vin=vin.upper(),
+                    region="emea" if self._country.upper() != "US" else "na",
+
                 ),
                 headers=headers,
                 data=data,
@@ -888,8 +896,9 @@ class AudiService:
         }
         await self._api.request(
             "POST",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
+            "https://.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
                 vin=vin.upper(),
+                region="emea" if self._country.upper() != "US" else "na",
                 action="start" if activate else "stop",
             ),
             headers=headers,
