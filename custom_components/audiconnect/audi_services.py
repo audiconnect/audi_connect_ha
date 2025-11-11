@@ -546,7 +546,6 @@ class AudiService:
             "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
                 vin=vin.upper(),
                 region="emea" if self._country.upper() != "US" else "na",
-
             ),
             headers=headers,
             data=data,
@@ -585,7 +584,6 @@ class AudiService:
             "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/settings".format(
                 vin=vin.upper(),
                 region="emea" if self._country.upper() != "US" else "na",
-
             ),
             headers=headers,
             data=json.dumps(data),
@@ -662,7 +660,6 @@ class AudiService:
                     "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
                         vin=vin.upper(),
                         region="emea" if self._country.upper() != "US" else "na",
-
                     ),
                     headers=headers,
                     data=data,
@@ -815,7 +812,6 @@ class AudiService:
                 "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
                     vin=vin.upper(),
                     region="emea" if self._country.upper() != "US" else "na",
-
                 ),
                 headers=headers,
                 data=data,
