@@ -43,6 +43,7 @@ class AudiConnectAccount:
         country: str,
         spin: str,
         api_level: int,
+        excluded_vins: List[str] = None,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)
@@ -60,6 +61,7 @@ class AudiConnectAccount:
 
         self._vehicles = []
         self._audi_vehicles = []
+        self._excluded_vins = [v.lower() for v in (excluded_vins or [])]
 
         self._observers: List[AudiConnectObserver] = []
 
@@ -117,6 +119,8 @@ class AudiConnectAccount:
         try:
             if len(self._audi_vehicles) > 0:
                 for vehicle in self._audi_vehicles:
+                    if vehicle.vin and vehicle.vin.lower() in self._excluded_vins:
+                        continue
                     await self.add_or_update_vehicle(vehicle, vinlist)
 
             else:
@@ -124,6 +128,9 @@ class AudiConnectAccount:
                 self._audi_vehicles = vehicles_response.vehicles
                 self._vehicles = []
                 for vehicle in self._audi_vehicles:
+                    if vehicle.vin and vehicle.vin.lower() in self._excluded_vins:
+                        _LOGGER.debug("Skipping excluded vehicle VIN: %s", vehicle.vin)
+                        continue
                     await self.add_or_update_vehicle(vehicle, vinlist)
 
             for listener in self._update_listeners:

@@ -24,6 +24,7 @@ from .const import (
     CONF_API_LEVEL,
     DEFAULT_API_LEVEL,
     API_LEVELS,
+    CONF_FILTER_VINS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -200,6 +201,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             self._config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
         )
 
+        current_filter_vins = self._config_entry.options.get(
+            CONF_FILTER_VINS,
+            self._config_entry.data.get(CONF_FILTER_VINS, ""),
+        )
+
         _LOGGER.debug(
             "Retrieved current scan interval for audiconnect %s: %s minutes",
             self._config_entry.title,
@@ -232,6 +238,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(CONF_API_LEVEL, default=current_api_level): vol.All(
                         vol.Coerce(int), vol.In(API_LEVELS)
                     ),
+                    vol.Optional(CONF_FILTER_VINS, default=current_filter_vins): str,
                 }
             ),
         )
