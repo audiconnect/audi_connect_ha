@@ -166,16 +166,6 @@ class AudiService:
             )
         )
 
-    def __get_cariad_url(self, vin: str, path_and_query: str, **path_and_query_kwargs: dict):
-        base_url = "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/".format(
-            region="emea" if self._country.upper() != "US" else "na",
-            vin=vin.upper()
-        )
-        
-        action_path = path_and_query.format(**path_and_query_kwargs)
-        
-        return base_url + action_path
-
     async def get_stored_vehicle_data(self, vin: str):
         redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
         JOBS2QUERY = {
@@ -205,7 +195,7 @@ class AudiService:
         }
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
-            self.__get_cariad_url(vin, "selectivestatus?jobs={jobs}",
+            self.__get_cariad_url_for_vin(vin, "selectivestatus?jobs={jobs}",
                 jobs=",".join(JOBS2QUERY))
         )
         
@@ -237,7 +227,7 @@ class AudiService:
     async def get_stored_position(self, vin: str):
         self._api.use_token(self._bearer_token_json)
         return await self._api.get(
-            self.__get_cariad_url(vin, "parkingposition")
+            self.__get_cariad_url_for_vin(vin, "parkingposition")
         )
 
     async def get_operations_list(self, vin: str):
@@ -497,6 +487,25 @@ class AudiService:
 
         return headers
 
+    def __build_url(self, base_url: str, path_and_query: str, **path_and_query_kwargs: dict):
+        action_path = path_and_query.format(**path_and_query_kwargs)
+
+        return base_url.rstrip('/') + '/' + action_path.lstrip('/')
+
+    def __get_cariad_url(self, path_and_query: str, **path_and_query_kwargs: dict):
+        base_url = "https://{region}.bff.cariad.digital".format(
+            region="emea" if self._country.upper() != "US" else "na"
+        )
+        
+        return self.__build_url(base_url, path_and_query, **path_and_query_kwargs)
+
+    def __get_cariad_url_for_vin(self, vin: str, path_and_query: str, **path_and_query_kwargs: dict):
+        base_url = self.__get_cariad_url("/vehicle/v1/vehicles/{vin}",
+            vin=vin.upper()
+        )
+        
+        return self.__build_url(base_url, path_and_query, **path_and_query_kwargs)
+
     async def set_vehicle_lock(self, vin: str, lock: bool):
         security_token = await self._get_security_token(
             vin, "rlu_v1/operations/" + ("LOCK" if lock else "UNLOCK")
@@ -548,7 +557,7 @@ class AudiService:
 
         await self._api.request(
             "PUT",
-            self.__get_cariad_url(vin, "charging/mode"),
+            self.__get_cariad_url_for_vin(vin, "charging/mode"),
             headers=headers,
             data=data,
         )
@@ -583,7 +592,7 @@ class AudiService:
 
         await self._api.request(
             "PUT",
-            self.__get_cariad_url(vin, "charging/settings"),
+            self.__get_cariad_url_for_vin(vin, "charging/settings"),
             headers=headers,
             data=json.dumps(data),
         )
@@ -656,7 +665,7 @@ class AudiService:
                 }
                 res = await self._api.request(
                     "POST",
-                    self.__get_cariad_url(vin, "climatisation/stop"),
+                    self.__get_cariad_url_for_vin(vin, "climatisation/stop"),
                     headers=headers,
                     data=data,
                 )
@@ -805,7 +814,7 @@ class AudiService:
             }
             res = await self._api.request(
                 "POST",
-                self.__get_cariad_url(vin, "climatisation/start"),
+                self.__get_cariad_url_for_vin(vin, "climatisation/start"),
                 headers=headers,
                 data=data,
             )
@@ -885,7 +894,7 @@ class AudiService:
         }
         await self._api.request(
             "POST",
-            self.__get_cariad_url(vin, "auxilaryheating/{action}",
+            self.__get_cariad_url_for_vin(vin, "auxilaryheating/{action}",
                 action="start" if activate else "stop"
             ),
             headers=headers,
@@ -1101,11 +1110,7 @@ class AudiService:
         marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.23.1".format(
             c=self._country, l=self._language
         )
-        openidcfg_url = (
-            "https://{}.bff.cariad.digital/login/v1/idk/openid-configuration".format(
-                "na" if self._country.upper() == "US" else "emea"
-            )
-        )
+        openidcfg_url = self.__get_cariad_url("/login/v1/idk/openid-configuration")
 
         # get market config
         marketcfg_json = await self._api.request("GET", marketcfg_url, None)
@@ -1115,11 +1120,8 @@ class AudiService:
         if "idkClientIDAndroidLive" in marketcfg_json:
             self._client_id = marketcfg_json["idkClientIDAndroidLive"]
 
-        self._authorizationServerBaseURLLive = (
-            "https://{region}.bff.cariad.digital/login/v1/audi".format(
-                region="emea" if self._country.upper() != "US" else "na"
-            )
-        )
+        self._authorizationServerBaseURLLive = self.__get_cariad_url("/login/v1/audi")
+        
         if "authorizationServerBaseURLLive" in marketcfg_json:
             self._authorizationServerBaseURLLive = marketcfg_json[
                 "myAudiAuthorizationServerProxyServiceURLProduction"
@@ -1135,14 +1137,12 @@ class AudiService:
         authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
         if "authorization_endpoint" in openidcfg_json:
             authorization_endpoint = openidcfg_json["authorization_endpoint"]
-        self._tokenEndpoint = (
-            "https://{region}.bff.cariad.digital/login/v1/idk/token".format(
-                region="emea" if self._country.upper() != "US" else "na"
-            )
-        )
+
+        self._tokenEndpoint = self.__get_cariad_url("/login/v1/idk/token")
+
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
-        # revocation_endpoint = "https://{region}.bff.cariad.digital/login/v1/idk/revoke".format(region="emea" if self._country.upper() != "US" else "na")
+        # revocation_endpoint = self.__get_cariad_base_url("/login/v1/idk/revoke")
         # if "revocation_endpoint" in openidcfg_json:
         # revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
