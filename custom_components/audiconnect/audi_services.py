@@ -195,10 +195,11 @@ class AudiService:
         }
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
-            self.__get_cariad_url_for_vin(vin, "selectivestatus?jobs={jobs}",
-                jobs=",".join(JOBS2QUERY))
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs=",".join(JOBS2QUERY)
+            )
         )
-        
+
         _LOGGER.debug("Vehicle data returned for VIN: %s: %s", redacted_vin, data)
         return VehicleDataResponse(data)
 
@@ -487,23 +488,25 @@ class AudiService:
 
         return headers
 
-    def __build_url(self, base_url: str, path_and_query: str, **path_and_query_kwargs: dict):
+    def __build_url(
+        self, base_url: str, path_and_query: str, **path_and_query_kwargs: dict
+    ):
         action_path = path_and_query.format(**path_and_query_kwargs)
 
-        return base_url.rstrip('/') + '/' + action_path.lstrip('/')
+        return base_url.rstrip("/") + "/" + action_path.lstrip("/")
 
     def __get_cariad_url(self, path_and_query: str, **path_and_query_kwargs: dict):
         base_url = "https://{region}.bff.cariad.digital".format(
             region="emea" if self._country.upper() != "US" else "na"
         )
-        
+
         return self.__build_url(base_url, path_and_query, **path_and_query_kwargs)
 
-    def __get_cariad_url_for_vin(self, vin: str, path_and_query: str, **path_and_query_kwargs: dict):
-        base_url = self.__get_cariad_url("/vehicle/v1/vehicles/{vin}",
-            vin=vin.upper()
-        )
-        
+    def __get_cariad_url_for_vin(
+        self, vin: str, path_and_query: str, **path_and_query_kwargs: dict
+    ):
+        base_url = self.__get_cariad_url("/vehicle/v1/vehicles/{vin}", vin=vin.upper())
+
         return self.__build_url(base_url, path_and_query, **path_and_query_kwargs)
 
     async def set_vehicle_lock(self, vin: str, lock: bool):
@@ -894,8 +897,8 @@ class AudiService:
         }
         await self._api.request(
             "POST",
-            self.__get_cariad_url_for_vin(vin, "auxilaryheating/{action}",
-                action="start" if activate else "stop"
+            self.__get_cariad_url_for_vin(
+                vin, "auxilaryheating/{action}", action="start" if activate else "stop"
             ),
             headers=headers,
             data=data,
@@ -1121,7 +1124,7 @@ class AudiService:
             self._client_id = marketcfg_json["idkClientIDAndroidLive"]
 
         self._authorizationServerBaseURLLive = self.__get_cariad_url("/login/v1/audi")
-        
+
         if "authorizationServerBaseURLLive" in marketcfg_json:
             self._authorizationServerBaseURLLive = marketcfg_json[
                 "myAudiAuthorizationServerProxyServiceURLProduction"
