@@ -166,6 +166,16 @@ class AudiService:
             )
         )
 
+    def __get_cariad_url(self, vin: str, path_and_query: str, **path_and_query_kwargs: dict):
+        base_url = "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/".format(
+            region="emea" if self._country.upper() != "US" else "na",
+            vin=vin.upper()
+        )
+        
+        action_path = path_and_query.format(**path_and_query_kwargs)
+        
+        return base_url + action_path
+
     async def get_stored_vehicle_data(self, vin: str):
         redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
         JOBS2QUERY = {
@@ -195,12 +205,10 @@ class AudiService:
         }
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
-            "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/selectivestatus?jobs={jobs}".format(
-                region="emea" if self._country.upper() != "US" else "na",
-                vin=vin.upper(),
-                jobs=",".join(JOBS2QUERY),
-            )
+            self.__get_cariad_url(vin, "selectivestatus?jobs={jobs}",
+                jobs=",".join(JOBS2QUERY))
         )
+        
         _LOGGER.debug("Vehicle data returned for VIN: %s: %s", redacted_vin, data)
         return VehicleDataResponse(data)
 
@@ -229,10 +237,7 @@ class AudiService:
     async def get_stored_position(self, vin: str):
         self._api.use_token(self._bearer_token_json)
         return await self._api.get(
-            "https://{region}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/parkingposition".format(
-                region="emea" if self._country.upper() != "US" else "na",
-                vin=vin.upper(),
-            )
+            self.__get_cariad_url(vin, "parkingposition")
         )
 
     async def get_operations_list(self, vin: str):
@@ -543,9 +548,7 @@ class AudiService:
 
         await self._api.request(
             "PUT",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/mode".format(
-                vin=vin.upper(),
-            ),
+            self.__get_cariad_url(vin, "charging/mode"),
             headers=headers,
             data=data,
         )
@@ -580,9 +583,7 @@ class AudiService:
 
         await self._api.request(
             "PUT",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/charging/settings".format(
-                vin=vin.upper(),
-            ),
+            self.__get_cariad_url(vin, "charging/settings"),
             headers=headers,
             data=json.dumps(data),
         )
@@ -655,9 +656,7 @@ class AudiService:
                 }
                 res = await self._api.request(
                     "POST",
-                    "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/stop".format(
-                        vin=vin.upper(),
-                    ),
+                    self.__get_cariad_url(vin, "climatisation/stop"),
                     headers=headers,
                     data=data,
                 )
@@ -806,9 +805,7 @@ class AudiService:
             }
             res = await self._api.request(
                 "POST",
-                "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/climatisation/start".format(
-                    vin=vin.upper(),
-                ),
+                self.__get_cariad_url(vin, "climatisation/start"),
                 headers=headers,
                 data=data,
             )
@@ -888,9 +885,8 @@ class AudiService:
         }
         await self._api.request(
             "POST",
-            "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/auxiliaryheating/{action}".format(
-                vin=vin.upper(),
-                action="start" if activate else "stop",
+            self.__get_cariad_url(vin, "auxilaryheating/{action}",
+                action="start" if activate else "stop"
             ),
             headers=headers,
             data=data,
