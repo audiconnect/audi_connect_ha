@@ -900,9 +900,7 @@ class AudiService:
 
         await self.check_bff_request_succeeded(vin, res["data"]["requestID"])
 
-    async def check_bff_request_succeeded(
-        self, vin: str, request_id: str
-    ):
+    async def check_bff_request_succeeded(self, vin: str, request_id: str):
         headers = {
             "Accept": "application/json",
             "Accept-charset": "utf-8",
@@ -927,13 +925,16 @@ class AudiService:
             for pending_request in res["data"]:
                 if pending_request["id"] == request_id:
                     if pending_request["status"] == "in_progress":
-                        break # continue waiting
+                        break  # continue waiting
 
                     if pending_request["status"] == "successful":
                         return
-                    
-                    raise Exception("Request {} reached unexpected status {}".format(request_id, pending_request["status"]))
 
+                    raise Exception(
+                        "Request {} reached unexpected status {}".format(
+                            request_id, pending_request["status"]
+                        )
+                    )
 
         raise Exception("Request {} timed out".format(request_id))
 
