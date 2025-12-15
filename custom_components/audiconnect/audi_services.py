@@ -899,7 +899,7 @@ class AudiService:
         res = await self._api.request(
             "POST",
             self.__get_cariad_url_for_vin(
-                vin, "auxilaryheating/{action}", action="start" if activate else "stop"
+                vin, "auxiliaryheating/{action}", action="start" if activate else "stop"
             ),
             headers=headers,
             data=data,
