@@ -27,6 +27,7 @@ CONF_SPIN = "spin"
 CONF_REGION = "region"
 CONF_SERVICE_URL = "service_url"
 CONF_MUTABLE = "mutable"
+CONF_FILTER_VINS = "filter_vins"
 
 SIGNAL_STATE_UPDATED = "{}.updated".format(DOMAIN)
 TRACKER_UPDATE = f"{DOMAIN}_tracker_update"

@@ -35,6 +35,7 @@ from .const import (
     API_LEVELS,
     CONF_DURATION,
     CONF_TARGET_SOC,
+    CONF_FILTER_VINS,
 )
 from .dashboard import Dashboard
 
@@ -110,6 +111,14 @@ class AudiAccount(AudiConnectObserver):
 
     def init_connection(self):
         session = async_get_clientsession(self.hass)
+        excluded_vins = [
+            x.strip()
+            for x in self.config_entry.options.get(
+                CONF_FILTER_VINS, self.config_entry.data.get(CONF_FILTER_VINS, "")
+            ).split(",")
+            if x.strip()
+        ]
+
         self.connection = AudiConnectAccount(
             session=session,
             username=self.config_entry.data.get(CONF_USERNAME),
@@ -122,6 +131,7 @@ class AudiAccount(AudiConnectObserver):
                     CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
                 ),
             ),
+            excluded_vins=excluded_vins,
         )
 
         self.hass.services.async_register(
