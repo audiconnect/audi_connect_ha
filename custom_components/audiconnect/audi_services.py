@@ -524,7 +524,8 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/{action}".format(
+            "{homeRegionSetter}/api/bs/rlu/v1/vehicles/{vin}/{action}".format(
+                homeRegionSetter=await self._get_home_region_setter(vin.upper()),
                 vin=vin.upper(),
                 action="lock" if lock else "unlock",
             ),
@@ -532,7 +533,8 @@ class AudiService:
             data=data,
         )
 
-        checkUrl = "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
+        checkUrl = "{homeRegionSetter}/api/bs/rlu/v1/vehicles/{vin}/requests/{requestId}/status".format(
+            homeRegionSetter=await self._get_home_region_setter(vin.upper()),
             vin=vin.upper(),
             requestId=res["rluActionResponse"]["requestId"],
         )
@@ -882,10 +884,9 @@ class AudiService:
                 "spin": self._spin,
             }
 
+            data = json.dumps(data)
         else:
             data = None
-
-        data = json.dumps(data)
 
         headers = {
             "Accept": "application/json",
@@ -895,7 +896,7 @@ class AudiService:
             "Content-Type": "application/json; charset=utf-8",
             "Accept-encoding": "gzip",
         }
-        await self._api.request(
+        res = await self._api.request(
             "POST",
             self.__get_cariad_url_for_vin(
                 vin, "auxilaryheating/{action}", action="start" if activate else "stop"
@@ -904,7 +905,45 @@ class AudiService:
             data=data,
         )
 
-        # TO DO: Add check_request_succeeded
+        await self.check_bff_request_succeeded(vin, res["data"]["requestID"])
+
+    async def check_bff_request_succeeded(self, vin: str, request_id: str):
+        headers = {
+            "Accept": "application/json",
+            "Accept-charset": "utf-8",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept-encoding": "gzip",
+        }
+
+        for _ in range(MAX_RESPONSE_ATTEMPTS):
+            await asyncio.sleep(REQUEST_STATUS_SLEEP)
+            res = await self._api.request(
+                "GET",
+                "https://{homeRegion}.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
+                    homeRegion="na" if self._country.upper() == "US" else "emea",
+                    vin=vin.upper(),
+                ),
+                headers=headers,
+                data=None,
+            )
+
+            for pending_request in res["data"]:
+                if pending_request["id"] == request_id:
+                    if pending_request["status"] == "in_progress":
+                        break  # continue waiting
+
+                    if pending_request["status"] == "successful":
+                        return
+
+                    raise Exception(
+                        "Request {} reached unexpected status {}".format(
+                            request_id, pending_request["status"]
+                        )
+                    )
+
+        raise Exception("Request {} timed out".format(request_id))
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
