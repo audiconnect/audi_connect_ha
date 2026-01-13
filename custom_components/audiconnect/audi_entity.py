@@ -7,7 +7,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from .const import DOMAIN, SIGNAL_STATE_UPDATED
 
 class AudiEntity(Entity):
-    """Base class for all entities."""
+    """Base class for all Audi entities."""
 
     def __init__(self, data, instrument):
         """Initialize the entity."""
@@ -26,10 +26,10 @@ class AudiEntity(Entity):
     @property
     def icon(self):
         """Return the icon."""
-        # Falls die Entität als Batterie klassifiziert ist, geben wir None zurück.
-        # Dies erlaubt Home Assistant, das Icon dynamisch basierend auf dem 
-        # Prozentwert zu wählen (z.B. mdi:battery-50) und zu färben.
-        if self.device_class == "battery":
+        # If the entity is defined as a battery, return None.
+        # This allows Home Assistant to use dynamic icons and coloring
+        # based on the current state of charge.
+        if getattr(self, "device_class", None) == "battery":
             return None
         return self._instrument.icon
 
@@ -73,10 +73,12 @@ class AudiEntity(Entity):
 
     @property
     def unique_id(self):
+        """Return a unique ID."""
         return self._instrument.full_name
 
     @property
     def device_info(self):
+        """Return device information."""
         if self._instrument.vehicle_model:
             model_info = self._instrument.vehicle_model.replace("Audi ", "")
         elif self._instrument.vehicle_name:
