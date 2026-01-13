@@ -4,9 +4,7 @@ from homeassistant.helpers.dispatcher import (
 )
 from homeassistant.helpers.entity import DeviceInfo
 
-
 from .const import DOMAIN, SIGNAL_STATE_UPDATED
-
 
 class AudiEntity(Entity):
     """Base class for all entities."""
@@ -28,6 +26,11 @@ class AudiEntity(Entity):
     @property
     def icon(self):
         """Return the icon."""
+        # Falls die Entität als Batterie klassifiziert ist, geben wir None zurück.
+        # Dies erlaubt Home Assistant, das Icon dynamisch basierend auf dem 
+        # Prozentwert zu wählen (z.B. mdi:battery-50) und zu färben.
+        if self.device_class == "battery":
+            return None
         return self._instrument.icon
 
     @property
