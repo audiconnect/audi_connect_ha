@@ -6,6 +6,7 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, SIGNAL_STATE_UPDATED
 
+
 class AudiEntity(Entity):
     """Base class for all Audi entities."""
 
