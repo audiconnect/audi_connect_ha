@@ -4,12 +4,11 @@ from homeassistant.helpers.dispatcher import (
 )
 from homeassistant.helpers.entity import DeviceInfo
 
-
 from .const import DOMAIN, SIGNAL_STATE_UPDATED
 
 
 class AudiEntity(Entity):
-    """Base class for all entities."""
+    """Base class for all Audi entities."""
 
     def __init__(self, data, instrument):
         """Initialize the entity."""
@@ -70,10 +69,12 @@ class AudiEntity(Entity):
 
     @property
     def unique_id(self):
+        """Return a unique ID."""
         return self._instrument.full_name
 
     @property
     def device_info(self):
+        """Return device information."""
         if self._instrument.vehicle_model:
             model_info = self._instrument.vehicle_model.replace("Audi ", "")
         elif self._instrument.vehicle_name:

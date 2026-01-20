@@ -12,10 +12,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Old way."""
+    """Old way of setting up platform."""
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up Audi sensors from a config entry."""
     sensors = []
 
     account = config_entry.data.get(CONF_USERNAME)
@@ -29,7 +30,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
 
 class AudiSensor(AudiEntity, SensorEntity):
-    """Representation of a Audi sensor."""
+    """Representation of an Audi sensor."""
 
     @property
     def native_value(self):
