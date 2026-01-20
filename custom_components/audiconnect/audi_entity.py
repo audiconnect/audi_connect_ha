@@ -27,11 +27,6 @@ class AudiEntity(Entity):
     @property
     def icon(self):
         """Return the icon."""
-        # If the entity is defined as a battery, return None.
-        # This allows Home Assistant to use dynamic icons and coloring
-        # based on the current state of charge.
-        if getattr(self, "device_class", None) == "battery":
-            return None
         return self._instrument.icon
 
     @property
