@@ -606,8 +606,8 @@ def create_instruments():
         Sensor(
             attr="state_of_charge",
             name="State of charge",
-            icon="mdi:ev-station",
             unit=PERCENTAGE,
+            device_class=SensorDeviceClass.BATTERY,
         ),
         Sensor(
             attr="remaining_charging_time",
@@ -821,3 +821,4 @@ class Dashboard:
             for instrument in create_instruments()
             if instrument.setup(connection, vehicle, **config)
         ]
+
