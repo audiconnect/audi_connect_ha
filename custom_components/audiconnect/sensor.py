@@ -2,7 +2,7 @@
 
 import logging
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import CONF_USERNAME
 
 from .audi_entity import AudiEntity
@@ -45,10 +45,6 @@ class AudiSensor(AudiEntity, SensorEntity):
     @property
     def device_class(self):
         """Return the device_class."""
-        # Use SensorDeviceClass.BATTERY for state of charge to enable
-        # native Home Assistant battery features.
-        if self._instrument.attr == "state_of_charge":
-            return SensorDeviceClass.BATTERY
         return self._instrument.device_class
 
     @property
