@@ -285,8 +285,16 @@ class AudiService:
             rsp_wtxt=True,
         )
         vins = json.loads(rep_rsptxt)
-        if "data" not in vins:
-            raise Exception("Invalid json in get_vehicle_information")
+        if "errors" in vins:
+            raise Exception("API returned errors: {vins['errors']}")
+
+        if "data" not in vins or vins["data"] is None:
+            raise Exception("No data in API response")
+
+        if vins["data"].get("userVehicles") is None:
+            raise Exception(
+                "No vehicle data in API response - possible authentication issue"
+            )
 
         response = VehiclesResponse()
         response.parse(vins["data"])
