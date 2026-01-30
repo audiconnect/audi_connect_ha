@@ -277,15 +277,15 @@ class AudiService:
 
         # Determine the correct GraphQL endpoint based on region
         if self._country.upper() == "US":
-        # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
+            # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             graphql_url = "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
         elif self._country.upper() == "GB" or self._country.upper() == "UK":
-        # UK-specific endpoint (post-Brexit)
+            # UK-specific endpoint (post-Brexit)
             graphql_url = "https://pip2.audi.co.uk/api/graphql/"
         else:
-        # EU and rest of world
+            # EU and rest of world
             graphql_url = "https://app-api.live-my.audi.com/vgql/v1/graphql"
-        
+
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
             graphql_url,
