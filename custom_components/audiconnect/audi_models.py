@@ -625,7 +625,12 @@ class VehiclesResponse:
         self.blacklisted_vins = 0
 
     def parse(self, data):
-        for item in data.get("userVehicles"):
+        user_vehicles = data.get("userVehicles")
+        if user_vehicles is None:
+            _LOGGER.warning("No vehicle data received from API. Check authentication.")
+            return
+
+        for item in user_vehicles:
             vehicle = Vehicle()
             vehicle.parse(item)
             self.vehicles.append(vehicle)
