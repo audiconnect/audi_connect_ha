@@ -279,7 +279,7 @@ class AudiService:
         if self._country.upper() == "US":
             # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             graphql_url = "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
-        elif self._country.upper() == "GB" or self._country.upper() == "UK":
+        elif self._country.upper() == "GB":
             # UK-specific endpoint (post-Brexit)
             graphql_url = (
                 "https://www.audi.co.uk/userinfo-emea/v2/myaudi/proxy/vgql/v1/graphql"
