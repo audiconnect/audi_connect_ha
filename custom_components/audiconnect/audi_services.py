@@ -281,7 +281,7 @@ class AudiService:
             graphql_url = "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
         elif self._country.upper() == "GB" or self._country.upper() == "UK":
             # UK-specific endpoint (post-Brexit)
-            graphql_url = "https://pip2.audi.co.uk/api/graphql/"
+            graphql_url = "https://www.audi.co.uk/userinfo-emea/v2/myaudi/proxy/vgql/v1/graphql"
         else:
             # EU and rest of world
             graphql_url = "https://app-api.live-my.audi.com/vgql/v1/graphql"
