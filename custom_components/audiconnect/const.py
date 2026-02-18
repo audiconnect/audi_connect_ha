@@ -98,7 +98,7 @@ REGIONS = {
     2: REGION_CANADA,
     3: REGION_USA,
     4: REGION_CHINA,
-    5: REGION_UK
+    5: REGION_UK,
 }
 
 API_LEVELS = [0, 1]
