@@ -1,4 +1,4 @@
-"""Audi Connect integration."""
+"""myAudi integration."""
 
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ def _async_register_services(hass: HomeAssistant, account: AudiAccount, request_
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Set up Audi Connect from a config entry."""
+    """Set up myAudi from a config entry."""
     account = AudiAccount(hass, config_entry)
     coordinator = AudiDataUpdateCoordinator.from_entry(hass, account, config_entry)
 
@@ -109,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Unload Audi Connect entry."""
+    """Unload myAudi entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
     if not unload_ok:
         return False

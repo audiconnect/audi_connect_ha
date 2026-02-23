@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Ongeldige gebruikersgegevens",
       "invalid_username": "Ongeldige gebruikersnaam",
-      "unexpected": "Onverwachte fout bij communicatie met de Audi Connect server",
+      "unexpected": "Onverwachte fout bij communicatie met de myAudi server",
       "user_already_configured": "Account is al geconfigureerd"
     },
     "step": {
@@ -20,7 +20,7 @@
           "region": "Regio",
           "scan_interval": "Update interval"
         },
-        "title": "Audi Connect accountgegevens"
+        "title": "myAudi accountgegevens"
       }
     }
   },
@@ -30,7 +30,7 @@
         "data": {
           "scan_interval": "Scaninterval"
         },
-        "title": "Audi Connect-opties",
+        "title": "myAudi-opties",
         "data_description": {
           "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden."
         }

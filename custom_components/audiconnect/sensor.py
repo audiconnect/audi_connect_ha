@@ -1,4 +1,4 @@
-"""Support for Audi Connect sensors."""
+"""Support for myAudi sensors."""
 
 from __future__ import annotations
 

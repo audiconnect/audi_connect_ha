@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Informations d'identification invalides",
       "invalid_username": "Nom d'utilisateur invalide",
-      "unexpected": "Erreur inattendue lors de la communication avec le serveur Audi Connect",
+      "unexpected": "Erreur inattendue lors de la communication avec le serveur myAudi",
       "user_already_configured": "Le compte a déjà été configuré"
     },
     "step": {
@@ -20,7 +20,7 @@
           "region": "Région",
           "scan_interval": "Intervalle de scan"
         },
-        "title": "Informations sur le compte Audi Connect"
+        "title": "Informations sur le compte myAudi"
       }
     }
   },
@@ -32,7 +32,7 @@
           "scan_active": "Intervalle de mises à jour actives",
           "scan_interval": "Intervalle de mises à jour"
         },
-        "title": "Options Audi Connect",
+        "title": "Options myAudi",
         "data_description": {
           "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
           "scan_active": "Effectuer une mise à jour du cloud à intervalle régulier défini.",

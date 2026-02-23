@@ -1,4 +1,4 @@
-# Audi Connect Integration for Home Assistant
+# myAudi Integration for Home Assistant
 
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE.md)
@@ -9,7 +9,7 @@
 
 Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
 
-⚠️ Warning: Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
+⚠️ Warning: Excessive use of certain features in this integration may result in temporary or permanent suspension of your myAudi account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
 
 ## Maintainers Wanted
 
@@ -18,7 +18,7 @@ Due to API changes, **currently not all functionality is available**. Please ope
 
 ## Description
 
-The `audiconnect` component provides an integration with the Audi Connect cloud service. It adds presence detection, sensors such as range, mileage, and fuel level, and provides car actions such as locking/unlocking and setting the pre-heater.
+The `audiconnect` component provides an integration with the myAudi cloud service. It adds presence detection, sensors such as range, mileage, and fuel level, and provides car actions such as locking/unlocking and setting the pre-heater.
 
 **Note:** Certain functions require special permissions from Audi, such as position update via GPS.
 
@@ -45,22 +45,22 @@ Alternatively, installation can be done manually by copying the files in this re
 
 Configuration is done through the Home Assistant UI.
 
-To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
+To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "myAudi".
 
 ### Configuration Variables
 
 | Name            | Type     | Default | Description                                                                                                                                                                                                                          |
 | --------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Username`      | `string` | –       | The username associated with your Audi Connect account.                                                                                                                                                                              |
-| `Password`      | `string` | –       | The password for your Audi Connect account.                                                                                                                                                                                          |
-| `S-PIN`         | `string` | –       | The S-PIN for your Audi Connect account to perform certain service actions.<br>(**Optional**)                                                                                                                                        |
-| `Region`        | `string` | `DE`    | The region where your Audi Connect account is registered:<br>• `DE` – Europe<br>• `US` – United States<br>• `CA` – Canada<br>• `CN` – China                                                                                          |
-| `Scan Interval` | `int`    | `15`    | Frequency (in minutes) to fetch status data from Audi Connect.<br>Minimum allowed is 15 minutes.<br>\* _Can be updated later via the CONFIGURE menu._                                                                                |
+| `Username`      | `string` | –       | The username associated with your myAudi account.                                                                                                                                                                              |
+| `Password`      | `string` | –       | The password for your myAudi account.                                                                                                                                                                                          |
+| `S-PIN`         | `string` | –       | The S-PIN for your myAudi account to perform certain service actions.<br>(**Optional**)                                                                                                                                        |
+| `Region`        | `string` | `DE`    | The region where your myAudi account is registered:<br>• `DE` – Europe<br>• `US` – United States<br>• `CA` – Canada<br>• `CN` – China                                                                                          |
+| `Scan Interval` | `int`    | `15`    | Frequency (in minutes) to fetch status data from myAudi.<br>Minimum allowed is 15 minutes.<br>\* _Can be updated later via the CONFIGURE menu._                                                                                |
 | `API Level`     | `int`    | `0`     | Determines the API structure used for service action calls:<br>• `0` – _Typically_ Gas vehicles (legacy format)<br>• `1` – _Typically_ e-tron (electric vehicles, newer format)<br>\* _Can be updated later via the CONFIGURE menu._ |
 
 ## Options
 
-Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ Audi Connect ➤ Configure**:
+Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ myAudi ➤ Configure**:
 
 | Name                              | Type   | Description                                                                                                                                                                     |
 | --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -73,17 +73,17 @@ _Note: The integration will reload automatically upon clicking `Submit`, but a H
 
 ## Service Actions
 
-### Audi Connect: Refresh Vehicle Data
+### myAudi: Refresh Vehicle Data
 
 `audiconnect.refresh_vehicle_data`
 
-Normal updates retrieve data from the Audi Connect cloud service, and don't interact directly with the vehicle. _This_ service action triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service action requires a vehicle identification number (VIN) as a parameter.
+Normal updates retrieve data from the myAudi cloud service, and don't interact directly with the vehicle. _This_ service action triggers an update request from the vehicle itself. When data is retrieved successfully, Home Assistant is automatically updated. The service action requires a vehicle identification number (VIN) as a parameter.
 
 #### Parameters
 
 - **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
 
-### Audi Connect: Refresh Cloud Data
+### myAudi: Refresh Cloud Data
 
 `audiconnect.refresh_cloud_data`
 
@@ -98,7 +98,7 @@ _This_ service action triggers an update request from the cloud.
 
 - `none`
 
-### Audi Connect: Execute Vehicle Action
+### myAudi: Execute Vehicle Action
 
 `audiconnect.execute_vehicle_action`
 
@@ -136,7 +136,7 @@ data:
 - Certain service actions require the S-PIN to be set in the configuration.
 - When the service action is successfully performed, an update request is automatically triggered.
 
-### Audi Connect: Start Climate Control
+### myAudi: Start Climate Control
 
 `audiconnect.start_climate_control`
 
@@ -173,7 +173,7 @@ data:
 - If neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
 - When the service action is successfully performed, an update request is automatically triggered.
 
-### Audi Connect: Start Auxiliary Heating
+### myAudi: Start Auxiliary Heating
 
 `audiconnect.start_auxiliary_heating`
 
