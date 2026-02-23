@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Ugyldige innloggingsopplysninger",
       "invalid_username": "Ugyldig brukernavn",
-      "unexpected": "Uventet feil i kommunikasjonen med Audi Connect-serveren",
+      "unexpected": "Uventet feil i kommunikasjonen med myAudi-serveren",
       "user_already_configured": "Kontoen er allerede konfigurert"
     },
     "step": {
@@ -20,7 +20,7 @@
           "region": "Region",
           "scan_interval": "Skanneintervall"
         },
-        "title": "Audi Connect kontoinformasjon"
+        "title": "myAudi kontoinformasjon"
       }
     }
   },
@@ -30,7 +30,7 @@
         "data": {
           "scan_interval": "Skanneintervall"
         },
-        "title": "Audi Connect-alternativer",
+        "title": "myAudi-alternativer",
         "data_description": {
           "scan_interval": "(Minutter) Omstart kreves for at nytt skanneintervall skal tre i kraft."
         }
