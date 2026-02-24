@@ -9,7 +9,7 @@ from typing import Any
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .audi_account import (
@@ -32,6 +32,37 @@ from .coordinator import AudiDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate config entry to a newer version."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version == 1:
+        # v1 -> v2: Service calls changed from manual VIN text input to
+        # device selector dropdown. Remove any devices that have lost all
+        # their entities (orphaned from a previous bad state).
+        device_registry = dr.async_get(hass)
+        entity_registry = er.async_get(hass)
+        devices = dr.async_entries_for_config_entry(
+            device_registry, config_entry.entry_id
+        )
+        for device_entry in devices:
+            if not er.async_entries_for_device(
+                entity_registry, device_entry.id, include_disabled_entities=True
+            ):
+                _LOGGER.info(
+                    "Migration v1->v2: removing orphaned device %s (no entities)",
+                    device_entry.id,
+                )
+                device_registry.async_remove_device(device_entry.id)
+
+        hass.config_entries.async_update_entry(config_entry, version=2)
+
+    _LOGGER.info(
+        "Migration to version %s successful", config_entry.version
+    )
+    return True
 
 
 @dataclass
@@ -276,4 +307,9 @@ async def async_remove_config_entry_device(
     return True
 
 
-__all__ = ["AudiRuntimeData", "async_setup_entry", "async_unload_entry"]
+__all__ = [
+    "AudiRuntimeData",
+    "async_migrate_entry",
+    "async_setup_entry",
+    "async_unload_entry",
+]
