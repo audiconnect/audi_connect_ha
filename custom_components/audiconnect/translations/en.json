@@ -82,9 +82,9 @@
       "name": "Refresh Vehicle Data",
       "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to refresh."
         }
       }
     },
@@ -92,9 +92,9 @@
       "name": "Execute Vehicle Action",
       "description": "Performs various actions on the vehicle.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to perform the action on."
         },
         "action": {
           "name": "Action",
@@ -107,17 +107,17 @@
       "name": "Start Climate Control",
       "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to start climate control on."
         },
         "temp_f": {
           "name": "Target Temperature (Fahrenheit)",
-          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
+          "description": "(Optional) Set temperature in \u00b0F. Defaults to 70\u00b0F if not provided. Overrides 'temp_c'."
         },
         "temp_c": {
           "name": "Target Temperature (Celsius)",
-          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
+          "description": "(Optional) Set temperature in \u00b0C. Defaults to 21\u00b0C if not provided. Overridden if 'temp_f' is provided."
         },
         "glass_heating": {
           "name": "Glass Surface Heating",
@@ -157,9 +157,9 @@
       "name": "Start Auxiliary Heating",
       "description": "Start auxiliary heating the vehicle, with option for duration.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to start auxiliary heating on."
         },
         "duration": {
           "name": "Duration",
@@ -171,9 +171,9 @@
       "name": "Set Target State of Charge",
       "description": "Set the target state of charge (battery %) for the vehicle.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to set the target charge level for."
         },
         "target_soc": {
           "name": "Target State of Charge",

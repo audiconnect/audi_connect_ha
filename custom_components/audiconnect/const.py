@@ -5,6 +5,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 DOMAIN = "audiconnect"
 
 CONF_VIN = "vin"
+CONF_DEVICE_ID = "device_id"
 CONF_CARNAME = "carname"
 CONF_ACTION = "action"
 CONF_CLIMATE_TEMP_F = "temp_f"
@@ -62,6 +63,7 @@ __all__ = [
     "CONF_ACTION",
     "CONF_API_LEVEL",
     "CONF_CARNAME",
+    "CONF_DEVICE_ID",
     "CONF_CLIMATE_AT_UNLOCK",
     "CONF_CLIMATE_GLASS",
     "CONF_CLIMATE_MODE",
