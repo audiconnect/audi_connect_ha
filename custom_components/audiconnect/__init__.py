@@ -26,7 +26,14 @@ from .audi_account import (
     SERVICE_START_CLIMATE_CONTROL,
     SERVICE_START_CLIMATE_CONTROL_SCHEMA,
 )
-from .const import CONF_DEVICE_ID, CONF_SCAN_INITIAL, DOMAIN, PLATFORMS
+from .const import (
+    CONF_API_LEVEL,
+    CONF_DEVICE_ID,
+    CONF_SCAN_INITIAL,
+    DEFAULT_API_LEVEL,
+    DOMAIN,
+    PLATFORMS,
+)
 from .coordinator import AudiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,6 +65,30 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
                 device_registry.async_remove_device(device_entry.id)
 
         hass.config_entries.async_update_entry(config_entry, version=2)
+
+    if config_entry.version == 2:
+        # v2 -> v3: Options flow cleanup.
+        # - "scan_active" removed (HA built-in "Enable polling" toggle replaces it)
+        # - "api_level" moved from options to reconfigure flow (stored in data)
+        #
+        # Promote api_level from options → data if it was overridden there,
+        # then strip removed keys from options.
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+
+        if CONF_API_LEVEL in new_options:
+            new_data[CONF_API_LEVEL] = int(new_options.pop(CONF_API_LEVEL))
+        elif CONF_API_LEVEL not in new_data:
+            new_data[CONF_API_LEVEL] = DEFAULT_API_LEVEL
+
+        new_options.pop("scan_active", None)
+
+        hass.config_entries.async_update_entry(
+            config_entry, version=3, data=new_data, options=new_options
+        )
+        _LOGGER.info(
+            "Migration v2->v3: promoted api_level to data, removed scan_active"
+        )
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True

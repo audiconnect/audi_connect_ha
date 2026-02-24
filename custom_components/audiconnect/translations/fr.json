@@ -29,14 +29,12 @@
       "init": {
         "data": {
           "scan_initial": "Mise \u00e0 jour du cloud au d\u00e9marrage",
-          "scan_active": "Intervalle de mises \u00e0 jour actives",
           "scan_interval": "Intervalle de mises \u00e0 jour"
         },
         "title": "Options Audi Connect",
         "data_description": {
           "scan_initial": "Effectuer une mise \u00e0 jour du cloud imm\u00e9diatement apr\u00e8s le d\u00e9marrage.",
-          "scan_active": "Effectuer une mise \u00e0 jour du cloud \u00e0 intervalle r\u00e9gulier d\u00e9fini.",
-          "scan_interval": "Minutes entre les mises \u00e0 jour actives. Si 'Intervalle de mises \u00e0 jour actives' est d\u00e9sactiv\u00e9, cette valeur n'aura aucun impact."
+          "scan_interval": "Minutes entre les mises \u00e0 jour du cloud."
         }
       }
     }

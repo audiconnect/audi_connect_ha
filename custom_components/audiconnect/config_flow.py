@@ -28,7 +28,6 @@ from .const import (
     CONF_FILTER_VINS,
     CONF_PASSWORD,
     CONF_REGION,
-    CONF_SCAN_ACTIVE,
     CONF_SCAN_INITIAL,
     CONF_SCAN_INTERVAL,
     CONF_SPIN,
@@ -47,7 +46,7 @@ REGION_REVERSE = {v: k for k, v in REGIONS.items()}
 
 
 class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
-    VERSION = 2
+    VERSION = 3
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -136,7 +135,8 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             password = user_input[CONF_PASSWORD]
             spin = user_input.get(CONF_SPIN)
-            region = reconfigure_entry.data[CONF_REGION]
+            region = REGION_OPTIONS[user_input[CONF_REGION]]
+            api_level = int(user_input[CONF_API_LEVEL])
 
             try:
                 session = async_get_clientsession(self.hass)
@@ -146,9 +146,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                     password=password,
                     country=region,
                     spin=spin,
-                    api_level=int(
-                        reconfigure_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL)
-                    ),
+                    api_level=api_level,
                 )
                 if not await connection.try_login(False):
                     errors["base"] = "invalid_credentials"
@@ -158,11 +156,16 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                         data_updates={
                             CONF_PASSWORD: password,
                             CONF_SPIN: spin,
+                            CONF_REGION: region,
+                            CONF_API_LEVEL: api_level,
                         },
                     )
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Audi reconfigure flow failed")
                 errors["base"] = "unexpected"
+
+        current_region = reconfigure_entry.data.get(CONF_REGION, "DE")
+        current_region_key = str(REGION_REVERSE.get(current_region, 1))
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -176,6 +179,30 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_SPIN,
                         default=reconfigure_entry.data.get(CONF_SPIN, ""),
                     ): str,
+                    vol.Required(
+                        CONF_REGION, default=current_region_key
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                {"value": k, "label": v}
+                                for k, v in REGION_OPTIONS.items()
+                            ],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Required(
+                        CONF_API_LEVEL,
+                        default=str(
+                            reconfigure_entry.data.get(
+                                CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
+                            )
+                        ),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[str(level) for level in API_LEVELS],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                 }
             ),
             description_placeholders={
@@ -197,7 +224,6 @@ class OptionsFlowHandler(OptionsFlow):
             user_input[CONF_SCAN_INTERVAL] = max(
                 int(user_input[CONF_SCAN_INTERVAL]), MIN_UPDATE_INTERVAL
             )
-            user_input[CONF_API_LEVEL] = int(user_input[CONF_API_LEVEL])
             return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
@@ -209,10 +235,6 @@ class OptionsFlowHandler(OptionsFlow):
                         default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
                     ): bool,
                     vol.Required(
-                        CONF_SCAN_ACTIVE,
-                        default=self.config_entry.options.get(CONF_SCAN_ACTIVE, True),
-                    ): bool,
-                    vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=self.config_entry.options.get(
                             CONF_SCAN_INTERVAL,
@@ -222,22 +244,6 @@ class OptionsFlowHandler(OptionsFlow):
                         ),
                     ): NumberSelector(
                         NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")
-                    ),
-                    vol.Required(
-                        CONF_API_LEVEL,
-                        default=str(
-                            self.config_entry.options.get(
-                                CONF_API_LEVEL,
-                                self.config_entry.data.get(
-                                    CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
-                                ),
-                            )
-                        ),
-                    ): SelectSelector(
-                        SelectSelectorConfig(
-                            options=[str(level) for level in API_LEVELS],
-                            mode=SelectSelectorMode.DROPDOWN,
-                        )
                     ),
                     vol.Optional(
                         CONF_FILTER_VINS,

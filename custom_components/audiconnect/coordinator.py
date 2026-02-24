@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .audi_account import AudiAccount
-from .const import CONF_SCAN_ACTIVE, CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,15 +48,11 @@ class AudiDataUpdateCoordinator(DataUpdateCoordinator[list[Any]]):
         account: AudiAccount,
         config_entry: ConfigEntry,
     ) -> AudiDataUpdateCoordinator:
-        scan_active = config_entry.options.get(CONF_SCAN_ACTIVE, True)
         scan_interval = config_entry.options.get(
             CONF_SCAN_INTERVAL,
             config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
-        coordinator = cls(hass, account, config_entry, scan_interval)
-        if not scan_active:
-            coordinator.update_interval = None
-        return coordinator
+        return cls(hass, account, config_entry, scan_interval)
 
 
 __all__ = ["AudiDataUpdateCoordinator"]
