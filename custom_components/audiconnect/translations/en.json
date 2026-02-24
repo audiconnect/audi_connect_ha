@@ -102,11 +102,11 @@
         },
         "temp_f": {
           "name": "Target Temperature (Fahrenheit)",
-          "description": "(Optional) Set temperature in \u00b0F. Defaults to 70\u00b0F if not provided. Overrides 'temp_c'."
+          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
         },
         "temp_c": {
           "name": "Target Temperature (Celsius)",
-          "description": "(Optional) Set temperature in \u00b0C. Defaults to 21\u00b0C if not provided. Overridden if 'temp_f' is provided."
+          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
         },
         "glass_heating": {
           "name": "Glass Surface Heating",
