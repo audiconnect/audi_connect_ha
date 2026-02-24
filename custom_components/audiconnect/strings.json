@@ -25,6 +25,17 @@
         "data_description": {
           "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be updated from the CONFIGURE menu later, if needed."
         }
+      },
+      "reconfigure": {
+        "title": "Update Audi Connect Credentials",
+        "description": "Update the password for account **{username}**.",
+        "data": {
+          "password": "Password",
+          "spin": "S-PIN"
+        },
+        "data_description": {
+          "spin": "Optional S-PIN for vehicle actions such as lock/unlock."
+        }
       }
     }
   },

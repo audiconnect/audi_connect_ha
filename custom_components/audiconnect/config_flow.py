@@ -101,6 +101,59 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        reconfigure_entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            password = user_input[CONF_PASSWORD]
+            spin = user_input.get(CONF_SPIN)
+            region = reconfigure_entry.data[CONF_REGION]
+
+            try:
+                session = async_get_clientsession(self.hass)
+                connection = AudiConnectAccount(
+                    session=session,
+                    username=reconfigure_entry.data[CONF_USERNAME],
+                    password=password,
+                    country=region,
+                    spin=spin,
+                    api_level=int(reconfigure_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL)),
+                )
+                if not await connection.try_login(False):
+                    errors["base"] = "invalid_credentials"
+                else:
+                    return self.async_update_reload_and_abort(
+                        reconfigure_entry,
+                        data_updates={
+                            CONF_PASSWORD: password,
+                            CONF_SPIN: spin,
+                        },
+                    )
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Audi reconfigure flow failed")
+                errors["base"] = "unexpected"
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_PASSWORD,
+                        default=reconfigure_entry.data.get(CONF_PASSWORD, ""),
+                    ): str,
+                    vol.Optional(
+                        CONF_SPIN,
+                        default=reconfigure_entry.data.get(CONF_SPIN, ""),
+                    ): str,
+                }
+            ),
+            description_placeholders={
+                "username": reconfigure_entry.data[CONF_USERNAME],
+            },
+            errors=errors,
+        )
+
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlowHandler:
         return OptionsFlowHandler()
