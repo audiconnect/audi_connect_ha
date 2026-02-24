@@ -64,7 +64,9 @@ def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator
     return coordinators
 
 
-async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+async def _async_update_listener(
+    hass: HomeAssistant, config_entry: ConfigEntry
+) -> None:
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
@@ -116,30 +118,42 @@ def _async_register_services(hass: HomeAssistant) -> None:
         await account.set_target_soc(service)
 
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CLOUD_DATA):
-        hass.services.async_register(DOMAIN, SERVICE_REFRESH_CLOUD_DATA, _handle_refresh_cloud_data)
+        hass.services.async_register(
+            DOMAIN, SERVICE_REFRESH_CLOUD_DATA, _handle_refresh_cloud_data
+        )
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_VEHICLE_DATA):
         hass.services.async_register(
-            DOMAIN, SERVICE_REFRESH_VEHICLE_DATA, _handle_refresh_vehicle_data,
+            DOMAIN,
+            SERVICE_REFRESH_VEHICLE_DATA,
+            _handle_refresh_vehicle_data,
             schema=SERVICE_REFRESH_VEHICLE_DATA_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_EXECUTE_VEHICLE_ACTION):
         hass.services.async_register(
-            DOMAIN, SERVICE_EXECUTE_VEHICLE_ACTION, _handle_execute_vehicle_action,
+            DOMAIN,
+            SERVICE_EXECUTE_VEHICLE_ACTION,
+            _handle_execute_vehicle_action,
             schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_START_CLIMATE_CONTROL):
         hass.services.async_register(
-            DOMAIN, SERVICE_START_CLIMATE_CONTROL, _handle_start_climate_control,
+            DOMAIN,
+            SERVICE_START_CLIMATE_CONTROL,
+            _handle_start_climate_control,
             schema=SERVICE_START_CLIMATE_CONTROL_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_START_AUXILIARY_HEATING):
         hass.services.async_register(
-            DOMAIN, SERVICE_START_AUXILIARY_HEATING, _handle_start_auxiliary_heating,
+            DOMAIN,
+            SERVICE_START_AUXILIARY_HEATING,
+            _handle_start_auxiliary_heating,
             schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_SET_TARGET_SOC):
         hass.services.async_register(
-            DOMAIN, SERVICE_SET_TARGET_SOC, _handle_set_target_soc,
+            DOMAIN,
+            SERVICE_SET_TARGET_SOC,
+            _handle_set_target_soc,
             schema=SERVICE_SET_TARGET_SOC_SCHEMA,
         )
 
@@ -153,9 +167,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         await coordinator.async_request_refresh()
 
     account.set_refresh_callback(_request_refresh)
-    config_entry.runtime_data = AudiRuntimeData(account=account, coordinator=coordinator)
+    config_entry.runtime_data = AudiRuntimeData(
+        account=account, coordinator=coordinator
+    )
 
-    config_entry.async_on_unload(config_entry.add_update_listener(_async_update_listener))
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(_async_update_listener)
+    )
 
     if config_entry.options.get(CONF_SCAN_INITIAL, True):
         await coordinator.async_config_entry_first_refresh()
@@ -167,7 +185,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload Audi Connect entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        config_entry, PLATFORMS
+    )
     if not unload_ok:
         return False
 

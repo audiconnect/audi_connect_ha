@@ -285,7 +285,9 @@ class VehicleDataResponse:
             ],
         )
 
-    def _tryAppendStateWithTs(self, json: dict[str, Any], name: str, tsoff: int, loc: list[str]) -> None:
+    def _tryAppendStateWithTs(
+        self, json: dict[str, Any], name: str, tsoff: int, loc: list[str]
+    ) -> None:
         _LOGGER.debug(
             "TRY APPEND STATE: Searching for '%s' at location=%s, tsoff=%s",
             name,
@@ -325,7 +327,9 @@ class VehicleDataResponse:
                     name,
                 )
 
-    def _tryAppendFieldWithTs(self, json: dict[str, Any], textId: str, loc: list[str]) -> None:
+    def _tryAppendFieldWithTs(
+        self, json: dict[str, Any], textId: str, loc: list[str]
+    ) -> None:
         _LOGGER.debug(
             "TRY APPEND FIELD: Searching for '%s' at location=%s",
             textId,

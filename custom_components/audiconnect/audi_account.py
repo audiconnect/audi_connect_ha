@@ -77,7 +77,9 @@ SERVICE_SET_TARGET_SOC = "set_target_soc"
 SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_VIN): cv.string,
-        vol.Required(CONF_TARGET_SOC): vol.All(cv.positive_int, vol.Range(min=20, max=100)),
+        vol.Required(CONF_TARGET_SOC): vol.All(
+            cv.positive_int, vol.Range(min=20, max=100)
+        ),
     }
 )
 
@@ -111,7 +113,9 @@ class AudiAccount(AudiConnectObserver):
             spin=self.config_entry.data.get(CONF_SPIN),
             api_level=self.config_entry.options.get(
                 CONF_API_LEVEL,
-                self.config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
+                self.config_entry.data.get(
+                    CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
+                ),
             ),
             excluded_vins=excluded_vins,
         )
@@ -147,7 +151,11 @@ class AudiAccount(AudiConnectObserver):
             _LOGGER.warning("Failed refresh cloud data")
             raise RuntimeError("Failed refresh cloud data")
 
-        known = {vehicle.vehicle.vin.lower(): vehicle for vehicle in self.config_vehicles if vehicle.vehicle and vehicle.vehicle.vin}
+        known = {
+            vehicle.vehicle.vin.lower(): vehicle
+            for vehicle in self.config_vehicles
+            if vehicle.vehicle and vehicle.vehicle.vin
+        }
         for vehicle in self.connection.vehicles:
             vin = vehicle.vin.lower()
             if vin in known:
@@ -229,7 +237,8 @@ class AudiAccount(AudiConnectObserver):
 
         if result is True:
             self.hass.bus.async_fire(
-                f"{DOMAIN}_{REFRESH_VEHICLE_DATA_COMPLETED_EVENT}", {"vin": redacted_vin}
+                f"{DOMAIN}_{REFRESH_VEHICLE_DATA_COMPLETED_EVENT}",
+                {"vin": redacted_vin},
             )
         elif result != "disabled":
             self.hass.bus.async_fire(

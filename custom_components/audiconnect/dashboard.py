@@ -57,7 +57,9 @@ class Instrument:
     def slug_attr(self) -> str:
         return self.camel2slug(self._attr.replace(".", "_"))
 
-    def setup(self, connection: Any, vehicle: Any, mutable: bool = True, **config: Any) -> bool:
+    def setup(
+        self, connection: Any, vehicle: Any, mutable: bool = True, **config: Any
+    ) -> bool:
         self._connection = connection
         self._vehicle = vehicle
 

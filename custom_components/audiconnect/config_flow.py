@@ -5,9 +5,21 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, SelectSelector, SelectSelectorConfig, SelectSelectorMode, TextSelector
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+    TextSelector,
+)
 
 from .audi_connect_account import AudiConnectAccount
 from .const import (
@@ -37,7 +49,9 @@ REGION_REVERSE = {v: k for k, v in REGIONS.items()}
 class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -67,7 +81,9 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_SPIN: user_input.get(CONF_SPIN),
                             CONF_REGION: region,
                             CONF_SCAN_INTERVAL: max(
-                                user_input.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+                                user_input.get(
+                                    CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
+                                ),
                                 MIN_UPDATE_INTERVAL,
                             ),
                             CONF_API_LEVEL: int(user_input[CONF_API_LEVEL]),
@@ -86,22 +102,34 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_SPIN): str,
                     vol.Required(CONF_REGION, default="1"): SelectSelector(
                         SelectSelectorConfig(
-                            options=[{"value": k, "label": v} for k, v in REGION_OPTIONS.items()],
+                            options=[
+                                {"value": k, "label": v}
+                                for k, v in REGION_OPTIONS.items()
+                            ],
                             mode=SelectSelectorMode.DROPDOWN,
                         )
                     ),
-                    vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): NumberSelector(
+                    vol.Required(
+                        CONF_SCAN_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
+                    ): NumberSelector(
                         NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")
                     ),
-                    vol.Required(CONF_API_LEVEL, default=str(API_LEVELS[DEFAULT_API_LEVEL])): SelectSelector(
-                        SelectSelectorConfig(options=[str(level) for level in API_LEVELS], mode=SelectSelectorMode.DROPDOWN)
+                    vol.Required(
+                        CONF_API_LEVEL, default=str(API_LEVELS[DEFAULT_API_LEVEL])
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[str(level) for level in API_LEVELS],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
                     ),
                 }
             ),
             errors=errors,
         )
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         reconfigure_entry = self._get_reconfigure_entry()
 
@@ -118,7 +146,9 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                     password=password,
                     country=region,
                     spin=spin,
-                    api_level=int(reconfigure_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL)),
+                    api_level=int(
+                        reconfigure_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL)
+                    ),
                 )
                 if not await connection.try_login(False):
                     errors["base"] = "invalid_credentials"
@@ -160,7 +190,9 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(OptionsFlow):
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         if user_input is not None:
             user_input[CONF_SCAN_INTERVAL] = max(
                 int(user_input[CONF_SCAN_INTERVAL]), MIN_UPDATE_INTERVAL
@@ -184,17 +216,28 @@ class OptionsFlowHandler(OptionsFlow):
                         CONF_SCAN_INTERVAL,
                         default=self.config_entry.options.get(
                             CONF_SCAN_INTERVAL,
-                            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+                            self.config_entry.data.get(
+                                CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
+                            ),
                         ),
-                    ): NumberSelector(NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")),
+                    ): NumberSelector(
+                        NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")
+                    ),
                     vol.Required(
                         CONF_API_LEVEL,
-                        default=str(self.config_entry.options.get(
-                            CONF_API_LEVEL,
-                            self.config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
-                        )),
+                        default=str(
+                            self.config_entry.options.get(
+                                CONF_API_LEVEL,
+                                self.config_entry.data.get(
+                                    CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
+                                ),
+                            )
+                        ),
                     ): SelectSelector(
-                        SelectSelectorConfig(options=[str(level) for level in API_LEVELS], mode=SelectSelectorMode.DROPDOWN)
+                        SelectSelectorConfig(
+                            options=[str(level) for level in API_LEVELS],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
                     ),
                     vol.Optional(
                         CONF_FILTER_VINS,

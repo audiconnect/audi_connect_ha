@@ -44,7 +44,9 @@ def _to_absolute(absolute_url: str, relative_url: str) -> str:
 
 
 class AudiService:
-    def __init__(self, api: AudiAPI, country: str, spin: str | None, api_level: int) -> None:
+    def __init__(
+        self, api: AudiAPI, country: str, spin: str | None, api_level: int
+    ) -> None:
         self._api = api
         self._country = country
         self._language: str | None = None
@@ -67,7 +69,9 @@ class AudiService:
         if self._country is None:
             self._country = "DE"
 
-    def get_hidden_html_input_form_data(self, response: str, form_data: dict[str, str]) -> dict[str, str]:
+    def get_hidden_html_input_form_data(
+        self, response: str, form_data: dict[str, str]
+    ) -> dict[str, str]:
         # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_inputs = html.find_all("input", attrs={"type": "hidden"})
@@ -470,7 +474,9 @@ class AudiService:
 
         return base_url.rstrip("/") + "/" + action_path.lstrip("/")
 
-    def __get_cariad_url(self, path_and_query: str, **path_and_query_kwargs: Any) -> str:
+    def __get_cariad_url(
+        self, path_and_query: str, **path_and_query_kwargs: Any
+    ) -> str:
         base_url = "https://{region}.bff.cariad.digital".format(
             region="emea" if self._country.upper() != "US" else "na"
         )
@@ -947,7 +953,10 @@ class AudiService:
     def _calculate_X_QMAuth(self) -> str:
         # Calculate X-QMAuth value
         gmtime_100sec = int(
-            (datetime.now(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds() / 100
+            (
+                datetime.now(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)
+            ).total_seconds()
+            / 100
         )
         xqmauth_secret = bytes(
             [
@@ -1432,7 +1441,6 @@ class AudiService:
         byteChallenge = to_byte_array(challenge)
         b = bytes(pin + byteChallenge)
         return sha512(b).hexdigest().upper()
-
 
 
 __all__ = ["AudiService"]

@@ -29,7 +29,9 @@ class AudiAPI:
         self.__token: dict[str, Any] | None = None
         self.__xclientid: str | None = None
         self._session = session
-        self.__proxy: dict[str, str | None] | None = {"http": proxy, "https": proxy} if proxy else None
+        self.__proxy: dict[str, str | None] | None = (
+            {"http": proxy, "https": proxy} if proxy else None
+        )
 
     def use_token(self, token: dict[str, Any] | None) -> None:
         self.__token = token
@@ -151,7 +153,11 @@ class AudiAPI:
             raise
 
     async def get(
-        self, url: str, raw_reply: bool = False, raw_contents: bool = False, **kwargs: Any
+        self,
+        url: str,
+        raw_reply: bool = False,
+        raw_contents: bool = False,
+        **kwargs: Any,
     ) -> Any:
         full_headers = self.__get_headers()
         if DEBUG_VERBOSE:
@@ -166,7 +172,9 @@ class AudiAPI:
             **kwargs,
         )
 
-    async def put(self, url: str, data: Any = None, headers: dict[str, str] | None = None) -> Any:
+    async def put(
+        self, url: str, data: Any = None, headers: dict[str, str] | None = None
+    ) -> Any:
         full_headers = self.__get_headers()
         if headers:
             full_headers.update(headers)
