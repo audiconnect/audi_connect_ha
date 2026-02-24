@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -26,14 +28,19 @@ async def async_setup_entry(
 
 
 class AudiSwitch(AudiEntity, SwitchEntity):
+    """Representation of an Audi switch."""
+
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         return self._instrument.state
 
-    async def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         await self._instrument.turn_on()
         await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         await self._instrument.turn_off()
         await self.coordinator.async_request_refresh()
+
+
+__all__ = ["AudiSwitch", "async_setup_entry"]

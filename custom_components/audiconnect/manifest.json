@@ -6,6 +6,7 @@
   ],
   "config_flow": true,
   "documentation": "https://github.com/audiconnect/audi_connect_ha",
+  "homeassistant": "2024.11.0",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/audiconnect/audi_connect_ha/issues",
@@ -13,8 +14,7 @@
     "audiconnect"
   ],
   "requirements": [
-    "beautifulsoup4",
-    "requests"
+    "beautifulsoup4"
   ],
   "version": "2.0.0-beta.2"
 }

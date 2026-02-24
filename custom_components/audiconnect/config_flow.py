@@ -5,7 +5,7 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, SelectSelector, SelectSelectorConfig, SelectSelectorMode, TextSelector
 
@@ -34,10 +34,10 @@ REGION_OPTIONS = {str(k): v for k, v in REGIONS.items()}
 REGION_REVERSE = {v: k for k, v in REGIONS.items()}
 
 
-class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -102,15 +102,12 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-        return OptionsFlowHandler(config_entry)
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlowHandler:
+        return OptionsFlowHandler()
 
 
-class OptionsFlowHandler(config_entries.OptionsFlow):
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self._config_entry = config_entry
-
-    async def async_step_init(self, user_input: dict[str, Any] | None = None):
+class OptionsFlowHandler(OptionsFlow):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             user_input[CONF_SCAN_INTERVAL] = max(
                 int(user_input[CONF_SCAN_INTERVAL]), MIN_UPDATE_INTERVAL
@@ -124,35 +121,38 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_SCAN_INITIAL,
-                        default=self._config_entry.options.get(CONF_SCAN_INITIAL, True),
+                        default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
                     ): bool,
                     vol.Required(
                         CONF_SCAN_ACTIVE,
-                        default=self._config_entry.options.get(CONF_SCAN_ACTIVE, True),
+                        default=self.config_entry.options.get(CONF_SCAN_ACTIVE, True),
                     ): bool,
                     vol.Required(
                         CONF_SCAN_INTERVAL,
-                        default=self._config_entry.options.get(
+                        default=self.config_entry.options.get(
                             CONF_SCAN_INTERVAL,
-                            self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+                            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
                         ),
                     ): NumberSelector(NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")),
                     vol.Required(
                         CONF_API_LEVEL,
-                        default=str(self._config_entry.options.get(
+                        default=str(self.config_entry.options.get(
                             CONF_API_LEVEL,
-                            self._config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
+                            self.config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
                         )),
                     ): SelectSelector(
                         SelectSelectorConfig(options=[str(level) for level in API_LEVELS], mode=SelectSelectorMode.DROPDOWN)
                     ),
                     vol.Optional(
                         CONF_FILTER_VINS,
-                        default=self._config_entry.options.get(
+                        default=self.config_entry.options.get(
                             CONF_FILTER_VINS,
-                            self._config_entry.data.get(CONF_FILTER_VINS, ""),
+                            self.config_entry.data.get(CONF_FILTER_VINS, ""),
                         ),
                     ): TextSelector(),
                 }
             ),
         )
+
+
+__all__ = ["AudiConfigFlow", "OptionsFlowHandler"]

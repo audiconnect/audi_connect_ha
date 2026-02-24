@@ -26,14 +26,7 @@ class AudiEntity(CoordinatorEntity[AudiDataUpdateCoordinator]):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return dict(
-            self._instrument.attributes,
-            model=f"{self._instrument.vehicle_model}/{self._instrument.vehicle_name}",
-            model_year=self._instrument.vehicle_model_year,
-            model_family=self._instrument.vehicle_model_family,
-            csid=self._instrument.vehicle_csid,
-            vin=self._instrument.vehicle_vin,
-        )
+        return dict(self._instrument.attributes)
 
     @property
     def device_info(self) -> DeviceInfo:

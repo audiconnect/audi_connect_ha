@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .audi_account import (
@@ -24,7 +24,7 @@ from .audi_account import (
     SERVICE_START_CLIMATE_CONTROL,
     SERVICE_START_CLIMATE_CONTROL_SCHEMA,
 )
-from .const import CONF_SCAN_INITIAL, DOMAIN, PLATFORMS
+from .const import CONF_SCAN_INITIAL, CONF_VIN, DOMAIN, PLATFORMS
 from .coordinator import AudiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,6 +38,29 @@ class AudiRuntimeData:
     coordinator: AudiDataUpdateCoordinator
 
 
+def _get_account_for_vin(hass: HomeAssistant, vin: str) -> AudiAccount | None:
+    """Find the AudiAccount that owns a given VIN across all config entries."""
+    vin_lower = vin.lower()
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
+        if runtime_data is None:
+            continue
+        for vehicle_data in runtime_data.account.config_vehicles:
+            if vehicle_data.vehicle and vehicle_data.vehicle.vin.lower() == vin_lower:
+                return runtime_data.account
+    return None
+
+
+def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator]:
+    """Get coordinators from all loaded config entries."""
+    coordinators: list[AudiDataUpdateCoordinator] = []
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
+        if runtime_data is not None:
+            coordinators.append(runtime_data.coordinator)
+    return coordinators
+
+
 async def async_setup(_hass: HomeAssistant, _config: dict[str, Any]) -> bool:
     """Set up via config entries only."""
     return True
@@ -47,42 +70,78 @@ async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry)
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
-def _async_register_services(hass: HomeAssistant, account: AudiAccount, request_refresh: Any) -> None:
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register global services once (multi-account safe via VIN lookup)."""
+
+    async def _handle_refresh_cloud_data(service: ServiceCall) -> None:
+        for coordinator in _get_all_coordinators(hass):
+            await coordinator.async_request_refresh()
+
+    async def _handle_refresh_vehicle_data(service: ServiceCall) -> None:
+        vin = service.data[CONF_VIN]
+        account = _get_account_for_vin(hass, vin)
+        if account is None:
+            _LOGGER.error("No account found for VIN %s", vin)
+            return
+        await account.refresh_vehicle_data(service)
+
+    async def _handle_execute_vehicle_action(service: ServiceCall) -> None:
+        vin = service.data[CONF_VIN]
+        account = _get_account_for_vin(hass, vin)
+        if account is None:
+            _LOGGER.error("No account found for VIN %s", vin)
+            return
+        await account.execute_vehicle_action(service)
+
+    async def _handle_start_climate_control(service: ServiceCall) -> None:
+        vin = service.data[CONF_VIN]
+        account = _get_account_for_vin(hass, vin)
+        if account is None:
+            _LOGGER.error("No account found for VIN %s", vin)
+            return
+        await account.start_climate_control(service)
+
+    async def _handle_start_auxiliary_heating(service: ServiceCall) -> None:
+        vin = service.data[CONF_VIN]
+        account = _get_account_for_vin(hass, vin)
+        if account is None:
+            _LOGGER.error("No account found for VIN %s", vin)
+            return
+        await account.start_auxiliary_heating(service)
+
+    async def _handle_set_target_soc(service: ServiceCall) -> None:
+        vin = service.data[CONF_VIN]
+        account = _get_account_for_vin(hass, vin)
+        if account is None:
+            _LOGGER.error("No account found for VIN %s", vin)
+            return
+        await account.set_target_soc(service)
+
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CLOUD_DATA):
-        hass.services.async_register(DOMAIN, SERVICE_REFRESH_CLOUD_DATA, request_refresh)
+        hass.services.async_register(DOMAIN, SERVICE_REFRESH_CLOUD_DATA, _handle_refresh_cloud_data)
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_VEHICLE_DATA):
         hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_VEHICLE_DATA,
-            account.refresh_vehicle_data,
+            DOMAIN, SERVICE_REFRESH_VEHICLE_DATA, _handle_refresh_vehicle_data,
             schema=SERVICE_REFRESH_VEHICLE_DATA_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_EXECUTE_VEHICLE_ACTION):
         hass.services.async_register(
-            DOMAIN,
-            SERVICE_EXECUTE_VEHICLE_ACTION,
-            account.execute_vehicle_action,
+            DOMAIN, SERVICE_EXECUTE_VEHICLE_ACTION, _handle_execute_vehicle_action,
             schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_START_CLIMATE_CONTROL):
         hass.services.async_register(
-            DOMAIN,
-            SERVICE_START_CLIMATE_CONTROL,
-            account.start_climate_control,
+            DOMAIN, SERVICE_START_CLIMATE_CONTROL, _handle_start_climate_control,
             schema=SERVICE_START_CLIMATE_CONTROL_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_START_AUXILIARY_HEATING):
         hass.services.async_register(
-            DOMAIN,
-            SERVICE_START_AUXILIARY_HEATING,
-            account.start_auxiliary_heating,
+            DOMAIN, SERVICE_START_AUXILIARY_HEATING, _handle_start_auxiliary_heating,
             schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_SET_TARGET_SOC):
         hass.services.async_register(
-            DOMAIN,
-            SERVICE_SET_TARGET_SOC,
-            account.set_target_soc,
+            DOMAIN, SERVICE_SET_TARGET_SOC, _handle_set_target_soc,
             schema=SERVICE_SET_TARGET_SOC_SCHEMA,
         )
 
@@ -103,7 +162,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if config_entry.options.get(CONF_SCAN_INITIAL, True):
         await coordinator.async_config_entry_first_refresh()
 
-    _async_register_services(hass, account, _request_refresh)
+    _async_register_services(hass)
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     return True
 
