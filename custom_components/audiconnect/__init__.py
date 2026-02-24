@@ -46,9 +46,13 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
     if config_entry.version == 1:
-        # v1 -> v2: Service calls changed from manual VIN text input to
-        # device selector dropdown. Remove any devices that have lost all
-        # their entities (orphaned from a previous bad state).
+        # v1 -> v2:
+        # - Service calls changed from manual VIN text input to device selector
+        #   dropdown. Remove any devices that have lost all their entities
+        #   (orphaned from a previous bad state).
+        # - Options flow cleanup: "scan_active" removed (HA built-in "Enable
+        #   polling" toggle replaces it); "api_level" moved from options to
+        #   reconfigure flow (stored in data).
         device_registry = dr.async_get(hass)
         entity_registry = er.async_get(hass)
         devices = dr.async_entries_for_config_entry(
@@ -64,13 +68,6 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
                 )
                 device_registry.async_remove_device(device_entry.id)
 
-        hass.config_entries.async_update_entry(config_entry, version=2)
-
-    if config_entry.version == 2:
-        # v2 -> v3: Options flow cleanup.
-        # - "scan_active" removed (HA built-in "Enable polling" toggle replaces it)
-        # - "api_level" moved from options to reconfigure flow (stored in data)
-        #
         # Promote api_level from options → data if it was overridden there,
         # then strip removed keys from options.
         new_data = {**config_entry.data}
@@ -84,10 +81,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         new_options.pop("scan_active", None)
 
         hass.config_entries.async_update_entry(
-            config_entry, version=3, data=new_data, options=new_options
-        )
-        _LOGGER.info(
-            "Migration v2->v3: promoted api_level to data, removed scan_active"
+            config_entry, version=2, data=new_data, options=new_options
         )
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)

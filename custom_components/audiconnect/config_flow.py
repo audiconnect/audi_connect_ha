@@ -46,7 +46,7 @@ REGION_REVERSE = {v: k for k, v in REGIONS.items()}
 
 
 class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
-    VERSION = 3
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
