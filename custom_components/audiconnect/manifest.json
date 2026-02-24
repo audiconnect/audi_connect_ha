@@ -13,8 +13,7 @@
     "audiconnect"
   ],
   "requirements": [
-    "beautifulsoup4",
-    "requests"
+    "beautifulsoup4"
   ],
   "version": "2.0.0-beta.2"
 }

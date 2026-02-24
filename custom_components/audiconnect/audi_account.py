@@ -148,7 +148,7 @@ class AudiAccount(AudiConnectObserver):
             raise RuntimeError("Failed refresh cloud data")
 
         known = {vehicle.vehicle.vin.lower(): vehicle for vehicle in self.config_vehicles if vehicle.vehicle and vehicle.vehicle.vin}
-        for vehicle in self.connection._vehicles:
+        for vehicle in self.connection.vehicles:
             vin = vehicle.vin.lower()
             if vin in known:
                 continue
