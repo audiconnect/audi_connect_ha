@@ -9,6 +9,7 @@ from typing import Any
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .audi_account import (
@@ -25,7 +26,7 @@ from .audi_account import (
     SERVICE_START_CLIMATE_CONTROL,
     SERVICE_START_CLIMATE_CONTROL_SCHEMA,
 )
-from .const import CONF_SCAN_INITIAL, CONF_VIN, DOMAIN, PLATFORMS
+from .const import CONF_DEVICE_ID, CONF_SCAN_INITIAL, DOMAIN, PLATFORMS
 from .coordinator import AudiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +42,18 @@ class AudiRuntimeData:
     coordinator: AudiDataUpdateCoordinator
 
 
+def _resolve_device_to_vin(hass: HomeAssistant, device_id: str) -> str | None:
+    """Resolve a Home Assistant device registry ID to the vehicle VIN."""
+    device_registry = dr.async_get(hass)
+    device_entry = device_registry.async_get(device_id)
+    if device_entry is None:
+        return None
+    for domain, identifier in device_entry.identifiers:
+        if domain == DOMAIN:
+            return identifier
+    return None
+
+
 def _get_account_for_vin(hass: HomeAssistant, vin: str) -> AudiAccount | None:
     """Find the AudiAccount that owns a given VIN across all config entries."""
     vin_lower = vin.lower()
@@ -52,6 +65,25 @@ def _get_account_for_vin(hass: HomeAssistant, vin: str) -> AudiAccount | None:
             if vehicle_data.vehicle and vehicle_data.vehicle.vin.lower() == vin_lower:
                 return runtime_data.account
     return None
+
+
+def _resolve_service_call(
+    hass: HomeAssistant, service: ServiceCall
+) -> tuple[str, AudiAccount] | None:
+    """Resolve device_id from a service call to (vin, account).
+
+    Returns None and logs an error if resolution fails.
+    """
+    device_id = service.data[CONF_DEVICE_ID]
+    vin = _resolve_device_to_vin(hass, device_id)
+    if vin is None:
+        _LOGGER.error("No VIN found for device %s", device_id)
+        return None
+    account = _get_account_for_vin(hass, vin)
+    if account is None:
+        _LOGGER.error("No account found for VIN associated with device %s", device_id)
+        return None
+    return vin, account
 
 
 def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator]:
@@ -71,51 +103,46 @@ async def _async_update_listener(
 
 
 def _async_register_services(hass: HomeAssistant) -> None:
-    """Register global services once (multi-account safe via VIN lookup)."""
+    """Register global services once (multi-account safe via device lookup)."""
 
     async def _handle_refresh_cloud_data(service: ServiceCall) -> None:
         for coordinator in _get_all_coordinators(hass):
             await coordinator.async_request_refresh()
 
     async def _handle_refresh_vehicle_data(service: ServiceCall) -> None:
-        vin = service.data[CONF_VIN]
-        account = _get_account_for_vin(hass, vin)
-        if account is None:
-            _LOGGER.error("No account found for VIN %s", vin)
+        result = _resolve_service_call(hass, service)
+        if result is None:
             return
-        await account.refresh_vehicle_data(service)
+        vin, account = result
+        await account.refresh_vehicle_data(vin)
 
     async def _handle_execute_vehicle_action(service: ServiceCall) -> None:
-        vin = service.data[CONF_VIN]
-        account = _get_account_for_vin(hass, vin)
-        if account is None:
-            _LOGGER.error("No account found for VIN %s", vin)
+        result = _resolve_service_call(hass, service)
+        if result is None:
             return
-        await account.execute_vehicle_action(service)
+        vin, account = result
+        await account.execute_vehicle_action(vin, service)
 
     async def _handle_start_climate_control(service: ServiceCall) -> None:
-        vin = service.data[CONF_VIN]
-        account = _get_account_for_vin(hass, vin)
-        if account is None:
-            _LOGGER.error("No account found for VIN %s", vin)
+        result = _resolve_service_call(hass, service)
+        if result is None:
             return
-        await account.start_climate_control(service)
+        vin, account = result
+        await account.start_climate_control(vin, service)
 
     async def _handle_start_auxiliary_heating(service: ServiceCall) -> None:
-        vin = service.data[CONF_VIN]
-        account = _get_account_for_vin(hass, vin)
-        if account is None:
-            _LOGGER.error("No account found for VIN %s", vin)
+        result = _resolve_service_call(hass, service)
+        if result is None:
             return
-        await account.start_auxiliary_heating(service)
+        vin, account = result
+        await account.start_auxiliary_heating(vin, service)
 
     async def _handle_set_target_soc(service: ServiceCall) -> None:
-        vin = service.data[CONF_VIN]
-        account = _get_account_for_vin(hass, vin)
-        if account is None:
-            _LOGGER.error("No account found for VIN %s", vin)
+        result = _resolve_service_call(hass, service)
+        if result is None:
             return
-        await account.set_target_soc(service)
+        vin, account = result
+        await account.set_target_soc(vin, service)
 
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CLOUD_DATA):
         hass.services.async_register(
@@ -158,6 +185,41 @@ def _async_register_services(hass: HomeAssistant) -> None:
         )
 
 
+def _async_cleanup_orphaned_devices(
+    hass: HomeAssistant, config_entry: ConfigEntry
+) -> None:
+    """Remove devices that no longer have a matching vehicle in the account.
+
+    This ensures that after migration or vehicle removal, no orphaned device
+    entries remain in the device registry.
+    """
+    runtime_data: AudiRuntimeData | None = getattr(config_entry, "runtime_data", None)
+    if runtime_data is None:
+        return
+
+    active_vins: set[str] = set()
+    for vehicle_data in runtime_data.account.config_vehicles:
+        if vehicle_data.vehicle and vehicle_data.vehicle.vin:
+            active_vins.add(vehicle_data.vehicle.vin.lower())
+
+    device_registry = dr.async_get(hass)
+    devices = dr.async_entries_for_config_entry(device_registry, config_entry.entry_id)
+
+    for device_entry in devices:
+        device_vin: str | None = None
+        for domain, identifier in device_entry.identifiers:
+            if domain == DOMAIN:
+                device_vin = identifier
+                break
+
+        if device_vin is not None and device_vin.lower() not in active_vins:
+            _LOGGER.info(
+                "Removing orphaned device %s (VIN no longer active)",
+                device_entry.id,
+            )
+            device_registry.async_remove_device(device_entry.id)
+
+
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Audi Connect from a config entry."""
     account = AudiAccount(hass, config_entry)
@@ -178,6 +240,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if config_entry.options.get(CONF_SCAN_INITIAL, True):
         await coordinator.async_config_entry_first_refresh()
 
+    _async_cleanup_orphaned_devices(hass, config_entry)
     _async_register_services(hass)
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     return True

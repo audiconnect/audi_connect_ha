@@ -26,12 +26,12 @@ from .const import (
     CONF_CLIMATE_SEAT_RR,
     CONF_CLIMATE_TEMP_C,
     CONF_CLIMATE_TEMP_F,
+    CONF_DEVICE_ID,
     CONF_DURATION,
     CONF_FILTER_VINS,
     CONF_REGION,
     CONF_SPIN,
     CONF_TARGET_SOC,
-    CONF_VIN,
     CONF_PASSWORD,
     CONF_USERNAME,
     DEFAULT_API_LEVEL,
@@ -45,17 +45,19 @@ from .dashboard import Dashboard
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
-SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema({vol.Required(CONF_VIN): cv.string})
+SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema(
+    {vol.Required(CONF_DEVICE_ID): cv.string}
+)
 
 SERVICE_EXECUTE_VEHICLE_ACTION = "execute_vehicle_action"
 SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
-    {vol.Required(CONF_VIN): cv.string, vol.Required(CONF_ACTION): cv.string}
+    {vol.Required(CONF_DEVICE_ID): cv.string, vol.Required(CONF_ACTION): cv.string}
 )
 
 SERVICE_START_CLIMATE_CONTROL = "start_climate_control"
 SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_VIN): cv.string,
+        vol.Required(CONF_DEVICE_ID): cv.string,
         vol.Optional(CONF_CLIMATE_TEMP_F): cv.positive_int,
         vol.Optional(CONF_CLIMATE_TEMP_C): cv.positive_int,
         vol.Optional(CONF_CLIMATE_GLASS): cv.boolean,
@@ -70,13 +72,16 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
 
 SERVICE_START_AUXILIARY_HEATING = "start_auxiliary_heating"
 SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
-    {vol.Required(CONF_VIN): cv.string, vol.Optional(CONF_DURATION): cv.positive_int}
+    {
+        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Optional(CONF_DURATION): cv.positive_int,
+    }
 )
 
 SERVICE_SET_TARGET_SOC = "set_target_soc"
 SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_VIN): cv.string,
+        vol.Required(CONF_DEVICE_ID): cv.string,
         vol.Required(CONF_TARGET_SOC): vol.All(
             cv.positive_int, vol.Range(min=20, max=100)
         ),
@@ -166,8 +171,9 @@ class AudiAccount(AudiConnectObserver):
         _LOGGER.debug("Successfully refreshed cloud data")
         return self.config_vehicles
 
-    async def execute_vehicle_action(self, service: ServiceCall) -> None:
-        vin = service.data.get(CONF_VIN).lower()
+    async def execute_vehicle_action(self, vin: str, service: ServiceCall) -> None:
+        """Execute a vehicle action by VIN."""
+        vin = vin.lower()
         action = service.data.get(CONF_ACTION).lower()
 
         if action == "lock":
@@ -197,10 +203,10 @@ class AudiAccount(AudiConnectObserver):
         elif action == "stop_window_heating":
             await self.connection.set_vehicle_window_heating(vin, False)
 
-    async def start_climate_control(self, service: ServiceCall) -> None:
-        vin = service.data.get(CONF_VIN).lower()
+    async def start_climate_control(self, vin: str, service: ServiceCall) -> None:
+        """Start climate control for a vehicle by VIN."""
         await self.connection.start_climate_control(
-            vin,
+            vin.lower(),
             service.data.get(CONF_CLIMATE_TEMP_F),
             service.data.get(CONF_CLIMATE_TEMP_C),
             service.data.get(CONF_CLIMATE_GLASS, False),
@@ -212,24 +218,27 @@ class AudiAccount(AudiConnectObserver):
             service.data.get(CONF_CLIMATE_MODE),
         )
 
-    async def start_auxiliary_heating(self, service: ServiceCall) -> None:
+    async def start_auxiliary_heating(self, vin: str, service: ServiceCall) -> None:
+        """Start auxiliary heating for a vehicle by VIN."""
         await self.connection.set_vehicle_pre_heater(
-            vin=service.data.get(CONF_VIN),
+            vin=vin.lower(),
             activate=True,
             duration=service.data.get(CONF_DURATION),
         )
 
-    async def set_target_soc(self, service: ServiceCall) -> None:
+    async def set_target_soc(self, vin: str, service: ServiceCall) -> None:
+        """Set target state of charge for a vehicle by VIN."""
         await self.connection.set_target_state_of_charge(
-            service.data.get(CONF_VIN).lower(),
+            vin.lower(),
             service.data.get(CONF_TARGET_SOC),
         )
 
     async def handle_notification(self, vin: str, action: str) -> None:
         await self._refresh_vehicle_data(vin)
 
-    async def refresh_vehicle_data(self, service: ServiceCall) -> None:
-        await self._refresh_vehicle_data(service.data.get(CONF_VIN).lower())
+    async def refresh_vehicle_data(self, vin: str) -> None:
+        """Refresh data for a specific vehicle by VIN."""
+        await self._refresh_vehicle_data(vin.lower())
 
     async def _refresh_vehicle_data(self, vin: str) -> None:
         redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
