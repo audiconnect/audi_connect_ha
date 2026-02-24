@@ -54,7 +54,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     password=user_input[CONF_PASSWORD],
                     country=region,
                     spin=user_input.get(CONF_SPIN),
-                    api_level=user_input[CONF_API_LEVEL],
+                    api_level=int(user_input[CONF_API_LEVEL]),
                 )
                 if not await connection.try_login(False):
                     errors["base"] = "invalid_credentials"
@@ -70,7 +70,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 user_input.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
                                 MIN_UPDATE_INTERVAL,
                             ),
-                            CONF_API_LEVEL: user_input[CONF_API_LEVEL],
+                            CONF_API_LEVEL: int(user_input[CONF_API_LEVEL]),
                         },
                     )
             except Exception:  # noqa: BLE001
@@ -93,8 +93,8 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): NumberSelector(
                         NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")
                     ),
-                    vol.Required(CONF_API_LEVEL, default=API_LEVELS[DEFAULT_API_LEVEL]): SelectSelector(
-                        SelectSelectorConfig(options=API_LEVELS, mode=SelectSelectorMode.DROPDOWN)
+                    vol.Required(CONF_API_LEVEL, default=str(API_LEVELS[DEFAULT_API_LEVEL])): SelectSelector(
+                        SelectSelectorConfig(options=[str(level) for level in API_LEVELS], mode=SelectSelectorMode.DROPDOWN)
                     ),
                 }
             ),
@@ -115,6 +115,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             user_input[CONF_SCAN_INTERVAL] = max(
                 int(user_input[CONF_SCAN_INTERVAL]), MIN_UPDATE_INTERVAL
             )
+            user_input[CONF_API_LEVEL] = int(user_input[CONF_API_LEVEL])
             return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
@@ -138,12 +139,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ): NumberSelector(NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")),
                     vol.Required(
                         CONF_API_LEVEL,
-                        default=self._config_entry.options.get(
+                        default=str(self._config_entry.options.get(
                             CONF_API_LEVEL,
                             self._config_entry.data.get(CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]),
-                        ),
+                        )),
                     ): SelectSelector(
-                        SelectSelectorConfig(options=API_LEVELS, mode=SelectSelectorMode.DROPDOWN)
+                        SelectSelectorConfig(options=[str(level) for level in API_LEVELS], mode=SelectSelectorMode.DROPDOWN)
                     ),
                     vol.Optional(
                         CONF_FILTER_VINS,
