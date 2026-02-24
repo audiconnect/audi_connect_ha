@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -28,6 +29,8 @@ from .const import CONF_SCAN_INITIAL, CONF_VIN, DOMAIN, PLATFORMS
 from .coordinator import AudiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 @dataclass
@@ -59,11 +62,6 @@ def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator
         if runtime_data is not None:
             coordinators.append(runtime_data.coordinator)
     return coordinators
-
-
-async def async_setup(_hass: HomeAssistant, _config: dict[str, Any]) -> bool:
-    """Set up via config entries only."""
-    return True
 
 
 async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
@@ -195,4 +193,4 @@ async def async_remove_config_entry_device(
     return True
 
 
-__all__ = ["AudiRuntimeData", "async_setup", "async_setup_entry", "async_unload_entry"]
+__all__ = ["AudiRuntimeData", "async_setup_entry", "async_unload_entry"]
