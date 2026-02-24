@@ -33,7 +33,7 @@ class AudiConnectObserver(ABC):
 
 
 class AudiConnectAccount:
-    """Representation of an myAudi Account."""
+    """Representation of an Audi Connect Account."""
 
     def __init__(
         self,

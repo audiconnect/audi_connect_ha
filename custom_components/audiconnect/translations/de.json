@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Ung\u00fcltige Anmeldeinformationen",
       "invalid_username": "Ung\u00fcltiger Benutzername",
-      "unexpected": "Unerwarteter Fehler bei der Kommunikation mit dem myAudi Server",
+      "unexpected": "Unerwarteter Fehler bei der Kommunikation mit dem Audi Connect Server",
       "user_already_configured": "Konto wurde bereits konfiguriert"
     },
     "step": {
@@ -21,7 +21,7 @@
           "scan_interval": "Abfrageintervall",
           "api_level": "API-Level"
         },
-        "title": "myAudi Kontoinformationen",
+        "title": "Audi Connect Kontoinformationen",
         "data_description": {
           "api_level": "Die Datenstruktur des API-Requests variiert je nach Audi-Modell. Neuere Fahrzeuge verwenden eine aktualisierte Struktur im Vergleich zu älteren Modellen. Durch die Anpassung des API-Levels wird sichergestellt, dass das Fahrzeug die korrekte, fahrzeugspezifische Datenstruktur nutzt. Diese Einstellung kann später unter „KONFIGURATION“ geändert werden."
         }
@@ -37,7 +37,7 @@
           "scan_interval": "Abfrageintervall",
           "api_level": "API-Level"
         },
-        "title": "myAudi-Optionen",
+        "title": "Audi Connect-Optionen",
         "data_description": {
           "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
           "scan_active": "Führen Sie im festgelegten Scanintervall ein Cloud-Update durch.",

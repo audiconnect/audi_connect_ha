@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Virheelliset tunnistetiedot",
       "invalid_username": "Virheellinen käyttäjätunnus",
-      "unexpected": "Odottamaton virhe yhdistettäessä myAudi -palveluun",
+      "unexpected": "Odottamaton virhe yhdistettäessä Audi Connect -palveluun",
       "user_already_configured": "Tili on jo määritetty"
     },
     "step": {
@@ -21,7 +21,7 @@
           "scan_interval": "Skannausväli",
           "api_level": "API-taso"
         },
-        "title": "myAudi -tilin tiedot",
+        "title": "Audi Connect -tilin tiedot",
         "data_description": {
           "api_level": "Audi-ajoneuvoissa API-pyynnön tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot käyttävät päivitettyä tietorakennetta verrattuna vanhempiin malleihin. API-tason säätäminen varmistaa, että järjestelmä käyttää kussakin ajoneuvossa oikeaa tietorakennetta. Tätä voi myöhemmin muuttaa ASETUKSET-valikon kautta tarvittaessa."
         }
@@ -37,7 +37,7 @@
           "scan_interval": "Aikaväli",
           "api_level": "API-taso"
         },
-        "title": "myAudi -asetukset",
+        "title": "Audi Connect -asetukset",
         "data_description": {
           "scan_initial": "Päivitä pilvestä heti käynnistyksen yhteydessä.",
           "scan_active": "Päivitä pilvestä aikavälein.",

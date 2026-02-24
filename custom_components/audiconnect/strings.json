@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Invalid credentials",
       "invalid_username": "Invalid username",
-      "unexpected": "Unexpected error communicating with myAudi server",
+      "unexpected": "Unexpected error communicating with Audi Connect server",
       "user_already_configured": "Account has already been configured"
     },
     "step": {
@@ -21,7 +21,7 @@
           "scan_interval": "Scan interval",
           "api_level": "API Level"
         },
-        "title": "myAudi Account Info",
+        "title": "Audi Connect Account Info",
         "data_description": {
           "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be updated from the CONFIGURE menu later, if needed."
         }
@@ -38,7 +38,7 @@
           "api_level": "API Level",
           "filter_vins": "Excluded VINs"
         },
-        "title": "myAudi Options",
+        "title": "Audi Connect Options",
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
           "scan_active": "Perform a cloud update at the set scan interval.",

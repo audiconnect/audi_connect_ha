@@ -5,7 +5,7 @@
 
 Configuration is done through the Home Assistant UI.
 
-To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "myAudi".
+To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
 ![image](https://github.com/user-attachments/assets/68f4a38b-f09d-4486-a1a1-ab8a564095ab)
 
@@ -13,19 +13,19 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 **username**
 
-- (string)(Required) The username associated with your myAudi account.
+- (string)(Required) The username associated with your Audi Connect account.
 
 **password**
 
-- (string)(Required) The password for your myAudi account.
+- (string)(Required) The password for your Audi Connect account.
 
 **S-PIN**
 
-- (string)(Optional) The S-PIN for your myAudi account.
+- (string)(Optional) The S-PIN for your Audi Connect account.
 
 **region**
 
-- (Required) The region where your myAudi account is registered.
+- (Required) The region where your Audi Connect account is registered.
   - 'DE' for Europe (or leave unset)
   - 'US' for United States of America
   - 'CA' for Canada
@@ -33,7 +33,7 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 **scan_interval**
 
-- (number)(Optional) The frequency in minutes for how often to fetch status data from myAudi. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
+- (number)(Optional) The frequency in minutes for how often to fetch status data from Audi Connect. (Optional. Default is 15 minutes, can be no more frequent than 15 min.)
 
 **api_level**
 

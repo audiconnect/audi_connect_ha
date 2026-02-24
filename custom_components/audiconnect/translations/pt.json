@@ -8,7 +8,7 @@
     "error": {
       "invalid_credentials": "Credenciais inválidas",
       "invalid_username": "Nome de utilizador inválido",
-      "unexpected": "Erro inesperado na comunicação com o servidor myAudi",
+      "unexpected": "Erro inesperado na comunicação com o servidor Audi Connect",
       "user_already_configured": "A conta já foi configurada"
     },
     "step": {
@@ -20,7 +20,7 @@
           "region": "Região",
           "scan_interval": "Intervalo de pesquisa"
         },
-        "title": "Informações da conta myAudi "
+        "title": "Informações da conta Audi Connect "
       }
     }
   },
@@ -30,7 +30,7 @@
         "data": {
           "scan_interval": "Intervalo de pesquisa"
         },
-        "title": "Opções myAudi",
+        "title": "Opções Audi Connect",
         "data_description": {
           "scan_interval": "(Minutos) É necessário reiniciar para que o novo intervalo de verificação entre em vigor."
         }
