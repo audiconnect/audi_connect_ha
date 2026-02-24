@@ -86,7 +86,7 @@ class AudiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_SPIN): str,
                     vol.Required(CONF_REGION, default="1"): SelectSelector(
                         SelectSelectorConfig(
-                            options=list(REGION_OPTIONS.keys()),
+                            options=[{"value": k, "label": v} for k, v in REGION_OPTIONS.items()],
                             mode=SelectSelectorMode.DROPDOWN,
                         )
                     ),
