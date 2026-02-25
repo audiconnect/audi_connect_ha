@@ -207,7 +207,7 @@ class AudiConnectAccount:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
+                    "VEHICLE REFRESH: ClientResponseError with status %s for VIN: %s. Vehicle does not support vehicle refresh — disabling.",
                     cre.status,
                     redacted_vin,
                 )
@@ -827,7 +827,7 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
+                    "CLIMATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support climater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
@@ -876,7 +876,7 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404, 502):
                 _LOGGER.debug(
-                    "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. Disabling preheater support.",
+                    "PREHEATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support preheater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
@@ -983,7 +983,7 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "CHARGER: ClientResponseError with status %s while updating charger for VIN: %s. Disabling charger support.",
+                    "CHARGER: ClientResponseError with status %s for VIN: %s. Vehicle does not support charger — disabling.",
                     cre.status,
                     redacted_vin,
                 )
@@ -1061,7 +1061,7 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
+                    "TRIP DATA: ClientResponseError with status %s for VIN: %s. Vehicle does not support trip data — disabling.",
                     cre.status,
                     redacted_vin,
                 )
