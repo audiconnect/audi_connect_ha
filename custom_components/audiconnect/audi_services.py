@@ -16,12 +16,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from bs4 import BeautifulSoup
 
 from .audi_api import AudiAPI
-from .audi_models import (
-    CurrentVehicleDataResponse,
-    TripDataResponse,
-    VehicleDataResponse,
-    VehiclesResponse,
-)
+from .audi_models import TripDataResponse, VehicleDataResponse, VehiclesResponse
 from .const import DEFAULT_API_LEVEL
 from .util import get_attr, to_byte_array
 
@@ -103,36 +98,22 @@ class AudiService:
         await self.login_request(user, password)
 
     async def refresh_vehicle_data(self, vin: str):
-        res = await self.request_current_vehicle_data(vin.upper())
-        request_id = res.request_id
-
-        checkUrl = "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            requestId=request_id,
-        )
-
-        await self.check_request_succeeded(
-            checkUrl,
-            "refresh vehicle data",
-            REQUEST_SUCCESSFUL,
-            REQUEST_FAILED,
-            "requestStatusResponse.status",
-        )
+        request_id = await self.request_current_vehicle_data(vin.upper())
+        await self.check_bff_request_succeeded(vin, request_id)
 
     async def request_current_vehicle_data(self, vin: str):
-        self._api.use_token(self.vwToken)
+        self._api.use_token(self._bearer_token_json)
         data = await self._api.post(
-            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            self.__get_cariad_url_for_vin(vin, "vehiclewakeup"),
+            data=None,
+            use_json=False,
         )
-        return CurrentVehicleDataResponse(data)
+
+        request_id = data.get("data", {}).get("requestID")
+        if request_id is None:
+            raise Exception("Vehicle wakeup response did not contain requestID")
+
+        return request_id
 
     async def get_preheater(self, vin: str):
         self._api.use_token(self.vwToken)
