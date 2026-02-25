@@ -119,13 +119,13 @@ class AudiAPI:
                         # request should return a tuple indicating the response itself and the
                         # http-status
                         if response.status != 204:
-                            _LOGGER.error(
-                                "Unexpected response: status=%s, reason=%s",
+                            _LOGGER.debug(
+                                "Non-success response: status=%s, reason=%s — will be handled by caller",
                                 response.status,
                                 response.reason,
                             )
                             if DEBUG_VERBOSE:
-                                _LOGGER.error(
+                                _LOGGER.debug(
                                     "Response url: %s, body: %s",
                                     url,
                                     await response.text(),
@@ -139,12 +139,12 @@ class AudiAPI:
 
         except CancelledError:
             if DEBUG_VERBOSE:
-                _LOGGER.error("Request cancelled (CancelledError).")
+                _LOGGER.debug("Request cancelled (CancelledError).")
             raise TimeoutError("Timeout error")
 
         except TimeoutError:
             if DEBUG_VERBOSE:
-                _LOGGER.error("Request timed out after %s seconds.", TIMEOUT)
+                _LOGGER.debug("Request timed out after %s seconds.", TIMEOUT)
             raise TimeoutError("Timeout error")
 
         except Exception as e:
