@@ -23,7 +23,7 @@
         },
         "title": "Audi Connect -tilin tiedot",
         "data_description": {
-          "api_level": "Audi-ajoneuvoissa API-pyynn\u00f6n tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot k\u00e4ytt\u00e4v\u00e4t p\u00e4ivitetty\u00e4 tietorakennetta verrattuna vanhempiin malleihin. API-tason s\u00e4\u00e4t\u00e4minen varmistaa, ett\u00e4 j\u00e4rjestelm\u00e4 k\u00e4ytt\u00e4\u00e4 kussakin ajoneuvossa oikeaa tietorakennetta. T\u00e4t\u00e4 voi my\u00f6hemmin muuttaa ASETUKSET-valikon kautta tarvittaessa."
+          "api_level": "Audi-ajoneuvoissa API-pyynn\u00f6n tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot k\u00e4ytt\u00e4v\u00e4t p\u00e4ivitetty\u00e4 tietorakennetta verrattuna vanhempiin malleihin. API-tason s\u00e4\u00e4t\u00e4minen varmistaa, ett\u00e4 j\u00e4rjestelm\u00e4 k\u00e4ytt\u00e4\u00e4 kussakin ajoneuvossa oikeaa tietorakennetta. T\u00e4t\u00e4 voi muuttaa my\u00f6hemmin Uudelleenm\u00e4\u00e4ritys-valinnan kautta."
         }
       }
     }
@@ -33,16 +33,12 @@
       "init": {
         "data": {
           "scan_initial": "P\u00e4ivit\u00e4 pilwest\u00e4 k\u00e4ynnistyksess\u00e4",
-          "scan_active": "Aktiivinen tarkistus aikav\u00e4lein",
-          "scan_interval": "Aikav\u00e4li",
-          "api_level": "API-taso"
+          "scan_interval": "Aikav\u00e4li"
         },
         "title": "Audi Connect -asetukset",
         "data_description": {
           "scan_initial": "P\u00e4ivit\u00e4 pilwest\u00e4 heti k\u00e4ynnistyksen yhteydess\u00e4.",
-          "scan_active": "P\u00e4ivit\u00e4 pilwest\u00e4 aikav\u00e4lein.",
-          "scan_interval": "Minuutit aktiivisten tarkistusten v\u00e4lill\u00e4. Jos 'Aktiivinen tarkistus aikav\u00e4lein' ei ole k\u00e4yt\u00f6ss\u00e4, t\u00e4m\u00e4 arvo ei vaikuta.",
-          "api_level": "Audi-ajoneuvoissa API-pyynn\u00f6n tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot k\u00e4ytt\u00e4v\u00e4t p\u00e4ivitetty\u00e4 tietorakennetta verrattuna vanhempiin malleihin. API-tason s\u00e4\u00e4t\u00e4minen varmistaa, ett\u00e4 j\u00e4rjestelm\u00e4 k\u00e4ytt\u00e4\u00e4 kussakin ajoneuvossa oikeaa tietorakennetta."
+          "scan_interval": "Minuutit pilvikyselyjen v\u00e4lill\u00e4."
         }
       }
     }

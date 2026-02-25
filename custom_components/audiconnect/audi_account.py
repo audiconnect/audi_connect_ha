@@ -14,7 +14,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
 from .audi_models import VehicleData
 from .const import (
-    API_LEVELS,
     CONF_ACTION,
     CONF_API_LEVEL,
     CONF_CLIMATE_AT_UNLOCK,
@@ -116,12 +115,7 @@ class AudiAccount(AudiConnectObserver):
             password=self.config_entry.data.get(CONF_PASSWORD),
             country=self.config_entry.data.get(CONF_REGION),
             spin=self.config_entry.data.get(CONF_SPIN),
-            api_level=self.config_entry.options.get(
-                CONF_API_LEVEL,
-                self.config_entry.data.get(
-                    CONF_API_LEVEL, API_LEVELS[DEFAULT_API_LEVEL]
-                ),
-            ),
+            api_level=self.config_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL),
             excluded_vins=excluded_vins,
         )
         self.connection.add_observer(self)

@@ -26,7 +26,14 @@ from .audi_account import (
     SERVICE_START_CLIMATE_CONTROL,
     SERVICE_START_CLIMATE_CONTROL_SCHEMA,
 )
-from .const import CONF_DEVICE_ID, CONF_SCAN_INITIAL, DOMAIN, PLATFORMS
+from .const import (
+    CONF_API_LEVEL,
+    CONF_DEVICE_ID,
+    CONF_SCAN_INITIAL,
+    DEFAULT_API_LEVEL,
+    DOMAIN,
+    PLATFORMS,
+)
 from .coordinator import AudiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,9 +46,13 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
     if config_entry.version == 1:
-        # v1 -> v2: Service calls changed from manual VIN text input to
-        # device selector dropdown. Remove any devices that have lost all
-        # their entities (orphaned from a previous bad state).
+        # v1 -> v2:
+        # - Service calls changed from manual VIN text input to device selector
+        #   dropdown. Remove any devices that have lost all their entities
+        #   (orphaned from a previous bad state).
+        # - Options flow cleanup: "scan_active" removed (HA built-in "Enable
+        #   polling" toggle replaces it); "api_level" moved from options to
+        #   reconfigure flow (stored in data).
         device_registry = dr.async_get(hass)
         entity_registry = er.async_get(hass)
         devices = dr.async_entries_for_config_entry(
@@ -57,7 +68,21 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
                 )
                 device_registry.async_remove_device(device_entry.id)
 
-        hass.config_entries.async_update_entry(config_entry, version=2)
+        # Promote api_level from options → data if it was overridden there,
+        # then strip removed keys from options.
+        new_data = {**config_entry.data}
+        new_options = {**config_entry.options}
+
+        if CONF_API_LEVEL in new_options:
+            new_data[CONF_API_LEVEL] = int(new_options.pop(CONF_API_LEVEL))
+        elif CONF_API_LEVEL not in new_data:
+            new_data[CONF_API_LEVEL] = DEFAULT_API_LEVEL
+
+        new_options.pop("scan_active", None)
+
+        hass.config_entries.async_update_entry(
+            config_entry, version=2, data=new_data, options=new_options
+        )
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True

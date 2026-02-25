@@ -18,7 +18,6 @@ CONF_CLIMATE_SEAT_RR = "seat_rr"
 CONF_CLIMATE_AT_UNLOCK = "climatisation_at_unlock"
 CONF_CLIMATE_MODE = "climatisation_mode"
 CONF_SCAN_INITIAL = "scan_initial"
-CONF_SCAN_ACTIVE = "scan_active"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_API_LEVEL = "api_level"
 CONF_DURATION = "duration"
@@ -77,7 +76,6 @@ __all__ = [
     "CONF_FILTER_VINS",
     "CONF_PASSWORD",
     "CONF_REGION",
-    "CONF_SCAN_ACTIVE",
     "CONF_SCAN_INTERVAL",
     "CONF_SCAN_INITIAL",
     "CONF_SPIN",
