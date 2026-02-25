@@ -1,18 +1,19 @@
-import time
-from datetime import datetime, timezone, timedelta
-import logging
+from __future__ import annotations
+
 import asyncio
-from typing import List
+import logging
 import re
-
-from asyncio import TimeoutError
-from aiohttp import ClientResponseError
-
+import time
 from abc import ABC, abstractmethod
+from asyncio import TimeoutError
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from .audi_services import AudiService
+from aiohttp import ClientResponseError, ClientSession
+
 from .audi_api import AudiAPI
-from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime
+from .audi_services import AudiService
+from .util import get_attr, log_exception, parse_datetime, parse_float, parse_int
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,13 +38,13 @@ class AudiConnectAccount:
 
     def __init__(
         self,
-        session,
+        session: ClientSession,
         username: str,
         password: str,
         country: str,
-        spin: str,
+        spin: str | None,
         api_level: int,
-        excluded_vins: List[str] = None,
+        excluded_vins: list[str] | None = None,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)
@@ -52,18 +53,23 @@ class AudiConnectAccount:
         self._password = password
         self._loggedin = False
         self._support_vehicle_refresh = True
-        self._logintime = 0
+        self._logintime: float = 0
 
         self._connect_retries = 3
         self._connect_delay = 10
 
-        self._update_listeners = []
+        self._update_listeners: list[Any] = []
 
-        self._vehicles = []
-        self._audi_vehicles = []
+        self._vehicles: list[AudiConnectVehicle] = []
+        self._audi_vehicles: list[Any] = []
         self._excluded_vins = [v.lower() for v in (excluded_vins or [])]
 
-        self._observers: List[AudiConnectObserver] = []
+        self._observers: list[AudiConnectObserver] = []
+
+    @property
+    def vehicles(self) -> list[AudiConnectVehicle]:
+        """Return the list of discovered vehicles."""
+        return self._vehicles
 
     def add_observer(self, observer: AudiConnectObserver) -> None:
         self._observers.append(observer)
@@ -80,10 +86,9 @@ class AudiConnectAccount:
                 break
 
             if i < self._connect_retries - 1:
-                _LOGGER.error(
-                    "LOGIN: Login to Audi service failed, trying again in {} seconds".format(
-                        self._connect_delay
-                    )
+                _LOGGER.warning(
+                    "LOGIN: Login to Audi service failed, retrying in %s seconds",
+                    self._connect_delay,
                 )
                 await asyncio.sleep(self._connect_delay)
 
@@ -202,15 +207,15 @@ class AudiConnectAccount:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. Disabling refresh vehicle data support.",
+                    "VEHICLE REFRESH: ClientResponseError with status %s for VIN: %s. Vehicle does not support vehicle refresh — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self._support_vehicle_refresh = False
                 return "disabled"
             elif cre.status == 502:
-                _LOGGER.warning(
-                    "VEHICLE REFRESH: ClientResponseError with status %s while refreshing vehicle data for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                _LOGGER.debug(
+                    "VEHICLE REFRESH: Received status %s while refreshing vehicle data for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
                     redacted_vin,
                 )
@@ -713,27 +718,27 @@ class AudiConnectVehicle:
                 )
 
         except TimeoutError:
-            _LOGGER.error(
+            _LOGGER.warning(
                 "POSITION: TimeoutError encountered while updating vehicle position for VIN: %s.",
                 redacted_vin,
             )
             raise
         except ClientResponseError as cre:
             if cre.status in (403, 404):
-                _LOGGER.error(
-                    "POSITION: ClientResponseError with status %s for VIN: %s. Disabling vehicle position support.",
+                _LOGGER.debug(
+                    "POSITION: ClientResponseError with status %s for VIN: %s. Vehicle does not support position — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_position = False
             elif cre.status == 502:
-                _LOGGER.warning(
-                    "POSITION: ClientResponseError with status %s while updating vehicle position for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                _LOGGER.debug(
+                    "POSITION: Received status %s while updating vehicle position for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
                     redacted_vin,
                 )
             elif cre.status != 204:
-                _LOGGER.error(
+                _LOGGER.warning(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Error: %s",
                     cre.status,
                     redacted_vin,
@@ -822,14 +827,14 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. Disabling climater support.",
+                    "CLIMATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support climater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_climater = False
             elif cre.status == 502:
-                _LOGGER.warning(
-                    "CLIMATER: ClientResponseError with status %s while updating climater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                _LOGGER.debug(
+                    "CLIMATER: Received status %s while updating climater for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
                     redacted_vin,
                 )
@@ -871,7 +876,7 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404, 502):
                 _LOGGER.debug(
-                    "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. Disabling preheater support.",
+                    "PREHEATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support preheater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
@@ -978,14 +983,14 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "CHARGER: ClientResponseError with status %s while updating charger for VIN: %s. Disabling charger support.",
+                    "CHARGER: ClientResponseError with status %s for VIN: %s. Vehicle does not support charger — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_charger = False
             elif cre.status == 502:
-                _LOGGER.warning(
-                    "CHARGER: ClientResponseError with status %s while updating charger for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                _LOGGER.debug(
+                    "CHARGER: Received status %s while updating charger for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
                     redacted_vin,
                 )
@@ -1056,14 +1061,14 @@ class AudiConnectVehicle:
         except ClientResponseError as cre:
             if cre.status in (403, 404):
                 _LOGGER.debug(
-                    "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. Disabling trip data support.",
+                    "TRIP DATA: ClientResponseError with status %s for VIN: %s. Vehicle does not support trip data — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_trip_data = False
             elif cre.status == 502:
-                _LOGGER.warning(
-                    "TRIP DATA: ClientResponseError with status %s while updating trip data for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
+                _LOGGER.debug(
+                    "TRIP DATA: Received status %s while updating trip data for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
                     redacted_vin,
                 )

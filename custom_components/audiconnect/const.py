@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+
 DOMAIN = "audiconnect"
 
 CONF_VIN = "vin"
+CONF_DEVICE_ID = "device_id"
 CONF_CARNAME = "carname"
 CONF_ACTION = "action"
 CONF_CLIMATE_TEMP_F = "temp_f"
@@ -13,7 +18,7 @@ CONF_CLIMATE_SEAT_RR = "seat_rr"
 CONF_CLIMATE_AT_UNLOCK = "climatisation_at_unlock"
 CONF_CLIMATE_MODE = "climatisation_mode"
 CONF_SCAN_INITIAL = "scan_initial"
-CONF_SCAN_ACTIVE = "scan_active"
+CONF_SCAN_INTERVAL = "scan_interval"
 CONF_API_LEVEL = "api_level"
 CONF_DURATION = "duration"
 CONF_TARGET_SOC = "target_soc"
@@ -25,78 +30,65 @@ DEFAULT_API_LEVEL = 0
 
 CONF_SPIN = "spin"
 CONF_REGION = "region"
-CONF_SERVICE_URL = "service_url"
-CONF_MUTABLE = "mutable"
 CONF_FILTER_VINS = "filter_vins"
 
-SIGNAL_STATE_UPDATED = "{}.updated".format(DOMAIN)
-TRACKER_UPDATE = f"{DOMAIN}_tracker_update"
+REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
+REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
 
-RESOURCES = [
-    "position",
-    "last_update_time",
-    "shortterm_current",
-    "shortterm_reset",
-    "longterm_current",
-    "longterm_reset",
-    "mileage",
-    "range",
-    "service_inspection_time",
-    "service_inspection_distance",
-    "service_adblue_distance",
-    "oil_change_time",
-    "oil_change_distance",
-    "oil_level",
-    "charging_state",
-    "charging_mode",
-    "charging_type",
-    "energy_flow",
-    "max_charge_current",
-    "engine_type1",
-    "engine_type2",
-    "parking_light",
-    "any_window_open",
-    "any_door_unlocked",
-    "any_door_open",
-    "trunk_unlocked",
-    "trunk_open",
-    "hood_open",
-    "tank_level",
-    "state_of_charge",
-    "remaining_charging_time",
-    "plug_state",
-    "sun_roof",
-    "doors_trunk_status",
-    "left_front_door_open",
-    "right_front_door_open",
-    "left_rear_door_open",
-    "right_rear_door_open",
-    "left_front_window_open",
-    "right_front_window_open",
-    "left_rear_window_open",
-    "right_rear_window_open",
-    "braking_status",
-    "is_moving",
-]
+REGION_EUROPE = "DE"
+REGION_CANADA = "CA"
+REGION_USA = "US"
+REGION_CHINA = "CN"
 
-COMPONENTS = {
-    "sensor": "sensor",
-    "binary_sensor": "binary_sensor",
-    "lock": "lock",
-    "device_tracker": "device_tracker",
-    "switch": "switch",
-}
-
-REGION_EUROPE: str = "DE"
-REGION_CANADA: str = "CA"
-REGION_USA: str = "US"
-REGION_CHINA: str = "CN"
-
-REGIONS = {
+REGIONS: dict[int, str] = {
     1: REGION_EUROPE,
     2: REGION_CANADA,
     3: REGION_USA,
     4: REGION_CHINA,
 }
 
-API_LEVELS = [0, 1]
+API_LEVELS: list[int] = [0, 1]
+
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.SENSOR,
+    Platform.DEVICE_TRACKER,
+    Platform.LOCK,
+    Platform.SWITCH,
+]
+
+__all__ = [
+    "API_LEVELS",
+    "CONF_ACTION",
+    "CONF_API_LEVEL",
+    "CONF_CARNAME",
+    "CONF_DEVICE_ID",
+    "CONF_CLIMATE_AT_UNLOCK",
+    "CONF_CLIMATE_GLASS",
+    "CONF_CLIMATE_MODE",
+    "CONF_CLIMATE_SEAT_FL",
+    "CONF_CLIMATE_SEAT_FR",
+    "CONF_CLIMATE_SEAT_RL",
+    "CONF_CLIMATE_SEAT_RR",
+    "CONF_CLIMATE_TEMP_C",
+    "CONF_CLIMATE_TEMP_F",
+    "CONF_DURATION",
+    "CONF_FILTER_VINS",
+    "CONF_PASSWORD",
+    "CONF_REGION",
+    "CONF_SCAN_INTERVAL",
+    "CONF_SCAN_INITIAL",
+    "CONF_SPIN",
+    "CONF_TARGET_SOC",
+    "CONF_USERNAME",
+    "CONF_VIN",
+    "DEFAULT_API_LEVEL",
+    "DEFAULT_UPDATE_INTERVAL",
+    "DOMAIN",
+    "MIN_UPDATE_INTERVAL",
+    "PLATFORMS",
+    "REFRESH_VEHICLE_DATA_COMPLETED_EVENT",
+    "REFRESH_VEHICLE_DATA_FAILED_EVENT",
+    "REGIONS",
+    "UPDATE_SLEEP",
+]

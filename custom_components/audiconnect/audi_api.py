@@ -1,11 +1,14 @@
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
+from asyncio import CancelledError, TimeoutError
 from datetime import datetime
-import asyncio
-from asyncio import TimeoutError, CancelledError
-from aiohttp import ClientResponseError
+from typing import Any
+
+from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
-from typing import Dict
 
 # ===========================================
 # VERBOSE DEBUG TOGGLE
@@ -22,33 +25,35 @@ class AudiAPI:
     HDR_XAPP_VERSION = "4.31.0"
     HDR_USER_AGENT = "Android/4.31.0 (Build 800341641.root project 'myaudi_android'.ext.buildTime) Android/13"
 
-    def __init__(self, session, proxy=None):
-        self.__token = None
-        self.__xclientid = None
+    def __init__(self, session: ClientSession, proxy: str | None = None) -> None:
+        self.__token: dict[str, Any] | None = None
+        self.__xclientid: str | None = None
         self._session = session
-        self.__proxy = {"http": proxy, "https": proxy} if proxy else None
+        self.__proxy: dict[str, str | None] | None = (
+            {"http": proxy, "https": proxy} if proxy else None
+        )
 
-    def use_token(self, token):
+    def use_token(self, token: dict[str, Any] | None) -> None:
         self.__token = token
         if DEBUG_VERBOSE:
             _LOGGER.debug("[use_token] Token set: %s", token)
 
-    def set_xclient_id(self, xclientid):
+    def set_xclient_id(self, xclientid: str | None) -> None:
         self.__xclientid = xclientid
         if DEBUG_VERBOSE:
             _LOGGER.debug("[set_xclient_id] X-Client-ID set: %s", xclientid)
 
     async def request(
         self,
-        method,
-        url,
-        data,
-        headers: Dict[str, str] = None,
+        method: str,
+        url: str,
+        data: Any,
+        headers: dict[str, str] | None = None,
         raw_reply: bool = False,
         raw_contents: bool = False,
         rsp_wtxt: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Any:
         if DEBUG_VERBOSE:
             _LOGGER.debug("[REQUEST INITIATED]")
             _LOGGER.debug("Method: %s", method)
@@ -114,13 +119,13 @@ class AudiAPI:
                         # request should return a tuple indicating the response itself and the
                         # http-status
                         if response.status != 204:
-                            _LOGGER.error(
-                                "Unexpected response: status=%s, reason=%s",
+                            _LOGGER.debug(
+                                "Non-success response: status=%s, reason=%s — will be handled by caller",
                                 response.status,
                                 response.reason,
                             )
                             if DEBUG_VERBOSE:
-                                _LOGGER.error(
+                                _LOGGER.debug(
                                     "Response url: %s, body: %s",
                                     url,
                                     await response.text(),
@@ -134,12 +139,12 @@ class AudiAPI:
 
         except CancelledError:
             if DEBUG_VERBOSE:
-                _LOGGER.error("Request cancelled (CancelledError).")
+                _LOGGER.debug("Request cancelled (CancelledError).")
             raise TimeoutError("Timeout error")
 
         except TimeoutError:
             if DEBUG_VERBOSE:
-                _LOGGER.error("Request timed out after %s seconds.", TIMEOUT)
+                _LOGGER.debug("Request timed out after %s seconds.", TIMEOUT)
             raise TimeoutError("Timeout error")
 
         except Exception as e:
@@ -148,8 +153,12 @@ class AudiAPI:
             raise
 
     async def get(
-        self, url, raw_reply: bool = False, raw_contents: bool = False, **kwargs
-    ):
+        self,
+        url: str,
+        raw_reply: bool = False,
+        raw_contents: bool = False,
+        **kwargs: Any,
+    ) -> Any:
         full_headers = self.__get_headers()
         if DEBUG_VERBOSE:
             _LOGGER.debug("[GET] URL: %s | Headers: %s", url, full_headers)
@@ -163,7 +172,9 @@ class AudiAPI:
             **kwargs,
         )
 
-    async def put(self, url, data=None, headers: Dict[str, str] = None):
+    async def put(
+        self, url: str, data: Any = None, headers: dict[str, str] | None = None
+    ) -> Any:
         full_headers = self.__get_headers()
         if headers:
             full_headers.update(headers)
@@ -175,14 +186,14 @@ class AudiAPI:
 
     async def post(
         self,
-        url,
-        data=None,
-        headers: Dict[str, str] = None,
+        url: str,
+        data: Any = None,
+        headers: dict[str, str] | None = None,
         use_json: bool = True,
         raw_reply: bool = False,
         raw_contents: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Any:
         full_headers = self.__get_headers()
         if headers:
             full_headers.update(headers)
@@ -202,8 +213,8 @@ class AudiAPI:
             **kwargs,
         )
 
-    def __get_headers(self):
-        data = {
+    def __get_headers(self) -> dict[str, str]:
+        data: dict[str, str] = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-App-Version": self.HDR_XAPP_VERSION,
@@ -219,7 +230,7 @@ class AudiAPI:
         return data
 
 
-def obj_parser(obj):
+def obj_parser(obj: dict[str, Any]) -> dict[str, Any]:
     """Parse datetime."""
     for key, val in obj.items():
         try:
@@ -229,5 +240,8 @@ def obj_parser(obj):
     return obj
 
 
-def json_loads(s):
+def json_loads(s: str) -> Any:
     return json.loads(s, object_hook=obj_parser)
+
+
+__all__ = ["AudiAPI", "json_loads", "obj_parser"]

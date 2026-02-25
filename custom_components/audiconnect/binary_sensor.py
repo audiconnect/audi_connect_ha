@@ -1,46 +1,48 @@
-"""Support for Audi Connect sensors."""
+"""Support for Audi Connect binary sensors."""
 
-import logging
+from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.const import CONF_USERNAME
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import AudiRuntimeData
 from .audi_entity import AudiEntity
-from .const import DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Old way."""
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    runtime_data: AudiRuntimeData = config_entry.runtime_data
+    entities = [
+        AudiBinarySensor(runtime_data.coordinator, sensor)
+        for config_vehicle in runtime_data.account.config_vehicles
+        for sensor in config_vehicle.binary_sensors
+    ]
+    async_add_entities(entities)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    sensors = []
-    account = config_entry.data.get(CONF_USERNAME)
-    audiData = hass.data[DOMAIN][account]
-
-    for config_vehicle in audiData.config_vehicles:
-        for binary_sensor in config_vehicle.binary_sensors:
-            sensors.append(AudiSensor(config_vehicle, binary_sensor))
-
-    async_add_entities(sensors)
-
-
-class AudiSensor(AudiEntity, BinarySensorEntity):
-    """Representation of an Audi sensor."""
+class AudiBinarySensor(AudiEntity, BinarySensorEntity):
+    """Representation of an Audi binary sensor."""
 
     @property
-    def is_on(self):
-        """Return True if the binary sensor is on."""
+    def is_on(self) -> bool | None:
         return self._instrument.is_on
 
     @property
-    def device_class(self):
-        """Return the device_class of this sensor."""
+    def device_class(self) -> BinarySensorDeviceClass | None:
         return self._instrument.device_class
 
     @property
-    def entity_category(self):
-        """Return the entity_category."""
+    def entity_category(self) -> EntityCategory | None:
         return self._instrument.entity_category
+
+
+__all__ = ["AudiBinarySensor", "async_setup_entry"]
