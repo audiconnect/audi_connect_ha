@@ -286,7 +286,7 @@ class AudiService:
         )
         vins = json.loads(rep_rsptxt)
         if "errors" in vins:
-            raise Exception("API returned errors: {vins['errors']}")
+            raise Exception(f"API returned errors: {vins['errors']}")
 
         if "data" not in vins or vins["data"] is None:
             raise Exception("No data in API response")
