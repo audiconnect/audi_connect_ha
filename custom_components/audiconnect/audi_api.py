@@ -74,6 +74,24 @@ class AudiAPI:
                         _LOGGER.debug("Reason: %s", response.reason)
                         _LOGGER.debug("Headers: %s", dict(response.headers))
 
+                    vcf_remaining = response.headers.get("Vcf-Remaining-Calls")
+                    if vcf_remaining is not None:
+                        try:
+                            remaining = int(vcf_remaining)
+                        except ValueError:
+                            remaining = None
+                        if remaining is not None:
+                            if remaining < 10:
+                                _LOGGER.warning(
+                                    "[VCF-RATE-LIMIT] Remaining calls: %d — warning: VCF call limit nearly exhausted",
+                                    remaining,
+                                )
+                            else:
+                                _LOGGER.debug(
+                                    "[VCF-RATE-LIMIT] Remaining calls: %d",
+                                    remaining,
+                                )
+
                     if raw_reply:
                         if DEBUG_VERBOSE:
                             _LOGGER.debug("Returning raw reply object.")
