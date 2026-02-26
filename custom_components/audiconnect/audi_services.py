@@ -275,22 +275,11 @@ class AudiService:
             "query": "query vehicleList {\n userVehicles {\n vin\n mappingVin\n vehicle { core { modelYear\n }\n media { shortName\n longName }\n }\n csid\n commissionNumber\n type\n devicePlatform\n mbbConnect\n userRole {\n role\n }\n vehicle {\n classification {\n driveTrain\n }\n }\n nickname\n }\n}"
         }
 
-        # Determine the correct GraphQL endpoint based on region
-        if self._country.upper() == "US":
-            # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
-            graphql_url = "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
-        elif self._country.upper() == "GB":
-            # UK-specific endpoint (post-Brexit)
-            graphql_url = (
-                "https://www.audi.co.uk/userinfo-emea/v2/myaudi/proxy/vgql/v1/graphql"
-            )
-        else:
-            # EU and rest of world
-            graphql_url = "https://app-api.live-my.audi.com/vgql/v1/graphql"
-
         req_rsp, rep_rsptxt = await self._api.request(
             "POST",
-            graphql_url,
+            "https://app-api.my.aoa.audi.com/vgql/v1/graphql"
+            if self._country.upper() == "US"
+            else "https://app-api.live-my.audi.com/vgql/v1/graphql",  # Starting in 2023, US users need to point at the aoa (Audi of America) URL.
             json.dumps(req_data),
             headers=headers,
             allow_redirects=False,
