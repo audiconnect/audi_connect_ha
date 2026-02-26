@@ -91,14 +91,12 @@ REGION_EUROPE: str = "DE"
 REGION_CANADA: str = "CA"
 REGION_USA: str = "US"
 REGION_CHINA: str = "CN"
-REGION_GB: str = "GB"
 
 REGIONS = {
     1: REGION_EUROPE,
     2: REGION_CANADA,
     3: REGION_USA,
     4: REGION_CHINA,
-    5: REGION_GB,
 }
 
 API_LEVELS = [0, 1]
