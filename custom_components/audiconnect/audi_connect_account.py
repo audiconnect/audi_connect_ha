@@ -265,8 +265,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_LOCK)
-
             return True
 
         except Exception as exception:
@@ -276,6 +274,8 @@ class AudiConnectAccount:
                     action="lock" if lock else "unlock", vin=vin
                 ),
             )
+        finally:
+            await self.notify(vin, ACTION_LOCK)
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
@@ -331,8 +331,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_CLIMATISATION)
-
             return True
 
         except Exception as exception:
@@ -342,6 +340,8 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            await self.notify(vin, ACTION_CLIMATISATION)
 
     async def start_climate_control(
         self,
@@ -382,8 +382,6 @@ class AudiConnectAccount:
 
             _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
 
-            await self.notify(vin, ACTION_CLIMATISATION)
-
             return True
 
         except Exception as exception:
@@ -392,6 +390,8 @@ class AudiConnectAccount:
                 exc_info=True,
             )
             return False
+        finally:
+            await self.notify(vin, ACTION_CLIMATISATION)
 
     async def set_battery_charger(self, vin: str, activate: bool, timer: bool):
         if not self._loggedin:
@@ -419,8 +419,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_CHARGER)
-
             return True
 
         except Exception as exception:
@@ -430,6 +428,8 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            await self.notify(vin, ACTION_CHARGER)
 
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
         if not self._loggedin:
@@ -453,8 +453,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_WINDOW_HEATING)
-
             return True
 
         except Exception as exception:
@@ -464,6 +462,8 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            await self.notify(vin, ACTION_WINDOW_HEATING)
 
     async def set_vehicle_pre_heater(self, vin: str, activate: bool, **kwargs):
         if not self._loggedin:
@@ -488,8 +488,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_PRE_HEATER)
-
             return True
 
         except Exception as exception:
@@ -499,6 +497,8 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            await self.notify(vin, ACTION_PRE_HEATER)
 
 
 class AudiConnectVehicle:
