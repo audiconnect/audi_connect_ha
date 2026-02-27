@@ -638,12 +638,6 @@ class VehiclesResponse:
             _LOGGER.warning("No vehicle data received from API. Check authentication.")
             return
 
-    def parse(self, data):
-        user_vehicles = data.get("userVehicles")
-        if user_vehicles is None:
-            _LOGGER.warning("No vehicle data received from API. Check authentication.")
-            return
-
         for item in user_vehicles:
             vehicle = Vehicle()
             vehicle.parse(item)
