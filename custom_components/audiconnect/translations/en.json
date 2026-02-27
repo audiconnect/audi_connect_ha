@@ -56,7 +56,7 @@
         "title": "Audi Connect Options",
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
-          "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
+          "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
           "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud.",
           "scan_interval": "Minutes between cloud polling updates.",
           "filter_vins": "Comma-separated VIN list to exclude from setup and updates."
