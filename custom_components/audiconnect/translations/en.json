@@ -49,6 +49,7 @@
         "data": {
           "scan_initial": "Cloud Update at Startup",
           "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
+          "update_sleep": "Cloud Refresh Delay",
           "scan_interval": "Scan Interval",
           "filter_vins": "Excluded VINs"
         },
@@ -56,6 +57,7 @@
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
           "refresh_vehicle_data_after_action": "Automatically send a vehicle refresh command after every service action (e.g. climate, lock). When disabled, only a cloud data refresh is performed.",
+          "update_sleep": "Seconds to wait after a service action before refreshing cloud data, giving the vehicle time to report its state.",
           "scan_interval": "Minutes between cloud polling updates.",
           "filter_vins": "Comma-separated VIN list to exclude from setup and updates."
         }

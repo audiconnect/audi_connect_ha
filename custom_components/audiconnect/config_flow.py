@@ -32,10 +32,12 @@ from .const import (
     CONF_SCAN_INITIAL,
     CONF_SCAN_INTERVAL,
     CONF_SPIN,
+    CONF_UPDATE_SLEEP,
     CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    UPDATE_SLEEP,
     MIN_UPDATE_INTERVAL,
     REGIONS,
 )
@@ -241,6 +243,14 @@ class OptionsFlowHandler(OptionsFlow):
                             CONF_REFRESH_AFTER_ACTION, False
                         ),
                     ): bool,
+                    vol.Required(
+                        CONF_UPDATE_SLEEP,
+                        default=self.config_entry.options.get(
+                            CONF_UPDATE_SLEEP, UPDATE_SLEEP
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(min=0, mode="box")
+                    ),
                     vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=self.config_entry.options.get(
