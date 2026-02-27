@@ -234,6 +234,9 @@ class AudiAccount(AudiConnectObserver):
             await self._refresh_vehicle_data(vin)
         else:
             update_sleep = self.config_entry.options.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP)
+            _LOGGER.debug(
+                "Sleeping %s seconds before cloud data refresh", update_sleep
+            )
             await asyncio.sleep(update_sleep)
             if self._refresh_callback:
                 await self._refresh_callback()
@@ -257,6 +260,9 @@ class AudiAccount(AudiConnectObserver):
             )
 
         update_sleep = self.config_entry.options.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP)
+        _LOGGER.debug(
+            "Sleeping %s seconds before cloud data refresh", update_sleep
+        )
         await asyncio.sleep(update_sleep)
         if self._refresh_callback:
             await self._refresh_callback()
