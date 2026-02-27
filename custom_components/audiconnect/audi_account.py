@@ -28,6 +28,7 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_DURATION,
     CONF_FILTER_VINS,
+    CONF_REFRESH_AFTER_ACTION,
     CONF_REGION,
     CONF_SPIN,
     CONF_TARGET_SOC,
@@ -228,7 +229,10 @@ class AudiAccount(AudiConnectObserver):
         )
 
     async def handle_notification(self, vin: str, action: str) -> None:
-        await self._refresh_vehicle_data(vin)
+        if self.config_entry.options.get(CONF_REFRESH_AFTER_ACTION, False):
+            await self._refresh_vehicle_data(vin)
+        elif self._refresh_callback:
+            await self._refresh_callback()
 
     async def refresh_vehicle_data(self, vin: str) -> None:
         """Refresh data for a specific vehicle by VIN."""

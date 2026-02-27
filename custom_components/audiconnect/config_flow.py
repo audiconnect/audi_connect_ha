@@ -27,6 +27,7 @@ from .const import (
     CONF_API_LEVEL,
     CONF_FILTER_VINS,
     CONF_PASSWORD,
+    CONF_REFRESH_AFTER_ACTION,
     CONF_REGION,
     CONF_SCAN_INITIAL,
     CONF_SCAN_INTERVAL,
@@ -233,6 +234,12 @@ class OptionsFlowHandler(OptionsFlow):
                     vol.Required(
                         CONF_SCAN_INITIAL,
                         default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
+                    ): bool,
+                    vol.Required(
+                        CONF_REFRESH_AFTER_ACTION,
+                        default=self.config_entry.options.get(
+                            CONF_REFRESH_AFTER_ACTION, False
+                        ),
                     ): bool,
                     vol.Required(
                         CONF_SCAN_INTERVAL,

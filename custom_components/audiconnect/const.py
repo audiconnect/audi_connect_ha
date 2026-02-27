@@ -31,6 +31,7 @@ DEFAULT_API_LEVEL = 0
 CONF_SPIN = "spin"
 CONF_REGION = "region"
 CONF_FILTER_VINS = "filter_vins"
+CONF_REFRESH_AFTER_ACTION = "refresh_vehicle_data_after_action"
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
@@ -74,6 +75,7 @@ __all__ = [
     "CONF_CLIMATE_TEMP_F",
     "CONF_DURATION",
     "CONF_FILTER_VINS",
+    "CONF_REFRESH_AFTER_ACTION",
     "CONF_PASSWORD",
     "CONF_REGION",
     "CONF_SCAN_INTERVAL",
