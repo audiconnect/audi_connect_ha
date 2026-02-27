@@ -28,7 +28,9 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_DURATION,
     CONF_FILTER_VINS,
+    CONF_REFRESH_AFTER_ACTION,
     CONF_REGION,
+    CONF_UPDATE_SLEEP,
     CONF_SPIN,
     CONF_TARGET_SOC,
     CONF_PASSWORD,
@@ -228,7 +230,13 @@ class AudiAccount(AudiConnectObserver):
         )
 
     async def handle_notification(self, vin: str, action: str) -> None:
-        await self._refresh_vehicle_data(vin)
+        if self.config_entry.options.get(CONF_REFRESH_AFTER_ACTION, False):
+            await self._refresh_vehicle_data(vin)
+        else:
+            update_sleep = self.config_entry.options.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP)
+            await asyncio.sleep(update_sleep)
+            if self._refresh_callback:
+                await self._refresh_callback()
 
     async def refresh_vehicle_data(self, vin: str) -> None:
         """Refresh data for a specific vehicle by VIN."""
@@ -248,7 +256,8 @@ class AudiAccount(AudiConnectObserver):
                 f"{DOMAIN}_{REFRESH_VEHICLE_DATA_FAILED_EVENT}", {"vin": redacted_vin}
             )
 
-        await asyncio.sleep(UPDATE_SLEEP)
+        update_sleep = self.config_entry.options.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP)
+        await asyncio.sleep(update_sleep)
         if self._refresh_callback:
             await self._refresh_callback()
 
