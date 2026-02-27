@@ -275,7 +275,10 @@ class AudiConnectAccount:
                 ),
             )
         finally:
-            await self.notify(vin, ACTION_LOCK)
+            try:
+                await self.notify(vin, ACTION_LOCK)
+            except Exception as ex:
+                _LOGGER.warning("Cloud refresh failed after lock/unlock for %s: %s", vin, ex)
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
@@ -341,7 +344,10 @@ class AudiConnectAccount:
                 ),
             )
         finally:
-            await self.notify(vin, ACTION_CLIMATISATION)
+            try:
+                await self.notify(vin, ACTION_CLIMATISATION)
+            except Exception as ex:
+                _LOGGER.warning("Cloud refresh failed after climatisation for %s: %s", vin, ex)
 
     async def start_climate_control(
         self,
@@ -391,7 +397,10 @@ class AudiConnectAccount:
             )
             return False
         finally:
-            await self.notify(vin, ACTION_CLIMATISATION)
+            try:
+                await self.notify(vin, ACTION_CLIMATISATION)
+            except Exception as ex:
+                _LOGGER.warning("Cloud refresh failed after climate control for %s: %s", vin, ex)
 
     async def set_battery_charger(self, vin: str, activate: bool, timer: bool):
         if not self._loggedin:
@@ -429,7 +438,10 @@ class AudiConnectAccount:
                 ),
             )
         finally:
-            await self.notify(vin, ACTION_CHARGER)
+            try:
+                await self.notify(vin, ACTION_CHARGER)
+            except Exception as ex:
+                _LOGGER.warning("Cloud refresh failed after charger action for %s: %s", vin, ex)
 
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
         if not self._loggedin:
@@ -463,7 +475,10 @@ class AudiConnectAccount:
                 ),
             )
         finally:
-            await self.notify(vin, ACTION_WINDOW_HEATING)
+            try:
+                await self.notify(vin, ACTION_WINDOW_HEATING)
+            except Exception as ex:
+                _LOGGER.warning("Cloud refresh failed after window heating for %s: %s", vin, ex)
 
     async def set_vehicle_pre_heater(self, vin: str, activate: bool, **kwargs):
         if not self._loggedin:
@@ -498,7 +513,10 @@ class AudiConnectAccount:
                 ),
             )
         finally:
-            await self.notify(vin, ACTION_PRE_HEATER)
+            try:
+                await self.notify(vin, ACTION_PRE_HEATER)
+            except Exception as ex:
+                _LOGGER.warning("Cloud refresh failed after pre-heater for %s: %s", vin, ex)
 
 
 class AudiConnectVehicle:
