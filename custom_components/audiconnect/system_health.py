@@ -39,6 +39,8 @@ async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
     for entry in entries:
         runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
         if runtime_data is None:
+            # Entry exists but setup failed (auth error, ConfigEntryNotReady, etc.)
+            all_logged_in = False
             continue
 
         account = runtime_data.account
