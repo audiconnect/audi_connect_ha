@@ -10,11 +10,6 @@ _LOGGER = logging.getLogger(__name__)
 
 class VehicleData:
     def __init__(self, config_entry: Any) -> None:
-        self.sensors: set[Any] = set()
-        self.binary_sensors: set[Any] = set()
-        self.switches: set[Any] = set()
-        self.device_trackers: set[Any] = set()
-        self.locks: set[Any] = set()
         self.config_entry = config_entry
         self.vehicle: Vehicle | None = None
 

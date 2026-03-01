@@ -41,8 +41,6 @@ from .const import (
     REFRESH_VEHICLE_DATA_FAILED_EVENT,
     UPDATE_SLEEP,
 )
-from .dashboard import Dashboard
-
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
@@ -93,7 +91,7 @@ SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
 
 class AudiAccount(AudiConnectObserver):
-    """Account wrapper that owns Audi API client and mapped vehicle instruments."""
+    """Account wrapper that owns the Audi API client and discovered vehicles."""
 
     def __init__(self, hass: HomeAssistant, config_entry: Any) -> None:
         self.hass = hass
@@ -128,21 +126,6 @@ class AudiAccount(AudiConnectObserver):
     def _build_vehicle_data(self, vehicle: Any) -> VehicleData:
         cfg_vehicle = VehicleData(self.config_entry)
         cfg_vehicle.vehicle = vehicle
-        dashboard = Dashboard(self.connection, vehicle)
-
-        for instrument in dashboard.instruments:
-            component = instrument.component
-            if component == "sensor":
-                cfg_vehicle.sensors.add(instrument)
-            elif component == "binary_sensor":
-                cfg_vehicle.binary_sensors.add(instrument)
-            elif component == "switch":
-                cfg_vehicle.switches.add(instrument)
-            elif component == "device_tracker":
-                cfg_vehicle.device_trackers.add(instrument)
-            elif component == "lock":
-                cfg_vehicle.locks.add(instrument)
-
         return cfg_vehicle
 
     async def async_refresh_data(self) -> list[VehicleData]:
