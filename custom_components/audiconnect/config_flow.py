@@ -248,9 +248,7 @@ class OptionsFlowHandler(OptionsFlow):
                         default=self.config_entry.options.get(
                             CONF_UPDATE_SLEEP, UPDATE_SLEEP
                         ),
-                    ): NumberSelector(
-                        NumberSelectorConfig(min=0, mode="box")
-                    ),
+                    ): NumberSelector(NumberSelectorConfig(min=0, mode="box")),
                     vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=self.config_entry.options.get(
