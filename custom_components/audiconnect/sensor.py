@@ -38,6 +38,7 @@ class AudiSensorEntityDescription(SensorEntityDescription):
     attr_key: str
     value_fn: Callable[[Any], Any] | None = None
     extra_attrs_fn: Callable[[Any], dict[str, Any]] | None = None
+    unit_fn: Callable[[Any], str | None] | None = None
 
 
 def _trip_data_value(vehicle: Any, attr_key: str) -> Any:
@@ -291,6 +292,7 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         attr_key="actual_charge_rate",
         name="Charging rate",
         icon="mdi:electron-framework",
+        unit_fn=lambda v: getattr(v, "actual_charge_rate_unit", None),
     ),
     AudiSensorEntityDescription(
         key="tank_level",
@@ -311,6 +313,7 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         attr_key="remaining_charging_time",
         name="Remaining charge time",
         icon="mdi:battery-charging",
+        unit_fn=lambda v: getattr(v, "remaining_charging_time_unit", None),
     ),
     AudiSensorEntityDescription(
         key="charging_complete_time",
@@ -442,6 +445,14 @@ class AudiSensor(AudiEntity, SensorEntity):
         if self.entity_description.value_fn is not None:
             return self.entity_description.value_fn(self._vehicle)
         return getattr(self._vehicle, self.entity_description.attr_key, None)
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        if self.entity_description.unit_fn is not None:
+            dynamic = self.entity_description.unit_fn(self._vehicle)
+            if dynamic is not None:
+                return dynamic
+        return self.entity_description.native_unit_of_measurement
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
