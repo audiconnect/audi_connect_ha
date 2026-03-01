@@ -32,6 +32,7 @@ class AudiAPI:
         self.__proxy: dict[str, str | None] | None = (
             {"http": proxy, "https": proxy} if proxy else None
         )
+        self.vcf_remaining_calls: int | None = None
 
     def use_token(self, token: dict[str, Any] | None) -> None:
         self.__token = token
@@ -81,6 +82,7 @@ class AudiAPI:
                         except ValueError:
                             remaining = None
                         if remaining is not None:
+                            self.vcf_remaining_calls = remaining
                             if remaining < 10:
                                 _LOGGER.warning(
                                     "[VCF-RATE-LIMIT] Remaining calls: %d — warning: VCF call limit nearly exhausted",
