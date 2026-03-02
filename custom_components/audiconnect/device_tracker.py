@@ -11,7 +11,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity
+from .audi_entity import AudiEntity, is_entity_supported
+from .coordinator import AudiDataUpdateCoordinator
+
+_POSITION_ATTR_KEY = "position"
 
 
 async def async_setup_entry(
@@ -21,9 +24,9 @@ async def async_setup_entry(
 ) -> None:
     runtime_data: AudiRuntimeData = config_entry.runtime_data
     entities = [
-        AudiDeviceTracker(runtime_data.coordinator, tracker)
+        AudiDeviceTracker(runtime_data.coordinator, config_vehicle.vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
-        for tracker in config_vehicle.device_trackers
+        if is_entity_supported(config_vehicle.vehicle, _POSITION_ATTR_KEY)
     ]
     async_add_entities(entities)
 
@@ -32,38 +35,55 @@ class AudiDeviceTracker(AudiEntity, TrackerEntity):
     """Representation of an Audi device tracker."""
 
     _attr_icon = "mdi:car"
+    _attr_name = "Position"
     _attr_should_poll = False
     _attr_source_type = SourceType.GPS
 
+    def __init__(
+        self,
+        coordinator: AudiDataUpdateCoordinator,
+        vehicle: Any,
+    ) -> None:
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = (
+            f"{vehicle.vin.lower()}_device_tracker_{_POSITION_ATTR_KEY}"
+        )
+
+    def _position(self) -> dict[str, Any]:
+        """Return the position dict from the vehicle, or empty dict."""
+        return getattr(self._vehicle, _POSITION_ATTR_KEY, None) or {}
+
     @property
     def latitude(self) -> float | None:
-        return self._coords()[0]
+        pos = self._position()
+        val = pos.get("latitude")
+        if val is not None:
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return None
+        return None
 
     @property
     def longitude(self) -> float | None:
-        return self._coords()[1]
-
-    def _coords(self) -> tuple[float | None, float | None]:
-        state = getattr(self._instrument, "state", None)
-        if isinstance(state, (list, tuple)) and len(state) >= 2:
+        pos = self._position()
+        val = pos.get("longitude")
+        if val is not None:
             try:
-                return float(state[0]), float(state[1])
+                return float(val)
             except (TypeError, ValueError):
-                return None, None
-        return None, None
+                return None
+        return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        attrs = dict(getattr(self._instrument, "attributes", {}))
-        attrs.update(
-            {
-                "model": f"{getattr(self._instrument, 'vehicle_model', 'Unknown')}/{self._instrument.vehicle_name}",
-                "model_year": getattr(self._instrument, "vehicle_model_year", None),
-                "model_family": getattr(self._instrument, "vehicle_model_family", None),
-                "csid": getattr(self._instrument, "vehicle_csid", None),
-                "vin": getattr(self._instrument, "vehicle_vin", None),
-            }
-        )
+        attrs = {
+            "model": f"{self._vehicle.model or 'Unknown'}/{self._vehicle.title}",
+            "model_year": getattr(self._vehicle, "model_year", None),
+            "model_family": getattr(self._vehicle, "model_family", None),
+            "csid": getattr(self._vehicle, "csid", None),
+            "vin": getattr(self._vehicle, "vin", None),
+        }
         return {k: v for k, v in attrs.items() if v is not None}
 
 
