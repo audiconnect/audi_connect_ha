@@ -62,12 +62,13 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 Find configuration options under **Settings ➤ Devices & Services ➤ Integrations ➤ Audi Connect ➤ Configure**:
 
-| Name                              | Type   | Description                                                                                                                                                                     |
-| --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Cloud Update at Startup`         | `bool` | Toggle the initial cloud update when the integration starts. Useful for development or frequent Home Assistant restarts.                                                        |
-| `Active Polling at Scan Interval` | `bool` | Enable or disable active polling.                                                                                                                                               |
-| `Scan Interval`                   | `int`  | Defines polling frequency in minutes (minimum 15). Only effective if **Active Polling** is enabled.                                                                             |
-| `API Level`                       | `int`  | Determines the API structure used for service action calls:<br>• `0` – _Typically_ Gas vehicles (legacy format)<br>• `1` – _Typically_ e-tron (electric vehicles, newer format) |
+| Name                                | Type   | Default | Description                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Cloud Update at Startup`           | `bool` | `True`  | Toggle the initial cloud update when the integration starts. Useful for development or frequent Home Assistant restarts.                                                                                                                                                                                            |
+| `Refresh Vehicle Data After Action` | `bool` | `False` | Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead. |
+| `Cloud Refresh Delay`               | `int`  | `5`     | Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud.                                                                                                                                                           |
+| `Scan Interval`                     | `int`  | `15`    | Defines polling frequency in minutes (minimum 15).                                                                                                                                                                                                                                                                  |
+| `Excluded VINs`                     | `str`  | –       | Comma-separated VIN list to exclude from setup and updates.                                                                                                                                                                                                                                                         |
 
 _Note: The integration will reload automatically upon clicking `Submit`, but a Home Assistant restart is suggested._
 
@@ -134,7 +135,7 @@ data:
 #### Notes
 
 - Certain service actions require the S-PIN to be set in the configuration.
-- When the service action is successfully performed, an update request is automatically triggered.
+- After a successful action, the integration waits for the configured **Cloud Refresh Delay** and then performs a cloud data refresh. If **Refresh Vehicle Data After Action** is enabled, a vehicle refresh is also sent before the delay.
 
 ### Audi Connect: Start Climate Control
 
@@ -171,7 +172,7 @@ data:
 
 - The `temp_f` and `temp_c` parameters are mutually exclusive. If both are provided, `temp_f` takes precedence.
 - If neither `temp_f` nor `temp_c` is provided, the system defaults to 70°F or 21°C.
-- When the service action is successfully performed, an update request is automatically triggered.
+- After a successful action, the integration waits for the configured **Cloud Refresh Delay** and then performs a cloud data refresh. If **Refresh Vehicle Data After Action** is enabled, a vehicle refresh is also sent before the delay.
 
 ### Audi Connect: Start Auxiliary Heating
 
@@ -198,7 +199,7 @@ data:
 #### Notes
 
 - Requires the S-PIN to be set in the configuration.
-- When the service action is successfully performed, an update request is automatically triggered.
+- After a successful action, the integration waits for the configured **Cloud Refresh Delay** and then performs a cloud data refresh. If **Refresh Vehicle Data After Action** is enabled, a vehicle refresh is also sent before the delay.
 
 ## Example Dashboard Card
 

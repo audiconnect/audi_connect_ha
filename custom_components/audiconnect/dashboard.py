@@ -1,22 +1,26 @@
 #  Utilities for integration with Home Assistant (directly or via MQTT)
 
+from __future__ import annotations
+
 import logging
 import re
+from typing import Any
 
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
 )
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.const import (
     PERCENTAGE,
-    UnitOfTime,
-    UnitOfLength,
-    UnitOfTemperature,
-    UnitOfPower,
-    UnitOfElectricCurrent,
     EntityCategory,
+    UnitOfElectricCurrent,
+    UnitOfLength,
+    UnitOfPower,
+    UnitOfTemperature,
+    UnitOfTime,
 )
+
 from .util import parse_datetime
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,20 +28,25 @@ _LOGGER = logging.getLogger(__name__)
 
 class Instrument:
     def __init__(
-        self, component, attr, name, icon=None, suggested_display_precision=None
-    ):
+        self,
+        component: str,
+        attr: str,
+        name: str,
+        icon: str | None = None,
+        suggested_display_precision: int | None = None,
+    ) -> None:
         self._attr = attr
         self._component = component
         self._name = name
-        self._connection = None
-        self._vehicle = None
+        self._connection: Any = None
+        self._vehicle: Any = None
         self._icon = icon
         self._suggested_display_precision = suggested_display_precision
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.full_name
 
-    def camel2slug(self, s):
+    def camel2slug(self, s: str) -> str:
         """Convert camelCase to camel_case.
             >>> camel2slug('fooBar')
         'foo_bar'
@@ -45,10 +54,12 @@ class Instrument:
         return re.sub("([A-Z])", "_\\1", s).lower().lstrip("_")
 
     @property
-    def slug_attr(self):
+    def slug_attr(self) -> str:
         return self.camel2slug(self._attr.replace(".", "_"))
 
-    def setup(self, connection, vehicle, mutable=True, **config):
+    def setup(
+        self, connection: Any, vehicle: Any, mutable: bool = True, **config: Any
+    ) -> bool:
         self._connection = connection
         self._vehicle = vehicle
 
@@ -57,69 +68,64 @@ class Instrument:
             return False
 
         if not self.is_supported:
-            # _LOGGER.debug(
-            #     "%s (%s:%s) is not supported", self, type(self).__name__, self._attr,
-            # )
             return False
-
-        # _LOGGER.debug("%s is supported", self)
 
         return True
 
     @property
-    def component(self):
+    def component(self) -> str:
         return self._component
 
     @property
-    def icon(self):
+    def icon(self) -> str | None:
         return self._icon
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def attr(self):
+    def attr(self) -> str:
         return self._attr
 
     @property
-    def suggested_display_precision(self):
+    def suggested_display_precision(self) -> int | None:
         return self._suggested_display_precision
 
     @property
-    def vehicle_name(self):
+    def vehicle_name(self) -> str:
         return self._vehicle.title
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return "{} {}".format(self.vehicle_name, self._name)
 
     @property
-    def vehicle_model(self):
+    def vehicle_model(self) -> str:
         return self._vehicle.model
 
     @property
-    def vehicle_model_year(self):
+    def vehicle_model_year(self) -> str:
         return self._vehicle.model_year
 
     @property
-    def vehicle_model_family(self):
+    def vehicle_model_family(self) -> str:
         return self._vehicle.model_family
 
     @property
-    def vehicle_vin(self):
+    def vehicle_vin(self) -> str:
         return self._vehicle.vin
 
     @property
-    def vehicle_csid(self):
+    def vehicle_csid(self) -> str:
         return self._vehicle.csid
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         raise NotImplementedError("Must be set")
 
     @property
-    def is_supported(self):
+    def is_supported(self) -> bool:
         supported = self._attr + "_supported"
         if hasattr(self._vehicle, supported):
             return getattr(self._vehicle, supported)
@@ -128,33 +134,33 @@ class Instrument:
         return False
 
     @property
-    def str_state(self):
+    def str_state(self) -> Any:
         return self.state
 
     @property
-    def state(self):
+    def state(self) -> Any:
         if hasattr(self._vehicle, self._attr):
             return getattr(self._vehicle, self._attr)
         return self._vehicle.get_attr(self._attr)
 
     @property
-    def attributes(self):
+    def attributes(self) -> dict[str, Any]:
         return {}
 
 
 class Sensor(Instrument):
     def __init__(
         self,
-        attr,
-        name,
-        icon=None,
-        unit=None,
-        state_class=None,
-        device_class=None,
-        entity_category=None,
-        extra_state_attributes=None,
-        suggested_display_precision=None,
-    ):
+        attr: str,
+        name: str,
+        icon: str | None = None,
+        unit: str | None = None,
+        state_class: SensorStateClass | None = None,
+        device_class: SensorDeviceClass | None = None,
+        entity_category: EntityCategory | None = None,
+        extra_state_attributes: dict[str, Any] | None = None,
+        suggested_display_precision: int | None = None,
+    ) -> None:
         super().__init__(
             component="sensor",
             attr=attr,
@@ -170,22 +176,21 @@ class Sensor(Instrument):
         self._convert = False
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return False
 
     @property
-    def str_state(self):
+    def str_state(self) -> str:
         if self.unit:
             return "{} {}".format(self.state, self.unit)
-        else:
-            return "%s" % self.state
+        return "%s" % self.state
 
     @property
-    def state(self):
+    def state(self) -> Any:
         return super().state
 
     @property
-    def unit(self):
+    def unit(self) -> str | None:
         supported = self._attr + "_unit"
         if hasattr(self._vehicle, supported):
             return getattr(self._vehicle, supported)
@@ -194,17 +199,24 @@ class Sensor(Instrument):
 
 
 class BinarySensor(Instrument):
-    def __init__(self, attr, name, device_class=None, icon=None, entity_category=None):
+    def __init__(
+        self,
+        attr: str,
+        name: str,
+        device_class: BinarySensorDeviceClass | None = None,
+        icon: str | None = None,
+        entity_category: EntityCategory | None = None,
+    ) -> None:
         super().__init__(component="binary_sensor", attr=attr, name=name, icon=icon)
         self.device_class = device_class
         self.entity_category = entity_category
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return False
 
     @property
-    def str_state(self):
+    def str_state(self) -> str:
         if self.device_class in ["door", "window"]:
             return "Open" if self.state else "Closed"
         if self.device_class == "safety":
@@ -219,7 +231,7 @@ class BinarySensor(Instrument):
         return "On" if self.state else "Off"
 
     @property
-    def state(self):
+    def state(self) -> bool | None:
         val = super().state
         if isinstance(val, (bool, list)):
             #  for list (e.g. bulb_failures):
@@ -230,61 +242,61 @@ class BinarySensor(Instrument):
         return val
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         return self.state
 
 
 class Lock(Instrument):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(component="lock", attr="lock", name="Door lock")
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return True
 
     @property
-    def str_state(self):
+    def str_state(self) -> str:
         return "Locked" if self.state else "Unlocked"
 
     @property
-    def state(self):
+    def state(self) -> bool:
         return self._vehicle.doors_trunk_status == "Locked"
 
     @property
-    def is_locked(self):
+    def is_locked(self) -> bool:
         return self.state
 
-    async def lock(self):
+    async def lock(self) -> None:
         await self._connection.set_vehicle_lock(self.vehicle_vin, True)
 
-    async def unlock(self):
+    async def unlock(self) -> None:
         await self._connection.set_vehicle_lock(self.vehicle_vin, False)
 
 
 class Switch(Instrument):
-    def __init__(self, attr, name, icon):
+    def __init__(self, attr: str, name: str, icon: str) -> None:
         super().__init__(component="switch", attr=attr, name=name, icon=icon)
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return True
 
     @property
-    def str_state(self):
+    def str_state(self) -> str:
         return "On" if self.state else "Off"
 
-    def is_on(self):
+    def is_on(self) -> bool:
         return self.state
 
-    def turn_on(self):
+    def turn_on(self) -> None:
         pass
 
-    def turn_off(self):
+    def turn_off(self) -> None:
         pass
 
 
 class Preheater(Instrument):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             component="switch",
             attr="preheater_active",
@@ -293,33 +305,33 @@ class Preheater(Instrument):
         )
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return True
 
     @property
-    def str_state(self):
+    def str_state(self) -> str:
         return "On" if self.state else "Off"
 
-    def is_on(self):
+    def is_on(self) -> bool:
         return self.state
 
-    async def turn_on(self):
+    async def turn_on(self) -> None:
         await self._connection.set_vehicle_pre_heater(self.vehicle_vin, True)
 
-    async def turn_off(self):
+    async def turn_off(self) -> None:
         await self._connection.set_vehicle_pre_heater(self.vehicle_vin, False)
 
 
 class Position(Instrument):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(component="device_tracker", attr="position", name="Position")
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return False
 
     @property
-    def state(self):
+    def state(self) -> tuple[Any, ...]:
         state = super().state or {}
         return (
             state.get("latitude", None),
@@ -329,7 +341,7 @@ class Position(Instrument):
         )
 
     @property
-    def str_state(self):
+    def str_state(self) -> tuple[Any, ...]:
         state = super().state or {}
         ts = state.get("timestamp")
         pt = state.get("parktime")
@@ -342,19 +354,19 @@ class Position(Instrument):
 
 
 class TripData(Instrument):
-    def __init__(self, attr, name):
+    def __init__(self, attr: str, name: str) -> None:
         super().__init__(component="sensor", attr=attr, name=name)
         self.device_class = SensorDeviceClass.TIMESTAMP
-        self.unit = None
-        self.state_class = None
-        self.entity_category = None
+        self.unit: str | None = None
+        self.state_class: SensorStateClass | None = None
+        self.entity_category: EntityCategory | None = None
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return False
 
     @property
-    def str_state(self):
+    def str_state(self) -> str:
         val = super().state
         txt = ""
 
@@ -376,14 +388,14 @@ class TripData(Instrument):
         )
 
     @property
-    def state(self):
+    def state(self) -> Any:
         td = super().state
         return parse_datetime(td["timestamp"])
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         td = super().state
-        attr = {
+        return {
             "averageElectricEngineConsumption": td.get(
                 "averageElectricEngineConsumption", None
             ),
@@ -396,11 +408,10 @@ class TripData(Instrument):
             "tripID": td.get("tripID", None),
             "zeroEmissionDistance": td.get("zeroEmissionDistance", None),
         }
-        return attr
 
 
 class LastUpdate(Instrument):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             component="sensor",
             attr="last_update_time",
@@ -408,26 +419,26 @@ class LastUpdate(Instrument):
             icon="mdi:update",
         )
         self.device_class = SensorDeviceClass.TIMESTAMP
-        self.unit = None
-        self.state_class = None
-        self.entity_category = None
-        self.extra_state_attributes = None
+        self.unit: str | None = None
+        self.state_class: SensorStateClass | None = None
+        self.entity_category: EntityCategory | None = None
+        self.extra_state_attributes: dict[str, Any] | None = None
 
     @property
-    def is_mutable(self):
+    def is_mutable(self) -> bool:
         return False
 
     @property
-    def str_state(self):
+    def str_state(self) -> str | None:
         ts = super().state
         return ts.astimezone(tz=None).isoformat() if ts else None
 
     @property
-    def state(self):
+    def state(self) -> Any:
         return super().state
 
 
-def create_instruments():
+def create_instruments() -> list[Instrument]:
     return [
         Position(),
         LastUpdate(),
@@ -815,9 +826,24 @@ def create_instruments():
 
 
 class Dashboard:
-    def __init__(self, connection, vehicle, **config):
-        self.instruments = [
+    def __init__(self, connection: Any, vehicle: Any, **config: Any) -> None:
+        self.instruments: list[Instrument] = [
             instrument
             for instrument in create_instruments()
             if instrument.setup(connection, vehicle, **config)
         ]
+
+
+__all__ = [
+    "BinarySensor",
+    "Dashboard",
+    "Instrument",
+    "LastUpdate",
+    "Lock",
+    "Position",
+    "Preheater",
+    "Sensor",
+    "Switch",
+    "TripData",
+    "create_instruments",
+]

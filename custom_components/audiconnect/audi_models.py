@@ -1,25 +1,29 @@
+from __future__ import annotations
+
 import logging
+from typing import Any
+
 from .util import get_attr
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class VehicleData:
-    def __init__(self, config_entry):
-        self.sensors = set()
-        self.binary_sensors = set()
-        self.switches = set()
-        self.device_trackers = set()
-        self.locks = set()
+    def __init__(self, config_entry: Any) -> None:
+        self.sensors: set[Any] = set()
+        self.binary_sensors: set[Any] = set()
+        self.switches: set[Any] = set()
+        self.device_trackers: set[Any] = set()
+        self.locks: set[Any] = set()
         self.config_entry = config_entry
-        self.vehicle = None
+        self.vehicle: Vehicle | None = None
 
 
 class CurrentVehicleDataResponse:
-    def __init__(self, data):
+    def __init__(self, data: dict[str, Any]) -> None:
         data = data["CurrentVehicleDataResponse"]
-        self.request_id = data["requestId"]
-        self.vin = data["vin"]
+        self.request_id: str = data["requestId"]
+        self.vin: str = data["vin"]
 
 
 class VehicleDataResponse:
@@ -44,9 +48,9 @@ class VehicleDataResponse:
         "roofCoverWindow": "STATE_ROOF_COVER_WINDOW",
     }
 
-    def __init__(self, data):
-        self.data_fields = []
-        self.states = []
+    def __init__(self, data: dict[str, Any]) -> None:
+        self.data_fields: list[Field] = []
+        self.states: list[dict[str, Any]] = []
 
         self._tryAppendFieldWithTs(
             data, "TOTAL_RANGE", ["fuelStatus", "rangeStatus", "value", "totalRange_km"]
@@ -281,7 +285,9 @@ class VehicleDataResponse:
             ],
         )
 
-    def _tryAppendStateWithTs(self, json, name, tsoff, loc):
+    def _tryAppendStateWithTs(
+        self, json: dict[str, Any], name: str, tsoff: int, loc: list[str]
+    ) -> None:
         _LOGGER.debug(
             "TRY APPEND STATE: Searching for '%s' at location=%s, tsoff=%s",
             name,
@@ -321,7 +327,9 @@ class VehicleDataResponse:
                     name,
                 )
 
-    def _tryAppendFieldWithTs(self, json, textId, loc):
+    def _tryAppendFieldWithTs(
+        self, json: dict[str, Any], textId: str, loc: list[str]
+    ) -> None:
         _LOGGER.debug(
             "TRY APPEND FIELD: Searching for '%s' at location=%s",
             textId,
@@ -367,7 +375,7 @@ class VehicleDataResponse:
                     textId,
                 )
 
-    def _getFromJson(self, json, loc):
+    def _getFromJson(self, json: dict[str, Any], loc: list[str]) -> Any:
         child = json
         for i in loc:
             if i not in child:
@@ -375,7 +383,7 @@ class VehicleDataResponse:
             child = child[i]
         return child
 
-    def appendDoorState(self, data):
+    def appendDoorState(self, data: dict[str, Any]) -> None:
         _LOGGER.debug("APPEND DOOR: Starting to append doors...")
         doors = get_attr(data, "access.accessStatus.value.doors", [])
         tsCarCapturedAccess = get_attr(
@@ -428,7 +436,7 @@ class VehicleDataResponse:
                 self.data_fields.append(Field(doorFieldOpen))
         _LOGGER.debug("APPEND DOOR: Finished appending doors")
 
-    def appendWindowState(self, data):
+    def appendWindowState(self, data: dict[str, Any]) -> None:
         _LOGGER.debug("APPEND WINDOW: Starting to append windows...")
         windows = get_attr(data, "access.accessStatus.value.windows", [])
         tsCarCapturedAccess = get_attr(
@@ -462,52 +470,52 @@ class VehicleDataResponse:
 
 
 class TripDataResponse:
-    def __init__(self, data):
-        self.data_fields = []
+    def __init__(self, data: dict[str, Any]) -> None:
+        self.data_fields: list[Any] = []
 
-        self.tripID = data["tripID"]
+        self.tripID: str = data["tripID"]
 
-        self.averageElectricEngineConsumption = None
+        self.averageElectricEngineConsumption: float | None = None
         if "averageElectricEngineConsumption" in data:
             self.averageElectricEngineConsumption = (
                 float(data["averageElectricEngineConsumption"]) / 10
             )
 
-        self.averageFuelConsumption = None
+        self.averageFuelConsumption: float | None = None
         if "averageFuelConsumption" in data:
             self.averageFuelConsumption = float(data["averageFuelConsumption"]) / 10
 
-        self.averageSpeed = None
+        self.averageSpeed: int | None = None
         if "averageSpeed" in data:
             self.averageSpeed = int(data["averageSpeed"])
 
-        self.mileage = None
+        self.mileage: int | None = None
         if "mileage" in data:
             self.mileage = int(data["mileage"])
 
-        self.startMileage = None
+        self.startMileage: int | None = None
         if "startMileage" in data:
             self.startMileage = int(data["startMileage"])
 
-        self.traveltime = None
+        self.traveltime: int | None = None
         if "traveltime" in data:
             self.traveltime = int(data["traveltime"])
 
-        self.timestamp = None
+        self.timestamp: str | None = None
         if "timestamp" in data:
             self.timestamp = data["timestamp"]
 
-        self.overallMileage = None
+        self.overallMileage: int | None = None
         if "overallMileage" in data:
             self.overallMileage = int(data["overallMileage"])
 
-        self.zeroEmissionDistance = None
+        self.zeroEmissionDistance: int | None = None
         if "zeroEmissionDistance" in data:
             self.zeroEmissionDistance = int(data["zeroEmissionDistance"])
 
 
 class Field:
-    IDS = {
+    IDS: dict[str, str] = {
         "0x0": "UNKNOWN",
         "0x0101010002": "UTC_TIME_AND_KILOMETER_STATUS",
         "0x0203010001": "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
@@ -558,17 +566,17 @@ class Field:
         "0x0202": "ACTIVE_INSTRUMENT_CLUSTER_WARNING",
     }
 
-    def __init__(self, data):
-        self.name = None
-        self.id = data.get("id")
-        self.unit = data.get("unit")
-        self.value = data.get("value")
-        self.measure_time = data.get("tsTssReceivedUtc")
+    def __init__(self, data: dict[str, Any]) -> None:
+        self.name: str | None = None
+        self.id: str | None = data.get("id")
+        self.unit: str | None = data.get("unit")
+        self.value: Any = data.get("value")
+        self.measure_time: str | None = data.get("tsTssReceivedUtc")
         if self.measure_time is None:
             self.measure_time = data.get("tsCarCaptured")
-        self.send_time = data.get("tsCarSentUtc")
-        self.measure_mileage = data.get("milCarCaptured")
-        self.send_mileage = data.get("milCarSent")
+        self.send_time: str | None = data.get("tsCarSentUtc")
+        self.measure_mileage: Any = data.get("milCarCaptured")
+        self.send_mileage: Any = data.get("milCarSent")
 
         for field_id, name in self.IDS.items():
             if field_id == self.id:
@@ -578,7 +586,7 @@ class Field:
             # No direct mapping found - maybe we've at least got a text id
             self.name = data.get("textId")
 
-    def __str__(self):
+    def __str__(self) -> str:
         str_rep = str(self.name) + " " + str(self.value)
         if self.unit is not None:
             str_rep += self.unit
@@ -586,15 +594,15 @@ class Field:
 
 
 class Vehicle:
-    def __init__(self):
-        self.vin = ""
-        self.csid = ""
-        self.model = ""
-        self.model_year = ""
-        self.model_family = ""
-        self.title = ""
+    def __init__(self) -> None:
+        self.vin: str = ""
+        self.csid: str = ""
+        self.model: str = ""
+        self.model_year: str = ""
+        self.model_family: str = ""
+        self.title: str = ""
 
-    def parse(self, data):
+    def parse(self, data: dict[str, Any]) -> None:
         self.vin = data.get("vin")
         self.csid = data.get("csid")
         if (
@@ -615,16 +623,16 @@ class Vehicle:
         ):
             self.title = data.get("vehicle").get("media").get("shortName")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.__dict__)
 
 
 class VehiclesResponse:
-    def __init__(self):
-        self.vehicles = []
-        self.blacklisted_vins = 0
+    def __init__(self) -> None:
+        self.vehicles: list[Vehicle] = []
+        self.blacklisted_vins: int = 0
 
-    def parse(self, data):
+    def parse(self, data: dict[str, Any]) -> None:
         user_vehicles = data.get("userVehicles")
         if user_vehicles is None:
             _LOGGER.warning("No vehicle data received from API. Check authentication.")
@@ -634,3 +642,14 @@ class VehiclesResponse:
             vehicle = Vehicle()
             vehicle.parse(item)
             self.vehicles.append(vehicle)
+
+
+__all__ = [
+    "CurrentVehicleDataResponse",
+    "Field",
+    "TripDataResponse",
+    "Vehicle",
+    "VehicleData",
+    "VehicleDataResponse",
+    "VehiclesResponse",
+]

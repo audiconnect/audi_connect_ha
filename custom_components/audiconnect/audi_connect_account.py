@@ -1,18 +1,19 @@
-import time
-from datetime import datetime, timezone, timedelta
-import logging
+from __future__ import annotations
+
 import asyncio
-from typing import List
+import logging
 import re
-
-from asyncio import TimeoutError
-from aiohttp import ClientResponseError
-
+import time
 from abc import ABC, abstractmethod
+from asyncio import TimeoutError
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from .audi_services import AudiService
+from aiohttp import ClientResponseError, ClientSession
+
 from .audi_api import AudiAPI
-from .util import log_exception, get_attr, parse_int, parse_float, parse_datetime
+from .audi_services import AudiService
+from .util import get_attr, log_exception, parse_datetime, parse_float, parse_int
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,13 +38,13 @@ class AudiConnectAccount:
 
     def __init__(
         self,
-        session,
+        session: ClientSession,
         username: str,
         password: str,
         country: str,
-        spin: str,
+        spin: str | None,
         api_level: int,
-        excluded_vins: List[str] = None,
+        excluded_vins: list[str] | None = None,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)
@@ -52,18 +53,23 @@ class AudiConnectAccount:
         self._password = password
         self._loggedin = False
         self._support_vehicle_refresh = True
-        self._logintime = 0
+        self._logintime: float = 0
 
         self._connect_retries = 3
         self._connect_delay = 10
 
-        self._update_listeners = []
+        self._update_listeners: list[Any] = []
 
-        self._vehicles = []
-        self._audi_vehicles = []
+        self._vehicles: list[AudiConnectVehicle] = []
+        self._audi_vehicles: list[Any] = []
         self._excluded_vins = [v.lower() for v in (excluded_vins or [])]
 
-        self._observers: List[AudiConnectObserver] = []
+        self._observers: list[AudiConnectObserver] = []
+
+    @property
+    def vehicles(self) -> list[AudiConnectVehicle]:
+        """Return the list of discovered vehicles."""
+        return self._vehicles
 
     def add_observer(self, observer: AudiConnectObserver) -> None:
         self._observers.append(observer)
@@ -259,8 +265,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_LOCK)
-
             return True
 
         except Exception as exception:
@@ -270,6 +274,13 @@ class AudiConnectAccount:
                     action="lock" if lock else "unlock", vin=vin
                 ),
             )
+        finally:
+            try:
+                await self.notify(vin, ACTION_LOCK)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after lock/unlock for %s: %s", vin, ex
+                )
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
@@ -325,8 +336,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_CLIMATISATION)
-
             return True
 
         except Exception as exception:
@@ -336,6 +345,13 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            try:
+                await self.notify(vin, ACTION_CLIMATISATION)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after climatisation for %s: %s", vin, ex
+                )
 
     async def start_climate_control(
         self,
@@ -376,8 +392,6 @@ class AudiConnectAccount:
 
             _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
 
-            await self.notify(vin, ACTION_CLIMATISATION)
-
             return True
 
         except Exception as exception:
@@ -386,6 +400,13 @@ class AudiConnectAccount:
                 exc_info=True,
             )
             return False
+        finally:
+            try:
+                await self.notify(vin, ACTION_CLIMATISATION)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after climate control for %s: %s", vin, ex
+                )
 
     async def set_battery_charger(self, vin: str, activate: bool, timer: bool):
         if not self._loggedin:
@@ -413,8 +434,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_CHARGER)
-
             return True
 
         except Exception as exception:
@@ -424,6 +443,13 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            try:
+                await self.notify(vin, ACTION_CHARGER)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after charger action for %s: %s", vin, ex
+                )
 
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
         if not self._loggedin:
@@ -447,8 +473,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_WINDOW_HEATING)
-
             return True
 
         except Exception as exception:
@@ -458,6 +482,13 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            try:
+                await self.notify(vin, ACTION_WINDOW_HEATING)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after window heating for %s: %s", vin, ex
+                )
 
     async def set_vehicle_pre_heater(self, vin: str, activate: bool, **kwargs):
         if not self._loggedin:
@@ -482,8 +513,6 @@ class AudiConnectAccount:
                 ),
             )
 
-            await self.notify(vin, ACTION_PRE_HEATER)
-
             return True
 
         except Exception as exception:
@@ -493,6 +522,13 @@ class AudiConnectAccount:
                     action="start" if activate else "stop", vin=vin
                 ),
             )
+        finally:
+            try:
+                await self.notify(vin, ACTION_PRE_HEATER)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after pre-heater for %s: %s", vin, ex
+                )
 
 
 class AudiConnectVehicle:

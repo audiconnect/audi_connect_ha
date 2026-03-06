@@ -1,33 +1,24 @@
-import json
-import uuid
+from __future__ import annotations
+
+import asyncio
 import base64
+import hmac
+import json
+import logging
 import os
 import re
-import logging
-from datetime import timedelta, datetime
-from typing import Optional
-
-from .audi_models import (
-    TripDataResponse,
-    CurrentVehicleDataResponse,
-    VehicleDataResponse,
-    VehiclesResponse,
-)
-from .audi_api import AudiAPI
-from .const import DEFAULT_API_LEVEL
-from .util import to_byte_array, get_attr
-
+import uuid
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256, sha512
-import hmac
-import asyncio
+from typing import Any
+from urllib.parse import parse_qs, urlencode, urlparse
 
-from urllib.parse import urlparse, parse_qs, urlencode
-
-import requests
 from bs4 import BeautifulSoup
-from requests import RequestException
 
-from typing import Dict
+from .audi_api import AudiAPI
+from .audi_models import TripDataResponse, VehicleDataResponse, VehiclesResponse
+from .const import DEFAULT_API_LEVEL
+from .util import get_attr, to_byte_array
 
 
 MAX_RESPONSE_ATTEMPTS = 10
@@ -41,41 +32,22 @@ REQUEST_FAILED = "request_failed"
 _LOGGER = logging.getLogger(__name__)
 
 
-class BrowserLoginResponse:
-    def __init__(self, response: requests.Response, url: str):
-        self.response = response  # type: requests.Response
-        self.url = url  # type : str
-
-    def get_location(self) -> str:
-        """
-        Returns the location the previous request redirected to
-        """
-        location = self.response.headers["Location"]
-        if location.startswith("/"):
-            # Relative URL
-            return BrowserLoginResponse.to_absolute(self.url, location)
-        return location
-
-    @classmethod
-    def to_absolute(cls, absolute_url, relative_url) -> str:
-        """
-        Converts a relative url to an absolute url
-        :param absolute_url: Absolute url used as baseline
-        :param relative_url: Relative url (must start with /)
-        :return: New absolute url
-        """
-        url_parts = urlparse(absolute_url)
-        return url_parts.scheme + "://" + url_parts.netloc + relative_url
+def _to_absolute(absolute_url: str, relative_url: str) -> str:
+    """Convert a relative url to an absolute url."""
+    url_parts = urlparse(absolute_url)
+    return url_parts.scheme + "://" + url_parts.netloc + relative_url
 
 
 class AudiService:
-    def __init__(self, api: AudiAPI, country: str, spin: str, api_level: int):
+    def __init__(
+        self, api: AudiAPI, country: str, spin: str | None, api_level: int
+    ) -> None:
         self._api = api
         self._country = country
-        self._language = None
+        self._language: str | None = None
         self._type = "Audi"
         self._spin = spin
-        self._homeRegion = {}
+        self._homeRegion: dict[str, str] = {}
         self._homeRegionSetter = {}
         self.mbbOAuthBaseURL = None
         self.mbboauthToken = None
@@ -92,7 +64,9 @@ class AudiService:
         if self._country is None:
             self._country = "DE"
 
-    def get_hidden_html_input_form_data(self, response, form_data: Dict[str, str]):
+    def get_hidden_html_input_form_data(
+        self, response: str, form_data: dict[str, str]
+    ) -> dict[str, str]:
         # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_inputs = html.find_all("input", attrs={"type": "hidden"})
@@ -102,7 +76,7 @@ class AudiService:
 
         return form_data
 
-    def get_post_url(self, response, url):
+    def get_post_url(self, response: str, url: str) -> str:
         # Now parse the html body and extract the target url, csrf token and other required parameters
         html = BeautifulSoup(response, "html.parser")
         form_tag = html.find("form")
@@ -114,46 +88,32 @@ class AudiService:
             username_post_url = action
         elif action.startswith("/"):
             # Relative to domain
-            username_post_url = BrowserLoginResponse.to_absolute(url, action)
+            username_post_url = _to_absolute(url, action)
         else:
-            raise RequestException("Unknown form action: " + action)
+            raise ValueError("Unknown form action: " + action)
         return username_post_url
 
-    async def login(self, user: str, password: str, persist_token: bool = True):
+    async def login(self, user: str, password: str, persist_token: bool = True) -> None:
         _LOGGER.debug("LOGIN: Starting login to Audi service...")
         await self.login_request(user, password)
 
     async def refresh_vehicle_data(self, vin: str):
-        res = await self.request_current_vehicle_data(vin.upper())
-        request_id = res.request_id
-
-        checkUrl = "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests/{requestId}/jobstatus".format(
-            homeRegion=await self._get_home_region(vin.upper()),
-            type=self._type,
-            country=self._country,
-            vin=vin.upper(),
-            requestId=request_id,
-        )
-
-        await self.check_request_succeeded(
-            checkUrl,
-            "refresh vehicle data",
-            REQUEST_SUCCESSFUL,
-            REQUEST_FAILED,
-            "requestStatusResponse.status",
-        )
+        request_id = await self.request_current_vehicle_data(vin.upper())
+        await self.check_bff_request_succeeded(vin, request_id)
 
     async def request_current_vehicle_data(self, vin: str):
-        self._api.use_token(self.vwToken)
+        self._api.use_token(self._bearer_token_json)
         data = await self._api.post(
-            "{homeRegion}/fs-car/bs/vsr/v1/{type}/{country}/vehicles/{vin}/requests".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            self.__get_cariad_url_for_vin(vin, "vehiclewakeup"),
+            data=None,
+            use_json=False,
         )
-        return CurrentVehicleDataResponse(data)
+
+        request_id = data.get("data", {}).get("requestID")
+        if request_id is None:
+            raise Exception("Vehicle wakeup response did not contain requestID")
+
+        return request_id
 
     async def get_preheater(self, vin: str):
         self._api.use_token(self.vwToken)
@@ -327,8 +287,8 @@ class AudiService:
         td_reqdata = {
             "type": "list",
             "from": "1970-01-01T00:00:00Z",
-            # "from":(datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "to": (datetime.utcnow() + timedelta(minutes=90)).strftime(
+            # "from":(datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "to": (datetime.now(timezone.utc) + timedelta(minutes=90)).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),
         }
@@ -471,8 +431,8 @@ class AudiService:
         return body["securityToken"]
 
     def _get_vehicle_action_header(
-        self, content_type: str, security_token: str, host: Optional[str] = None
-    ):
+        self, content_type: str, security_token: str | None, host: str | None = None
+    ) -> dict[str, str]:
         if not host:
             host = (
                 "mal-3a.prd.eu.dp.vwg-connect.com"
@@ -497,13 +457,15 @@ class AudiService:
         return headers
 
     def __build_url(
-        self, base_url: str, path_and_query: str, **path_and_query_kwargs: dict
-    ):
+        self, base_url: str, path_and_query: str, **path_and_query_kwargs: Any
+    ) -> str:
         action_path = path_and_query.format(**path_and_query_kwargs)
 
         return base_url.rstrip("/") + "/" + action_path.lstrip("/")
 
-    def __get_cariad_url(self, path_and_query: str, **path_and_query_kwargs: dict):
+    def __get_cariad_url(
+        self, path_and_query: str, **path_and_query_kwargs: Any
+    ) -> str:
         base_url = "https://{region}.bff.cariad.digital".format(
             region="emea" if self._country.upper() != "US" else "na"
         )
@@ -511,8 +473,8 @@ class AudiService:
         return self.__build_url(base_url, path_and_query, **path_and_query_kwargs)
 
     def __get_cariad_url_for_vin(
-        self, vin: str, path_and_query: str, **path_and_query_kwargs: dict
-    ):
+        self, vin: str, path_and_query: str, **path_and_query_kwargs: Any
+    ) -> str:
         base_url = self.__get_cariad_url("/vehicle/v1/vehicles/{vin}", vin=vin.upper())
 
         return self.__build_url(base_url, path_and_query, **path_and_query_kwargs)
@@ -882,8 +844,8 @@ class AudiService:
         )
 
     async def set_pre_heater(
-        self, vin: str, activate: bool, duration: Optional[int] = None
-    ):
+        self, vin: str, activate: bool, duration: int | None = None
+    ) -> None:
         if activate:
             if not duration:
                 duration = 30
@@ -977,10 +939,13 @@ class AudiService:
         raise Exception("Cannot {action}, operation timed out".format(action=action))
 
     # TR/2022-12-20: New secret for X_QMAuth
-    def _calculate_X_QMAuth(self):
+    def _calculate_X_QMAuth(self) -> str:
         # Calculate X-QMAuth value
         gmtime_100sec = int(
-            (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() / 100
+            (
+                datetime.now(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)
+            ).total_seconds()
+            / 100
         )
         xqmauth_secret = bytes(
             [
@@ -1457,7 +1422,7 @@ class AudiService:
         # this code is the old "vwToken"
         self.vwToken = json.loads(mbboauth_refresh_rsptxt)
 
-    def _generate_security_pin_hash(self, challenge):
+    def _generate_security_pin_hash(self, challenge: str) -> str:
         if self._spin is None:
             raise Exception("sPin is required to perform this action")
 
@@ -1466,40 +1431,5 @@ class AudiService:
         b = bytes(pin + byteChallenge)
         return sha512(b).hexdigest().upper()
 
-    async def _emulate_browser(
-        self, reply: BrowserLoginResponse, form_data: Dict[str, str]
-    ) -> BrowserLoginResponse:
-        # The reply redirects to the login page
-        login_location = reply.get_location()
-        page_reply = await self._api.get(login_location, raw_contents=True)
 
-        # Now parse the html body and extract the target url, csrf token and other required parameters
-        html = BeautifulSoup(page_reply, "html.parser")
-        form_tag = html.find("form")
-
-        form_inputs = html.find_all("input", attrs={"type": "hidden"})
-        for form_input in form_inputs:
-            name = form_input.get("name")
-            form_data[name] = form_input.get("value")
-
-        # Extract the target url
-        action = form_tag.get("action")
-        if action.startswith("http"):
-            # Absolute url
-            username_post_url = action
-        elif action.startswith("/"):
-            # Relative to domain
-            username_post_url = BrowserLoginResponse.to_absolute(login_location, action)
-        else:
-            raise RequestException("Unknown form action: " + action)
-
-        headers = {"referer": login_location}
-        reply = await self._api.post(
-            username_post_url,
-            form_data,
-            headers=headers,
-            use_json=False,
-            raw_reply=True,
-            allow_redirects=False,
-        )
-        return BrowserLoginResponse(reply, username_post_url)
+__all__ = ["AudiService"]
