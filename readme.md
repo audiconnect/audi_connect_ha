@@ -82,7 +82,7 @@ Normal updates retrieve data from the Audi Connect cloud service, and don't inte
 
 #### Parameters
 
-- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`vehicle`**: The Audi vehicle to perform the action on.
 
 ### Audi Connect: Refresh Cloud Data
 
@@ -107,7 +107,7 @@ This service action allows you to perform actions on your Audi vehicle, specifie
 
 #### Service Parameters
 
-- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`vehicle`**: The Audi vehicle to perform the action on.
 - **`action`**: The specific action to perform on the vehicle. Available actions include:
   - **`lock`**: Lock the vehicle.
   - **`unlock`**: Unlock the vehicle.
@@ -128,7 +128,7 @@ To initiate the lock action for a vehicle with VIN `WAUZZZ4G7EN123456`, use the 
 ```yaml
 service: audiconnect.execute_vehicle_action
 data:
-  vin: "WAUZZZ4G7EN123456"
+  device_id: 034986de941a1f824b3f06c0a1d9333f
   action: "lock"
 ```
 
@@ -145,7 +145,7 @@ This service action allows you to start the climate control with options for tem
 
 #### Parameters
 
-- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`vehicle`**: The Audi vehicle to perform the action on.
 - **`temp_f`** (_optional_): Desired temperature in Fahrenheit. Default is `70`.
 - **`temp_c`** (_optional_): Desired temperature in Celsius. Default is `21`.
 - **`glass_heating`** (_optional_): Enable (`True`) or disable (`False`) glass heating. Default is `False`.
@@ -161,7 +161,7 @@ To start the climate control for a vehicle with VIN `WAUZZZ4G7EN123456` with a t
 ```yaml
 service: audiconnect.start_climate_control
 data:
-  vin: "WAUZZZ4G7EN123456"
+  device_id: 034986de941a1f824b3f06c0a1d9333f
   temp_f: 72
   glass_heating: True
   seat_fl: True
@@ -182,7 +182,7 @@ This service action allows you to start auxiliary heating the vehicle, with opti
 
 #### Parameters
 
-- **`vin`**: The Vehicle Identification Number (VIN) of the Audi you want to control.
+- **`vehicle`**: The Audi vehicle to perform the action on.
 - **`duration`** (_optional_): The number of minutes the auxiliary heater should run before turning off. Default is `20` minutes if not provided.
 
 #### Usage Example
@@ -192,7 +192,7 @@ To start the auxiliary heater for a vehicle with VIN `WAUZZZ4G7EN123456`, and a 
 ```yaml
 service: audiconnect.start_auxiliary_heating
 data:
-  vin: "WAUZZZ4G7EN123456"
+  device_id: 034986de941a1f824b3f06c0a1d9333f
   duration: 40
 ```
 
