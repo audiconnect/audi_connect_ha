@@ -44,9 +44,7 @@ class AudiLock(AudiEntity, LockEntity):
         vehicle: Any,
     ) -> None:
         super().__init__(coordinator, vehicle)
-        self._attr_unique_id = (
-            f"{vehicle.vin.lower()}_lock_{_LOCK_ATTR_KEY}"
-        )
+        self._attr_unique_id = f"{vehicle.vin.lower()}_lock_{_LOCK_ATTR_KEY}"
 
     @property
     def is_locked(self) -> bool:

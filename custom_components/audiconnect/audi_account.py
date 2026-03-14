@@ -41,6 +41,7 @@ from .const import (
     REFRESH_VEHICLE_DATA_FAILED_EVENT,
     UPDATE_SLEEP,
 )
+
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"

@@ -217,9 +217,7 @@ class AudiBinarySensor(AudiEntity, BinarySensorEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self.entity_description = description
-        self._attr_unique_id = (
-            f"{vehicle.vin.lower()}_binary_sensor_{description.key}"
-        )
+        self._attr_unique_id = f"{vehicle.vin.lower()}_binary_sensor_{description.key}"
 
     @property
     def is_on(self) -> bool | None:

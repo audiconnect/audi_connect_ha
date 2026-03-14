@@ -67,9 +67,7 @@ class AudiSwitch(AudiEntity, SwitchEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self.entity_description = description
-        self._attr_unique_id = (
-            f"{vehicle.vin.lower()}_switch_{description.key}"
-        )
+        self._attr_unique_id = f"{vehicle.vin.lower()}_switch_{description.key}"
 
     @property
     def is_on(self) -> bool:
@@ -77,16 +75,12 @@ class AudiSwitch(AudiEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
-        await self.entity_description.turn_on_fn(
-            connection, self._vehicle.vin
-        )
+        await self.entity_description.turn_on_fn(connection, self._vehicle.vin)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
-        await self.entity_description.turn_off_fn(
-            connection, self._vehicle.vin
-        )
+        await self.entity_description.turn_off_fn(connection, self._vehicle.vin)
         await self.coordinator.async_request_refresh()
 
 

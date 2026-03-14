@@ -55,9 +55,7 @@ def _trip_data_attrs(vehicle: Any, attr_key: str) -> dict[str, Any]:
     if not td or not isinstance(td, dict):
         return {}
     return {
-        "averageElectricEngineConsumption": td.get(
-            "averageElectricEngineConsumption"
-        ),
+        "averageElectricEngineConsumption": td.get("averageElectricEngineConsumption"),
         "averageFuelConsumption": td.get("averageFuelConsumption"),
         "averageSpeed": td.get("averageSpeed"),
         "mileage": td.get("mileage"),
@@ -436,9 +434,7 @@ class AudiSensor(AudiEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self.entity_description = description
-        self._attr_unique_id = (
-            f"{vehicle.vin.lower()}_sensor_{description.key}"
-        )
+        self._attr_unique_id = f"{vehicle.vin.lower()}_sensor_{description.key}"
 
     @property
     def native_value(self) -> Any:
@@ -461,9 +457,7 @@ class AudiSensor(AudiEntity, SensorEntity):
         return None
 
 
-class AudiApiRateLimitSensor(
-    AudiEntity, SensorEntity
-):
+class AudiApiRateLimitSensor(AudiEntity, SensorEntity):
     """Account-level sensor exposing the Vcf-Remaining-Calls API rate limit."""
 
     _attr_name = "API requests remaining"

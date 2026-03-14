@@ -15,8 +15,8 @@ impact.
 
 **Current state:** Entities are defined via a class hierarchy in `audi_services.py`:
 `Instrument` → `Sensor`, `BinarySensor`, `Switch`, `Lock`, `Position`, `TripData`, etc.
-Each subclass encapsulates both *metadata* (name, icon, unit, device_class) and *runtime
-state access* (reading from the vehicle object, executing commands).
+Each subclass encapsulates both _metadata_ (name, icon, unit, device_class) and _runtime
+state access_ (reading from the vehicle object, executing commands).
 
 All entities are declared in `create_instruments()` which returns ~60 instrument instances.
 `Dashboard` filters these by `is_supported` at setup time.
@@ -51,6 +51,7 @@ class AudiSensor(AudiEntity, SensorEntity):
 ```
 
 **HA standard:** Entity classes should either:
+
 - Set `_attr_*` attributes (e.g., `_attr_device_class`) from `EntityDescription`, or
 - Access coordinator data directly for dynamic values.
 
@@ -76,6 +77,7 @@ than a breaking one.
 ### Finding 4: Inconsistent API Rate Limit Sensor
 
 **Current state:** `AudiApiRateLimitSensor` in `sensor.py`:
+
 - Bypasses `AudiEntity` entirely, inheriting directly from `CoordinatorEntity`
 - Duplicates `device_info` logic from `AudiEntity`
 - Uses `entry_id` in unique_id (`{entry_id}_api_requests_remaining`) instead of VIN
@@ -93,6 +95,7 @@ all other entities, and it reaches deep into private attributes for its state.
 ### Finding 5: `VehicleData` Acts as Entity Collection Container
 
 **Current state:** `VehicleData` in `audi_models.py` holds sets of instrument objects:
+
 ```python
 class VehicleData:
     def __init__(self, config_entry):
@@ -119,6 +122,7 @@ comprehension.
 ### Finding 6: Instrument Action Methods Mix Concerns
 
 **Current state:** Lock and switch instruments contain async command methods:
+
 ```python
 class Lock(Instrument):
     async def lock(self):
@@ -153,6 +157,7 @@ pattern.
 ### What Is Already Correct
 
 The integration does several things well:
+
 - `_attr_has_entity_name = True` is set correctly on the base entity
 - Device identifiers use `(DOMAIN, vin.lower())` — clean and stable
 - `CoordinatorEntity` pattern is used correctly with a proper `DataUpdateCoordinator`
@@ -176,6 +181,7 @@ The integration does several things well:
 ### Unique ID Preservation Strategy
 
 Current unique ID formula:
+
 ```
 {vehicle_vin.lower()}_{instrument.component}_{instrument.slug_attr}
 ```
@@ -184,6 +190,7 @@ Where `slug_attr` = `camel2slug(attr.replace(".", "_"))` and `camel2slug` conver
 camelCase to snake_case.
 
 The new EntityDescription-based entities will use the exact same formula:
+
 ```
 {vin.lower()}_{platform}_{description.key}
 ```
@@ -206,6 +213,7 @@ in the base entity class continues to use the same format.
 **Files changed:** New `descriptions.py` file.
 
 **What:**
+
 - Define `AudiSensorEntityDescription(SensorEntityDescription)` with an additional `value_fn`
   field (a callable that extracts the state from a Vehicle object) and `attr_key` (the
   original attribute name for support-checking).
@@ -227,6 +235,7 @@ corresponding instrument would produce. This is the unique_id anchor.
 **Files changed:** `sensor.py`, `audi_entity.py`
 
 **What:**
+
 - Replace `AudiSensor`'s delegation to `_instrument` with direct reads from the vehicle
   object using `entity_description.value_fn(vehicle)`.
 - `AudiSensor.__init__` takes `(coordinator, description, vehicle)` instead of
@@ -247,6 +256,7 @@ corresponding instrument would produce. This is the unique_id anchor.
 **Files changed:** `binary_sensor.py`
 
 **What:**
+
 - Same pattern as Phase 2. `AudiBinarySensor` uses `BinarySensorEntityDescription`
   with `value_fn` for `is_on`.
 - Entity names and keys match existing instruments exactly.
@@ -258,6 +268,7 @@ corresponding instrument would produce. This is the unique_id anchor.
 **Files changed:** `switch.py`, `lock.py`, `device_tracker.py`
 
 **What:**
+
 - **Switch:** Description includes `turn_on_fn` and `turn_off_fn` callables that
   invoke the connection API. The entity class calls these instead of delegating to
   an instrument.
@@ -273,6 +284,7 @@ corresponding instrument would produce. This is the unique_id anchor.
 `audi_models.py`, `audi_entity.py`.
 
 **What:**
+
 - `audi_services.py` (Instrument class hierarchy) is deleted — all metadata now lives
   in `descriptions.py`.
 - `dashboard.py` (Dashboard class) is deleted — entity filtering is done in platform
@@ -290,6 +302,7 @@ corresponding instrument would produce. This is the unique_id anchor.
 **Files changed:** `strings.json`, entity classes.
 
 **What:**
+
 - Add `translation_key` to each entity description.
 - Add corresponding entries in `strings.json` under `entity.<platform>.<key>.name`.
 - Remove hardcoded `_attr_name` from entity classes (HA derives name from translation).
@@ -301,26 +314,26 @@ as part of the v2 modernization.
 
 ### What Does NOT Change
 
-| Aspect | Status |
-|--------|--------|
-| Unique IDs | Preserved exactly |
-| Device identifiers | Preserved exactly |
+| Aspect                  | Status              |
+| ----------------------- | ------------------- |
+| Unique IDs              | Preserved exactly   |
+| Device identifiers      | Preserved exactly   |
 | Entity registry entries | No migration needed |
-| Config entry version | Stays at 2 |
-| `async_migrate_entry` | No changes needed |
-| Coordinator pattern | Unchanged |
-| Service registration | Unchanged |
-| Config flow | Unchanged |
-| API client layer | Unchanged |
+| Config entry version    | Stays at 2          |
+| `async_migrate_entry`   | No changes needed   |
+| Coordinator pattern     | Unchanged           |
+| Service registration    | Unchanged           |
+| Config flow             | Unchanged           |
+| API client layer        | Unchanged           |
 
 ---
 
 ### Risk Assessment
 
-| Risk | Mitigation |
-|------|------------|
-| Unique ID mismatch | Each description's `key` is verified against the instrument's `slug_attr` |
-| Missing entity after migration | Support-checking logic is preserved (same attribute checks) |
-| Behavioral regression in switches/locks | Command functions are moved to entity class, calling same API methods |
-| API Rate Limit sensor disruption | Special unique_id format is preserved explicitly |
-| State value differences | `value_fn` callables replicate exact instrument state logic |
+| Risk                                    | Mitigation                                                                |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| Unique ID mismatch                      | Each description's `key` is verified against the instrument's `slug_attr` |
+| Missing entity after migration          | Support-checking logic is preserved (same attribute checks)               |
+| Behavioral regression in switches/locks | Command functions are moved to entity class, calling same API methods     |
+| API Rate Limit sensor disruption        | Special unique_id format is preserved explicitly                          |
+| State value differences                 | `value_fn` callables replicate exact instrument state logic               |
