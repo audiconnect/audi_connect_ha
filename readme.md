@@ -5,11 +5,15 @@
 [![Code Style][blackbadge]][black]
 [![hacs][hacsbadge]](hacs)
 
+> [!WARNING]
+> **This is a pre-release version.** It is intended for testing purposes and may contain bugs or breaking changes. If you encounter any issues, please report them [here](https://github.com/audiconnect/audi_connect_ha/issues).
+
 ## Notices
 
 Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
 
-⚠️ Warning: Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
+> [!Warning]
+> Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
 
 ## Maintainers Wanted
 
@@ -83,6 +87,8 @@ Normal updates retrieve data from the Audi Connect cloud service, and don't inte
 #### Parameters
 
 - **`vehicle`**: The Audi vehicle to perform the action on.
+> [!CAUTION]
+> **This service action counts against your daily API rate limit.** Repeated use may exhaust your limit. Use sparingly and monitor your remaining API calls via the **"API Requests Remaining"** diagnostic sensor or **Settings → System → Repairs & System Information**.
 
 ### Audi Connect: Refresh Cloud Data
 
