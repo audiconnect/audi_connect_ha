@@ -18,7 +18,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up Audi sensors from a config entry."""
     sensors = []
-
     account = config_entry.data.get(CONF_USERNAME)
     audiData = hass.data[DOMAIN][account]
 
