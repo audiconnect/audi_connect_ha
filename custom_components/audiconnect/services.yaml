@@ -109,3 +109,19 @@ set_target_soc:
           max: 100
           step: 5
           unit_of_measurement: "%"
+
+start_engine:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: audiconnect
+
+stop_engine:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: audiconnect

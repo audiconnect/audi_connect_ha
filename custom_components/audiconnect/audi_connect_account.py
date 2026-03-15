@@ -25,6 +25,7 @@ ACTION_CLIMATISATION = "climatisation"
 ACTION_CHARGER = "charger"
 ACTION_WINDOW_HEATING = "window_heating"
 ACTION_PRE_HEATER = "pre_heater"
+ACTION_ENGINE = "engine"
 
 
 class AudiConnectObserver(ABC):
@@ -528,6 +529,72 @@ class AudiConnectAccount:
             except Exception as ex:
                 _LOGGER.warning(
                     "Cloud refresh failed after pre-heater for %s: %s", vin, ex
+                )
+
+    async def start_engine(self, vin: str):
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug(
+                "Sending command to start engine for vehicle %s", vin
+            )
+
+            await self._audi_service.start_engine(vin)
+
+            _LOGGER.debug(
+                "Successfully started engine of vehicle %s", vin
+            )
+
+            return True
+
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to start engine of vehicle {vin}".format(vin=vin),
+            )
+        finally:
+            try:
+                await self.notify(vin, ACTION_ENGINE)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after engine start for %s: %s", vin, ex
+                )
+
+    async def stop_engine(self, vin: str):
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug(
+                "Sending command to stop engine for vehicle %s", vin
+            )
+
+            await self._audi_service.stop_engine(vin)
+
+            _LOGGER.debug(
+                "Successfully stopped engine of vehicle %s", vin
+            )
+
+            return True
+
+        except Exception as exception:
+            log_exception(
+                exception,
+                "Unable to stop engine of vehicle {vin}".format(vin=vin),
+            )
+        finally:
+            try:
+                await self.notify(vin, ACTION_ENGINE)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after engine stop for %s: %s", vin, ex
                 )
 
 
