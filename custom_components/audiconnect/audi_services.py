@@ -904,9 +904,7 @@ class AudiService:
         # Step 2: Submit start request
         res = await self._api.request(
             "POST",
-            self.__get_cariad_url(
-                "/vehicle/v1/engine/{vin}/start", vin=vin.upper()
-            ),
+            self.__get_cariad_url("/vehicle/v1/engine/{vin}/start", vin=vin.upper()),
             headers=headers,
             data=json.dumps(
                 {
@@ -930,9 +928,7 @@ class AudiService:
 
         res = await self._api.request(
             "POST",
-            self.__get_cariad_url(
-                "/vehicle/v1/engine/{vin}/stop", vin=vin.upper()
-            ),
+            self.__get_cariad_url("/vehicle/v1/engine/{vin}/stop", vin=vin.upper()),
             headers=headers,
             data=None,
         )

@@ -539,15 +539,11 @@ class AudiConnectAccount:
             return False
 
         try:
-            _LOGGER.debug(
-                "Sending command to start engine for vehicle %s", vin
-            )
+            _LOGGER.debug("Sending command to start engine for vehicle %s", vin)
 
             await self._audi_service.start_engine(vin)
 
-            _LOGGER.debug(
-                "Successfully started engine of vehicle %s", vin
-            )
+            _LOGGER.debug("Successfully started engine of vehicle %s", vin)
 
             return True
 
@@ -572,15 +568,11 @@ class AudiConnectAccount:
             return False
 
         try:
-            _LOGGER.debug(
-                "Sending command to stop engine for vehicle %s", vin
-            )
+            _LOGGER.debug("Sending command to stop engine for vehicle %s", vin)
 
             await self._audi_service.stop_engine(vin)
 
-            _LOGGER.debug(
-                "Successfully stopped engine of vehicle %s", vin
-            )
+            _LOGGER.debug("Successfully stopped engine of vehicle %s", vin)
 
             return True
 

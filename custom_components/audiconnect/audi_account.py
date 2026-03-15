@@ -89,14 +89,10 @@ SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
 )
 
 SERVICE_START_ENGINE = "start_engine"
-SERVICE_START_ENGINE_SCHEMA = vol.Schema(
-    {vol.Required(CONF_DEVICE_ID): cv.string}
-)
+SERVICE_START_ENGINE_SCHEMA = vol.Schema({vol.Required(CONF_DEVICE_ID): cv.string})
 
 SERVICE_STOP_ENGINE = "stop_engine"
-SERVICE_STOP_ENGINE_SCHEMA = vol.Schema(
-    {vol.Required(CONF_DEVICE_ID): cv.string}
-)
+SERVICE_STOP_ENGINE_SCHEMA = vol.Schema({vol.Required(CONF_DEVICE_ID): cv.string})
 
 SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
