@@ -184,6 +184,26 @@
           "description": "Target state of charge percentage (20-100%)."
         }
       }
+    },
+    "start_engine": {
+      "name": "Start Engine",
+      "description": "Remotely start the vehicle engine. Requires the S-PIN to be set in the configuration.",
+      "fields": {
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to start the engine on."
+        }
+      }
+    },
+    "stop_engine": {
+      "name": "Stop Engine",
+      "description": "Remotely stop the vehicle engine.",
+      "fields": {
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to stop the engine on."
+        }
+      }
     }
   }
 }

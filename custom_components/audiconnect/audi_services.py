@@ -877,6 +877,64 @@ class AudiService:
 
         await self.check_bff_request_succeeded(vin, res["data"]["requestID"])
 
+    async def start_engine(self, vin: str) -> None:
+        if self._spin is None:
+            raise Exception("S-PIN is required to start the engine")
+
+        headers = {
+            "Accept": "application/json",
+            "Accept-charset": "utf-8",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept-encoding": "gzip",
+        }
+
+        # Step 1: Obtain userPromptProof
+        proof_res = await self._api.request(
+            "PUT",
+            self.__get_cariad_url(
+                "/vehicle/v1/engine/{vin}/userpromptproof", vin=vin.upper()
+            ),
+            headers=headers,
+            data=json.dumps({"spin": self._spin}),
+        )
+        user_prompt_proof = proof_res["userPromptProof"]
+
+        # Step 2: Submit start request
+        res = await self._api.request(
+            "POST",
+            self.__get_cariad_url("/vehicle/v1/engine/{vin}/start", vin=vin.upper()),
+            headers=headers,
+            data=json.dumps(
+                {
+                    "securedActivationData": user_prompt_proof,
+                    "spin": self._spin,
+                }
+            ),
+        )
+
+        await self.check_bff_request_succeeded(vin, res["data"]["requestID"])
+
+    async def stop_engine(self, vin: str) -> None:
+        headers = {
+            "Accept": "application/json",
+            "Accept-charset": "utf-8",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept-encoding": "gzip",
+        }
+
+        res = await self._api.request(
+            "POST",
+            self.__get_cariad_url("/vehicle/v1/engine/{vin}/stop", vin=vin.upper()),
+            headers=headers,
+            data=None,
+        )
+
+        await self.check_bff_request_succeeded(vin, res["data"]["requestID"])
+
     async def check_bff_request_succeeded(self, vin: str, request_id: str):
         headers = {
             "Accept": "application/json",

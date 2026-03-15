@@ -88,6 +88,12 @@ SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
     }
 )
 
+SERVICE_START_ENGINE = "start_engine"
+SERVICE_START_ENGINE_SCHEMA = vol.Schema({vol.Required(CONF_DEVICE_ID): cv.string})
+
+SERVICE_STOP_ENGINE = "stop_engine"
+SERVICE_STOP_ENGINE_SCHEMA = vol.Schema({vol.Required(CONF_DEVICE_ID): cv.string})
+
 SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
 
@@ -213,6 +219,14 @@ class AudiAccount(AudiConnectObserver):
             service.data.get(CONF_TARGET_SOC),
         )
 
+    async def start_engine(self, vin: str) -> None:
+        """Start engine for a vehicle by VIN."""
+        await self.connection.start_engine(vin.lower())
+
+    async def stop_engine(self, vin: str) -> None:
+        """Stop engine for a vehicle by VIN."""
+        await self.connection.stop_engine(vin.lower())
+
     async def handle_notification(self, vin: str, action: str) -> None:
         if self.config_entry.options.get(CONF_REFRESH_AFTER_ACTION, False):
             await self._refresh_vehicle_data(vin)
@@ -263,4 +277,8 @@ __all__ = [
     "SERVICE_START_AUXILIARY_HEATING_SCHEMA",
     "SERVICE_START_CLIMATE_CONTROL",
     "SERVICE_START_CLIMATE_CONTROL_SCHEMA",
+    "SERVICE_START_ENGINE",
+    "SERVICE_START_ENGINE_SCHEMA",
+    "SERVICE_STOP_ENGINE",
+    "SERVICE_STOP_ENGINE_SCHEMA",
 ]
