@@ -25,6 +25,10 @@ from .audi_account import (
     SERVICE_START_AUXILIARY_HEATING_SCHEMA,
     SERVICE_START_CLIMATE_CONTROL,
     SERVICE_START_CLIMATE_CONTROL_SCHEMA,
+    SERVICE_START_ENGINE,
+    SERVICE_START_ENGINE_SCHEMA,
+    SERVICE_STOP_ENGINE,
+    SERVICE_STOP_ENGINE_SCHEMA,
 )
 from .const import (
     CONF_API_LEVEL,
@@ -198,6 +202,20 @@ def _async_register_services(hass: HomeAssistant) -> None:
         vin, account = result
         await account.set_target_soc(vin, service)
 
+    async def _handle_start_engine(service: ServiceCall) -> None:
+        result = _resolve_service_call(hass, service)
+        if result is None:
+            return
+        vin, account = result
+        await account.start_engine(vin)
+
+    async def _handle_stop_engine(service: ServiceCall) -> None:
+        result = _resolve_service_call(hass, service)
+        if result is None:
+            return
+        vin, account = result
+        await account.stop_engine(vin)
+
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CLOUD_DATA):
         hass.services.async_register(
             DOMAIN, SERVICE_REFRESH_CLOUD_DATA, _handle_refresh_cloud_data
@@ -236,6 +254,20 @@ def _async_register_services(hass: HomeAssistant) -> None:
             SERVICE_SET_TARGET_SOC,
             _handle_set_target_soc,
             schema=SERVICE_SET_TARGET_SOC_SCHEMA,
+        )
+    if not hass.services.has_service(DOMAIN, SERVICE_START_ENGINE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_START_ENGINE,
+            _handle_start_engine,
+            schema=SERVICE_START_ENGINE_SCHEMA,
+        )
+    if not hass.services.has_service(DOMAIN, SERVICE_STOP_ENGINE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_STOP_ENGINE,
+            _handle_stop_engine,
+            schema=SERVICE_STOP_ENGINE_SCHEMA,
         )
 
 
@@ -316,6 +348,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
             SERVICE_START_CLIMATE_CONTROL,
             SERVICE_START_AUXILIARY_HEATING,
             SERVICE_SET_TARGET_SOC,
+            SERVICE_START_ENGINE,
+            SERVICE_STOP_ENGINE,
         ):
             if hass.services.has_service(DOMAIN, service):
                 hass.services.async_remove(DOMAIN, service)
