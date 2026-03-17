@@ -12,7 +12,7 @@
 
 Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
 
-> [!Warning]
+> [!Caution]
 > Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
 
 ## Maintainers Wanted
