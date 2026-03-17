@@ -87,8 +87,8 @@ Normal updates retrieve data from the Audi Connect cloud service, and don't inte
 #### Parameters
 
 - **`vehicle`**: The Audi vehicle to perform the action on.
-  > [!CAUTION]
-  > **This service action counts against your daily API rate limit.** Repeated use may exhaust your limit. Use sparingly and monitor your remaining API calls via the **"API Requests Remaining"** diagnostic sensor or **Settings → System → Repairs & System Information**.
+> [!CAUTION]
+> **This service action counts against your daily API rate limit.** Repeated use may exhaust your limit. Use sparingly and monitor your remaining API calls via the **"API Requests Remaining"** diagnostic sensor or **Settings → System → Repairs & System Information**.
 
 ### Audi Connect: Refresh Cloud Data
 
