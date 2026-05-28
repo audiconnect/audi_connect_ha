@@ -1160,7 +1160,7 @@ class AudiService:
         marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.23.1".format(
             c=self._country, l=self._language
         )
-        openidcfg_url = self.__get_cariad_url("/login/v1/idk/openid-configuration")
+        openidcfg_url = self.__get_cariad_url("/auth/v1/idk/oidc/openid-configuration")
 
         # get market config
         marketcfg_json = await self._api.request("GET", marketcfg_url, None)
