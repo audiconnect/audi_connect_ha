@@ -5,9 +5,6 @@
 [![Code Style][blackbadge]][black]
 [![hacs][hacsbadge]](hacs)
 
-> [!WARNING]
-> **This is a pre-release version.** It is intended for testing purposes and may contain bugs or breaking changes. If you encounter any issues, please report them [here](https://github.com/audiconnect/audi_connect_ha/issues).
-
 ## Notices
 
 Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
