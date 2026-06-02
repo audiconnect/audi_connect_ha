@@ -1452,33 +1452,41 @@ class AudiService:
         self.mbboauthToken = mbboauth_auth_json
 
         # mbboauth refresh (app immediately refreshes the token)
-        headers = {
-            "Accept": "application/json",
-            "Accept-Charset": "utf-8",
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-Client-ID": self.xclientId,
-        }
-        mbboauth_refresh_data = {
-            "grant_type": "refresh_token",
-            "token": mbboauth_auth_json["refresh_token"],
-            "scope": "sc2:fal",
-            # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
-        }
-        encoded_mbboauth_refresh_data = urlencode(
-            mbboauth_refresh_data, encoding="utf-8"
-        ).replace("+", "%20")
-        mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
-            "POST",
-            self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
-            encoded_mbboauth_refresh_data,
-            headers=headers,
-            allow_redirects=False,
-            cookies=mbboauth_client_reg_rsp.cookies,
-            rsp_wtxt=True,
-        )
-        # this code is the old "vwToken"
-        self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+        # The MBB OAuth auth response no longer always includes a refresh_token.
+        # Skip the immediate refresh if absent and use the auth token directly.
+        if "refresh_token" in mbboauth_auth_json:
+            headers = {
+                "Accept": "application/json",
+                "Accept-Charset": "utf-8",
+                "User-Agent": AudiAPI.HDR_USER_AGENT,
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Client-ID": self.xclientId,
+            }
+            mbboauth_refresh_data = {
+                "grant_type": "refresh_token",
+                "token": mbboauth_auth_json["refresh_token"],
+                "scope": "sc2:fal",
+                # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
+            }
+            encoded_mbboauth_refresh_data = urlencode(
+                mbboauth_refresh_data, encoding="utf-8"
+            ).replace("+", "%20")
+            mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
+                "POST",
+                self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
+                encoded_mbboauth_refresh_data,
+                headers=headers,
+                allow_redirects=False,
+                cookies=mbboauth_client_reg_rsp.cookies,
+                rsp_wtxt=True,
+            )
+            # this code is the old "vwToken"
+            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+        else:
+            _LOGGER.debug(
+                "mbboauth: no refresh_token in auth response, using auth token directly as vwToken"
+            )
+            self.vwToken = mbboauth_auth_json
 
     def _generate_security_pin_hash(self, challenge: str) -> str:
         if self._spin is None:
