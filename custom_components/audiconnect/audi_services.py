@@ -1452,7 +1452,7 @@ class AudiService:
         self.mbboauthToken = mbboauth_auth_json
 
         # mbboauth refresh (app immediately refreshes the token)
-       # The MBB OAuth auth response no longer always includes a refresh_token.
+        # The MBB OAuth auth response no longer always includes a refresh_token.
         # Skip the immediate refresh if absent and use the auth token directly.
         if "refresh_token" in mbboauth_auth_json:
             headers = {
