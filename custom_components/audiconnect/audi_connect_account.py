@@ -102,8 +102,10 @@ class AudiConnectAccount:
         except Exception as exception:
             if logError is True:
                 _LOGGER.error(
-                    "LOGIN: Failed to log in to the Audi service: %s."
-                    "You may need to open the myAudi app, or log in via a web browser, to accept updated terms and conditions.",
+                    "LOGIN: Failed to log in to the Audi service: %s. "
+                    "If this error persists, open the myAudi app or log in via "
+                    "a web browser and accept any pending terms or consent prompts, "
+                    "then restart the integration.",
                     str(exception),
                 )
             return False
