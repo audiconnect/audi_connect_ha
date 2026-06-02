@@ -48,6 +48,11 @@ def _trip_data_value(vehicle: Any, attr_key: str) -> Any:
         return parse_datetime(td.get("timestamp"))
     return None
 
+def _charging_profiles_attrs(vehicle: Any) -> dict[str, Any]:
+    """Extract charging profiles list as extra attributes."""
+    return {
+        "profiles": getattr(vehicle, "charging_profiles", [])
+    }
 
 def _trip_data_attrs(vehicle: Any, attr_key: str) -> dict[str, Any]:
     """Extract extra attributes from trip data dict."""
@@ -387,6 +392,14 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         name="Preheater remaining",
         icon="mdi:clock",
         native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
+    AudiSensorEntityDescription(
+        key="charging_profiles",
+        attr_key="charging_profiles_count",
+        name="Charging Profiles",
+        icon="mdi:account-cog",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        extra_attrs_fn=_charging_profiles_attrs,
     ),
 )
 
