@@ -596,6 +596,11 @@ class Vehicle:
         self.model_year: str = ""
         self.model_family: str = ""
         self.title: str = ""
+        self.charging_profiles = []              
+        self.charging_profiles_count = 0
+        
+    def get_charging_profile_count(self):
+        return self.charging_profiles_count
 
     def parse(self, data: dict[str, Any]) -> None:
         self.vin = data.get("vin")
