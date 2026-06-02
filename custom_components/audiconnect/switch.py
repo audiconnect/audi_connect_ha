@@ -1,44 +1,87 @@
-"""Support for Audi Connect switches"""
+"""Support for Audi Connect switches."""
 
-import logging
+from __future__ import annotations
 
-from homeassistant.helpers.entity import ToggleEntity
-from homeassistant.const import CONF_USERNAME
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any
 
-from .audi_entity import AudiEntity
-from .const import DOMAIN
+from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-_LOGGER = logging.getLogger(__name__)
-
-
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Old way."""
-
-
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    sensors = []
-    account = config_entry.data.get(CONF_USERNAME)
-    audiData = hass.data[DOMAIN][account]
-
-    for config_vehicle in audiData.config_vehicles:
-        for switch in config_vehicle.switches:
-            sensors.append(AudiSwitch(config_vehicle, switch))
-
-    async_add_entities(sensors)
+from . import AudiRuntimeData
+from .audi_entity import AudiEntity, is_entity_supported
+from .coordinator import AudiDataUpdateCoordinator
 
 
-class AudiSwitch(AudiEntity, ToggleEntity):
-    """Representation of a Audi switch."""
+@dataclass(frozen=True, kw_only=True)
+class AudiSwitchEntityDescription(SwitchEntityDescription):
+    """Describes an Audi switch entity."""
+
+    attr_key: str
+    turn_on_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
+    turn_off_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
+
+
+SWITCH_DESCRIPTIONS: tuple[AudiSwitchEntityDescription, ...] = (
+    AudiSwitchEntityDescription(
+        key="preheater_active",
+        attr_key="preheater_active",
+        name="Preheater",
+        icon="mdi:radiator",
+        turn_on_fn=lambda conn, vin: conn.set_vehicle_pre_heater(vin, True),
+        turn_off_fn=lambda conn, vin: conn.set_vehicle_pre_heater(vin, False),
+    ),
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    runtime_data: AudiRuntimeData = config_entry.runtime_data
+    entities = [
+        AudiSwitch(runtime_data.coordinator, description, vehicle)
+        for config_vehicle in runtime_data.account.config_vehicles
+        for description in SWITCH_DESCRIPTIONS
+        if is_entity_supported(
+            (vehicle := config_vehicle.vehicle), description.attr_key
+        )
+    ]
+    async_add_entities(entities)
+
+
+class AudiSwitch(AudiEntity, SwitchEntity):
+    """Representation of an Audi switch."""
+
+    entity_description: AudiSwitchEntityDescription
+
+    def __init__(
+        self,
+        coordinator: AudiDataUpdateCoordinator,
+        description: AudiSwitchEntityDescription,
+        vehicle: Any,
+    ) -> None:
+        super().__init__(coordinator, vehicle)
+        self.entity_description = description
+        self._attr_unique_id = f"{vehicle.vin.lower()}_switch_{description.key}"
 
     @property
-    def is_on(self):
-        """Return true if switch is on."""
-        return self._instrument.state
+    def is_on(self) -> bool:
+        return getattr(self._vehicle, self.entity_description.attr_key, False)
 
-    async def async_turn_on(self, **kwargs):
-        """Turn the switch on."""
-        await self._instrument.turn_on()
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        connection = self.coordinator.account.connection
+        await self.entity_description.turn_on_fn(connection, self._vehicle.vin)
+        await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs):
-        """Turn the switch off."""
-        await self._instrument.turn_off()
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        connection = self.coordinator.account.connection
+        await self.entity_description.turn_off_fn(connection, self._vehicle.vin)
+        await self.coordinator.async_request_refresh()
+
+
+__all__ = ["AudiSwitch", "async_setup_entry"]

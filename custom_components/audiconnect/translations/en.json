@@ -23,7 +23,22 @@
         },
         "title": "Audi Connect Account Info",
         "data_description": {
-          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be updated from the CONFIGURE menu later, if needed."
+          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be changed later via the Reconfigure option."
+        }
+      },
+      "reconfigure": {
+        "title": "Update Audi Connect Configuration",
+        "description": "Update settings for account **{username}**.",
+        "data": {
+          "password": "Password",
+          "spin": "S-PIN",
+          "region": "Region",
+          "api_level": "API Level"
+        },
+        "data_description": {
+          "spin": "Optional S-PIN for vehicle actions such as lock/unlock.",
+          "region": "The region associated with your Audi Connect account.",
+          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle."
         }
       }
     }
@@ -33,16 +48,18 @@
       "init": {
         "data": {
           "scan_initial": "Cloud Update at Startup",
-          "scan_active": "Active Polling at Scan Interval",
+          "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
+          "update_sleep": "Cloud Refresh Delay",
           "scan_interval": "Scan Interval",
-          "api_level": "API Level"
+          "filter_vins": "Excluded VINs"
         },
         "title": "Audi Connect Options",
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
-          "scan_active": "Perform a cloud update at the set scan interval.",
-          "scan_interval": "Minutes between active polling. If 'Active Polling at Scan Interval' is off, this value will have no impact.",
-          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle."
+          "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
+          "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud.",
+          "scan_interval": "Minutes between cloud polling updates.",
+          "filter_vins": "Comma-separated VIN list to exclude from setup and updates."
         }
       }
     }
@@ -69,9 +86,9 @@
       "name": "Refresh Vehicle Data",
       "description": "Requests an update of the vehicle state directly, as opposed to the normal update mechanism which only retrieves data from the cloud.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to refresh."
         }
       }
     },
@@ -79,9 +96,9 @@
       "name": "Execute Vehicle Action",
       "description": "Performs various actions on the vehicle.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to perform the action on."
         },
         "action": {
           "name": "Action",
@@ -94,17 +111,17 @@
       "name": "Start Climate Control",
       "description": "Start the climate control with options for temperature, glass surface heating, and auto seat comfort.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to start climate control on."
         },
         "temp_f": {
           "name": "Target Temperature (Fahrenheit)",
-          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
+          "description": "(Optional) Set temperature in \u00b0F. Defaults to 70\u00b0F if not provided. Overrides 'temp_c'."
         },
         "temp_c": {
           "name": "Target Temperature (Celsius)",
-          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
+          "description": "(Optional) Set temperature in \u00b0C. Defaults to 21\u00b0C if not provided. Overridden if 'temp_f' is provided."
         },
         "glass_heating": {
           "name": "Glass Surface Heating",
@@ -144,9 +161,9 @@
       "name": "Start Auxiliary Heating",
       "description": "Start auxiliary heating the vehicle, with option for duration.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to start auxiliary heating on."
         },
         "duration": {
           "name": "Duration",
@@ -158,9 +175,9 @@
       "name": "Set Target State of Charge",
       "description": "Set the target state of charge (battery %) for the vehicle.",
       "fields": {
-        "vin": {
-          "name": "VIN",
-          "description": "The Vehicle Identification Number (VIN) of the Audi vehicle. This should be a 17-character identifier unique to each vehicle."
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to set the target charge level for."
         },
         "target_soc": {
           "name": "Target State of Charge",
