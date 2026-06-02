@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity
 from .coordinator import AudiDataUpdateCoordinator
 
 
@@ -32,14 +32,12 @@ class AudiClimateEntityDescription(ClimateEntityDescription):
     stop_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
 
 
-async def _start_climate_control(
-    conn: Any, vin: str, params: dict[str, Any]
-) -> None:
+async def _start_climate_control(conn: Any, vin: str, params: dict[str, Any]) -> None:
     """Start climate control with parameters."""
     temp_c = params.get("target_temperature", 21)
     # Convert Celsius to Fahrenheit
     temp_f = int(temp_c * 9 / 5 + 32)
-    
+
     await conn.start_climate_control(
         vin,
         temp_f,
@@ -57,8 +55,6 @@ async def _start_climate_control(
 async def _stop_climate_control(conn: Any, vin: str) -> None:
     """Stop climate control."""
     await conn.set_vehicle_climatisation(vin, False)
-
-
 
 
 CLIMATE_DESCRIPTIONS: tuple[AudiClimateEntityDescription, ...] = (
@@ -80,22 +76,16 @@ async def async_setup_entry(
 ) -> None:
     runtime_data: AudiRuntimeData = config_entry.runtime_data
     entities = []
-    
+
     for config_vehicle in runtime_data.account.config_vehicles:
         vehicle = config_vehicle.vehicle
         if vehicle is None:
             continue
-        
+
         # Add Climate Control entity
         for description in CLIMATE_DESCRIPTIONS:
-            entities.append(
-                AudiClimate(
-                    runtime_data.coordinator, 
-                    description,
-                    vehicle
-                )
-            )
-    
+            entities.append(AudiClimate(runtime_data.coordinator, description, vehicle))
+
     async_add_entities(entities)
 
 
@@ -127,13 +117,17 @@ class AudiClimate(AudiEntity, ClimateEntity):
     def hvac_mode(self) -> HVACMode:
         """Return current HVAC mode."""
         # Check if we have the actual state attribute, otherwise return stored state
-        is_active = getattr(self._vehicle, self.entity_description.attr_key, self._is_on)
+        is_active = getattr(
+            self._vehicle, self.entity_description.attr_key, self._is_on
+        )
         return HVACMode.HEAT_COOL if is_active else HVACMode.OFF
 
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return current HVAC action."""
-        is_active = getattr(self._vehicle, self.entity_description.attr_key, self._is_on)
+        is_active = getattr(
+            self._vehicle, self.entity_description.attr_key, self._is_on
+        )
         if is_active:
             # Klimatisierung can cool or heat
             return HVACAction.COOLING
