@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -457,7 +458,7 @@ class AudiSensor(AudiEntity, SensorEntity):
         return None
 
 
-class AudiApiRateLimitSensor(AudiEntity, SensorEntity):
+class AudiApiRateLimitSensor(AudiEntity, RestoreSensor):
     """Account-level sensor exposing the Vcf-Remaining-Calls API rate limit."""
 
     _attr_name = "API requests remaining"
@@ -472,11 +473,61 @@ class AudiApiRateLimitSensor(AudiEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self._attr_unique_id = f"{entry_id}_api_requests_remaining"
+        self._restored_native_value: int | None = None
+        self._restored_last_observed: str | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        api = self.coordinator.account.connection._audi_service._api
+        if api.vcf_remaining_calls is not None:
+            return
+
+        if (restored := await self.async_get_last_sensor_data()) is not None:
+            value = restored.native_value
+            if isinstance(value, int) and not isinstance(value, bool):
+                self._restored_native_value = value
+
+        if (last_state := await self.async_get_last_state()) is None:
+            return
+
+        # Supports the first restart after upgrading from a version that did
+        # not previously store SensorExtraStoredData through RestoreSensor.
+        if self._restored_native_value is None and last_state.state.isdigit():
+            self._restored_native_value = int(last_state.state)
+
+        last_observed = last_state.attributes.get("last_observed")
+        if isinstance(last_observed, str):
+            self._restored_last_observed = last_observed
 
     @property
     def native_value(self) -> int | None:
         api = self.coordinator.account.connection._audi_service._api
-        return api.vcf_remaining_calls
+        if api.vcf_remaining_calls is not None:
+            return api.vcf_remaining_calls
+        return self._restored_native_value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        api = self.coordinator.account.connection._audi_service._api
+        if api.vcf_remaining_calls_last_observed is not None:
+            return {
+                "last_observed": api.vcf_remaining_calls_last_observed.isoformat(),
+                # Avoid an attribute named "restored"; Home Assistant's frontend treats
+                # stateObj.attributes.restored as the marker for a restored/orphaned entity.
+                "value_restored": False,
+            }
+
+        if self._restored_native_value is None:
+            return {}
+
+        attrs: dict[str, Any] = {
+            # Avoid an attribute named "restored"; Home Assistant's frontend treats
+            # stateObj.attributes.restored as the marker for a restored/orphaned entity.
+            "value_restored": True,
+        }
+        if self._restored_last_observed is not None:
+            attrs["last_observed"] = self._restored_last_observed
+        return attrs
 
 
 __all__ = ["AudiApiRateLimitSensor", "AudiSensor", "async_setup_entry"]

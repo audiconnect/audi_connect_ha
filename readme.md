@@ -88,6 +88,9 @@ Normal updates retrieve data from the Audi Connect cloud service, and don't inte
 > [!CAUTION]
 > **This service action counts against your daily API rate limit.** Repeated use may exhaust your limit. Use sparingly and monitor your remaining API calls via the **"API Requests Remaining"** diagnostic sensor or **Settings → System → Repairs & System Information**.
 
+> [!NOTE]
+> The **"API Requests Remaining"** diagnostic sensor restores its last known value after a Home Assistant restart. Its `last_observed` attribute records when Audi last returned a `Vcf-Remaining-Calls` value. If `value_restored` is `true`, the displayed value was restored from the previous Home Assistant runtime and may no longer represent the current remaining allowance.
+
 ### Audi Connect: Refresh Cloud Data
 
 `audiconnect.refresh_cloud_data`
