@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from asyncio import CancelledError, TimeoutError
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from aiohttp import ClientResponseError, ClientSession
@@ -33,6 +33,7 @@ class AudiAPI:
             {"http": proxy, "https": proxy} if proxy else None
         )
         self.vcf_remaining_calls: int | None = None
+        self.vcf_remaining_calls_last_observed: datetime | None = None
 
     def use_token(self, token: dict[str, Any] | None) -> None:
         self.__token = token
@@ -83,6 +84,7 @@ class AudiAPI:
                             remaining = None
                         if remaining is not None:
                             self.vcf_remaining_calls = remaining
+                            self.vcf_remaining_calls_last_observed = datetime.now(UTC)
                             if remaining < 10:
                                 _LOGGER.warning(
                                     "[VCF-RATE-LIMIT] Remaining calls: %d — warning: VCF call limit nearly exhausted",
