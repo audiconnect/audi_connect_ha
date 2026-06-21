@@ -1203,6 +1203,19 @@ class AudiService:
         if "mbbOAuthBaseURLLive" in marketcfg_json:
             self.mbbOAuthBaseURL = marketcfg_json["mbbOAuthBaseURLLive"]
 
+        if "idkLoginServiceConfigurationURLProduction" in marketcfg_json:
+            openidcfg_url = marketcfg_json["idkLoginServiceConfigurationURLProduction"]
+            _LOGGER.debug(
+                "Using idkLoginServiceConfigurationURLProduction from market config: %s",
+                openidcfg_url,
+            )
+        else:
+            _LOGGER.debug(
+                "idkLoginServiceConfigurationURLProduction not found in market config, "
+                "falling back to CARIAD default: %s",
+                openidcfg_url,
+            )
+
         # get openId config
         openidcfg_json = await self._api.request("GET", openidcfg_url, None)
 
