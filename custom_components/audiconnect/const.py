@@ -57,6 +57,7 @@ PLATFORMS: list[Platform] = [
     Platform.DEVICE_TRACKER,
     Platform.LOCK,
     Platform.SWITCH,
+    Platform.CLIMATE,
 ]
 
 __all__ = [
