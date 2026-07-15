@@ -136,7 +136,12 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             self._user_code = response.get("user_code")
 
         if user_input is not None:
-            status = await self._connection.poll_device_token(self._device_code)
+            try:
+                status = await self._connection.poll_device_token(self._device_code)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Audi device token poll failed")
+                status = None
+                errors["base"] = "device_auth_failed"
             if status == "ok":
                 return await self._finish_device_login()
             if status in ("authorization_pending", "slow_down"):
@@ -145,7 +150,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Code timed out; mint a fresh one and show it again.
                 self._device_code = None
                 return await self.async_step_device()
-            else:
+            elif status is not None:
                 errors["base"] = "device_auth_failed"
 
         step_id = "reauth_confirm" if self._reauth_entry is not None else "device"
@@ -162,6 +167,9 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _finish_device_login(self) -> ConfigFlowResult:
         assert self._connection is not None
         refresh_token = self._connection.refresh_token
+        if not refresh_token:
+            # Approved but no refresh token issued; do not persist a dead entry.
+            return self.async_abort(reason="device_auth_failed")
 
         if self._reauth_entry is not None:
             return self.async_update_reload_and_abort(
@@ -172,11 +180,12 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        identifier = self._connection.account_identifier() or "audi"
-        await self.async_set_unique_id(identifier.lower())
-        self._abort_if_unique_id_configured()
+        identifier = self._connection.account_identifier()
+        if identifier:
+            await self.async_set_unique_id(identifier.lower())
+            self._abort_if_unique_id_configured()
         return self.async_create_entry(
-            title=identifier,
+            title=identifier or "Audi Connect",
             data={**self._flow_data, CONF_REFRESH_TOKEN: refresh_token},
         )
 

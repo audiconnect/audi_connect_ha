@@ -13,7 +13,7 @@ from typing import Any
 from aiohttp import ClientResponseError, ClientSession
 
 from .audi_api import AudiAPI
-from .audi_services import AudiService
+from .audi_services import AudiAuthError, AudiService
 from .util import get_attr, log_exception, parse_datetime, parse_float, parse_int
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,10 +27,6 @@ ACTION_CHARGER = "charger"
 ACTION_WINDOW_HEATING = "window_heating"
 ACTION_PRE_HEATER = "pre_heater"
 ACTION_ENGINE = "engine"
-
-
-class AudiAuthError(Exception):
-    """Raised when the stored authorization is missing or no longer valid."""
 
 
 class AudiConnectObserver(ABC):
@@ -144,6 +140,10 @@ class AudiConnectAccount:
                     self._on_refresh_token_update(new_refresh_token)
             _LOGGER.debug("LOGIN: Audi session established")
             return True
+        except AudiAuthError:
+            # Token rejected (expired/revoked): propagate so Home Assistant reauth
+            # is triggered instead of retrying a credential that can never work.
+            raise
         except Exception as exception:
             if logError is True:
                 _LOGGER.error(

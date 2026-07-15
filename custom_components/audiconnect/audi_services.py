@@ -33,6 +33,10 @@ DEVICE_CODE_SCOPE = "openid profile badge cars dealers vin"
 _LOGGER = logging.getLogger(__name__)
 
 
+class AudiAuthError(Exception):
+    """Raised when authorization is missing or a token has been rejected."""
+
+
 def _to_absolute(absolute_url: str, relative_url: str) -> str:
     """Convert a relative url to an absolute url."""
     url_parts = urlparse(absolute_url)
@@ -1120,7 +1124,13 @@ class AudiService:
                 allow_redirects=False,
                 rsp_wtxt=True,
             )
-            self._bearer_token_json = json.loads(bearer_token_rsptxt)
+            refreshed = json.loads(bearer_token_rsptxt)
+            if "access_token" not in refreshed:
+                raise AudiAuthError(
+                    "IDK refresh rejected: "
+                    + str(refreshed.get("error", bearer_token_rsptxt[:200]))
+                )
+            self._bearer_token_json = refreshed
 
             # AZS token
             headers = {
@@ -1150,6 +1160,8 @@ class AudiService:
 
             return True
 
+        except AudiAuthError:
+            raise
         except Exception as exception:
             _LOGGER.error("Refresh token failed: " + str(exception))
             return False
@@ -1334,8 +1346,8 @@ class AudiService:
         )
         result = json.loads(rsptxt)
         if "access_token" not in result:
-            raise Exception(
-                "Token refresh failed: " + str(result.get("error", rsptxt[:200]))
+            raise AudiAuthError(
+                "Token refresh rejected: " + str(result.get("error", rsptxt[:200]))
             )
         self._bearer_token_json = result
         await self._finalize_session()

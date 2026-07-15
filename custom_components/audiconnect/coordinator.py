@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .audi_account import AudiAccount
@@ -38,6 +39,10 @@ class AudiDataUpdateCoordinator(DataUpdateCoordinator[list[Any]]):
     async def _async_update_data(self) -> list[Any]:
         try:
             return await self.account.async_refresh_data()
+        except (ConfigEntryAuthFailed, ConfigEntryNotReady):
+            # Let Home Assistant handle reauth / retry-setup instead of masking
+            # these as a generic update failure.
+            raise
         except Exception as err:  # noqa: BLE001
             raise UpdateFailed(str(err)) from err
 
