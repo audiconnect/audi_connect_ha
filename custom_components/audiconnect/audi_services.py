@@ -26,9 +26,10 @@ FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
 REQUEST_FAILED = "request_failed"
 
-# Scope requested for the Device Authorization Grant. Verified sufficient for the
-# CARIAD BFF vehicle endpoints (lock/unlock, climate, charging, status).
-DEVICE_CODE_SCOPE = "openid profile badge cars dealers vin"
+# Scope requested for the Device Authorization Grant. "mbb" is required for the
+# legacy MBB / fs-car endpoints (lock/unlock, trip statistics, climater); the
+# other scopes cover account identity and the CARIAD BFF vehicle data.
+DEVICE_CODE_SCOPE = "openid mbb profile badge cars dealers vin"
 
 _LOGGER = logging.getLogger(__name__)
 
