@@ -5,13 +5,10 @@ import base64
 import hmac
 import json
 import logging
-import os
-import re
-import uuid
 from datetime import datetime, timedelta, timezone
-from hashlib import sha256, sha512
+from hashlib import sha512
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -28,6 +25,10 @@ SUCCEEDED = "succeeded"
 FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
 REQUEST_FAILED = "request_failed"
+
+# Scope requested for the Device Authorization Grant. Verified sufficient for the
+# CARIAD BFF vehicle endpoints (lock/unlock, climate, charging, status).
+DEVICE_CODE_SCOPE = "openid profile badge cars dealers vin"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,10 +93,6 @@ class AudiService:
         else:
             raise ValueError("Unknown form action: " + action)
         return username_post_url
-
-    async def login(self, user: str, password: str, persist_token: bool = True) -> None:
-        _LOGGER.debug("LOGIN: Starting login to Audi service...")
-        await self.login_request(user, password)
 
     async def refresh_vehicle_data(self, vin: str):
         request_id = await self.request_current_vehicle_data(vin.upper())
@@ -1101,7 +1098,6 @@ class AudiService:
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
-                "X-QMAuth": self._calculate_X_QMAuth(),
                 "User-Agent": AudiAPI.HDR_USER_AGENT,
                 "Content-Type": "application/x-www-form-urlencoded",
             }
@@ -1158,8 +1154,13 @@ class AudiService:
             _LOGGER.error("Refresh token failed: " + str(exception))
             return False
 
-    # TR/2021-12-01 updated to match behaviour of Android myAudi 4.5.0
-    async def login_request(self, user: str, password: str):
+    async def _discover_endpoints(self) -> None:
+        """Resolve the dynamic client id and OIDC endpoints.
+
+        Fetches the market configuration and the IDK openid-configuration and
+        stores the client id, token endpoint, AZS/mbboauth base URLs and the
+        device-authorization endpoint on the instance.
+        """
         self._api.use_token(None)
         self._api.set_xclient_id(None)
         self.xclientId = None
@@ -1205,191 +1206,164 @@ class AudiService:
 
         if "idkLoginServiceConfigurationURLProduction" in marketcfg_json:
             openidcfg_url = marketcfg_json["idkLoginServiceConfigurationURLProduction"]
-            _LOGGER.debug(
-                "Using idkLoginServiceConfigurationURLProduction from market config: %s",
-                openidcfg_url,
-            )
-        else:
-            _LOGGER.debug(
-                "idkLoginServiceConfigurationURLProduction not found in market config, "
-                "falling back to CARIAD default: %s",
-                openidcfg_url,
-            )
 
         # get openId config
         openidcfg_json = await self._api.request("GET", openidcfg_url, None)
 
-        # use dynamic config from openId config
-        authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
-        if "authorization_endpoint" in openidcfg_json:
-            authorization_endpoint = openidcfg_json["authorization_endpoint"]
-
         self._tokenEndpoint = self.__get_cariad_url("/auth/v1/idk/oidc/token")
-
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
-        # revocation_endpoint = self.__get_cariad_base_url("/login/v1/idk/revoke")
-        # if "revocation_endpoint" in openidcfg_json:
-        # revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
-        # generate code_challenge
-        code_verifier = str(base64.urlsafe_b64encode(os.urandom(32)), "utf-8").strip(
-            "="
+        # Device Authorization Grant (RFC 8628) endpoint. Discovery advertises it;
+        # fall back to the well-known global identity endpoint.
+        self._deviceAuthorizationEndpoint = (
+            "https://identity.vwgroup.io/oidc/v1/device_authorization"
         )
-        code_challenge = str(
-            base64.urlsafe_b64encode(
-                sha256(code_verifier.encode("ascii", "ignore")).digest()
-            ),
-            "utf-8",
-        ).strip("=")
-        code_challenge_method = "S256"
+        if "device_authorization_endpoint" in openidcfg_json:
+            self._deviceAuthorizationEndpoint = openidcfg_json[
+                "device_authorization_endpoint"
+            ]
 
-        #
-        state = str(uuid.uuid4())
-        nonce = str(uuid.uuid4())
+    async def request_device_code(self) -> dict[str, Any]:
+        """Start the OAuth Device Authorization Grant (RFC 8628).
 
-        # login page
+        Returns the response containing ``user_code``, ``verification_uri`` /
+        ``verification_uri_complete``, ``device_code``, ``interval`` and
+        ``expires_in``. The user approves the ``user_code`` in a browser. This
+        grant does not require a Play Integrity attestation header.
+        """
+        await self._discover_endpoints()
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
             "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
             "X-App-Name": "myAudi",
             "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded",
         }
-        idk_data = {
-            "response_type": "code",
-            "client_id": self._client_id,
-            "redirect_uri": "myaudi:///",
-            "scope": "address profile badge birthdate birthplace nationalIdentifier nationality profession email vin phone nickname name picture mbb gallery openid",
-            "state": state,
-            "nonce": nonce,
-            "prompt": "login",
-            "code_challenge": code_challenge,
-            "code_challenge_method": code_challenge_method,
-            "ui_locales": "de-de de",
-        }
-        idk_rsp, idk_rsptxt = await self._api.request(
-            "GET",
-            authorization_endpoint,
-            None,
-            headers=headers,
-            params=idk_data,
-            rsp_wtxt=True,
-        )
-
-        # form_data with email
-        submit_data = self.get_hidden_html_input_form_data(idk_rsptxt, {"email": user})
-        submit_url = self.get_post_url(idk_rsptxt, authorization_endpoint)
-        # send email
-        email_rsp, email_rsptxt = await self._api.request(
+        data = {"client_id": self._client_id, "scope": DEVICE_CODE_SCOPE}
+        encoded = urlencode(data, encoding="utf-8").replace("+", "%20")
+        _rsp, rsptxt = await self._api.request(
             "POST",
-            submit_url,
-            submit_data,
+            self._deviceAuthorizationEndpoint,
+            encoded,
             headers=headers,
-            cookies=idk_rsp.cookies,
-            allow_redirects=True,
-            rsp_wtxt=True,
-        )
-
-        # form_data with password
-        # 2022-01-29: new HTML response uses a js two build the html form data + button.
-        #             Therefore it's not possible to extract hmac and other form data.
-        #             --> extract hmac from embedded js snippet.
-        regex_res = re.findall('"hmac"\\s*:\\s*"[0-9a-fA-F]+"', email_rsptxt)
-        if regex_res:
-            submit_url = submit_url.replace("identifier", "authenticate")
-            submit_data["hmac"] = regex_res[0].split(":")[1].strip('"')
-            submit_data["password"] = password
-        else:
-            submit_data = self.get_hidden_html_input_form_data(
-                email_rsptxt, {"password": password}
-            )
-            submit_url = self.get_post_url(email_rsptxt, submit_url)
-
-        # send password
-        pw_rsp, pw_rsptxt = await self._api.request(
-            "POST",
-            submit_url,
-            submit_data,
-            headers=headers,
-            cookies=idk_rsp.cookies,
             allow_redirects=False,
             rsp_wtxt=True,
         )
-
-        # forward1 after pwd
-        if "Location" not in pw_rsp.headers:
+        result = json.loads(rsptxt)
+        if "device_code" not in result:
             raise Exception(
-                "Login redirect missing after password submission (HTTP %d). "
-                "Audi may be showing a consent or terms-of-service prompt. "
-                "Please log in to myAudi via a browser or the myAudi app and "
-                "accept any pending agreements, then restart the integration."
-                % pw_rsp.status
+                "Device authorization request failed: "
+                + str(result.get("error", rsptxt[:200]))
             )
-        fwd1_rsp, fwd1_rsptxt = await self._api.request(
-            "GET",
-            pw_rsp.headers["Location"],
-            None,
-            headers=headers,
-            cookies=idk_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-        # forward2 after pwd
-        fwd2_rsp, fwd2_rsptxt = await self._api.request(
-            "GET",
-            fwd1_rsp.headers["Location"],
-            None,
-            headers=headers,
-            cookies=idk_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-        # get tokens
-        codeauth_rsp, codeauth_rsptxt = await self._api.request(
-            "GET",
-            fwd2_rsp.headers["Location"],
-            None,
-            headers=headers,
-            cookies=fwd2_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-        authcode_parsed = urlparse(
-            codeauth_rsp.headers["Location"][len("myaudi:///?") :]
-        )
-        authcode_strings = parse_qs(authcode_parsed.path)
+        return result
 
-        # hdr
+    async def poll_device_token(self, device_code: str) -> str:
+        """Poll the token endpoint once for a device_code grant.
+
+        Returns one of ``"ok"``, ``"authorization_pending"``, ``"slow_down"``,
+        ``"expired"``, ``"denied"`` or ``"error"``. On ``"ok"`` the IDK bearer
+        token is stored and the AZS + mbboauth session tokens are derived. No
+        attestation header is sent.
+        """
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
-            "X-QMAuth": self._calculate_X_QMAuth(),
             "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Content-Type": "application/x-www-form-urlencoded",
         }
-        # IDK token request data
-        tokenreq_data = {
+        data = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
             "client_id": self._client_id,
-            "grant_type": "authorization_code",
-            "code": authcode_strings["code"][0],
-            "redirect_uri": "myaudi:///",
-            "response_type": "token id_token",
-            "code_verifier": code_verifier,
+            "device_code": device_code,
         }
-        # IDK token request
-        encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace(
-            "+", "%20"
-        )
-        bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
+        encoded = urlencode(data, encoding="utf-8").replace("+", "%20")
+        _rsp, rsptxt = await self._api.request(
             "POST",
             self._tokenEndpoint,
-            encoded_tokenreq_data,
+            encoded,
             headers=headers,
             allow_redirects=False,
             rsp_wtxt=True,
         )
-        self._bearer_token_json = json.loads(bearer_token_rsptxt)
+        result = json.loads(rsptxt)
+        if "access_token" in result:
+            self._bearer_token_json = result
+            await self._finalize_session()
+            return "ok"
+        error = result.get("error")
+        mapping = {
+            "authorization_pending": "authorization_pending",
+            "slow_down": "slow_down",
+            "expired_token": "expired",
+            "access_denied": "denied",
+        }
+        if error in mapping:
+            return mapping[error]
+        _LOGGER.debug("Unexpected device token response: %s", rsptxt[:200])
+        return "error"
+
+    async def login_with_refresh_token(self, refresh_token: str) -> str:
+        """Obtain a session from a stored IDK refresh token.
+
+        Uses the standard ``refresh_token`` grant, which needs no Play Integrity
+        attestation. Returns the (possibly rotated) refresh token to persist.
+        """
+        await self._discover_endpoints()
+        headers = {
+            "Accept": "application/json",
+            "Accept-Charset": "utf-8",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        data = {
+            "client_id": self._client_id,
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "response_type": "token id_token",
+        }
+        encoded = urlencode(data, encoding="utf-8").replace("+", "%20")
+        _rsp, rsptxt = await self._api.request(
+            "POST",
+            self._tokenEndpoint,
+            encoded,
+            headers=headers,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+        result = json.loads(rsptxt)
+        if "access_token" not in result:
+            raise Exception(
+                "Token refresh failed: " + str(result.get("error", rsptxt[:200]))
+            )
+        self._bearer_token_json = result
+        await self._finalize_session()
+        return self._bearer_token_json.get("refresh_token", refresh_token)
+
+    def current_refresh_token(self) -> str | None:
+        """Return the current IDK refresh token (rotates on each refresh)."""
+        if self._bearer_token_json is None:
+            return None
+        return self._bearer_token_json.get("refresh_token")
+
+    def get_id_token_subject(self) -> str | None:
+        """Return a stable account identifier (email or sub) from the id token."""
+        if self._bearer_token_json is None:
+            return None
+        id_token = self._bearer_token_json.get("id_token")
+        if not id_token:
+            return None
+        try:
+            segment = id_token.split(".")[1]
+            segment += "=" * (-len(segment) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(segment))
+        except (ValueError, IndexError, json.JSONDecodeError):
+            return None
+        return payload.get("email") or payload.get("sub")
+
+    async def _finalize_session(self) -> None:
+        """Derive the AZS and mbboauth tokens from the current IDK bearer token."""
 
         # AZS token
         headers = {

@@ -32,6 +32,7 @@ CONF_SPIN = "spin"
 CONF_REGION = "region"
 CONF_FILTER_VINS = "filter_vins"
 CONF_REFRESH_AFTER_ACTION = "refresh_vehicle_data_after_action"
+CONF_REFRESH_TOKEN = "refresh_token"
 CONF_UPDATE_SLEEP = "update_sleep"
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
@@ -77,6 +78,7 @@ __all__ = [
     "CONF_DURATION",
     "CONF_FILTER_VINS",
     "CONF_REFRESH_AFTER_ACTION",
+    "CONF_REFRESH_TOKEN",
     "CONF_UPDATE_SLEEP",
     "CONF_PASSWORD",
     "CONF_REGION",

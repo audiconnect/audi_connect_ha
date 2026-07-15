@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
@@ -33,7 +34,10 @@ from .audi_account import (
 from .const import (
     CONF_API_LEVEL,
     CONF_DEVICE_ID,
+    CONF_PASSWORD,
+    CONF_REFRESH_TOKEN,
     CONF_SCAN_INITIAL,
+    CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DOMAIN,
     PLATFORMS,
@@ -88,6 +92,17 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             config_entry, version=2, data=new_data, options=new_options
         )
 
+    if config_entry.version == 2:
+        # v2 -> v3:
+        # Authentication moved from username/password (retired by Audi's move to
+        # Play Integrity attestation on the token exchange) to the OAuth Device
+        # Authorization Grant. Drop the stored credentials; the entry has no refresh
+        # token yet, so setup will start a reauthentication (device-code login).
+        new_data = {**config_entry.data}
+        new_data.pop(CONF_PASSWORD, None)
+        new_data.pop(CONF_USERNAME, None)
+        hass.config_entries.async_update_entry(config_entry, version=3, data=new_data)
+
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True
 
@@ -98,6 +113,7 @@ class AudiRuntimeData:
 
     account: AudiAccount
     coordinator: AudiDataUpdateCoordinator
+    options_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 def _resolve_device_to_vin(hass: HomeAssistant, device_id: str) -> str | None:
@@ -157,6 +173,12 @@ def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator
 async def _async_update_listener(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> None:
+    runtime_data: AudiRuntimeData | None = getattr(config_entry, "runtime_data", None)
+    if runtime_data is not None and runtime_data.options_snapshot == dict(
+        config_entry.options
+    ):
+        # Only entry data changed (e.g. a rotated refresh token); no reload needed.
+        return
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
@@ -308,6 +330,12 @@ def _async_cleanup_orphaned_devices(
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Audi Connect from a config entry."""
+    if not config_entry.data.get(CONF_REFRESH_TOKEN):
+        # No stored authorization (fresh v2->v3 migration): prompt device-code login.
+        raise ConfigEntryAuthFailed(
+            "Audi Connect needs to sign in again using device-code login"
+        )
+
     account = AudiAccount(hass, config_entry)
     coordinator = AudiDataUpdateCoordinator.from_entry(hass, account, config_entry)
 
@@ -316,7 +344,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     account.set_refresh_callback(_request_refresh)
     config_entry.runtime_data = AudiRuntimeData(
-        account=account, coordinator=coordinator
+        account=account,
+        coordinator=coordinator,
+        options_snapshot=dict(config_entry.options),
     )
 
     config_entry.async_on_unload(

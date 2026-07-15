@@ -1,36 +1,41 @@
 {
   "config": {
     "abort": {
-      "invalid_credentials": "Invalid credentials",
-      "user_already_configured": "Account has already been configured"
+      "already_configured": "Account has already been configured",
+      "reauth_successful": "Re-authentication was successful",
+      "device_auth_failed": "Could not start device sign-in with Audi. Please try again later."
     },
     "create_entry": {},
     "error": {
-      "invalid_credentials": "Invalid credentials",
-      "invalid_username": "Invalid username",
-      "unexpected": "Unexpected error communicating with Audi Connect server",
-      "user_already_configured": "Account has already been configured"
+      "authorization_pending": "Sign-in not detected yet. Approve the request in your browser, then press Submit.",
+      "device_auth_failed": "Device sign-in failed. Please start again."
     },
     "step": {
       "user": {
+        "title": "Audi Connect",
+        "description": "Set your account options. On the next screen you will sign in with your Audi account in a browser.",
         "data": {
-          "password": "Password",
-          "username": "Username",
           "spin": "S-PIN",
           "region": "Region",
           "scan_interval": "Scan interval",
           "api_level": "API Level"
         },
-        "title": "Audi Connect Account Info",
         "data_description": {
-          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle. This can be changed later via the Reconfigure option."
+          "spin": "Optional S-PIN, required for vehicle actions such as lock/unlock and engine start.",
+          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. This can be changed later via the Reconfigure option."
         }
+      },
+      "device": {
+        "title": "Sign in to Audi",
+        "description": "Open the following link and sign in with your Audi account to authorise Home Assistant:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **Submit**."
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate with Audi",
+        "description": "Your Audi authorisation has expired. Open the following link and sign in again:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **Submit**."
       },
       "reconfigure": {
         "title": "Update Audi Connect Configuration",
-        "description": "Update settings for account **{username}**.",
         "data": {
-          "password": "Password",
           "spin": "S-PIN",
           "region": "Region",
           "api_level": "API Level"
@@ -38,7 +43,7 @@
         "data_description": {
           "spin": "Optional S-PIN for vehicle actions such as lock/unlock.",
           "region": "The region associated with your Audi Connect account.",
-          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models. Adjusting the API Level ensures that the system automatically applies the correct data structure for each specific vehicle."
+          "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models."
         }
       }
     }
