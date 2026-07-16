@@ -9,9 +9,14 @@ import voluptuous as vol
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .audi_connect_account import AudiConnectAccount, AudiConnectObserver
+from .audi_connect_account import (
+    AudiAuthError,
+    AudiConnectAccount,
+    AudiConnectObserver,
+)
 from .audi_models import VehicleData
 from .const import (
     CONF_ACTION,
@@ -33,8 +38,7 @@ from .const import (
     CONF_UPDATE_SLEEP,
     CONF_SPIN,
     CONF_TARGET_SOC,
-    CONF_PASSWORD,
-    CONF_USERNAME,
+    CONF_REFRESH_TOKEN,
     DEFAULT_API_LEVEL,
     DOMAIN,
     REFRESH_VEHICLE_DATA_COMPLETED_EVENT,
@@ -118,17 +122,26 @@ class AudiAccount(AudiConnectObserver):
 
         self.connection = AudiConnectAccount(
             session=session,
-            username=self.config_entry.data.get(CONF_USERNAME),
-            password=self.config_entry.data.get(CONF_PASSWORD),
             country=self.config_entry.data.get(CONF_REGION),
             spin=self.config_entry.data.get(CONF_SPIN),
             api_level=self.config_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL),
             excluded_vins=excluded_vins,
+            refresh_token=self.config_entry.data.get(CONF_REFRESH_TOKEN),
         )
         self.connection.add_observer(self)
+        self.connection.set_refresh_token_listener(self._persist_refresh_token)
 
     def set_refresh_callback(self, callback: Callable[[], Any]) -> None:
         self._refresh_callback = callback
+
+    def _persist_refresh_token(self, refresh_token: str) -> None:
+        """Persist a rotated IDK refresh token back to the config entry."""
+        if self.config_entry.data.get(CONF_REFRESH_TOKEN) == refresh_token:
+            return
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={**self.config_entry.data, CONF_REFRESH_TOKEN: refresh_token},
+        )
 
     def _build_vehicle_data(self, vehicle: Any) -> VehicleData:
         cfg_vehicle = VehicleData(self.config_entry)
@@ -138,7 +151,11 @@ class AudiAccount(AudiConnectObserver):
     async def async_refresh_data(self) -> list[VehicleData]:
         """Refresh cloud data and update discovered vehicles."""
         _LOGGER.debug("Starting refresh cloud data...")
-        if not await self.connection.update(None):
+        try:
+            updated = await self.connection.update(None)
+        except AudiAuthError as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        if not updated:
             _LOGGER.warning("Failed refresh cloud data")
             raise RuntimeError("Failed refresh cloud data")
 

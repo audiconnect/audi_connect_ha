@@ -6,13 +6,14 @@ import re
 import time
 from abc import ABC, abstractmethod
 from asyncio import TimeoutError
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from aiohttp import ClientResponseError, ClientSession
 
 from .audi_api import AudiAPI
-from .audi_services import AudiService
+from .audi_services import AudiAuthError, AudiService
 from .util import get_attr, log_exception, parse_datetime, parse_float, parse_int
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,18 +41,16 @@ class AudiConnectAccount:
     def __init__(
         self,
         session: ClientSession,
-        username: str,
-        password: str,
         country: str,
         spin: str | None,
         api_level: int,
         excluded_vins: list[str] | None = None,
+        refresh_token: str | None = None,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)
 
-        self._username = username
-        self._password = password
+        self._refresh_token = refresh_token
         self._loggedin = False
         self._support_vehicle_refresh = True
         self._logintime: float = 0
@@ -60,12 +59,46 @@ class AudiConnectAccount:
         self._connect_delay = 10
 
         self._update_listeners: list[Any] = []
+        self._on_refresh_token_update: Callable[[str], None] | None = None
 
         self._vehicles: list[AudiConnectVehicle] = []
         self._audi_vehicles: list[Any] = []
         self._excluded_vins = [v.lower() for v in (excluded_vins or [])]
 
         self._observers: list[AudiConnectObserver] = []
+
+    @property
+    def refresh_token(self) -> str | None:
+        """Return the current IDK refresh token."""
+        return self._refresh_token
+
+    def account_identifier(self) -> str | None:
+        """Return a stable identifier for the signed-in account."""
+        return self._audi_service.get_id_token_subject()
+
+    def set_refresh_token_listener(self, callback: Callable[[str], None]) -> None:
+        """Register a callback invoked with the new refresh token when it rotates."""
+        self._on_refresh_token_update = callback
+
+    def _sync_refresh_token(self) -> None:
+        new_token = self._audi_service.current_refresh_token()
+        if new_token and new_token != self._refresh_token:
+            self._refresh_token = new_token
+            if self._on_refresh_token_update is not None:
+                self._on_refresh_token_update(new_token)
+
+    async def request_device_code(self) -> dict[str, Any]:
+        """Start the device authorization grant (used by config/reauth flow)."""
+        return await self._audi_service.request_device_code()
+
+    async def poll_device_token(self, device_code: str) -> str:
+        """Poll once for device-code approval; capture the session on success."""
+        status = await self._audi_service.poll_device_token(device_code)
+        if status == "ok":
+            self._loggedin = True
+            self._logintime = time.time()
+            self._sync_refresh_token()
+        return status
 
     @property
     def vehicles(self) -> list[AudiConnectVehicle]:
@@ -80,6 +113,8 @@ class AudiConnectAccount:
             await observer.handle_notification(vin, action)
 
     async def login(self):
+        if not self._refresh_token:
+            raise AudiAuthError("No stored authorization; reauthentication is required")
         for i in range(self._connect_retries):
             self._loggedin = await self.try_login(i == self._connect_retries - 1)
             if self._loggedin is True:
@@ -95,17 +130,26 @@ class AudiConnectAccount:
 
     async def try_login(self, logError):
         try:
-            _LOGGER.debug("LOGIN: Requesting login to Audi service...")
-            await self._audi_service.login(self._username, self._password, False)
-            _LOGGER.debug("LOGIN: Login to Audi service successful")
+            _LOGGER.debug("LOGIN: Refreshing Audi session from stored token...")
+            new_refresh_token = await self._audi_service.login_with_refresh_token(
+                self._refresh_token
+            )
+            if new_refresh_token and new_refresh_token != self._refresh_token:
+                self._refresh_token = new_refresh_token
+                if self._on_refresh_token_update is not None:
+                    self._on_refresh_token_update(new_refresh_token)
+            _LOGGER.debug("LOGIN: Audi session established")
             return True
+        except AudiAuthError:
+            # Token rejected (expired/revoked): propagate so Home Assistant reauth
+            # is triggered instead of retrying a credential that can never work.
+            raise
         except Exception as exception:
             if logError is True:
                 _LOGGER.error(
-                    "LOGIN: Failed to log in to the Audi service: %s. "
-                    "If this error persists, open the myAudi app or log in via "
-                    "a web browser and accept any pending terms or consent prompts, "
-                    "then restart the integration.",
+                    "LOGIN: Failed to establish an Audi session: %s. "
+                    "Your stored authorization may have expired; reconfigure the "
+                    "Audi Connect integration to sign in again.",
                     str(exception),
                 )
             return False
@@ -122,6 +166,7 @@ class AudiConnectAccount:
         if await self._audi_service.refresh_token_if_necessary(elapsed_sec):
             # Store current timestamp when refresh was performed and successful
             self._logintime = time.time()
+            self._sync_refresh_token()
 
         """Update the state of all vehicles."""
         try:
