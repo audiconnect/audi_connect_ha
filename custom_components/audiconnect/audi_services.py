@@ -8,9 +8,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from hashlib import sha512
 from typing import Any
-from urllib.parse import urlencode, urlparse
-
-from bs4 import BeautifulSoup
+from urllib.parse import urlencode
 
 from .audi_api import AudiAPI
 from .audi_models import TripDataResponse, VehicleDataResponse, VehiclesResponse
@@ -38,12 +36,6 @@ class AudiAuthError(Exception):
     """Raised when authorization is missing or a token has been rejected."""
 
 
-def _to_absolute(absolute_url: str, relative_url: str) -> str:
-    """Convert a relative url to an absolute url."""
-    url_parts = urlparse(absolute_url)
-    return url_parts.scheme + "://" + url_parts.netloc + relative_url
-
-
 class AudiService:
     def __init__(
         self, api: AudiAPI, country: str, spin: str | None, api_level: int
@@ -69,35 +61,6 @@ class AudiService:
 
         if self._country is None:
             self._country = "DE"
-
-    def get_hidden_html_input_form_data(
-        self, response: str, form_data: dict[str, str]
-    ) -> dict[str, str]:
-        # Now parse the html body and extract the target url, csrf token and other required parameters
-        html = BeautifulSoup(response, "html.parser")
-        form_inputs = html.find_all("input", attrs={"type": "hidden"})
-        for form_input in form_inputs:
-            name = form_input.get("name")
-            form_data[name] = form_input.get("value")
-
-        return form_data
-
-    def get_post_url(self, response: str, url: str) -> str:
-        # Now parse the html body and extract the target url, csrf token and other required parameters
-        html = BeautifulSoup(response, "html.parser")
-        form_tag = html.find("form")
-
-        # Extract the target url
-        action = form_tag.get("action")
-        if action.startswith("http"):
-            # Absolute url
-            username_post_url = action
-        elif action.startswith("/"):
-            # Relative to domain
-            username_post_url = _to_absolute(url, action)
-        else:
-            raise ValueError("Unknown form action: " + action)
-        return username_post_url
 
     async def refresh_vehicle_data(self, vin: str):
         request_id = await self.request_current_vehicle_data(vin.upper())
