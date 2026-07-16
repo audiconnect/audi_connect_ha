@@ -766,6 +766,15 @@ class AudiConnectVehicle:
         except ClientResponseError as resp_exception:
             if resp_exception.status in (403, 404):
                 self.support_status_report = False
+            elif resp_exception.status == 502:
+                # Transient CARIAD gateway error; the cached state is kept and the
+                # next poll normally recovers. Logged at debug like the other
+                # endpoints, not as an error, to avoid noise.
+                _LOGGER.debug(
+                    "Received status 502 while obtaining the vehicle status report "
+                    "of %s. This is typically transient and may resolve on its own.",
+                    self._vehicle.vin,
+                )
             else:
                 self.log_exception_once(
                     resp_exception,
