@@ -1055,51 +1055,57 @@ class AudiService:
     # TR/2021-12-01: Refresh token before it expires
     # returns True when refresh was required and successful, otherwise False
     async def refresh_token_if_necessary(self, elapsed_sec: int) -> bool:
-        if self.mbboauthToken is None:
+        # The IDK bearer token drives the CARIAD BFF session and carries its own
+        # refresh token, independent of the mbboauth token. Base the timing on it
+        # and always refresh it: a login whose mbboauth response carried no
+        # refresh_token (see _finalize_session) must still keep the IDK session —
+        # and therefore every entity — alive past the ~1h access-token lifetime.
+        if self._bearer_token_json is None:
             return False
-        if "refresh_token" not in self.mbboauthToken:
+        if "refresh_token" not in self._bearer_token_json:
             return False
-        if "expires_in" not in self.mbboauthToken:
+        if "expires_in" not in self._bearer_token_json:
             return False
 
-        if (elapsed_sec + 5 * 60) < self.mbboauthToken["expires_in"]:
+        if (elapsed_sec + 5 * 60) < self._bearer_token_json["expires_in"]:
             # refresh not needed now
             return False
 
         try:
-            headers = {
-                "Accept": "application/json",
-                "Accept-Charset": "utf-8",
-                "User-Agent": AudiAPI.HDR_USER_AGENT,
-                "Content-Type": "application/x-www-form-urlencoded",
-                "X-Client-ID": self.xclientId,
-            }
-            mbboauth_refresh_data = {
-                "grant_type": "refresh_token",
-                "token": self.mbboauthToken["refresh_token"],
-                "scope": "sc2:fal",
-                # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
-            }
-            encoded_mbboauth_refresh_data = urlencode(
-                mbboauth_refresh_data, encoding="utf-8"
-            ).replace("+", "%20")
-            mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
-                "POST",
-                self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
-                encoded_mbboauth_refresh_data,
-                headers=headers,
-                allow_redirects=False,
-                rsp_wtxt=True,
-            )
+            # mbboauth refresh — only when a refresh_token is available. The auth
+            # response no longer always includes one; when it doesn't, vwToken
+            # keeps its current value instead of blocking the IDK refresh below.
+            if self.mbboauthToken and "refresh_token" in self.mbboauthToken:
+                headers = {
+                    "Accept": "application/json",
+                    "Accept-Charset": "utf-8",
+                    "User-Agent": AudiAPI.HDR_USER_AGENT,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-Client-ID": self.xclientId,
+                }
+                mbboauth_refresh_data = {
+                    "grant_type": "refresh_token",
+                    "token": self.mbboauthToken["refresh_token"],
+                    "scope": "sc2:fal",
+                }
+                encoded_mbboauth_refresh_data = urlencode(
+                    mbboauth_refresh_data, encoding="utf-8"
+                ).replace("+", "%20")
+                mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
+                    "POST",
+                    self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
+                    encoded_mbboauth_refresh_data,
+                    headers=headers,
+                    allow_redirects=False,
+                    rsp_wtxt=True,
+                )
+                # this code is the old "vwToken"
+                self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+                # If a new refresh_token is provided, save it for further refreshes
+                if "refresh_token" in self.vwToken:
+                    self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
 
-            # this code is the old "vwToken"
-            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
-
-            # TR/2022-02-10: If a new refresh_token is provided, save it for further refreshes
-            if "refresh_token" in self.vwToken:
-                self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
-
-            # hdr
+            # IDK refresh — always, using the IDK token's own refresh token.
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
