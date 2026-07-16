@@ -1,26 +1,50 @@
 {
   "config": {
     "abort": {
-      "invalid_credentials": "Credenciais inválidas",
-      "user_already_configured": "A conta já foi configurada"
+      "already_configured": "A conta já foi configurada",
+      "reauth_successful": "A reautenticação foi bem-sucedida",
+      "device_auth_failed": "Não foi possível iniciar o login do dispositivo com a Audi. Tente novamente mais tarde."
     },
     "create_entry": {},
     "error": {
-      "invalid_credentials": "Credenciais inválidas",
-      "invalid_username": "Nome de usuário inválido",
-      "unexpected": "Erro inesperado na comunicação com o servidor Audi Connect",
-      "user_already_configured": "A conta já foi configurada"
+      "authorization_pending": "Login ainda não detectado. Aprove a solicitação no seu navegador e depois clique em Enviar.",
+      "device_auth_failed": "O login do dispositivo falhou. Comece novamente."
     },
     "step": {
       "user": {
+        "title": "Audi Connect",
+        "description": "Defina as opções da sua conta. Na próxima etapa, você fará login com a sua conta Audi em um navegador.",
         "data": {
-          "password": "Senha",
-          "username": "Nome de usuário",
           "spin": "S-PIN",
           "region": "Região",
-          "scan_interval": "Intervalo de escaneamento"
+          "scan_interval": "Intervalo de varredura",
+          "api_level": "Nível de API"
         },
-        "title": "Informações da conta Audi Connect "
+        "data_description": {
+          "spin": "S-PIN opcional, necessário para ações do veículo como travar/destravar e partida do motor.",
+          "api_level": "Nos veículos Audi, a estrutura das solicitações de API varia conforme o modelo. Veículos mais novos usam uma estrutura de dados atualizada em comparação com modelos mais antigos. Isso pode ser alterado depois pela opção Reconfigurar."
+        }
+      },
+      "device": {
+        "title": "Fazer login na Audi",
+        "description": "Abra o link a seguir e faça login com a sua conta Audi para autorizar o Home Assistant:\n\n[{verification_uri}]({verification_uri})\n\nSe um código for solicitado, digite: **{user_code}**\n\nApós aprovar a solicitação, clique em **Enviar**."
+      },
+      "reauth_confirm": {
+        "title": "Reautenticar com a Audi",
+        "description": "A sua autorização Audi expirou. Abra o link a seguir e faça login novamente:\n\n[{verification_uri}]({verification_uri})\n\nSe um código for solicitado, digite: **{user_code}**\n\nApós aprovar a solicitação, clique em **Enviar**."
+      },
+      "reconfigure": {
+        "title": "Atualizar a configuração do Audi Connect",
+        "data": {
+          "spin": "S-PIN",
+          "region": "Região",
+          "api_level": "Nível de API"
+        },
+        "data_description": {
+          "spin": "S-PIN opcional para ações do veículo como travar/destravar.",
+          "region": "A região associada à sua conta Audi Connect.",
+          "api_level": "Nos veículos Audi, a estrutura das solicitações de API varia conforme o modelo. Veículos mais novos usam uma estrutura de dados atualizada em comparação com modelos mais antigos."
+        }
       }
     }
   },

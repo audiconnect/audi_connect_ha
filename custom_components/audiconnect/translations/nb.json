@@ -1,26 +1,50 @@
 {
   "config": {
     "abort": {
-      "invalid_credentials": "Ugyldige innloggingsopplysninger",
-      "user_already_configured": "Kontoen er allerede konfigurert"
+      "already_configured": "Kontoen er allerede konfigurert",
+      "reauth_successful": "Ny autentisering var vellykket",
+      "device_auth_failed": "Kunne ikke starte enhetsinnlogging med Audi. Prøv igjen senere."
     },
     "create_entry": {},
     "error": {
-      "invalid_credentials": "Ugyldige innloggingsopplysninger",
-      "invalid_username": "Ugyldig brukernavn",
-      "unexpected": "Uventet feil i kommunikasjonen med Audi Connect-serveren",
-      "user_already_configured": "Kontoen er allerede konfigurert"
+      "authorization_pending": "Innlogging er ennå ikke oppdaget. Godkjenn forespørselen i nettleseren din, og trykk deretter Send.",
+      "device_auth_failed": "Enhetsinnlogging mislyktes. Start på nytt."
     },
     "step": {
       "user": {
+        "title": "Audi Connect",
+        "description": "Angi kontoalternativene dine. I neste steg logger du inn med Audi-kontoen din i en nettleser.",
         "data": {
-          "password": "Passord",
-          "username": "Brukernavn",
           "spin": "S-PIN",
           "region": "Region",
-          "scan_interval": "Skanneintervall"
+          "scan_interval": "Skanneintervall",
+          "api_level": "API-nivå"
         },
-        "title": "Audi Connect kontoinformasjon"
+        "data_description": {
+          "spin": "Valgfri S-PIN, kreves for kjøretøyhandlinger som låsing/opplåsing og motorstart.",
+          "api_level": "For Audi-kjøretøy varierer strukturen på API-forespørsler etter modell. Nyere kjøretøy bruker en oppdatert datastruktur sammenlignet med eldre modeller. Dette kan endres senere via alternativet Rekonfigurer."
+        }
+      },
+      "device": {
+        "title": "Logg inn på Audi",
+        "description": "Åpne følgende lenke og logg inn med Audi-kontoen din for å autorisere Home Assistant:\n\n[{verification_uri}]({verification_uri})\n\nHvis du blir bedt om en kode, skriv inn: **{user_code}**\n\nNår du har godkjent forespørselen, trykk **Send**."
+      },
+      "reauth_confirm": {
+        "title": "Autentiser på nytt med Audi",
+        "description": "Audi-autorisasjonen din har utløpt. Åpne følgende lenke og logg inn på nytt:\n\n[{verification_uri}]({verification_uri})\n\nHvis du blir bedt om en kode, skriv inn: **{user_code}**\n\nNår du har godkjent forespørselen, trykk **Send**."
+      },
+      "reconfigure": {
+        "title": "Oppdater Audi Connect-konfigurasjon",
+        "data": {
+          "spin": "S-PIN",
+          "region": "Region",
+          "api_level": "API-nivå"
+        },
+        "data_description": {
+          "spin": "Valgfri S-PIN for kjøretøyhandlinger som låsing/opplåsing.",
+          "region": "Regionen som er knyttet til Audi Connect-kontoen din.",
+          "api_level": "For Audi-kjøretøy varierer strukturen på API-forespørsler etter modell. Nyere kjøretøy bruker en oppdatert datastruktur sammenlignet med eldre modeller."
+        }
       }
     }
   },
