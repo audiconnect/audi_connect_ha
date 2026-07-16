@@ -1,26 +1,50 @@
 {
   "config": {
     "abort": {
-      "invalid_credentials": "Ongeldige gebruikersgegevens",
-      "user_already_configured": "Account is al geconfigureerd"
+      "already_configured": "Dit account is al geconfigureerd",
+      "reauth_successful": "Herauthenticatie is geslaagd",
+      "device_auth_failed": "Kan de apparaataanmelding bij Audi niet starten. Probeer het later opnieuw."
     },
     "create_entry": {},
     "error": {
-      "invalid_credentials": "Ongeldige gebruikersgegevens",
-      "invalid_username": "Ongeldige gebruikersnaam",
-      "unexpected": "Onverwachte fout bij communicatie met de Audi Connect server",
-      "user_already_configured": "Account is al geconfigureerd"
+      "authorization_pending": "Aanmelding nog niet gedetecteerd. Keur het verzoek goed in uw browser en klik daarna op Verzenden.",
+      "device_auth_failed": "Apparaataanmelding mislukt. Begin opnieuw."
     },
     "step": {
       "user": {
+        "title": "Audi Connect",
+        "description": "Stel uw accountopties in. In de volgende stap meldt u zich in een browser aan met uw Audi-account.",
         "data": {
-          "password": "Wachtwoord",
-          "username": "Gebruikersnaam",
           "spin": "S-PIN",
           "region": "Regio",
-          "scan_interval": "Update interval"
+          "scan_interval": "Scaninterval",
+          "api_level": "API-niveau"
         },
-        "title": "Audi Connect accountgegevens"
+        "data_description": {
+          "spin": "Optionele S-PIN, vereist voor voertuigacties zoals vergrendelen/ontgrendelen en motorstart.",
+          "api_level": "Bij Audi-voertuigen verschilt de structuur van API-verzoeken per model. Nieuwere voertuigen gebruiken een bijgewerkte datastructuur ten opzichte van oudere modellen. Dit kan later worden gewijzigd via de optie Herconfigureren."
+        }
+      },
+      "device": {
+        "title": "Aanmelden bij Audi",
+        "description": "Open de volgende link en meld u aan met uw Audi-account om Home Assistant te autoriseren:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **Verzenden**."
+      },
+      "reauth_confirm": {
+        "title": "Opnieuw authenticeren bij Audi",
+        "description": "Uw Audi-autorisatie is verlopen. Open de volgende link en meld u opnieuw aan:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **Verzenden**."
+      },
+      "reconfigure": {
+        "title": "Audi Connect-configuratie bijwerken",
+        "data": {
+          "spin": "S-PIN",
+          "region": "Regio",
+          "api_level": "API-niveau"
+        },
+        "data_description": {
+          "spin": "Optionele S-PIN voor voertuigacties zoals vergrendelen/ontgrendelen.",
+          "region": "De regio die aan uw Audi Connect-account is gekoppeld.",
+          "api_level": "Bij Audi-voertuigen verschilt de structuur van API-verzoeken per model. Nieuwere voertuigen gebruiken een bijgewerkte datastructuur ten opzichte van oudere modellen."
+        }
       }
     }
   },

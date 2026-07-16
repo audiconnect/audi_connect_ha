@@ -1,26 +1,50 @@
 {
   "config": {
     "abort": {
-      "invalid_credentials": "Informations d'identification invalides",
-      "user_already_configured": "Le compte a d\u00e9j\u00e0 \u00e9t\u00e9 configur\u00e9"
+      "already_configured": "Ce compte est déjà configuré",
+      "reauth_successful": "Réauthentification réussie",
+      "device_auth_failed": "Impossible de démarrer la connexion par code avec Audi. Veuillez réessayer plus tard."
     },
     "create_entry": {},
     "error": {
-      "invalid_credentials": "Informations d'identification invalides",
-      "invalid_username": "Nom d'utilisateur invalide",
-      "unexpected": "Erreur inattendue lors de la communication avec le serveur Audi Connect",
-      "user_already_configured": "Le compte a d\u00e9j\u00e0 \u00e9t\u00e9 configur\u00e9"
+      "authorization_pending": "Connexion pas encore détectée. Approuvez la demande dans votre navigateur, puis appuyez sur Envoyer.",
+      "device_auth_failed": "La connexion par code a échoué. Veuillez recommencer."
     },
     "step": {
       "user": {
+        "title": "Audi Connect",
+        "description": "Définissez les options de votre compte. À l'écran suivant, vous vous connecterez à votre compte Audi dans un navigateur.",
         "data": {
-          "password": "Mot de passe",
-          "username": "Nom d'utilisateur",
           "spin": "S-PIN",
-          "region": "R\u00e9gion",
-          "scan_interval": "Intervalle de scan"
+          "region": "Région",
+          "scan_interval": "Intervalle de scan",
+          "api_level": "Niveau d'API"
         },
-        "title": "Informations sur le compte Audi Connect"
+        "data_description": {
+          "spin": "S-PIN optionnel, requis pour les actions sur le véhicule telles que le verrouillage/déverrouillage et le démarrage du moteur.",
+          "api_level": "Sur les véhicules Audi, la structure des requêtes API varie selon le modèle. Les véhicules récents utilisent une structure plus moderne que les anciens. Modifiable ensuite via l'option Reconfigurer."
+        }
+      },
+      "device": {
+        "title": "Connexion à Audi",
+        "description": "Ouvrez le lien suivant et connectez-vous avec votre compte Audi pour autoriser Home Assistant :\n\n[{verification_uri}]({verification_uri})\n\nSi un code vous est demandé, saisissez : **{user_code}**\n\nUne fois la demande approuvée, appuyez sur **Envoyer**."
+      },
+      "reauth_confirm": {
+        "title": "Réauthentification Audi",
+        "description": "Votre autorisation Audi a expiré. Ouvrez le lien suivant et reconnectez-vous :\n\n[{verification_uri}]({verification_uri})\n\nSi un code vous est demandé, saisissez : **{user_code}**\n\nUne fois la demande approuvée, appuyez sur **Envoyer**."
+      },
+      "reconfigure": {
+        "title": "Mettre à jour la configuration Audi Connect",
+        "data": {
+          "spin": "S-PIN",
+          "region": "Région",
+          "api_level": "Niveau d'API"
+        },
+        "data_description": {
+          "spin": "S-PIN optionnel pour les actions sur le véhicule telles que le verrouillage/déverrouillage.",
+          "region": "La région associée à votre compte Audi Connect.",
+          "api_level": "Sur les véhicules Audi, la structure des requêtes API varie selon le modèle. Les véhicules récents utilisent une structure plus moderne que les anciens."
+        }
       }
     }
   },
@@ -28,13 +52,13 @@
     "step": {
       "init": {
         "data": {
-          "scan_initial": "Mise \u00e0 jour du cloud au d\u00e9marrage",
-          "scan_interval": "Intervalle de mises \u00e0 jour"
+          "scan_initial": "Mise à jour du cloud au démarrage",
+          "scan_interval": "Intervalle de mises à jour"
         },
         "title": "Options Audi Connect",
         "data_description": {
-          "scan_initial": "Effectuer une mise \u00e0 jour du cloud imm\u00e9diatement apr\u00e8s le d\u00e9marrage.",
-          "scan_interval": "Minutes entre les mises \u00e0 jour du cloud."
+          "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
+          "scan_interval": "Minutes entre les mises à jour du cloud."
         }
       }
     }
@@ -43,86 +67,86 @@
     "vehicle_actions": {
       "options": {
         "lock": "Verrouiller",
-        "unlock": "D\u00e9verrouiller",
-        "start_climatisation": "D\u00e9marrer climatisation (H\u00e9rit\u00e9)",
-        "stop_climatisation": "Arr\u00eater climatisation",
-        "start_charger": "D\u00e9marrer chargeur",
-        "start_timed_charger": "D\u00e9marrage chronom\u00e9tr\u00e9 du chargeur",
-        "stop_charger": "Arr\u00eater Chargeur",
-        "start_preheater": "D\u00e9marrer pr\u00e9chauffage",
-        "stop_preheater": "Arr\u00eater pr\u00e9chauffage",
-        "start_window_heating": "D\u00e9marrer chauffage des fen\u00eatres",
-        "stop_window_heating": "Arr\u00eater chauffage des fen\u00eatres"
+        "unlock": "Déverrouiller",
+        "start_climatisation": "Démarrer climatisation (Hérité)",
+        "stop_climatisation": "Arrêter climatisation",
+        "start_charger": "Démarrer chargeur",
+        "start_timed_charger": "Démarrage chronométré du chargeur",
+        "stop_charger": "Arrêter Chargeur",
+        "start_preheater": "Démarrer préchauffage",
+        "stop_preheater": "Arrêter préchauffage",
+        "start_window_heating": "Démarrer chauffage des fenêtres",
+        "stop_window_heating": "Arrêter chauffage des fenêtres"
       }
     }
   },
   "services": {
     "refresh_vehicle_data": {
-      "name": "Actualiser les donn\u00e9es du v\u00e9hicule",
-      "description": "Demande directement une mise \u00e0 jour de l'\u00e9tat du v\u00e9hicule, contrairement au m\u00e9canisme de mise \u00e0 jour normal qui r\u00e9cup\u00e8re uniquement les donn\u00e9es du cloud.",
+      "name": "Actualiser les données du véhicule",
+      "description": "Demande directement une mise à jour de l'état du véhicule, contrairement au mécanisme de mise à jour normal qui récupère uniquement les données du cloud.",
       "fields": {
         "device_id": {
-          "name": "V\u00e9hicule",
-          "description": "Le v\u00e9hicule Audi \u00e0 actualiser."
+          "name": "Véhicule",
+          "description": "Le véhicule Audi à actualiser."
         }
       }
     },
     "execute_vehicle_action": {
-      "name": "Ex\u00e9cuter l'action du v\u00e9hicule",
-      "description": "Effectue diverses actions sur le v\u00e9hicule.",
+      "name": "Exécuter l'action du véhicule",
+      "description": "Effectue diverses actions sur le véhicule.",
       "fields": {
         "device_id": {
-          "name": "V\u00e9hicule",
-          "description": "Le v\u00e9hicule Audi sur lequel effectuer l'action."
+          "name": "Véhicule",
+          "description": "Le véhicule Audi sur lequel effectuer l'action."
         },
         "action": {
           "name": "Action",
-          "description": "L'action sp\u00e9cifique \u00e0 effectuer sur le v\u00e9hicule. Noter que les actions disponibles peuvent varier en fonction du v\u00e9hicule.",
+          "description": "L'action spécifique à effectuer sur le véhicule. Noter que les actions disponibles peuvent varier en fonction du véhicule.",
           "example": "Verrouiller"
         }
       }
     },
     "start_climate_control": {
-      "name": "D\u00e9marrer la climatisation",
-      "description": "D\u00e9marrez la climatisation avec des options de temp\u00e9rature, de chauffage des vitres et de confort des si\u00e8ges auto.",
+      "name": "Démarrer la climatisation",
+      "description": "Démarrez la climatisation avec des options de température, de chauffage des vitres et de confort des sièges auto.",
       "fields": {
         "device_id": {
-          "name": "V\u00e9hicule",
-          "description": "Le v\u00e9hicule Audi sur lequel d\u00e9marrer la climatisation."
+          "name": "Véhicule",
+          "description": "Le véhicule Audi sur lequel démarrer la climatisation."
         },
         "temp_f": {
-          "name": "Temp\u00e9rature cible (Fahrenheit)",
-          "description": "(Optionel) R\u00e9gler la temp\u00e9rature en \u00b0F. La valeur par d\u00e9faut est 70\u00b0F si elle n'est pas fournie. Remplace 'temp_c'."
+          "name": "Température cible (Fahrenheit)",
+          "description": "(Optionel) Régler la température en °F. La valeur par défaut est 70°F si elle n'est pas fournie. Remplace 'temp_c'."
         },
         "temp_c": {
-          "name": "Temp\u00e9rature cible (Celsius)",
-          "description": "(Facultatif) R\u00e9gler la temp\u00e9rature en \u00b0C. La valeur par d\u00e9faut est 21\u00b0C si elle n'est pas fournie. Remplac\u00e9 si 'temp_f' est fourni."
+          "name": "Température cible (Celsius)",
+          "description": "(Facultatif) Régler la température en °C. La valeur par défaut est 21°C si elle n'est pas fournie. Remplacé si 'temp_f' est fourni."
         },
         "glass_heating": {
           "name": "Chauffage des vitres",
-          "description": "(Facultatif) Activer ou d\u00e9sactiver le chauffage des surfaces vitr\u00e9es."
+          "description": "(Facultatif) Activer ou désactiver le chauffage des surfaces vitrées."
         },
         "seat_fl": {
-          "name": "Confort du si\u00e8ge auto: Avant-Gauche",
-          "description": "(Facultatif) Activer ou d\u00e9sactiver Confort du si\u00e8ge auto pour le si\u00e8ge avant gauche."
+          "name": "Confort du siège auto: Avant-Gauche",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège avant gauche."
         },
         "seat_fr": {
-          "name": "Confort du si\u00e8ge auto: Avant-Droit",
-          "description": "(Facultatif) Activer ou d\u00e9sactiver Confort du si\u00e8ge auto pour le si\u00e8ge avant droit."
+          "name": "Confort du siège auto: Avant-Droit",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège avant droit."
         },
         "seat_rl": {
-          "name": "Confort du si\u00e8ge auto: Arri\u00e8re-Gauche",
-          "description": "(Facultatif) Activer ou d\u00e9sactiver Confort du si\u00e8ge auto pour le si\u00e8ge arri\u00e8re gauche."
+          "name": "Confort du siège auto: Arrière-Gauche",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège arrière gauche."
         },
         "seat_rr": {
-          "name": "Confort du si\u00e8ge auto: Arri\u00e8re-Droit",
-          "description": "(Facultatif) Activer ou d\u00e9sactiver Confort du si\u00e8ge auto pour le si\u00e8ge arri\u00e8re droit."
+          "name": "Confort du siège auto: Arrière-Droit",
+          "description": "(Facultatif) Activer ou désactiver Confort du siège auto pour le siège arrière droit."
         }
       }
     },
     "refresh_cloud_data": {
-      "name": "Actualiser les donn\u00e9es cloud",
-      "description": "R\u00e9cup\u00e8re les donn\u00e9es cloud actuelles sans d\u00e9clencher une actualisation du v\u00e9hicule. Les donn\u00e9es peuvent \u00eatre obsol\u00e8tes si le v\u00e9hicule n'a pas \u00e9t\u00e9 v\u00e9rifi\u00e9 r\u00e9cemment."
+      "name": "Actualiser les données cloud",
+      "description": "Récupère les données cloud actuelles sans déclencher une actualisation du véhicule. Les données peuvent être obsolètes si le véhicule n'a pas été vérifié récemment."
     }
   }
 }

@@ -1,29 +1,49 @@
 {
   "config": {
     "abort": {
-      "invalid_credentials": "Virheelliset tunnistetiedot",
-      "user_already_configured": "Tili on jo m\u00e4\u00e4ritetty"
+      "already_configured": "Tili on jo määritetty",
+      "reauth_successful": "Uudelleentodennus onnistui",
+      "device_auth_failed": "Laitekirjautumista Audiin ei voitu aloittaa. Yritä myöhemmin uudelleen."
     },
     "create_entry": {},
     "error": {
-      "invalid_credentials": "Virheelliset tunnistetiedot",
-      "invalid_username": "Virheellinen k\u00e4ytt\u00e4j\u00e4tunnus",
-      "unexpected": "Odottamaton virhe yhdistett\u00e4ess\u00e4 Audi Connect -palveluun",
-      "user_already_configured": "Tili on jo m\u00e4\u00e4ritetty"
+      "authorization_pending": "Kirjautumista ei ole vielä havaittu. Hyväksy pyyntö selaimessasi ja paina sitten Lähetä.",
+      "device_auth_failed": "Laitekirjautuminen epäonnistui. Aloita uudelleen."
     },
     "step": {
       "user": {
+        "title": "Audi Connect",
+        "description": "Määritä tilisi asetukset. Seuraavassa vaiheessa kirjaudut Audi-tilillesi selaimessa.",
         "data": {
-          "password": "Salasana",
-          "username": "K\u00e4ytt\u00e4j\u00e4tunnus",
           "spin": "S-PIN",
           "region": "Alue",
-          "scan_interval": "Skannausv\u00e4li",
+          "scan_interval": "Hakuväli",
           "api_level": "API-taso"
         },
-        "title": "Audi Connect -tilin tiedot",
         "data_description": {
-          "api_level": "Audi-ajoneuvoissa API-pyynn\u00f6n tietorakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot k\u00e4ytt\u00e4v\u00e4t p\u00e4ivitetty\u00e4 tietorakennetta verrattuna vanhempiin malleihin. API-tason s\u00e4\u00e4t\u00e4minen varmistaa, ett\u00e4 j\u00e4rjestelm\u00e4 k\u00e4ytt\u00e4\u00e4 kussakin ajoneuvossa oikeaa tietorakennetta. T\u00e4t\u00e4 voi muuttaa my\u00f6hemmin Uudelleenm\u00e4\u00e4ritys-valinnan kautta."
+          "spin": "Valinnainen S-PIN, tarvitaan ajoneuvon toimintoihin, kuten lukitseminen/avaaminen ja moottorin käynnistys.",
+          "api_level": "Audi-ajoneuvoissa API-pyyntöjen rakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot käyttävät päivitettyä tietorakennetta vanhempiin malleihin verrattuna. Tämän voi muuttaa myöhemmin Määritä uudelleen -valinnalla."
+        }
+      },
+      "device": {
+        "title": "Kirjaudu Audiin",
+        "description": "Avaa seuraava linkki ja kirjaudu Audi-tililläsi valtuuttaaksesi Home Assistantin:\n\n[{verification_uri}]({verification_uri})\n\nJos sinulta pyydetään koodia, syötä: **{user_code}**\n\nKun olet hyväksynyt pyynnön, paina **Lähetä**."
+      },
+      "reauth_confirm": {
+        "title": "Todenna uudelleen Audiin",
+        "description": "Audi-valtuutuksesi on vanhentunut. Avaa seuraava linkki ja kirjaudu uudelleen:\n\n[{verification_uri}]({verification_uri})\n\nJos sinulta pyydetään koodia, syötä: **{user_code}**\n\nKun olet hyväksynyt pyynnön, paina **Lähetä**."
+      },
+      "reconfigure": {
+        "title": "Päivitä Audi Connect -määritykset",
+        "data": {
+          "spin": "S-PIN",
+          "region": "Alue",
+          "api_level": "API-taso"
+        },
+        "data_description": {
+          "spin": "Valinnainen S-PIN ajoneuvon toimintoihin, kuten lukitseminen/avaaminen.",
+          "region": "Audi Connect -tiliisi liitetty alue.",
+          "api_level": "Audi-ajoneuvoissa API-pyyntöjen rakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot käyttävät päivitettyä tietorakennetta vanhempiin malleihin verrattuna."
         }
       }
     }
@@ -32,13 +52,13 @@
     "step": {
       "init": {
         "data": {
-          "scan_initial": "P\u00e4ivit\u00e4 pilwest\u00e4 k\u00e4ynnistyksess\u00e4",
-          "scan_interval": "Aikav\u00e4li"
+          "scan_initial": "Päivitä pilwestä käynnistyksessä",
+          "scan_interval": "Aikaväli"
         },
         "title": "Audi Connect -asetukset",
         "data_description": {
-          "scan_initial": "P\u00e4ivit\u00e4 pilwest\u00e4 heti k\u00e4ynnistyksen yhteydess\u00e4.",
-          "scan_interval": "Minuutit pilvikyselyjen v\u00e4lill\u00e4."
+          "scan_initial": "Päivitä pilwestä heti käynnistyksen yhteydessä.",
+          "scan_interval": "Minuutit pilvikyselyjen välillä."
         }
       }
     }
@@ -48,26 +68,26 @@
       "options": {
         "lock": "Lukitse",
         "unlock": "Avaa lukitus",
-        "start_climatisation": "K\u00e4ynnist\u00e4 ilmastointi (perinteinen)",
-        "stop_climatisation": "Pys\u00e4yt\u00e4 ilmastointi",
-        "start_charger": "K\u00e4ynnist\u00e4 laturi",
+        "start_climatisation": "Käynnistä ilmastointi (perinteinen)",
+        "stop_climatisation": "Pysäytä ilmastointi",
+        "start_charger": "Käynnistä laturi",
         "start_timed_charger": "Aloita ajastettu lataus",
-        "stop_charger": "Pys\u00e4yt\u00e4 laturi",
-        "start_preheater": "K\u00e4ynnist\u00e4 lis\u00e4l\u00e4mmitin (perinteinen)",
-        "stop_preheater": "Pys\u00e4yt\u00e4 lis\u00e4l\u00e4mmitin",
-        "start_window_heating": "K\u00e4ynnist\u00e4 ikkunal\u00e4mmitys",
-        "stop_window_heating": "Pys\u00e4yt\u00e4 ikkunal\u00e4mmitys"
+        "stop_charger": "Pysäytä laturi",
+        "start_preheater": "Käynnistä lisälämmitin (perinteinen)",
+        "stop_preheater": "Pysäytä lisälämmitin",
+        "start_window_heating": "Käynnistä ikkunalämmitys",
+        "stop_window_heating": "Pysäytä ikkunalämmitys"
       }
     }
   },
   "services": {
     "refresh_vehicle_data": {
-      "name": "P\u00e4ivit\u00e4 ajoneuvon tiedot",
-      "description": "Pyyt\u00e4\u00e4 ajoneuvon tilan p\u00e4ivityst\u00e4 suoraan, pilwest\u00e4 p\u00e4ivityst\u00e4 odottamatta - toisin kuin normaali p\u00e4ivitys, joka hakee vain pilvitietoja.",
+      "name": "Päivitä ajoneuvon tiedot",
+      "description": "Pyytää ajoneuvon tilan päivitystä suoraan, pilwestä päivitystä odottamatta - toisin kuin normaali päivitys, joka hakee vain pilvitietoja.",
       "fields": {
         "device_id": {
           "name": "Ajoneuvo",
-          "description": "Audi-ajoneuvo, jonka tiedot p\u00e4ivitet\u00e4\u00e4n."
+          "description": "Audi-ajoneuvo, jonka tiedot päivitetään."
         }
       }
     },
@@ -81,64 +101,64 @@
         },
         "action": {
           "name": "Toiminto",
-          "description": "Ajoneuvolle suoritettava toiminto. Huomaa, ett\u00e4 saatavilla olevat toiminnot voivat vaihdella ajoneuvon mukaan.",
+          "description": "Ajoneuvolle suoritettava toiminto. Huomaa, että saatavilla olevat toiminnot voivat vaihdella ajoneuvon mukaan.",
           "example": "lukitse"
         }
       }
     },
     "start_climate_control": {
-      "name": "K\u00e4ynnist\u00e4 ilmastointi",
-      "description": "K\u00e4ynnist\u00e4 ilmastointi l\u00e4mp\u00f6tila-, ikkunal\u00e4mmitys- ja automaattisen istuinmukavuuden asetuksilla.",
+      "name": "Käynnistä ilmastointi",
+      "description": "Käynnistä ilmastointi lämpötila-, ikkunalämmitys- ja automaattisen istuinmukavuuden asetuksilla.",
       "fields": {
         "device_id": {
           "name": "Ajoneuvo",
-          "description": "Audi-ajoneuvo, jonka ilmastointi k\u00e4ynnistet\u00e4\u00e4n."
+          "description": "Audi-ajoneuvo, jonka ilmastointi käynnistetään."
         },
         "temp_f": {
-          "name": "Kohdel\u00e4mp\u00f6tila (Fahrenheit)",
-          "description": "(Valinnainen) N\u00e4yt\u00e4 l\u00e4mp\u00f6tila Fahrenheit-asteina. Oletusarvo on 70 \u00b0F, jos arvoa ei anneta. Ohittaa 'temp_c'-asetuksen."
+          "name": "Kohdelämpötila (Fahrenheit)",
+          "description": "(Valinnainen) Näytä lämpötila Fahrenheit-asteina. Oletusarvo on 70 °F, jos arvoa ei anneta. Ohittaa 'temp_c'-asetuksen."
         },
         "temp_c": {
-          "name": "Kohdel\u00e4mp\u00f6tila (Celsius)",
-          "description": "(Valinnainen) N\u00e4yt\u00e4 l\u00e4mp\u00f6tila Celsius-asteina. Oletusarvo on 21 \u00b0C, jos arvoa ei anneta. Ohitetaan, jos 'temp_f' on asetettu."
+          "name": "Kohdelämpötila (Celsius)",
+          "description": "(Valinnainen) Näytä lämpötila Celsius-asteina. Oletusarvo on 21 °C, jos arvoa ei anneta. Ohitetaan, jos 'temp_f' on asetettu."
         },
         "glass_heating": {
-          "name": "Ikkunan l\u00e4mmitys",
-          "description": "(Valinnainen) Ota ikkunan l\u00e4mmitys k\u00e4ytt\u00f6\u00f6n tai pois k\u00e4yt\u00f6st\u00e4."
+          "name": "Ikkunan lämmitys",
+          "description": "(Valinnainen) Ota ikkunan lämmitys käyttöön tai pois käytöstä."
         },
         "seat_fl": {
           "name": "Automaattinen istuimen mukavuustoiminto: vasen etuistuin",
-          "description": "(Valinnainen) Ota vasemman etuistuimen automaattinen istuimen mukavuustoiminto k\u00e4ytt\u00f6\u00f6n tai pois k\u00e4yt\u00f6st\u00e4."
+          "description": "(Valinnainen) Ota vasemman etuistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
         },
         "seat_fr": {
           "name": "Automaattinen istuimen mukavuustoiminto: oikea etuistuin",
-          "description": "(Valinnainen) Ota oikean etuistuimen automaattinen istuimen mukavuustoiminto k\u00e4ytt\u00f6\u00f6n tai pois k\u00e4yt\u00f6st\u00e4."
+          "description": "(Valinnainen) Ota oikean etuistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
         },
         "seat_rl": {
           "name": "Automaattinen istuimen mukavuustoiminto: vasen takaistuin",
-          "description": "(Valinnainen) Ota vasemman takaistuimen automaattinen istuimen mukavuustoiminto k\u00e4ytt\u00f6\u00f6n tai pois k\u00e4yt\u00f6st\u00e4."
+          "description": "(Valinnainen) Ota vasemman takaistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
         },
         "seat_rr": {
           "name": "Automaattinen istuimen mukavuustoiminto: oikea takaistuin",
-          "description": "(Valinnainen) Ota oikean takaistuimen automaattinen istuimen mukavuustoiminto k\u00e4ytt\u00f6\u00f6n tai pois k\u00e4yt\u00f6st\u00e4."
+          "description": "(Valinnainen) Ota oikean takaistuimen automaattinen istuimen mukavuustoiminto käyttöön tai pois käytöstä."
         }
       }
     },
     "refresh_cloud_data": {
-      "name": "P\u00e4ivit\u00e4 pilvitiedot",
-      "description": "Hakee nykyiset pilvitiedot k\u00e4ynnist\u00e4m\u00e4tt\u00e4 ajoneuvon p\u00e4ivityst\u00e4. Tiedot voivat olla vanhentuneita, jos ajoneuvo ei ole \u00e4skettain ollut yhteydess\u00e4."
+      "name": "Päivitä pilvitiedot",
+      "description": "Hakee nykyiset pilvitiedot käynnistämättä ajoneuvon päivitystä. Tiedot voivat olla vanhentuneita, jos ajoneuvo ei ole äskettain ollut yhteydessä."
     },
     "start_auxiliary_heating": {
-      "name": "K\u00e4ynnist\u00e4 lis\u00e4l\u00e4mmitys",
-      "description": "K\u00e4ynnist\u00e4 ajoneuvon lis\u00e4l\u00e4mmitys, kestoasetuksen valinta.",
+      "name": "Käynnistä lisälämmitys",
+      "description": "Käynnistä ajoneuvon lisälämmitys, kestoasetuksen valinta.",
       "fields": {
         "device_id": {
           "name": "Ajoneuvo",
-          "description": "Audi-ajoneuvo, jonka lis\u00e4l\u00e4mmitys k\u00e4ynnistet\u00e4\u00e4n."
+          "description": "Audi-ajoneuvo, jonka lisälämmitys käynnistetään."
         },
         "duration": {
           "name": "Kesto",
-          "description": "Lis\u00e4l\u00e4mmittimen k\u00e4yntiaika minuutteina ennen sammuttamista. Oletusarvo on 20 minuuttia, jos arvoa ei anneta."
+          "description": "Lisälämmittimen käyntiaika minuutteina ennen sammuttamista. Oletusarvo on 20 minuuttia, jos arvoa ei anneta."
         }
       }
     }
