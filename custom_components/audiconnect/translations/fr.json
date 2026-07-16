@@ -7,7 +7,7 @@
     },
     "create_entry": {},
     "error": {
-      "authorization_pending": "Connexion pas encore détectée. Approuvez la demande dans votre navigateur, puis appuyez sur Envoyer.",
+      "authorization_pending": "Connexion pas encore détectée. Approuvez la demande dans votre navigateur, puis cliquez sur Valider.",
       "device_auth_failed": "La connexion par code a échoué. Veuillez recommencer."
     },
     "step": {
@@ -27,11 +27,11 @@
       },
       "device": {
         "title": "Connexion à Audi",
-        "description": "Ouvrez le lien suivant et connectez-vous avec votre compte Audi pour autoriser Home Assistant :\n\n[{verification_uri}]({verification_uri})\n\nSi un code vous est demandé, saisissez : **{user_code}**\n\nUne fois la demande approuvée, appuyez sur **Envoyer**."
+        "description": "Ouvrez le lien suivant et connectez-vous avec votre compte Audi pour autoriser Home Assistant :\n\n[{verification_uri}]({verification_uri})\n\nSi un code vous est demandé, saisissez : **{user_code}**\n\nUne fois la demande approuvée, cliquez sur **Valider**."
       },
       "reauth_confirm": {
         "title": "Réauthentification Audi",
-        "description": "Votre autorisation Audi a expiré. Ouvrez le lien suivant et reconnectez-vous :\n\n[{verification_uri}]({verification_uri})\n\nSi un code vous est demandé, saisissez : **{user_code}**\n\nUne fois la demande approuvée, appuyez sur **Envoyer**."
+        "description": "Votre autorisation Audi a expiré. Ouvrez le lien suivant et reconnectez-vous :\n\n[{verification_uri}]({verification_uri})\n\nSi un code vous est demandé, saisissez : **{user_code}**\n\nUne fois la demande approuvée, cliquez sur **Valider**."
       },
       "reconfigure": {
         "title": "Mettre à jour la configuration Audi Connect",
