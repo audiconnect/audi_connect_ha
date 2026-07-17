@@ -227,6 +227,11 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reconfigure",
+            # 2.2.0 interpolated {username} into the reconfigure description.
+            # A browser session from before the update still has that string
+            # cached, and rendering it without the value fails hard (formatjs
+            # MISSING_VALUE), leaving an empty dialog. Keep providing it.
+            description_placeholders={"username": reconfigure_entry.title},
             data_schema=vol.Schema(
                 {
                     vol.Optional(
