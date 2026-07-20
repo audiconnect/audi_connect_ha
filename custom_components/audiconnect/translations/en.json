@@ -3,11 +3,12 @@
     "abort": {
       "already_configured": "Account has already been configured",
       "reauth_successful": "Re-authentication was successful",
+      "reconfigure_successful": "Reconfiguration was successful",
       "device_auth_failed": "Could not start device sign-in with Audi. Please try again later."
     },
     "create_entry": {},
     "error": {
-      "authorization_pending": "Sign-in not detected yet. Approve the request in your browser, then press Submit.",
+      "authorization_pending": "Sign-in not detected yet. Approve the request in your browser, then press OK.",
       "device_auth_failed": "Device sign-in failed. Please start again."
     },
     "step": {
@@ -27,11 +28,11 @@
       },
       "device": {
         "title": "Sign in to Audi",
-        "description": "Open the following link and sign in with your Audi account to authorise Home Assistant:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **Submit**."
+        "description": "Open the following link and sign in with your Audi account to authorise Home Assistant:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **OK**."
       },
       "reauth_confirm": {
         "title": "Re-authenticate with Audi",
-        "description": "Your Audi authorisation has expired. Open the following link and sign in again:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **Submit**."
+        "description": "Your Audi authorisation has expired. Open the following link and sign in again:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **OK**."
       },
       "reconfigure": {
         "title": "Update Audi Connect Configuration",

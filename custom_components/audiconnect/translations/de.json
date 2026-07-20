@@ -3,11 +3,12 @@
     "abort": {
       "already_configured": "Das Konto wurde bereits konfiguriert",
       "reauth_successful": "Die erneute Authentifizierung war erfolgreich",
+      "reconfigure_successful": "Die Neukonfiguration war erfolgreich",
       "device_auth_failed": "Die Geräteanmeldung bei Audi konnte nicht gestartet werden. Bitte versuchen Sie es später erneut."
     },
     "create_entry": {},
     "error": {
-      "authorization_pending": "Anmeldung noch nicht erkannt. Bestätigen Sie die Anfrage in Ihrem Browser und klicken Sie dann auf Senden.",
+      "authorization_pending": "Anmeldung noch nicht erkannt. Bestätigen Sie die Anfrage in Ihrem Browser und klicken Sie dann auf OK.",
       "device_auth_failed": "Die Geräteanmeldung ist fehlgeschlagen. Bitte beginnen Sie erneut."
     },
     "step": {
@@ -27,11 +28,11 @@
       },
       "device": {
         "title": "Bei Audi anmelden",
-        "description": "Öffnen Sie den folgenden Link und melden Sie sich mit Ihrem Audi-Konto an, um Home Assistant zu autorisieren:\n\n[{verification_uri}]({verification_uri})\n\nFalls Sie nach einem Code gefragt werden, geben Sie ein: **{user_code}**\n\nSobald Sie die Anfrage bestätigt haben, klicken Sie auf **Senden**."
+        "description": "Öffnen Sie den folgenden Link und melden Sie sich mit Ihrem Audi-Konto an, um Home Assistant zu autorisieren:\n\n[{verification_uri}]({verification_uri})\n\nFalls Sie nach einem Code gefragt werden, geben Sie ein: **{user_code}**\n\nSobald Sie die Anfrage bestätigt haben, klicken Sie auf **OK**."
       },
       "reauth_confirm": {
         "title": "Erneut bei Audi authentifizieren",
-        "description": "Ihre Audi-Autorisierung ist abgelaufen. Öffnen Sie den folgenden Link und melden Sie sich erneut an:\n\n[{verification_uri}]({verification_uri})\n\nFalls Sie nach einem Code gefragt werden, geben Sie ein: **{user_code}**\n\nSobald Sie die Anfrage bestätigt haben, klicken Sie auf **Senden**."
+        "description": "Ihre Audi-Autorisierung ist abgelaufen. Öffnen Sie den folgenden Link und melden Sie sich erneut an:\n\n[{verification_uri}]({verification_uri})\n\nFalls Sie nach einem Code gefragt werden, geben Sie ein: **{user_code}**\n\nSobald Sie die Anfrage bestätigt haben, klicken Sie auf **OK**."
       },
       "reconfigure": {
         "title": "Audi Connect-Konfiguration aktualisieren",

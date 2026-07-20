@@ -3,11 +3,12 @@
     "abort": {
       "already_configured": "Dit account is al geconfigureerd",
       "reauth_successful": "Herauthenticatie is geslaagd",
+      "reconfigure_successful": "Herconfiguratie is geslaagd",
       "device_auth_failed": "Kan de apparaataanmelding bij Audi niet starten. Probeer het later opnieuw."
     },
     "create_entry": {},
     "error": {
-      "authorization_pending": "Aanmelding nog niet gedetecteerd. Keur het verzoek goed in uw browser en klik daarna op Verzenden.",
+      "authorization_pending": "Aanmelding nog niet gedetecteerd. Keur het verzoek goed in uw browser en klik daarna op OK.",
       "device_auth_failed": "Apparaataanmelding mislukt. Begin opnieuw."
     },
     "step": {
@@ -27,11 +28,11 @@
       },
       "device": {
         "title": "Aanmelden bij Audi",
-        "description": "Open de volgende link en meld u aan met uw Audi-account om Home Assistant te autoriseren:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **Verzenden**."
+        "description": "Open de volgende link en meld u aan met uw Audi-account om Home Assistant te autoriseren:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **OK**."
       },
       "reauth_confirm": {
         "title": "Opnieuw authenticeren bij Audi",
-        "description": "Uw Audi-autorisatie is verlopen. Open de volgende link en meld u opnieuw aan:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **Verzenden**."
+        "description": "Uw Audi-autorisatie is verlopen. Open de volgende link en meld u opnieuw aan:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **OK**."
       },
       "reconfigure": {
         "title": "Audi Connect-configuratie bijwerken",
