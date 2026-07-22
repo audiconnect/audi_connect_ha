@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Anmeldung noch nicht erkannt. Bestätigen Sie die Anfrage in Ihrem Browser und klicken Sie dann auf OK.",
-      "device_auth_failed": "Die Geräteanmeldung ist fehlgeschlagen. Bitte beginnen Sie erneut."
+      "device_auth_failed": "Die Geräteanmeldung ist fehlgeschlagen. Bitte beginnen Sie erneut.",
+      "invalid_credentials": "Ungültige Anmeldeinformationen"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "Optionale S-PIN für Fahrzeugaktionen wie Ver-/Entriegeln.",
           "region": "Die Ihrem Audi Connect-Konto zugeordnete Region.",
           "api_level": "Bei Audi-Fahrzeugen variiert die Struktur der API-Anfragen je nach Modell. Neuere Fahrzeuge verwenden eine aktualisierte Datenstruktur als ältere Modelle."
+        }
+      },
+      "credentials": {
+        "title": "Bei Audi anmelden",
+        "description": "Geben Sie Ihren myAudi-Benutzernamen und Ihr Passwort ein.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Erneut bei Audi authentifizieren",
+        "description": "Ihre Audi-Anmeldung funktioniert nicht mehr. Geben Sie Ihre Zugangsdaten erneut ein.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
         }
       }
     }

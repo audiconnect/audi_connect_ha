@@ -46,11 +46,17 @@ class AudiConnectAccount:
         api_level: int,
         excluded_vins: list[str] | None = None,
         refresh_token: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)
 
+        # Either a device-code refresh token (Europe) or username/password
+        # (regions where Audi has not enforced Play Integrity attestation).
         self._refresh_token = refresh_token
+        self._username = username
+        self._password = password
         self._loggedin = False
         self._support_vehicle_refresh = True
         self._logintime: float = 0
@@ -112,8 +118,13 @@ class AudiConnectAccount:
         for observer in self._observers:
             await observer.handle_notification(vin, action)
 
+    @property
+    def uses_password_login(self) -> bool:
+        """True when this account authenticates with username/password."""
+        return not self._refresh_token and bool(self._username and self._password)
+
     async def login(self):
-        if not self._refresh_token:
+        if not self._refresh_token and not self.uses_password_login:
             raise AudiAuthError("No stored authorization; reauthentication is required")
         for i in range(self._connect_retries):
             self._loggedin = await self.try_login(i == self._connect_retries - 1)
@@ -130,26 +141,30 @@ class AudiConnectAccount:
 
     async def try_login(self, logError):
         try:
-            _LOGGER.debug("LOGIN: Refreshing Audi session from stored token...")
-            new_refresh_token = await self._audi_service.login_with_refresh_token(
-                self._refresh_token
-            )
-            if new_refresh_token and new_refresh_token != self._refresh_token:
-                self._refresh_token = new_refresh_token
-                if self._on_refresh_token_update is not None:
-                    self._on_refresh_token_update(new_refresh_token)
+            if self._refresh_token:
+                _LOGGER.debug("LOGIN: Refreshing Audi session from stored token...")
+                new_refresh_token = await self._audi_service.login_with_refresh_token(
+                    self._refresh_token
+                )
+                if new_refresh_token and new_refresh_token != self._refresh_token:
+                    self._refresh_token = new_refresh_token
+                    if self._on_refresh_token_update is not None:
+                        self._on_refresh_token_update(new_refresh_token)
+            else:
+                _LOGGER.debug("LOGIN: Signing in to the Audi service with credentials")
+                await self._audi_service.login(self._username, self._password)
             _LOGGER.debug("LOGIN: Audi session established")
             return True
         except AudiAuthError:
-            # Token rejected (expired/revoked): propagate so Home Assistant reauth
-            # is triggered instead of retrying a credential that can never work.
+            # Credentials/token rejected: propagate so Home Assistant starts reauth
+            # instead of retrying something that can never work.
             raise
         except Exception as exception:
             if logError is True:
                 _LOGGER.error(
                     "LOGIN: Failed to establish an Audi session: %s. "
-                    "Your stored authorization may have expired; reconfigure the "
-                    "Audi Connect integration to sign in again.",
+                    "Your stored credentials may no longer be valid; reconfigure "
+                    "the Audi Connect integration to sign in again.",
                     str(exception),
                 )
             return False

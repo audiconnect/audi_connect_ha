@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Início de sessão ainda não detetado. Aprove o pedido no seu navegador e depois prima OK.",
-      "device_auth_failed": "O início de sessão do dispositivo falhou. Comece novamente."
+      "device_auth_failed": "O início de sessão do dispositivo falhou. Comece novamente.",
+      "invalid_credentials": "Credenciais inválidas"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "S-PIN opcional para ações do veículo como bloquear/desbloquear.",
           "region": "A região associada à sua conta Audi Connect.",
           "api_level": "Nos veículos Audi, a estrutura dos pedidos de API varia consoante o modelo. Os veículos mais recentes usam uma estrutura de dados atualizada em comparação com os modelos mais antigos."
+        }
+      },
+      "credentials": {
+        "title": "Iniciar sessão na Audi",
+        "description": "Introduza o seu nome de utilizador e palavra-passe myAudi.",
+        "data": {
+          "username": "Nome de utilizador",
+          "password": "Senha"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Reautenticar com a Audi",
+        "description": "O seu início de sessão Audi deixou de funcionar. Introduza novamente as suas credenciais.",
+        "data": {
+          "username": "Nome de utilizador",
+          "password": "Senha"
         }
       }
     }
