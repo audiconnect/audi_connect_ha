@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Connexion pas encore détectée. Approuvez la demande dans votre navigateur, puis cliquez sur OK.",
-      "device_auth_failed": "La connexion par code a échoué. Veuillez recommencer."
+      "device_auth_failed": "La connexion par code a échoué. Veuillez recommencer.",
+      "invalid_credentials": "Informations d'identification invalides"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "S-PIN optionnel pour les actions sur le véhicule telles que le verrouillage/déverrouillage.",
           "region": "La région associée à votre compte Audi Connect.",
           "api_level": "Sur les véhicules Audi, la structure des requêtes API varie selon le modèle. Les véhicules récents utilisent une structure plus moderne que les anciens."
+        }
+      },
+      "credentials": {
+        "title": "Connexion à Audi",
+        "description": "Saisissez votre identifiant et votre mot de passe myAudi.",
+        "data": {
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Réauthentification Audi",
+        "description": "Votre connexion Audi ne fonctionne plus. Saisissez à nouveau vos identifiants.",
+        "data": {
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe"
         }
       }
     }

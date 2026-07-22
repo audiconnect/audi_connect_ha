@@ -33,12 +33,14 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_DURATION,
     CONF_FILTER_VINS,
+    CONF_PASSWORD,
     CONF_REFRESH_AFTER_ACTION,
     CONF_REGION,
     CONF_UPDATE_SLEEP,
     CONF_SPIN,
     CONF_TARGET_SOC,
     CONF_REFRESH_TOKEN,
+    CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DOMAIN,
     REFRESH_VEHICLE_DATA_COMPLETED_EVENT,
@@ -127,6 +129,8 @@ class AudiAccount(AudiConnectObserver):
             api_level=self.config_entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL),
             excluded_vins=excluded_vins,
             refresh_token=self.config_entry.data.get(CONF_REFRESH_TOKEN),
+            username=self.config_entry.data.get(CONF_USERNAME),
+            password=self.config_entry.data.get(CONF_PASSWORD),
         )
         self.connection.add_observer(self)
         self.connection.set_refresh_token_listener(self._persist_refresh_token)

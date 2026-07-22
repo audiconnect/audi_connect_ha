@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Sign-in not detected yet. Approve the request in your browser, then press OK.",
-      "device_auth_failed": "Device sign-in failed. Please start again."
+      "device_auth_failed": "Device sign-in failed. Please start again.",
+      "invalid_credentials": "Invalid credentials"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "Optional S-PIN for vehicle actions such as lock/unlock.",
           "region": "The region associated with your Audi Connect account.",
           "api_level": "For Audi vehicles, the API request data structure varies by model. Newer vehicles use an updated data structure compared to older models."
+        }
+      },
+      "credentials": {
+        "title": "Sign in to Audi",
+        "description": "Enter your myAudi username and password.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Re-authenticate with Audi",
+        "description": "Your Audi sign-in is no longer working. Enter your credentials again.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
         }
       }
     }
@@ -123,11 +140,11 @@
         },
         "temp_f": {
           "name": "Target Temperature (Fahrenheit)",
-          "description": "(Optional) Set temperature in \u00b0F. Defaults to 70\u00b0F if not provided. Overrides 'temp_c'."
+          "description": "(Optional) Set temperature in °F. Defaults to 70°F if not provided. Overrides 'temp_c'."
         },
         "temp_c": {
           "name": "Target Temperature (Celsius)",
-          "description": "(Optional) Set temperature in \u00b0C. Defaults to 21\u00b0C if not provided. Overridden if 'temp_f' is provided."
+          "description": "(Optional) Set temperature in °C. Defaults to 21°C if not provided. Overridden if 'temp_f' is provided."
         },
         "glass_heating": {
           "name": "Glass Surface Heating",

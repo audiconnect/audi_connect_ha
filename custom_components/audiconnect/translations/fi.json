@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Kirjautumista ei ole vielä havaittu. Hyväksy pyyntö selaimessasi ja paina sitten OK.",
-      "device_auth_failed": "Laitekirjautuminen epäonnistui. Aloita uudelleen."
+      "device_auth_failed": "Laitekirjautuminen epäonnistui. Aloita uudelleen.",
+      "invalid_credentials": "Virheelliset tunnistetiedot"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "Valinnainen S-PIN ajoneuvon toimintoihin, kuten lukitseminen/avaaminen.",
           "region": "Audi Connect -tiliisi liitetty alue.",
           "api_level": "Audi-ajoneuvoissa API-pyyntöjen rakenne vaihtelee mallin mukaan. Uudemmat ajoneuvot käyttävät päivitettyä tietorakennetta vanhempiin malleihin verrattuna."
+        }
+      },
+      "credentials": {
+        "title": "Kirjaudu Audiin",
+        "description": "Anna myAudi-käyttäjätunnuksesi ja salasanasi.",
+        "data": {
+          "username": "Käyttäjätunnus",
+          "password": "Salasana"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Todenna uudelleen Audiin",
+        "description": "Audi-kirjautumisesi ei enää toimi. Anna tunnistetietosi uudelleen.",
+        "data": {
+          "username": "Käyttäjätunnus",
+          "password": "Salasana"
         }
       }
     }

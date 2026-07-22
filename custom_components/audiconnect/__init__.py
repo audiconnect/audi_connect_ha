@@ -36,11 +36,13 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_PASSWORD,
     CONF_REFRESH_TOKEN,
+    CONF_REGION,
     CONF_SCAN_INITIAL,
     CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DOMAIN,
     PLATFORMS,
+    uses_device_code,
 )
 from .coordinator import AudiDataUpdateCoordinator
 
@@ -94,13 +96,16 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
     if config_entry.version == 2:
         # v2 -> v3:
-        # Authentication moved from username/password (retired by Audi's move to
-        # Play Integrity attestation on the token exchange) to the OAuth Device
-        # Authorization Grant. Drop the stored credentials; the entry has no refresh
-        # token yet, so setup will start a reauthentication (device-code login).
+        # Authentication is now region-dependent. Where Audi enforces Play Integrity
+        # attestation on the token exchange (Europe), the username/password login can
+        # no longer complete, so the credentials are dropped and setup starts a
+        # reauthentication with the Device Authorization Grant. Every other region
+        # keeps its working credentials untouched — wiping them there would break an
+        # account that has no device-code alternative available yet.
         new_data = {**config_entry.data}
-        new_data.pop(CONF_PASSWORD, None)
-        new_data.pop(CONF_USERNAME, None)
+        if uses_device_code(new_data.get(CONF_REGION)):
+            new_data.pop(CONF_PASSWORD, None)
+            new_data.pop(CONF_USERNAME, None)
         hass.config_entries.async_update_entry(config_entry, version=3, data=new_data)
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)
@@ -330,10 +335,17 @@ def _async_cleanup_orphaned_devices(
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Audi Connect from a config entry."""
-    if not config_entry.data.get(CONF_REFRESH_TOKEN):
-        # No stored authorization (fresh v2->v3 migration): prompt device-code login.
+    if uses_device_code(config_entry.data.get(CONF_REGION)):
+        if not config_entry.data.get(CONF_REFRESH_TOKEN):
+            # No stored authorization (fresh v2->v3 migration): prompt device-code login.
+            raise ConfigEntryAuthFailed(
+                "Audi Connect needs to sign in again using device-code login"
+            )
+    elif not (
+        config_entry.data.get(CONF_USERNAME) and config_entry.data.get(CONF_PASSWORD)
+    ):
         raise ConfigEntryAuthFailed(
-            "Audi Connect needs to sign in again using device-code login"
+            "Audi Connect needs your myAudi username and password to sign in"
         )
 
     account = AudiAccount(hass, config_entry)

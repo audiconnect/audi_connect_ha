@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Aanmelding nog niet gedetecteerd. Keur het verzoek goed in uw browser en klik daarna op OK.",
-      "device_auth_failed": "Apparaataanmelding mislukt. Begin opnieuw."
+      "device_auth_failed": "Apparaataanmelding mislukt. Begin opnieuw.",
+      "invalid_credentials": "Ongeldige gebruikersgegevens"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "Optionele S-PIN voor voertuigacties zoals vergrendelen/ontgrendelen.",
           "region": "De regio die aan uw Audi Connect-account is gekoppeld.",
           "api_level": "Bij Audi-voertuigen verschilt de structuur van API-verzoeken per model. Nieuwere voertuigen gebruiken een bijgewerkte datastructuur ten opzichte van oudere modellen."
+        }
+      },
+      "credentials": {
+        "title": "Aanmelden bij Audi",
+        "description": "Voer uw myAudi-gebruikersnaam en wachtwoord in.",
+        "data": {
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Opnieuw authenticeren bij Audi",
+        "description": "Uw Audi-aanmelding werkt niet meer. Voer uw gegevens opnieuw in.",
+        "data": {
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord"
         }
       }
     }

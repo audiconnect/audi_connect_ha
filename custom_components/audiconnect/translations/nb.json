@@ -9,7 +9,8 @@
     "create_entry": {},
     "error": {
       "authorization_pending": "Innlogging er ennå ikke oppdaget. Godkjenn forespørselen i nettleseren din, og trykk deretter OK.",
-      "device_auth_failed": "Enhetsinnlogging mislyktes. Start på nytt."
+      "device_auth_failed": "Enhetsinnlogging mislyktes. Start på nytt.",
+      "invalid_credentials": "Ugyldige innloggingsopplysninger"
     },
     "step": {
       "user": {
@@ -45,6 +46,22 @@
           "spin": "Valgfri S-PIN for kjøretøyhandlinger som låsing/opplåsing.",
           "region": "Regionen som er knyttet til Audi Connect-kontoen din.",
           "api_level": "For Audi-kjøretøy varierer strukturen på API-forespørsler etter modell. Nyere kjøretøy bruker en oppdatert datastruktur sammenlignet med eldre modeller."
+        }
+      },
+      "credentials": {
+        "title": "Logg inn på Audi",
+        "description": "Skriv inn brukernavnet og passordet ditt for myAudi.",
+        "data": {
+          "username": "Brukernavn",
+          "password": "Passord"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Autentiser på nytt med Audi",
+        "description": "Audi-innloggingen din fungerer ikke lenger. Skriv inn legitimasjonen din på nytt.",
+        "data": {
+          "username": "Brukernavn",
+          "password": "Passord"
         }
       }
     }

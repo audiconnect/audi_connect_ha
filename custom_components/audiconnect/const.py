@@ -50,6 +50,19 @@ REGIONS: dict[int, str] = {
     4: REGION_CHINA,
 }
 
+# Regions that must authenticate with the Device Authorization Grant (RFC 8628).
+# Audi enforces Play Integrity attestation on the password (authorization-code)
+# token exchange there, so the legacy login can no longer complete. Every other
+# region keeps username/password, which still works for them. If attestation is
+# rolled out elsewhere, add that region here — nothing else needs to change.
+DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE}
+
+
+def uses_device_code(region: str | None) -> bool:
+    """Return True when the region must use the device-code login."""
+    return (region or REGION_EUROPE) in DEVICE_CODE_REGIONS
+
+
 API_LEVELS: list[int] = [0, 1]
 
 PLATFORMS: list[Platform] = [
@@ -96,5 +109,7 @@ __all__ = [
     "REFRESH_VEHICLE_DATA_COMPLETED_EVENT",
     "REFRESH_VEHICLE_DATA_FAILED_EVENT",
     "REGIONS",
+    "DEVICE_CODE_REGIONS",
+    "uses_device_code",
     "UPDATE_SLEEP",
 ]

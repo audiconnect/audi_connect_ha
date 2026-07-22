@@ -20,13 +20,17 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
     TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .audi_connect_account import AudiConnectAccount
+from .audi_services import AudiAuthError
 from .const import (
     API_LEVELS,
     CONF_API_LEVEL,
     CONF_FILTER_VINS,
+    CONF_PASSWORD,
     CONF_REFRESH_AFTER_ACTION,
     CONF_REFRESH_TOKEN,
     CONF_REGION,
@@ -34,12 +38,14 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SPIN,
     CONF_UPDATE_SLEEP,
+    CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     UPDATE_SLEEP,
     MIN_UPDATE_INTERVAL,
     REGIONS,
+    uses_device_code,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,13 +65,17 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
         self._user_code: str | None = None
         self._reauth_entry: ConfigEntry | None = None
 
-    def _build_connection(self) -> AudiConnectAccount:
+    def _build_connection(
+        self, username: str | None = None, password: str | None = None
+    ) -> AudiConnectAccount:
         session = async_get_clientsession(self.hass)
         return AudiConnectAccount(
             session=session,
             country=self._flow_data[CONF_REGION],
             spin=self._flow_data.get(CONF_SPIN),
             api_level=self._flow_data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL),
+            username=username,
+            password=password,
         )
 
     async def async_step_user(
@@ -81,7 +91,9 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                     MIN_UPDATE_INTERVAL,
                 ),
             }
-            return await self.async_step_device()
+            if uses_device_code(self._flow_data[CONF_REGION]):
+                return await self.async_step_device()
+            return await self.async_step_credentials()
 
         return self.async_show_form(
             step_id="user",
@@ -112,6 +124,70 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                 }
             ),
+        )
+
+    async def async_step_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Username/password sign-in, for regions without attestation."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
+            connection = self._build_connection(username, password)
+            try:
+                if await connection.try_login(False):
+                    return await self._finish_password_login(username, password)
+                errors["base"] = "invalid_credentials"
+            except AudiAuthError:
+                errors["base"] = "invalid_credentials"
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Audi password login failed")
+                errors["base"] = "unexpected"
+
+        step_id = (
+            "reauth_credentials" if self._reauth_entry is not None else "credentials"
+        )
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME,
+                        default=(user_input or {}).get(CONF_USERNAME, ""),
+                    ): str,
+                    vol.Required(CONF_PASSWORD): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def _finish_password_login(
+        self, username: str, password: str
+    ) -> ConfigFlowResult:
+        """Persist a username/password entry (or update it on reauth)."""
+        if self._reauth_entry is not None:
+            return self.async_update_reload_and_abort(
+                self._reauth_entry,
+                data={
+                    **self._reauth_entry.data,
+                    CONF_USERNAME: username,
+                    CONF_PASSWORD: password,
+                },
+            )
+
+        await self.async_set_unique_id(username.lower())
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(
+            title=username,
+            data={
+                **self._flow_data,
+                CONF_USERNAME: username,
+                CONF_PASSWORD: password,
+            },
         )
 
     async def async_step_device(
@@ -205,7 +281,15 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self.async_step_device(user_input)
+        if uses_device_code(self._flow_data.get(CONF_REGION)):
+            return await self.async_step_device(user_input)
+        return await self.async_step_credentials(user_input)
+
+    async def async_step_reauth_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Reauth form id for the credentials path (see async_step_credentials)."""
+        return await self.async_step_credentials(user_input)
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None

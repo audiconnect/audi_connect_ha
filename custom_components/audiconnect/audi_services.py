@@ -5,10 +5,13 @@ import base64
 import hmac
 import json
 import logging
+import os
+import re
+import uuid
 from datetime import datetime, timedelta, timezone
-from hashlib import sha512
+from hashlib import sha256, sha512
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -59,6 +62,7 @@ class AudiService:
         self.mbboauthToken = None
         self.xclientId = None
         self._tokenEndpoint = ""
+        self._authorizationEndpoint = ""
         self._bearer_token_json = None
         self._client_id = ""
         self._authorizationServerBaseURLLive = ""
@@ -1233,6 +1237,12 @@ class AudiService:
         if "token_endpoint" in openidcfg_json:
             self._tokenEndpoint = openidcfg_json["token_endpoint"]
 
+        # Authorization endpoint, used by the password (authorization-code) login
+        # that non-European regions still rely on.
+        self._authorizationEndpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
+        if "authorization_endpoint" in openidcfg_json:
+            self._authorizationEndpoint = openidcfg_json["authorization_endpoint"]
+
         # Device Authorization Grant (RFC 8628) endpoint. Discovery advertises it;
         # fall back to the well-known global identity endpoint.
         self._deviceAuthorizationEndpoint = (
@@ -1242,6 +1252,185 @@ class AudiService:
             self._deviceAuthorizationEndpoint = openidcfg_json[
                 "device_authorization_endpoint"
             ]
+
+    async def login(self, user: str, password: str) -> None:
+        """Username/password login (authorization-code flow).
+
+        Retained for the regions where Audi has not (yet) enforced Play Integrity
+        attestation on the token exchange. European accounts must use the Device
+        Authorization Grant instead; see `request_device_code`.
+        """
+        _LOGGER.debug("LOGIN: Starting password login to the Audi service...")
+        await self.login_request(user, password)
+
+    async def login_request(self, user: str, password: str) -> None:
+        await self._discover_endpoints()
+
+        # generate code_challenge
+        code_verifier = str(base64.urlsafe_b64encode(os.urandom(32)), "utf-8").strip(
+            "="
+        )
+        code_challenge = str(
+            base64.urlsafe_b64encode(
+                sha256(code_verifier.encode("ascii", "ignore")).digest()
+            ),
+            "utf-8",
+        ).strip("=")
+        code_challenge_method = "S256"
+
+        state = str(uuid.uuid4())
+        nonce = str(uuid.uuid4())
+
+        # login page
+        headers = {
+            "Accept": "application/json",
+            "Accept-Charset": "utf-8",
+            "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
+            "X-App-Name": "myAudi",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+        }
+        idk_data = {
+            "response_type": "code",
+            "client_id": self._client_id,
+            "redirect_uri": "myaudi:///",
+            "scope": "address profile badge birthdate birthplace nationalIdentifier nationality profession email vin phone nickname name picture mbb gallery openid",
+            "state": state,
+            "nonce": nonce,
+            "prompt": "login",
+            "code_challenge": code_challenge,
+            "code_challenge_method": code_challenge_method,
+            "ui_locales": "de-de de",
+        }
+        idk_rsp, idk_rsptxt = await self._api.request(
+            "GET",
+            self._authorizationEndpoint,
+            None,
+            headers=headers,
+            params=idk_data,
+            rsp_wtxt=True,
+        )
+
+        # form_data with email
+        submit_data = self.get_hidden_html_input_form_data(idk_rsptxt, {"email": user})
+        submit_url = self.get_post_url(idk_rsptxt, self._authorizationEndpoint)
+        # send email
+        email_rsp, email_rsptxt = await self._api.request(
+            "POST",
+            submit_url,
+            submit_data,
+            headers=headers,
+            cookies=idk_rsp.cookies,
+            allow_redirects=True,
+            rsp_wtxt=True,
+        )
+
+        # form_data with password
+        # 2022-01-29: new HTML response uses js to build the html form data + button.
+        #             Therefore it's not possible to extract hmac and other form data.
+        #             --> extract hmac from embedded js snippet.
+        regex_res = re.findall('"hmac"\\s*:\\s*"[0-9a-fA-F]+"', email_rsptxt)
+        if regex_res:
+            submit_url = submit_url.replace("identifier", "authenticate")
+            submit_data["hmac"] = regex_res[0].split(":")[1].strip('"')
+            submit_data["password"] = password
+        else:
+            submit_data = self.get_hidden_html_input_form_data(
+                email_rsptxt, {"password": password}
+            )
+            submit_url = self.get_post_url(email_rsptxt, submit_url)
+
+        # send password
+        pw_rsp, _pw_rsptxt = await self._api.request(
+            "POST",
+            submit_url,
+            submit_data,
+            headers=headers,
+            cookies=idk_rsp.cookies,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+
+        # forward1 after pwd
+        if "Location" not in pw_rsp.headers:
+            raise AudiAuthError(
+                "Login redirect missing after password submission (HTTP %d). "
+                "Audi may be showing a consent or terms-of-service prompt. "
+                "Please log in to myAudi via a browser or the myAudi app and "
+                "accept any pending agreements, then restart the integration."
+                % pw_rsp.status
+            )
+        fwd1_rsp, _fwd1_rsptxt = await self._api.request(
+            "GET",
+            pw_rsp.headers["Location"],
+            None,
+            headers=headers,
+            cookies=idk_rsp.cookies,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+        # forward2 after pwd
+        fwd2_rsp, _fwd2_rsptxt = await self._api.request(
+            "GET",
+            fwd1_rsp.headers["Location"],
+            None,
+            headers=headers,
+            cookies=idk_rsp.cookies,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+        # get tokens
+        codeauth_rsp, _codeauth_rsptxt = await self._api.request(
+            "GET",
+            fwd2_rsp.headers["Location"],
+            None,
+            headers=headers,
+            cookies=fwd2_rsp.cookies,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+        authcode_parsed = urlparse(
+            codeauth_rsp.headers["Location"][len("myaudi:///?") :]
+        )
+        authcode_strings = parse_qs(authcode_parsed.path)
+
+        headers = {
+            "Accept": "application/json",
+            "Accept-Charset": "utf-8",
+            "X-QMAuth": self._calculate_X_QMAuth(),
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        tokenreq_data = {
+            "client_id": self._client_id,
+            "grant_type": "authorization_code",
+            "code": authcode_strings["code"][0],
+            "redirect_uri": "myaudi:///",
+            "response_type": "token id_token",
+            "code_verifier": code_verifier,
+        }
+        encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace(
+            "+", "%20"
+        )
+        _bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
+            "POST",
+            self._tokenEndpoint,
+            encoded_tokenreq_data,
+            headers=headers,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+        bearer_token_json = json.loads(bearer_token_rsptxt)
+        if "access_token" not in bearer_token_json:
+            # In Europe this is where Play Integrity attestation rejects the
+            # exchange ("invalid assertion headers"); surface it clearly rather
+            # than failing later with a KeyError.
+            raise AudiAuthError(
+                "Password login rejected at the token exchange: "
+                + str(bearer_token_json.get("error", bearer_token_rsptxt[:200]))
+            )
+        self._bearer_token_json = bearer_token_json
+
+        await self._finalize_session()
 
     async def request_device_code(self) -> dict[str, Any]:
         """Start the OAuth Device Authorization Grant (RFC 8628).
