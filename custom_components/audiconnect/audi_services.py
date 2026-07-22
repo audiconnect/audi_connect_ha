@@ -1658,7 +1658,9 @@ class AudiService:
             # get_climater(), far from the real cause.
             raise AudiAuthError(
                 "mbboauth token exchange failed: %s"
-                % mbboauth_auth_json.get("error_description", mbboauth_auth_rsptxt[:200])
+                % mbboauth_auth_json.get(
+                    "error_description", mbboauth_auth_rsptxt[:200]
+                )
             )
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
