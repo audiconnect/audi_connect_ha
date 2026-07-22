@@ -103,7 +103,9 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         # keeps its working credentials untouched — wiping them there would break an
         # account that has no device-code alternative available yet.
         new_data = {**config_entry.data}
-        if uses_device_code(new_data.get(CONF_REGION)):
+        if uses_device_code(new_data.get(CONF_REGION)) and not new_data.get(
+            CONF_REFRESH_TOKEN
+        ):
             new_data.pop(CONF_PASSWORD, None)
             new_data.pop(CONF_USERNAME, None)
         hass.config_entries.async_update_entry(config_entry, version=3, data=new_data)
@@ -335,17 +337,18 @@ def _async_cleanup_orphaned_devices(
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Audi Connect from a config entry."""
-    if uses_device_code(config_entry.data.get(CONF_REGION)):
-        if not config_entry.data.get(CONF_REFRESH_TOKEN):
-            # No stored authorization (fresh v2->v3 migration): prompt device-code login.
-            raise ConfigEntryAuthFailed(
-                "Audi Connect needs to sign in again using device-code login"
-            )
-    elif not (
+    # Accept whichever credential the entry actually holds, regardless of region:
+    # device-code was offered everywhere in 2.2.1b1/b2, so a non-European entry can
+    # hold a perfectly good refresh token. Only prompt when neither is present.
+    has_refresh_token = bool(config_entry.data.get(CONF_REFRESH_TOKEN))
+    has_credentials = bool(
         config_entry.data.get(CONF_USERNAME) and config_entry.data.get(CONF_PASSWORD)
-    ):
+    )
+    if not has_refresh_token and not has_credentials:
         raise ConfigEntryAuthFailed(
-            "Audi Connect needs your myAudi username and password to sign in"
+            "Audi Connect needs to sign in again"
+            if uses_device_code(config_entry.data.get(CONF_REGION))
+            else "Audi Connect needs your myAudi username and password to sign in"
         )
 
     account = AudiAccount(hass, config_entry)

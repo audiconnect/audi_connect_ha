@@ -45,6 +45,7 @@ from .const import (
     UPDATE_SLEEP,
     MIN_UPDATE_INTERVAL,
     REGIONS,
+    entry_uses_device_code,
     uses_device_code,
 )
 
@@ -281,7 +282,11 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        if uses_device_code(self._flow_data.get(CONF_REGION)):
+        # Re-authenticate with the method this entry already uses, so an entry that
+        # was set up with device-code outside Europe isn't pushed onto the password
+        # login it never had credentials for.
+        assert self._reauth_entry is not None
+        if entry_uses_device_code(self._reauth_entry.data):
             return await self.async_step_device(user_input)
         return await self.async_step_credentials(user_input)
 
