@@ -62,6 +62,7 @@ def uses_device_code(region: str | None) -> bool:
     """Return True when the region must use the device-code login."""
     return (region or REGION_EUROPE) in DEVICE_CODE_REGIONS
 
+
 API_LEVELS: list[int] = [0, 1]
 
 PLATFORMS: list[Platform] = [
