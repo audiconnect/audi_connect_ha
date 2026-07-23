@@ -121,6 +121,7 @@ class AudiRuntimeData:
     account: AudiAccount
     coordinator: AudiDataUpdateCoordinator
     options_snapshot: dict[str, Any] = field(default_factory=dict)
+    data_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 def _resolve_device_to_vin(hass: HomeAssistant, device_id: str) -> str | None:
@@ -177,14 +178,33 @@ def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator
     return coordinators
 
 
+def _reloadable_data(config_entry: ConfigEntry) -> dict[str, Any]:
+    """Entry data that the running integration is configured from.
+
+    The refresh token is excluded: it rotates on its own during normal operation
+    and reloading on every rotation would tear the integration down for nothing.
+    """
+    return {k: v for k, v in config_entry.data.items() if k != CONF_REFRESH_TOKEN}
+
+
 async def _async_update_listener(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> None:
+    """Reload when the configuration changed, in options *or* in data.
+
+    The S-PIN, region and API level live in entry data, not in options, so
+    comparing options alone would silently skip the reload a reconfigure needs.
+    Home Assistant reloads on its own today, but from 2026.12 it defers to this
+    listener whenever one is registered, and the missed reload would surface as
+    "my new S-PIN is ignored until I restart".
+    """
     runtime_data: AudiRuntimeData | None = getattr(config_entry, "runtime_data", None)
-    if runtime_data is not None and runtime_data.options_snapshot == dict(
-        config_entry.options
+    if (
+        runtime_data is not None
+        and runtime_data.options_snapshot == dict(config_entry.options)
+        and runtime_data.data_snapshot == _reloadable_data(config_entry)
     ):
-        # Only entry data changed (e.g. a rotated refresh token); no reload needed.
+        # Only the refresh token rotated; nothing the running setup depends on.
         return
     await hass.config_entries.async_reload(config_entry.entry_id)
 
@@ -362,6 +382,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         account=account,
         coordinator=coordinator,
         options_snapshot=dict(config_entry.options),
+        data_snapshot=_reloadable_data(config_entry),
     )
 
     config_entry.async_on_unload(
