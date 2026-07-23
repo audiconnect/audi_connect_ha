@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 
 DOMAIN = "audiconnect"
@@ -63,6 +66,22 @@ def uses_device_code(region: str | None) -> bool:
     return (region or REGION_EUROPE) in DEVICE_CODE_REGIONS
 
 
+def entry_uses_device_code(entry_data: Mapping[str, Any]) -> bool:
+    """Return True when this entry should authenticate with the device-code flow.
+
+    Whatever the entry already holds wins over the region default. Device-code was
+    offered to every region in the 2.2.1b1/b2 pre-releases, so an entry outside
+    Europe can legitimately hold a working refresh token; forcing it onto the
+    password login would break a session that is fine. The region only decides for
+    an entry that has no usable credential yet.
+    """
+    if entry_data.get(CONF_REFRESH_TOKEN):
+        return True
+    if entry_data.get(CONF_USERNAME) and entry_data.get(CONF_PASSWORD):
+        return False
+    return uses_device_code(entry_data.get(CONF_REGION))
+
+
 API_LEVELS: list[int] = [0, 1]
 
 PLATFORMS: list[Platform] = [
@@ -110,6 +129,7 @@ __all__ = [
     "REFRESH_VEHICLE_DATA_FAILED_EVENT",
     "REGIONS",
     "DEVICE_CODE_REGIONS",
+    "entry_uses_device_code",
     "uses_device_code",
     "UPDATE_SLEEP",
 ]
