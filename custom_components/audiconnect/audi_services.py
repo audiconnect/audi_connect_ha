@@ -1651,6 +1651,17 @@ class AudiService:
             rsp_wtxt=True,
         )
         mbboauth_auth_json = json.loads(mbboauth_auth_rsptxt)
+        if "access_token" not in mbboauth_auth_json:
+            # Fail here rather than storing the error body as a token: otherwise
+            # vwToken silently becomes {"error": ...} and only surfaces much later
+            # as KeyError('access_token') in get_tripdata() or a TypeError in
+            # get_climater(), far from the real cause.
+            raise AudiAuthError(
+                "mbboauth token exchange failed: %s"
+                % mbboauth_auth_json.get(
+                    "error_description", mbboauth_auth_rsptxt[:200]
+                )
+            )
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
 
