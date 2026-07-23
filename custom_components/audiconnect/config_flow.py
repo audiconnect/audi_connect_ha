@@ -325,7 +325,11 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     vol.Optional(
                         CONF_SPIN,
-                        default=reconfigure_entry.data.get(CONF_SPIN, ""),
+                        # The S-PIN is optional, and an entry created without one
+                        # stores None (not a missing key), so the "" fallback of
+                        # .get() never applies. Coerce it, or the str validator
+                        # rejects the default with "expected str".
+                        default=reconfigure_entry.data.get(CONF_SPIN) or "",
                     ): str,
                     vol.Required(
                         CONF_REGION, default=current_region_key
