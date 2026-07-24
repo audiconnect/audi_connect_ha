@@ -1034,19 +1034,21 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404, 502):
+            if cre.status in (403, 404):
                 _LOGGER.debug(
                     "PREHEATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support preheater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_preheater = False
-            # elif cre.status == 502:
-            #    _LOGGER.warning(
-            #        "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
-            #        cre.status,
-            #        redacted_vin,
-            #    )
+            elif cre.status == 502:
+                # Transient CARIAD gateway error; keep the feature enabled so the
+                # next poll can recover, matching the other status endpoints.
+                _LOGGER.debug(
+                    "PREHEATER: Received status %s while updating preheater for VIN: %s. This is typically transient and may resolve on its own.",
+                    cre.status,
+                    redacted_vin,
+                )
             else:
                 self.log_exception_once(
                     cre,
