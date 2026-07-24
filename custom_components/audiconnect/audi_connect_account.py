@@ -268,7 +268,7 @@ class AudiConnectAccount:
             )
             return False
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "VEHICLE REFRESH: ClientResponseError with status %s for VIN: %s. Vehicle does not support vehicle refresh — disabling.",
                     cre.status,
@@ -276,7 +276,7 @@ class AudiConnectAccount:
                 )
                 self._support_vehicle_refresh = False
                 return "disabled"
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "VEHICLE REFRESH: Received status %s while refreshing vehicle data for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -779,9 +779,9 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status in (403, 404):
+            if resp_exception.status == 404:
                 self.support_status_report = False
-            elif resp_exception.status == 502:
+            elif resp_exception.status in (403, 502):
                 # Transient CARIAD gateway error; the cached state is kept and the
                 # next poll normally recovers. Logged at debug like the other
                 # endpoints, not as an error, to avoid noise.
@@ -884,14 +884,14 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Vehicle does not support position — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_position = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "POSITION: Received status %s while updating vehicle position for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -985,14 +985,14 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "CLIMATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support climater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_climater = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "CLIMATER: Received status %s while updating climater for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -1141,14 +1141,14 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "CHARGER: ClientResponseError with status %s for VIN: %s. Vehicle does not support charger — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_charger = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "CHARGER: Received status %s while updating charger for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -1219,14 +1219,14 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "TRIP DATA: ClientResponseError with status %s for VIN: %s. Vehicle does not support trip data — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_trip_data = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "TRIP DATA: Received status %s while updating trip data for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
