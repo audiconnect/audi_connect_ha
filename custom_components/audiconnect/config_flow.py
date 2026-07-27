@@ -4,7 +4,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -37,9 +36,9 @@ from .const import (
     DEFAULT_API_LEVEL,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
-    UPDATE_SLEEP,
     MIN_UPDATE_INTERVAL,
     REGIONS,
+    UPDATE_SLEEP,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -91,7 +90,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_API_LEVEL: int(user_input[CONF_API_LEVEL]),
                         },
                     )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Audi config flow failed")
                 errors["base"] = "unexpected"
 
@@ -163,7 +162,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_API_LEVEL: api_level,
                         },
                     )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Audi reconfigure flow failed")
                 errors["base"] = "unexpected"
 

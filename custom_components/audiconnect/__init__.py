@@ -9,11 +9,11 @@ from typing import Any
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .audi_account import (
-    AudiAccount,
     SERVICE_EXECUTE_VEHICLE_ACTION,
     SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
     SERVICE_REFRESH_CLOUD_DATA,
@@ -29,6 +29,7 @@ from .audi_account import (
     SERVICE_START_ENGINE_SCHEMA,
     SERVICE_STOP_ENGINE,
     SERVICE_STOP_ENGINE_SCHEMA,
+    AudiAccount,
 )
 from .const import (
     CONF_API_LEVEL,

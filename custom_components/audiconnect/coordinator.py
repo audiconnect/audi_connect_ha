@@ -38,7 +38,7 @@ class AudiDataUpdateCoordinator(DataUpdateCoordinator[list[Any]]):
     async def _async_update_data(self) -> list[Any]:
         try:
             return await self.account.async_refresh_data()
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             raise UpdateFailed(str(err)) from err
 
     @classmethod
