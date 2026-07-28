@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import hmac
 import json
 import logging
-import os
 import re
-import uuid
 from datetime import datetime, timedelta, timezone
-from hashlib import sha256, sha512
+from hashlib import sha512
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -23,6 +20,7 @@ from .util import get_attr, to_byte_array
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
+MAX_LOGIN_REDIRECTS = 20
 
 SUCCEEDED = "succeeded"
 FAILED = "failed"
@@ -971,7 +969,7 @@ class AudiService:
                         )
                     )
 
-        raise Exception("Request {} timed out".format(request_id))
+        raise Exception(f"Request {request_id} timed out")
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
@@ -994,7 +992,7 @@ class AudiService:
             if status == successCode:
                 return
 
-        raise Exception("Cannot {action}, operation timed out".format(action=action))
+        raise Exception(f"Cannot {action}, operation timed out")
 
     # TR/2022-12-20: New secret for X_QMAuth
     def _calculate_X_QMAuth(self) -> str:
@@ -1053,80 +1051,55 @@ class AudiService:
     # TR/2021-12-01: Refresh token before it expires
     # returns True when refresh was required and successful, otherwise False
     async def refresh_token_if_necessary(self, elapsed_sec: int) -> bool:
-        if self.mbboauthToken is None:
+        # The device-code flow issues an IDK bearer token with its own
+        # refresh_token. The BFF refreshes it without any assertion header or
+        # client_secret, so we drive the refresh off _bearer_token_json.
+        if self._bearer_token_json is None:
             return False
-        if "refresh_token" not in self.mbboauthToken:
+        if "refresh_token" not in self._bearer_token_json:
             return False
-        if "expires_in" not in self.mbboauthToken:
+        if "expires_in" not in self._bearer_token_json:
             return False
 
-        if (elapsed_sec + 5 * 60) < self.mbboauthToken["expires_in"]:
+        if (elapsed_sec + 5 * 60) < self._bearer_token_json["expires_in"]:
             # refresh not needed now
             return False
 
         try:
+            # Refresh the IDK bearer token directly against the Cariad BFF.
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
                 "User-Agent": AudiAPI.HDR_USER_AGENT,
                 "Content-Type": "application/x-www-form-urlencoded",
-                "X-Client-ID": self.xclientId,
             }
-            mbboauth_refresh_data = {
-                "grant_type": "refresh_token",
-                "token": self.mbboauthToken["refresh_token"],
-                "scope": "sc2:fal",
-                # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
-            }
-            encoded_mbboauth_refresh_data = urlencode(
-                mbboauth_refresh_data, encoding="utf-8"
+            bearer_refresh_data = urlencode(
+                {
+                    "client_id": self._client_id,
+                    "grant_type": "refresh_token",
+                    "refresh_token": self._bearer_token_json["refresh_token"],
+                },
+                encoding="utf-8",
             ).replace("+", "%20")
-            mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
-                "POST",
-                self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
-                encoded_mbboauth_refresh_data,
-                headers=headers,
-                allow_redirects=False,
-                rsp_wtxt=True,
-            )
-
-            # this code is the old "vwToken"
-            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
-
-            # TR/2022-02-10: If a new refresh_token is provided, save it for further refreshes
-            if "refresh_token" in self.vwToken:
-                self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
-
-            # hdr
-            headers = {
-                "Accept": "application/json",
-                "Accept-Charset": "utf-8",
-                "X-QMAuth": self._calculate_X_QMAuth(),
-                "User-Agent": AudiAPI.HDR_USER_AGENT,
-                "Content-Type": "application/x-www-form-urlencoded",
-            }
-            # IDK token request data
-            tokenreq_data = {
-                "client_id": self._client_id,
-                "grant_type": "refresh_token",
-                "refresh_token": self._bearer_token_json.get("refresh_token"),
-                "response_type": "token id_token",
-            }
-            # IDK token request
-            encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace(
-                "+", "%20"
-            )
             bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
                 "POST",
                 self._tokenEndpoint,
-                encoded_tokenreq_data,
+                bearer_refresh_data,
                 headers=headers,
                 allow_redirects=False,
                 rsp_wtxt=True,
             )
-            self._bearer_token_json = json.loads(bearer_token_rsptxt)
+            refreshed = json.loads(bearer_token_rsptxt)
+            if "access_token" not in refreshed:
+                raise Exception("Bearer token refresh returned no access_token")
+            # The BFF may omit a fresh refresh_token; keep the previous one then.
+            if "refresh_token" not in refreshed and "refresh_token" in (
+                self._bearer_token_json or {}
+            ):
+                refreshed["refresh_token"] = self._bearer_token_json["refresh_token"]
+            self._bearer_token_json = refreshed
 
-            # AZS token
+            # AZS token (Audi-specific services)
             headers = {
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8",
@@ -1149,8 +1122,36 @@ class AudiService:
                 allow_redirects=False,
                 rsp_wtxt=True,
             )
-            azs_token_json = json.loads(azs_token_rsptxt)
-            self.audiToken = azs_token_json
+            self.audiToken = json.loads(azs_token_rsptxt)
+
+            # Re-derive the legacy vwToken from the refreshed id_token.
+            if "id_token" in self._bearer_token_json and self.xclientId:
+                headers = {
+                    "Accept": "application/json",
+                    "Accept-Charset": "utf-8",
+                    "User-Agent": AudiAPI.HDR_USER_AGENT,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-Client-ID": self.xclientId,
+                }
+                mbboauth_auth_data = urlencode(
+                    {
+                        "grant_type": "id_token",
+                        "token": self._bearer_token_json["id_token"],
+                        "scope": "sc2:fal",
+                    },
+                    encoding="utf-8",
+                ).replace("+", "%20")
+                _mbb_rsp, mbb_txt = await self._api.request(
+                    "POST",
+                    self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
+                    mbboauth_auth_data,
+                    headers=headers,
+                    allow_redirects=False,
+                    rsp_wtxt=True,
+                )
+                mbb_json = json.loads(mbb_txt)
+                self.mbboauthToken = mbb_json
+                self.vwToken = mbb_json
 
             return True
 
@@ -1220,10 +1221,6 @@ class AudiService:
         openidcfg_json = await self._api.request("GET", openidcfg_url, None)
 
         # use dynamic config from openId config
-        authorization_endpoint = "https://identity.vwgroup.io/oidc/v1/authorize"
-        if "authorization_endpoint" in openidcfg_json:
-            authorization_endpoint = openidcfg_json["authorization_endpoint"]
-
         self._tokenEndpoint = self.__get_cariad_url("/auth/v1/idk/oidc/token")
 
         if "token_endpoint" in openidcfg_json:
@@ -1232,23 +1229,28 @@ class AudiService:
         # if "revocation_endpoint" in openidcfg_json:
         # revocation_endpoint = openidcfg_json["revocation_endpoint"]
 
-        # generate code_challenge
-        code_verifier = str(base64.urlsafe_b64encode(os.urandom(32)), "utf-8").strip(
-            "="
-        )
-        code_challenge = str(
-            base64.urlsafe_b64encode(
-                sha256(code_verifier.encode("ascii", "ignore")).digest()
-            ),
-            "utf-8",
-        ).strip("=")
-        code_challenge_method = "S256"
-
+        # myAudi OAuth 2.0 Device Code Flow.
         #
-        state = str(uuid.uuid4())
-        nonce = str(uuid.uuid4())
+        # Since ~2026-05, CARIAD binds the classic authorization_code exchange to
+        # a Play Integrity / x-assertion header that only the genuine app can
+        # produce, so exchanging the code at the IDK token endpoint returns
+        # HTTP 400 {"error":"invalid assertion headers"}. The device-code flow
+        # issues tokens directly against identity.vwgroup.io, which the BFF
+        # accepts without any assertion header. We drive the user confirmation
+        # server-side with username/password so the whole login stays headless.
+        # Flow verified against the myAudi 5.4.1 Android app.
+        idp_authorization_url = (
+            "https://identity.vwgroup.io/oidc/v1/device_authorization"
+        )
+        idp_token_url = "https://identity.vwgroup.io/oidc/v1/token"
+        signin_base = "https://identity.vwgroup.io/signin-service/v1/{cid}".format(
+            cid=self._client_id
+        )
+        device_scope = (
+            "openid profile email address phone vin badge mbb cars dealers "
+            "birthdate name nickname picture profession nationalIdentifier nationality"
+        )
 
-        # login page
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
@@ -1256,142 +1258,172 @@ class AudiService:
             "X-App-Name": "myAudi",
             "User-Agent": AudiAPI.HDR_USER_AGENT,
         }
-        idk_data = {
-            "response_type": "code",
-            "client_id": self._client_id,
-            "redirect_uri": "myaudi:///",
-            "scope": "address profile badge birthdate birthplace nationalIdentifier nationality profession email vin phone nickname name picture mbb gallery openid",
-            "state": state,
-            "nonce": nonce,
-            "prompt": "login",
-            "code_challenge": code_challenge,
-            "code_challenge_method": code_challenge_method,
-            "ui_locales": "de-de de",
-        }
-        idk_rsp, idk_rsptxt = await self._api.request(
-            "GET",
-            authorization_endpoint,
-            None,
-            headers=headers,
-            params=idk_data,
-            rsp_wtxt=True,
-        )
 
-        # form_data with email
-        submit_data = self.get_hidden_html_input_form_data(idk_rsptxt, {"email": user})
-        submit_url = self.get_post_url(idk_rsptxt, authorization_endpoint)
-        # send email
-        email_rsp, email_rsptxt = await self._api.request(
+        # Step 1: initiate device_authorization
+        device_init_data = urlencode(
+            {"client_id": self._client_id, "scope": device_scope}, encoding="utf-8"
+        ).replace("+", "%20")
+        device_init = await self._api.request(
             "POST",
-            submit_url,
-            submit_data,
-            headers=headers,
-            cookies=idk_rsp.cookies,
+            idp_authorization_url,
+            device_init_data,
+            headers={
+                **headers,
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+        if not device_init or "device_code" not in device_init:
+            raise Exception(f"device_authorization response invalid: {device_init}")
+        device_code = device_init["device_code"]
+
+        # Step 2: open the verification page, following redirects to the login form
+        verif_url, verif_txt = await self._follow_login_redirects(
+            device_init["verification_uri_complete"], headers
+        )
+        if "email" not in verif_txt.lower():
+            raise Exception("Login form not found at " + verif_url[:80])
+
+        # Step 3: submit the email at login/identifier
+        id_form = self.get_hidden_html_input_form_data(verif_txt, {"email": user})
+        id_rsp, id_txt = await self._api.request(
+            "POST",
+            signin_base + "/login/identifier",
+            urlencode(id_form, encoding="utf-8").replace("+", "%20"),
+            headers={**headers, "Content-Type": "application/x-www-form-urlencoded"},
             allow_redirects=True,
             rsp_wtxt=True,
         )
 
-        # form_data with password
-        # 2022-01-29: new HTML response uses a js two build the html form data + button.
-        #             Therefore it's not possible to extract hmac and other form data.
-        #             --> extract hmac from embedded js snippet.
-        regex_res = re.findall('"hmac"\\s*:\\s*"[0-9a-fA-F]+"', email_rsptxt)
-        if regex_res:
-            submit_url = submit_url.replace("identifier", "authenticate")
-            submit_data["hmac"] = regex_res[0].split(":")[1].strip('"')
-            submit_data["password"] = password
-        else:
-            submit_data = self.get_hidden_html_input_form_data(
-                email_rsptxt, {"password": password}
-            )
-            submit_url = self.get_post_url(email_rsptxt, submit_url)
-
-        # send password
-        pw_rsp, pw_rsptxt = await self._api.request(
-            "POST",
-            submit_url,
-            submit_data,
-            headers=headers,
-            cookies=idk_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-
-        # forward1 after pwd
-        if "Location" not in pw_rsp.headers:
+        # Extract csrf/hmac/relayState from the embedded JS on the password page
+        csrf = None
+        if "csrf_token: '" in id_txt:
+            csrf = id_txt.split("csrf_token: '", 1)[1].split("'", 1)[0]
+        hmac_val = None
+        if '"hmac":"' in id_txt:
+            hmac_val = id_txt.split('"hmac":"', 1)[1].split('"', 1)[0]
+        relay_state = None
+        if '"relayState":"' in id_txt:
+            relay_state = id_txt.split('"relayState":"', 1)[1].split('"', 1)[0]
+        if not (csrf and hmac_val and relay_state):
             raise Exception(
-                "Login redirect missing after password submission (HTTP %d). "
-                "Audi may be showing a consent or terms-of-service prompt. "
-                "Please log in to myAudi via a browser or the myAudi app and "
-                "accept any pending agreements, then restart the integration."
-                % pw_rsp.status
+                "Could not extract CSRF/HMAC/relayState from the password page. "
+                "Audi may be showing a consent or terms-of-service prompt. Please "
+                "log in to myAudi via a browser or the app and accept any pending "
+                "agreements, then restart the integration."
             )
-        fwd1_rsp, fwd1_rsptxt = await self._api.request(
-            "GET",
-            pw_rsp.headers["Location"],
-            None,
-            headers=headers,
-            cookies=idk_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-        # forward2 after pwd
-        fwd2_rsp, fwd2_rsptxt = await self._api.request(
-            "GET",
-            fwd1_rsp.headers["Location"],
-            None,
-            headers=headers,
-            cookies=idk_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-        # get tokens
-        codeauth_rsp, codeauth_rsptxt = await self._api.request(
-            "GET",
-            fwd2_rsp.headers["Location"],
-            None,
-            headers=headers,
-            cookies=fwd2_rsp.cookies,
-            allow_redirects=False,
-            rsp_wtxt=True,
-        )
-        authcode_parsed = urlparse(
-            codeauth_rsp.headers["Location"][len("myaudi:///?") :]
-        )
-        authcode_strings = parse_qs(authcode_parsed.path)
 
-        # hdr
-        headers = {
-            "Accept": "application/json",
-            "Accept-Charset": "utf-8",
-            "X-QMAuth": self._calculate_X_QMAuth(),
-            "User-Agent": AudiAPI.HDR_USER_AGENT,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        # IDK token request data
-        tokenreq_data = {
-            "client_id": self._client_id,
-            "grant_type": "authorization_code",
-            "code": authcode_strings["code"][0],
-            "redirect_uri": "myaudi:///",
-            "response_type": "token id_token",
-            "code_verifier": code_verifier,
-        }
-        # IDK token request
-        encoded_tokenreq_data = urlencode(tokenreq_data, encoding="utf-8").replace(
-            "+", "%20"
-        )
-        bearer_token_rsp, bearer_token_rsptxt = await self._api.request(
+        # Step 4: submit the password at login/authenticate
+        auth_rsp, _auth_txt = await self._api.request(
             "POST",
-            self._tokenEndpoint,
-            encoded_tokenreq_data,
-            headers=headers,
+            signin_base + "/login/authenticate",
+            urlencode(
+                {
+                    "_csrf": csrf,
+                    "email": user,
+                    "password": password,
+                    "hmac": hmac_val,
+                    "relayState": relay_state,
+                },
+                encoding="utf-8",
+            ).replace("+", "%20"),
+            headers={**headers, "Content-Type": "application/x-www-form-urlencoded"},
             allow_redirects=False,
             rsp_wtxt=True,
         )
-        self._bearer_token_json = json.loads(bearer_token_rsptxt)
+        if auth_rsp.status != 302 or "Location" not in auth_rsp.headers:
+            raise Exception(
+                "login/authenticate failed (HTTP %d) - likely invalid credentials"
+                % auth_rsp.status
+            )
+        next_url = auth_rsp.headers["Location"]
+        if next_url.startswith("/"):
+            next_url = "https://identity.vwgroup.io" + next_url
 
-        # AZS token
+        # Step 5: follow redirects to the device confirmation page and approve it
+        conf_url, conf_txt = await self._follow_login_redirects(next_url, headers)
+        form_action = re.search(
+            r'<form[^>]+action=["\']([^"\']+)["\']', conf_txt, re.IGNORECASE
+        )
+        if form_action:
+            allow_action = form_action.group(1)
+            if allow_action.startswith("/"):
+                allow_action = "https://identity.vwgroup.io" + allow_action
+            csrf2 = re.search(
+                r'name=["\']_csrf["\'][^>]*value=["\']([^"\']+)["\']',
+                conf_txt,
+                re.IGNORECASE,
+            )
+            if not csrf2:
+                raise Exception("No _csrf token in device confirmation form")
+            client_identity_name = re.search(
+                r'name=["\']client_identity_name["\'][^>]*value=["\']([^"\']+)["\']',
+                conf_txt,
+                re.IGNORECASE,
+            )
+            await self._api.request(
+                "POST",
+                allow_action,
+                urlencode(
+                    {
+                        "_csrf": csrf2.group(1),
+                        "client_identity_name": client_identity_name.group(1)
+                        if client_identity_name
+                        else "myAudi App",
+                        "allow": "",
+                    },
+                    encoding="utf-8",
+                ).replace("+", "%20"),
+                headers={
+                    **headers,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                allow_redirects=False,
+                rsp_wtxt=True,
+            )
+
+        # Step 6: poll the IDP token endpoint until the device code is authorized
+        poll_data = urlencode(
+            {
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                "device_code": device_code,
+                "client_id": self._client_id,
+            },
+            encoding="utf-8",
+        ).replace("+", "%20")
+        interval = max(int(device_init.get("interval", 1)), 1)
+        deadline = datetime.now(timezone.utc) + timedelta(
+            seconds=min(int(device_init.get("expires_in", 120)), 120)
+        )
+        tokens = None
+        while datetime.now(timezone.utc) < deadline:
+            poll = await self._api.request(
+                "POST",
+                idp_token_url,
+                poll_data,
+                headers={
+                    **headers,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+            if poll and "access_token" in poll:
+                tokens = poll
+                break
+            error = poll.get("error") if poll else None
+            if error == "authorization_pending":
+                await asyncio.sleep(interval)
+                continue
+            if error == "slow_down":
+                interval += 1
+                await asyncio.sleep(interval)
+                continue
+            raise Exception(f"Device token polling failed: {poll}")
+        if tokens is None:
+            raise Exception("Device token polling timed out")
+
+        # These IDK tokens are accepted directly by the Cariad BFF.
+        self._bearer_token_json = tokens
+
+        # AZS token (Audi-specific services, used by get_vehicle_information)
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
@@ -1414,8 +1446,7 @@ class AudiService:
             allow_redirects=False,
             rsp_wtxt=True,
         )
-        azs_token_json = json.loads(azs_token_rsptxt)
-        self.audiToken = azs_token_json
+        self.audiToken = json.loads(azs_token_rsptxt)
 
         # mbboauth client register
         headers = {
@@ -1444,7 +1475,7 @@ class AudiService:
         self.xclientId = mbboauth_client_reg_json["client_id"]
         self._api.set_xclient_id(self.xclientId)
 
-        # mbboauth auth
+        # mbboauth auth: exchange the IDK id_token for the legacy vwToken
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
@@ -1471,43 +1502,34 @@ class AudiService:
         mbboauth_auth_json = json.loads(mbboauth_auth_rsptxt)
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
+        self.vwToken = mbboauth_auth_json
 
-        # mbboauth refresh (app immediately refreshes the token)
-        # The MBB OAuth auth response no longer always includes a refresh_token.
-        # Skip the immediate refresh if absent and use the auth token directly.
-        if "refresh_token" in mbboauth_auth_json:
-            headers = {
-                "Accept": "application/json",
-                "Accept-Charset": "utf-8",
-                "User-Agent": AudiAPI.HDR_USER_AGENT,
-                "Content-Type": "application/x-www-form-urlencoded",
-                "X-Client-ID": self.xclientId,
-            }
-            mbboauth_refresh_data = {
-                "grant_type": "refresh_token",
-                "token": mbboauth_auth_json["refresh_token"],
-                "scope": "sc2:fal",
-                # "vin": vin,  << App uses a dedicated VIN here, but it works without, don't know
-            }
-            encoded_mbboauth_refresh_data = urlencode(
-                mbboauth_refresh_data, encoding="utf-8"
-            ).replace("+", "%20")
-            mbboauth_refresh_rsp, mbboauth_refresh_rsptxt = await self._api.request(
-                "POST",
-                self.mbbOAuthBaseURL + "/mobile/oauth2/v1/token",
-                encoded_mbboauth_refresh_data,
+    async def _follow_login_redirects(
+        self, start_url: str, headers: dict[str, str]
+    ) -> tuple[str, str]:
+        """Follow the identity.vwgroup.io redirect chain, returning the final
+        (url, body) once a non-redirect page is reached."""
+        url = start_url
+        for _ in range(MAX_LOGIN_REDIRECTS):
+            rsp, txt = await self._api.request(
+                "GET",
+                url,
+                None,
                 headers=headers,
                 allow_redirects=False,
-                cookies=mbboauth_client_reg_rsp.cookies,
                 rsp_wtxt=True,
             )
-            # this code is the old "vwToken"
-            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
-        else:
-            _LOGGER.debug(
-                "mbboauth: no refresh_token in auth response, using auth token directly as vwToken"
-            )
-            self.vwToken = mbboauth_auth_json
+            if 300 <= rsp.status < 400 and "Location" in rsp.headers:
+                nxt = rsp.headers["Location"]
+                if nxt.startswith("/"):
+                    parts = urlparse(url)
+                    nxt = parts.scheme + "://" + parts.netloc + nxt
+                url = nxt
+                continue
+            if rsp.status >= 400:
+                raise Exception("HTTP %d while following login redirect" % rsp.status)
+            return url, txt
+        raise Exception("Too many redirects during login")
 
     def _generate_security_pin_hash(self, challenge: str) -> str:
         if self._spin is None:
