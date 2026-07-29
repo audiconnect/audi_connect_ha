@@ -1288,10 +1288,9 @@ class AudiConnectVehicle:
             )
 
     @property
-    def service_inspection_distance_supported(self):
+    def service_inspection_distance_supported(self) -> bool:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def service_adblue_distance(self):
@@ -1328,10 +1327,9 @@ class AudiConnectVehicle:
             )
 
     @property
-    def oil_change_distance_supported(self):
+    def oil_change_distance_supported(self) -> bool:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def oil_level(self):
