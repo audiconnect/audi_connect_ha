@@ -21,6 +21,7 @@ from .util import get_attr, to_byte_array
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
 MAX_LOGIN_REDIRECTS = 20
+AUTH_COOKIE_DOMAINS = ("vwgroup.io", "cariad.digital", "vwg-connect.com")
 
 SUCCEEDED = "succeeded"
 FAILED = "failed"
@@ -1164,6 +1165,13 @@ class AudiService:
         self._api.use_token(None)
         self._api.set_xclient_id(None)
         self.xclientId = None
+
+        # The shared HA aiohttp session accumulates an authenticated SSO
+        # cookie from earlier logins. On a re-login the IdP then serves a
+        # consent page instead of the password page, which breaks the
+        # device-flow form parsing (CSRF/HMAC/relayState missing). Start
+        # each login from a clean cookie state.
+        self._api.clear_cookies_for_domains(AUTH_COOKIE_DOMAINS)
 
         # get markets
         markets_json = await self._api.request(

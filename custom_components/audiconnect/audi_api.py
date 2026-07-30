@@ -45,6 +45,15 @@ class AudiAPI:
         if DEBUG_VERBOSE:
             _LOGGER.debug("[set_xclient_id] X-Client-ID set: %s", xclientid)
 
+    def clear_cookies_for_domains(self, domains: tuple[str, ...]) -> None:
+        # Best-effort: never let a cookie jar quirk block login.
+        try:
+            jar = self._session.cookie_jar
+            for domain in domains:
+                jar.clear_domain(domain)
+        except Exception:
+            _LOGGER.debug("Could not clear auth cookies before login", exc_info=True)
+
     async def request(
         self,
         method: str,
