@@ -49,6 +49,16 @@ REGIONS: dict[int, str] = {
     4: REGION_CHINA,
 }
 
+# CARIAD only enforces Play Integrity / x-assertion attestation on the
+# authorization_code exchange for EU accounts; that's the only region where
+# the device-code workaround is needed (and the only one it's available in).
+DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE}
+
+
+def uses_device_code(region: str | None) -> bool:
+    return (region or REGION_EUROPE).upper() in DEVICE_CODE_REGIONS
+
+
 API_LEVELS: list[int] = [0, 1]
 
 PLATFORMS: list[Platform] = [
@@ -88,6 +98,7 @@ __all__ = [
     "CONF_VIN",
     "DEFAULT_API_LEVEL",
     "DEFAULT_UPDATE_INTERVAL",
+    "DEVICE_CODE_REGIONS",
     "DOMAIN",
     "MIN_UPDATE_INTERVAL",
     "PLATFORMS",
@@ -95,4 +106,5 @@ __all__ = [
     "REFRESH_VEHICLE_DATA_FAILED_EVENT",
     "REGIONS",
     "UPDATE_SLEEP",
+    "uses_device_code",
 ]
