@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 
 DOMAIN = "audiconnect"
@@ -32,6 +35,7 @@ CONF_SPIN = "spin"
 CONF_REGION = "region"
 CONF_FILTER_VINS = "filter_vins"
 CONF_REFRESH_AFTER_ACTION = "refresh_vehicle_data_after_action"
+CONF_REFRESH_TOKEN = "refresh_token"
 CONF_UPDATE_SLEEP = "update_sleep"
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
@@ -48,6 +52,35 @@ REGIONS: dict[int, str] = {
     3: REGION_USA,
     4: REGION_CHINA,
 }
+
+# Regions that must authenticate with the Device Authorization Grant (RFC 8628).
+# Audi enforces Play Integrity attestation on the password (authorization-code)
+# token exchange there, so the legacy login can no longer complete. Every other
+# region keeps username/password, which still works for them. If attestation is
+# rolled out elsewhere, add that region here — nothing else needs to change.
+DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE}
+
+
+def uses_device_code(region: str | None) -> bool:
+    """Return True when the region must use the device-code login."""
+    return (region or REGION_EUROPE) in DEVICE_CODE_REGIONS
+
+
+def entry_uses_device_code(entry_data: Mapping[str, Any]) -> bool:
+    """Return True when this entry should authenticate with the device-code flow.
+
+    Whatever the entry already holds wins over the region default. Device-code was
+    offered to every region in the 2.2.1b1/b2 pre-releases, so an entry outside
+    Europe can legitimately hold a working refresh token; forcing it onto the
+    password login would break a session that is fine. The region only decides for
+    an entry that has no usable credential yet.
+    """
+    if entry_data.get(CONF_REFRESH_TOKEN):
+        return True
+    if entry_data.get(CONF_USERNAME) and entry_data.get(CONF_PASSWORD):
+        return False
+    return uses_device_code(entry_data.get(CONF_REGION))
+
 
 API_LEVELS: list[int] = [0, 1]
 
@@ -77,6 +110,7 @@ __all__ = [
     "CONF_DURATION",
     "CONF_FILTER_VINS",
     "CONF_REFRESH_AFTER_ACTION",
+    "CONF_REFRESH_TOKEN",
     "CONF_UPDATE_SLEEP",
     "CONF_PASSWORD",
     "CONF_REGION",
@@ -94,5 +128,8 @@ __all__ = [
     "REFRESH_VEHICLE_DATA_COMPLETED_EVENT",
     "REFRESH_VEHICLE_DATA_FAILED_EVENT",
     "REGIONS",
+    "DEVICE_CODE_REGIONS",
+    "entry_uses_device_code",
+    "uses_device_code",
     "UPDATE_SLEEP",
 ]

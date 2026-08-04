@@ -6,13 +6,14 @@ import re
 import time
 from abc import ABC, abstractmethod
 from asyncio import TimeoutError
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from aiohttp import ClientResponseError, ClientSession
 
 from .audi_api import AudiAPI
-from .audi_services import AudiService
+from .audi_services import AudiAuthError, AudiService
 from .util import get_attr, log_exception, parse_datetime, parse_float, parse_int
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,16 +41,20 @@ class AudiConnectAccount:
     def __init__(
         self,
         session: ClientSession,
-        username: str,
-        password: str,
         country: str,
         spin: str | None,
         api_level: int,
         excluded_vins: list[str] | None = None,
+        refresh_token: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
     ) -> None:
         self._api = AudiAPI(session)
         self._audi_service = AudiService(self._api, country, spin, api_level)
 
+        # Either a device-code refresh token (Europe) or username/password
+        # (regions where Audi has not enforced Play Integrity attestation).
+        self._refresh_token = refresh_token
         self._username = username
         self._password = password
         self._loggedin = False
@@ -60,12 +65,46 @@ class AudiConnectAccount:
         self._connect_delay = 10
 
         self._update_listeners: list[Any] = []
+        self._on_refresh_token_update: Callable[[str], None] | None = None
 
         self._vehicles: list[AudiConnectVehicle] = []
         self._audi_vehicles: list[Any] = []
         self._excluded_vins = [v.lower() for v in (excluded_vins or [])]
 
         self._observers: list[AudiConnectObserver] = []
+
+    @property
+    def refresh_token(self) -> str | None:
+        """Return the current IDK refresh token."""
+        return self._refresh_token
+
+    def account_identifier(self) -> str | None:
+        """Return a stable identifier for the signed-in account."""
+        return self._audi_service.get_id_token_subject()
+
+    def set_refresh_token_listener(self, callback: Callable[[str], None]) -> None:
+        """Register a callback invoked with the new refresh token when it rotates."""
+        self._on_refresh_token_update = callback
+
+    def _sync_refresh_token(self) -> None:
+        new_token = self._audi_service.current_refresh_token()
+        if new_token and new_token != self._refresh_token:
+            self._refresh_token = new_token
+            if self._on_refresh_token_update is not None:
+                self._on_refresh_token_update(new_token)
+
+    async def request_device_code(self) -> dict[str, Any]:
+        """Start the device authorization grant (used by config/reauth flow)."""
+        return await self._audi_service.request_device_code()
+
+    async def poll_device_token(self, device_code: str) -> str:
+        """Poll once for device-code approval; capture the session on success."""
+        status = await self._audi_service.poll_device_token(device_code)
+        if status == "ok":
+            self._loggedin = True
+            self._logintime = time.time()
+            self._sync_refresh_token()
+        return status
 
     @property
     def vehicles(self) -> list[AudiConnectVehicle]:
@@ -79,7 +118,14 @@ class AudiConnectAccount:
         for observer in self._observers:
             await observer.handle_notification(vin, action)
 
+    @property
+    def uses_password_login(self) -> bool:
+        """True when this account authenticates with username/password."""
+        return not self._refresh_token and bool(self._username and self._password)
+
     async def login(self):
+        if not self._refresh_token and not self.uses_password_login:
+            raise AudiAuthError("No stored authorization; reauthentication is required")
         for i in range(self._connect_retries):
             self._loggedin = await self.try_login(i == self._connect_retries - 1)
             if self._loggedin is True:
@@ -95,17 +141,30 @@ class AudiConnectAccount:
 
     async def try_login(self, logError):
         try:
-            _LOGGER.debug("LOGIN: Requesting login to Audi service...")
-            await self._audi_service.login(self._username, self._password, False)
-            _LOGGER.debug("LOGIN: Login to Audi service successful")
+            if self._refresh_token:
+                _LOGGER.debug("LOGIN: Refreshing Audi session from stored token...")
+                new_refresh_token = await self._audi_service.login_with_refresh_token(
+                    self._refresh_token
+                )
+                if new_refresh_token and new_refresh_token != self._refresh_token:
+                    self._refresh_token = new_refresh_token
+                    if self._on_refresh_token_update is not None:
+                        self._on_refresh_token_update(new_refresh_token)
+            else:
+                _LOGGER.debug("LOGIN: Signing in to the Audi service with credentials")
+                await self._audi_service.login(self._username, self._password)
+            _LOGGER.debug("LOGIN: Audi session established")
             return True
+        except AudiAuthError:
+            # Credentials/token rejected: propagate so Home Assistant starts reauth
+            # instead of retrying something that can never work.
+            raise
         except Exception as exception:
             if logError is True:
                 _LOGGER.error(
-                    "LOGIN: Failed to log in to the Audi service: %s. "
-                    "If this error persists, open the myAudi app or log in via "
-                    "a web browser and accept any pending terms or consent prompts, "
-                    "then restart the integration.",
+                    "LOGIN: Failed to establish an Audi session: %s. "
+                    "Your stored credentials may no longer be valid; reconfigure "
+                    "the Audi Connect integration to sign in again.",
                     str(exception),
                 )
             return False
@@ -122,6 +181,7 @@ class AudiConnectAccount:
         if await self._audi_service.refresh_token_if_necessary(elapsed_sec):
             # Store current timestamp when refresh was performed and successful
             self._logintime = time.time()
+            self._sync_refresh_token()
 
         """Update the state of all vehicles."""
         try:
@@ -208,7 +268,7 @@ class AudiConnectAccount:
             )
             return False
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "VEHICLE REFRESH: ClientResponseError with status %s for VIN: %s. Vehicle does not support vehicle refresh — disabling.",
                     cre.status,
@@ -216,7 +276,7 @@ class AudiConnectAccount:
                 )
                 self._support_vehicle_refresh = False
                 return "disabled"
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "VEHICLE REFRESH: Received status %s while refreshing vehicle data for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -719,8 +779,17 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as resp_exception:
-            if resp_exception.status in (403, 404):
+            if resp_exception.status == 404:
                 self.support_status_report = False
+            elif resp_exception.status in (403, 502):
+                # Transient CARIAD gateway error; the cached state is kept and the
+                # next poll normally recovers. Logged at debug like the other
+                # endpoints, not as an error, to avoid noise.
+                _LOGGER.debug(
+                    "Received status 502 while obtaining the vehicle status report "
+                    "of %s. This is typically transient and may resolve on its own.",
+                    self._vehicle.vin,
+                )
             else:
                 self.log_exception_once(
                     resp_exception,
@@ -815,14 +884,14 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "POSITION: ClientResponseError with status %s for VIN: %s. Vehicle does not support position — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_position = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "POSITION: Received status %s while updating vehicle position for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -916,14 +985,14 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "CLIMATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support climater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_climater = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "CLIMATER: Received status %s while updating climater for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -965,19 +1034,21 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404, 502):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "PREHEATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support preheater — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_preheater = False
-            # elif cre.status == 502:
-            #    _LOGGER.warning(
-            #        "PREHEATER: ClientResponseError with status %s while updating preheater for VIN: %s. This issue may resolve in time. If it persists, please open an issue.",
-            #        cre.status,
-            #        redacted_vin,
-            #    )
+            elif cre.status in (403, 502):
+                # Transient CARIAD gateway error; keep the feature enabled so the
+                # next poll can recover, matching the other status endpoints.
+                _LOGGER.debug(
+                    "PREHEATER: Received status %s while updating preheater for VIN: %s. This is typically transient and may resolve on its own.",
+                    cre.status,
+                    redacted_vin,
+                )
             else:
                 self.log_exception_once(
                     cre,
@@ -1072,14 +1143,14 @@ class AudiConnectVehicle:
         except TimeoutError:
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "CHARGER: ClientResponseError with status %s for VIN: %s. Vehicle does not support charger — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_charger = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "CHARGER: Received status %s while updating charger for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -1150,14 +1221,14 @@ class AudiConnectVehicle:
             )
             raise
         except ClientResponseError as cre:
-            if cre.status in (403, 404):
+            if cre.status == 404:
                 _LOGGER.debug(
                     "TRIP DATA: ClientResponseError with status %s for VIN: %s. Vehicle does not support trip data — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_trip_data = False
-            elif cre.status == 502:
+            elif cre.status in (403, 502):
                 _LOGGER.debug(
                     "TRIP DATA: Received status %s while updating trip data for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
@@ -1203,10 +1274,9 @@ class AudiConnectVehicle:
             )
 
     @property
-    def service_inspection_time_supported(self):
+    def service_inspection_time_supported(self) -> bool:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_INSPECTION")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def service_inspection_distance(self):
@@ -1217,10 +1287,9 @@ class AudiConnectVehicle:
             )
 
     @property
-    def service_inspection_distance_supported(self):
+    def service_inspection_distance_supported(self) -> bool:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def service_adblue_distance(self):
@@ -1229,10 +1298,9 @@ class AudiConnectVehicle:
             return int(self._vehicle.fields.get("ADBLUE_RANGE"))
 
     @property
-    def service_adblue_distance_supported(self):
+    def service_adblue_distance_supported(self) -> bool:
         check = self._vehicle.fields.get("ADBLUE_RANGE")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def oil_change_time(self):
@@ -1243,10 +1311,9 @@ class AudiConnectVehicle:
             )
 
     @property
-    def oil_change_time_supported(self):
+    def oil_change_time_supported(self) -> bool:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def oil_change_distance(self):
@@ -1257,10 +1324,9 @@ class AudiConnectVehicle:
             )
 
     @property
-    def oil_change_distance_supported(self):
+    def oil_change_distance_supported(self) -> bool:
         check = self._vehicle.fields.get("MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def oil_level(self):
@@ -1382,11 +1448,10 @@ class AudiConnectVehicle:
             return parse_int(check)
 
     @property
-    def range_supported(self):
+    def range_supported(self) -> bool:
         """Return true if range is supported"""
         check = self._vehicle.fields.get("TOTAL_RANGE")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def tank_level(self):
@@ -1395,11 +1460,10 @@ class AudiConnectVehicle:
             return parse_int(check)
 
     @property
-    def tank_level_supported(self):
+    def tank_level_supported(self) -> bool:
         """Return true if tank_level is supported"""
         check = self._vehicle.fields.get("TANK_LEVEL_IN_PERCENTAGE")
-        if check and parse_int(check):
-            return True
+        return parse_int(check) is not None
 
     @property
     def position(self):

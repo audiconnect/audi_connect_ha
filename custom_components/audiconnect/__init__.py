@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
@@ -33,10 +34,15 @@ from .audi_account import (
 from .const import (
     CONF_API_LEVEL,
     CONF_DEVICE_ID,
+    CONF_PASSWORD,
+    CONF_REFRESH_TOKEN,
+    CONF_REGION,
     CONF_SCAN_INITIAL,
+    CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DOMAIN,
     PLATFORMS,
+    uses_device_code,
 )
 from .coordinator import AudiDataUpdateCoordinator
 
@@ -88,6 +94,22 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             config_entry, version=2, data=new_data, options=new_options
         )
 
+    if config_entry.version == 2:
+        # v2 -> v3:
+        # Authentication is now region-dependent. Where Audi enforces Play Integrity
+        # attestation on the token exchange (Europe), the username/password login can
+        # no longer complete, so the credentials are dropped and setup starts a
+        # reauthentication with the Device Authorization Grant. Every other region
+        # keeps its working credentials untouched — wiping them there would break an
+        # account that has no device-code alternative available yet.
+        new_data = {**config_entry.data}
+        if uses_device_code(new_data.get(CONF_REGION)) and not new_data.get(
+            CONF_REFRESH_TOKEN
+        ):
+            new_data.pop(CONF_PASSWORD, None)
+            new_data.pop(CONF_USERNAME, None)
+        hass.config_entries.async_update_entry(config_entry, version=3, data=new_data)
+
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True
 
@@ -98,6 +120,8 @@ class AudiRuntimeData:
 
     account: AudiAccount
     coordinator: AudiDataUpdateCoordinator
+    options_snapshot: dict[str, Any] = field(default_factory=dict)
+    data_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 def _resolve_device_to_vin(hass: HomeAssistant, device_id: str) -> str | None:
@@ -154,9 +178,34 @@ def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator
     return coordinators
 
 
+def _reloadable_data(config_entry: ConfigEntry) -> dict[str, Any]:
+    """Entry data that the running integration is configured from.
+
+    The refresh token is excluded: it rotates on its own during normal operation
+    and reloading on every rotation would tear the integration down for nothing.
+    """
+    return {k: v for k, v in config_entry.data.items() if k != CONF_REFRESH_TOKEN}
+
+
 async def _async_update_listener(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> None:
+    """Reload when the configuration changed, in options *or* in data.
+
+    The S-PIN, region and API level live in entry data, not in options, so
+    comparing options alone would silently skip the reload a reconfigure needs.
+    Home Assistant reloads on its own today, but from 2026.12 it defers to this
+    listener whenever one is registered, and the missed reload would surface as
+    "my new S-PIN is ignored until I restart".
+    """
+    runtime_data: AudiRuntimeData | None = getattr(config_entry, "runtime_data", None)
+    if (
+        runtime_data is not None
+        and runtime_data.options_snapshot == dict(config_entry.options)
+        and runtime_data.data_snapshot == _reloadable_data(config_entry)
+    ):
+        # Only the refresh token rotated; nothing the running setup depends on.
+        return
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
@@ -308,6 +357,20 @@ def _async_cleanup_orphaned_devices(
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Audi Connect from a config entry."""
+    # Accept whichever credential the entry actually holds, regardless of region:
+    # device-code was offered everywhere in 2.2.1b1/b2, so a non-European entry can
+    # hold a perfectly good refresh token. Only prompt when neither is present.
+    has_refresh_token = bool(config_entry.data.get(CONF_REFRESH_TOKEN))
+    has_credentials = bool(
+        config_entry.data.get(CONF_USERNAME) and config_entry.data.get(CONF_PASSWORD)
+    )
+    if not has_refresh_token and not has_credentials:
+        raise ConfigEntryAuthFailed(
+            "Audi Connect needs to sign in again"
+            if uses_device_code(config_entry.data.get(CONF_REGION))
+            else "Audi Connect needs your myAudi username and password to sign in"
+        )
+
     account = AudiAccount(hass, config_entry)
     coordinator = AudiDataUpdateCoordinator.from_entry(hass, account, config_entry)
 
@@ -316,7 +379,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     account.set_refresh_callback(_request_refresh)
     config_entry.runtime_data = AudiRuntimeData(
-        account=account, coordinator=coordinator
+        account=account,
+        coordinator=coordinator,
+        options_snapshot=dict(config_entry.options),
+        data_snapshot=_reloadable_data(config_entry),
     )
 
     config_entry.async_on_unload(
