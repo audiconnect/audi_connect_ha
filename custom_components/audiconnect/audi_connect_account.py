@@ -176,7 +176,6 @@ class AudiConnectAccount:
         if not self._loggedin:
             return False
 
-        #
         elapsed_sec = time.time() - self._logintime
         if await self._audi_service.refresh_token_if_necessary(elapsed_sec):
             # Store current timestamp when refresh was performed and successful
@@ -373,7 +372,7 @@ class AudiConnectAccount:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to set target state of charge for vehicle {}".format(vin),
+                f"Unable to set target state of charge for vehicle {vin}",
             )
             return False
 
@@ -612,7 +611,7 @@ class AudiConnectAccount:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to start engine of vehicle {vin}".format(vin=vin),
+                f"Unable to start engine of vehicle {vin}",
             )
         finally:
             try:
@@ -641,7 +640,7 @@ class AudiConnectAccount:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to stop engine of vehicle {vin}".format(vin=vin),
+                f"Unable to stop engine of vehicle {vin}",
             )
         finally:
             try:
@@ -728,9 +727,7 @@ class AudiConnectVehicle:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to update vehicle data {} of {}".format(
-                    info, self._vehicle.vin
-                ),
+                f"Unable to update vehicle data {info} of {self._vehicle.vin}",
             )
 
     def log_exception_once(self, exception, message):
@@ -793,16 +790,12 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     resp_exception,
-                    "Unable to obtain the vehicle status report of {}".format(
-                        self._vehicle.vin
-                    ),
+                    f"Unable to obtain the vehicle status report of {self._vehicle.vin}",
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle status report of {}".format(
-                    self._vehicle.vin
-                ),
+                f"Unable to obtain the vehicle status report of {self._vehicle.vin}",
             )
 
     async def update_vehicle_position(self):
@@ -1052,16 +1045,12 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     cre,
-                    "Unable to obtain the vehicle preheater state for {}".format(
-                        self._vehicle.vin
-                    ),
+                    f"Unable to obtain the vehicle preheater state for {self._vehicle.vin}",
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle preheater state for {}".format(
-                    self._vehicle.vin
-                ),
+                f"Unable to obtain the vehicle preheater state for {self._vehicle.vin}",
             )
 
     async def update_vehicle_charger(self):
@@ -1159,16 +1148,12 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     cre,
-                    "Unable to obtain the vehicle charger state for {}".format(
-                        self._vehicle.vin
-                    ),
+                    f"Unable to obtain the vehicle charger state for {self._vehicle.vin}",
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                "Unable to obtain the vehicle charger state for {}".format(
-                    self._vehicle.vin
-                ),
+                f"Unable to obtain the vehicle charger state for {self._vehicle.vin}",
             )
 
     async def update_vehicle_longterm(self):

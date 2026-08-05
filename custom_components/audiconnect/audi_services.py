@@ -20,7 +20,6 @@ from .audi_models import TripDataResponse, VehicleDataResponse, VehiclesResponse
 from .const import DEFAULT_API_LEVEL
 from .util import get_attr, to_byte_array
 
-
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
 
@@ -124,12 +123,7 @@ class AudiService:
     async def get_preheater(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "{homeRegion}/fs-car/bs/rs/v1/{type}/{country}/vehicles/{vin}/status".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            f"{await self._get_home_region(vin.upper())}/fs-car/bs/rs/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/status"
         )
 
     async def get_stored_vehicle_data(self, vin: str):
@@ -172,23 +166,13 @@ class AudiService:
     async def get_charger(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            f"{await self._get_home_region(vin.upper())}/fs-car/bs/batterycharge/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/charger"
         )
 
     async def get_climater(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            f"{await self._get_home_region(vin.upper())}/fs-car/bs/climatisation/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/climater"
         )
 
     async def get_stored_position(self, vin: str):
@@ -207,20 +191,13 @@ class AudiService:
     async def get_timer(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "{homeRegion}/fs-car/bs/departuretimer/v1/{type}/{country}/vehicles/{vin}/timer".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            f"{await self._get_home_region(vin.upper())}/fs-car/bs/departuretimer/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/timer"
         )
 
     async def get_vehicles(self):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "https://msg.volkswagen.de/fs-car/usermanagement/users/v1/{type}/{country}/vehicles".format(
-                type=self._type, country=self._country
-            )
+            f"https://msg.volkswagen.de/fs-car/usermanagement/users/v1/{self._type}/{self._country}/vehicles"
         )
 
     async def get_vehicle_information(self):
@@ -229,9 +206,7 @@ class AudiService:
             "Accept-Charset": "utf-8",
             "X-App-Name": "myAudi",
             "X-App-Version": AudiAPI.HDR_XAPP_VERSION,
-            "Accept-Language": "{l}-{c}".format(
-                l=self._language, c=self._country.upper()
-            ),
+            "Accept-Language": f"{self._language}-{self._country.upper()}",
             "X-User-Country": self._country.upper(),
             "User-Agent": AudiAPI.HDR_USER_AGENT,
             "Authorization": "Bearer " + self.audiToken["access_token"],
@@ -269,12 +244,7 @@ class AudiService:
     async def get_vehicle_data(self, vin: str):
         self._api.use_token(self.vwToken)
         return await self._api.get(
-            "{homeRegion}/fs-car/vehicleMgmt/vehicledata/v2/{type}/{country}/vehicles/{vin}/".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            )
+            f"{await self._get_home_region(vin.upper())}/fs-car/vehicleMgmt/vehicledata/v2/{self._type}/{self._country}/vehicles/{vin.upper()}/"
         )
 
     async def get_tripdata(self, vin: str, kind: str):
@@ -300,11 +270,7 @@ class AudiService:
         }
         data = await self._api.request(
             "GET",
-            "{homeRegion}/api/bs/tripstatistics/v1/vehicles/{vin}/tripdata/{kind}".format(
-                homeRegion=await self._get_home_region_setter(vin.upper()),
-                vin=vin.upper(),
-                kind=kind,
-            ),
+            f"{await self._get_home_region_setter(vin.upper())}/api/bs/tripstatistics/v1/vehicles/{vin.upper()}/tripdata/{kind}",
             None,
             params=td_reqdata,
             headers=headers,
@@ -345,9 +311,7 @@ class AudiService:
         try:
             self._api.use_token(self.vwToken)
             res = await self._api.get(
-                "https://mal-1a.prd.ece.vwg-connect.com/api/cs/vds/v1/vehicles/{vin}/homeRegion".format(
-                    vin=vin
-                )
+                f"https://mal-1a.prd.ece.vwg-connect.com/api/cs/vds/v1/vehicles/{vin}/homeRegion"
             )
             if (
                 res is not None
@@ -392,9 +356,7 @@ class AudiService:
 
         body = await self._api.request(
             "GET",
-            "{homeRegionSetter}/api/rolesrights/authorization/v2/vehicles/".format(
-                homeRegionSetter=await self._get_home_region_setter(vin.upper())
-            )
+            f"{await self._get_home_region_setter(vin.upper())}/api/rolesrights/authorization/v2/vehicles/"
             + vin.upper()
             + "/services/"
             + action
@@ -428,9 +390,7 @@ class AudiService:
 
         body = await self._api.request(
             "POST",
-            "{homeRegionSetter}/api/rolesrights/authorization/v2/security-pin-auth-completed".format(
-                homeRegionSetter=await self._get_home_region_setter(vin.upper())
-            ),
+            f"{await self._get_home_region_setter(vin.upper())}/api/rolesrights/authorization/v2/security-pin-auth-completed",
             headers=headers,
             data=json.dumps(data),
         )
@@ -596,9 +556,7 @@ class AudiService:
                     headers = self._get_vehicle_action_header("application/json", None)
                     res = await self._api.request(
                         "POST",
-                        "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
-                            vin=vin.upper(),
-                        ),
+                        f"https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin.upper()}/climater/actions",
                         headers=headers,
                         data=data,
                     )
@@ -613,12 +571,7 @@ class AudiService:
                     )
                     res = await self._api.request(
                         "POST",
-                        "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                            homeRegion=await self._get_home_region(vin.upper()),
-                            type=self._type,
-                            country=self._country,
-                            vin=vin.upper(),
-                        ),
+                        f"{await self._get_home_region(vin.upper())}/fs-car/bs/climatisation/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/climater/actions",
                         headers=headers,
                         data=data,
                     )
@@ -725,9 +678,7 @@ class AudiService:
                 headers = self._get_vehicle_action_header("application/json", None)
                 res = await self._api.request(
                     "POST",
-                    "https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin}/climater/actions".format(
-                        vin=vin.upper(),
-                    ),
+                    f"https://mal-3a.prd.eu.dp.vwg-connect.com/api/bs/climatisation/v1/vehicles/{vin.upper()}/climater/actions",
                     headers=headers,
                     data=data,
                 )
@@ -742,12 +693,7 @@ class AudiService:
                 )
                 res = await self._api.request(
                     "POST",
-                    "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                        homeRegion=await self._get_home_region(vin.upper()),
-                        type=self._type,
-                        country=self._country,
-                        vin=vin.upper(),
-                    ),
+                    f"{await self._get_home_region(vin.upper())}/fs-car/bs/climatisation/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/climater/actions",
                     headers=headers,
                     data=data,
                 )
@@ -823,12 +769,7 @@ class AudiService:
         )
         res = await self._api.request(
             "POST",
-            "{homeRegion}/fs-car/bs/climatisation/v1/{type}/{country}/vehicles/{vin}/climater/actions".format(
-                homeRegion=await self._get_home_region(vin.upper()),
-                type=self._type,
-                country=self._country,
-                vin=vin.upper(),
-            ),
+            f"{await self._get_home_region(vin.upper())}/fs-car/bs/climatisation/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/climater/actions",
             headers=headers,
             data=data,
         )
@@ -977,7 +918,7 @@ class AudiService:
                         )
                     )
 
-        raise Exception("Request {} timed out".format(request_id))
+        raise Exception(f"Request {request_id} timed out")
 
     async def check_request_succeeded(
         self, url: str, action: str, successCode: str, failedCode: str, path: str
@@ -991,16 +932,12 @@ class AudiService:
             status = get_attr(res, path)
 
             if status is None or (failedCode is not None and status == failedCode):
-                raise Exception(
-                    "Cannot {action}, return code '{code}'".format(
-                        action=action, code=status
-                    )
-                )
+                raise Exception(f"Cannot {action}, return code '{status}'")
 
             if status == successCode:
                 return
 
-        raise Exception("Cannot {action}, operation timed out".format(action=action))
+        raise Exception(f"Cannot {action}, operation timed out")
 
     # TR/2022-12-20: New secret for X_QMAuth
     def _calculate_X_QMAuth(self) -> str:
@@ -1204,9 +1141,7 @@ class AudiService:
         ]["defaultLanguage"]
 
         # Dynamic configuration URLs
-        marketcfg_url = "https://content.app.my.audi.com/service/mobileapp/configurations/market/{c}/{l}?v=4.23.1".format(
-            c=self._country, l=self._language
-        )
+        marketcfg_url = f"https://content.app.my.audi.com/service/mobileapp/configurations/market/{self._country}/{self._language}?v=4.23.1"
         openidcfg_url = self.__get_cariad_url("/auth/v1/idk/oidc/openid-configuration")
 
         # get market config
