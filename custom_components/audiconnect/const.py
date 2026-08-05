@@ -58,7 +58,12 @@ REGIONS: dict[int, str] = {
 # token exchange there, so the legacy login can no longer complete. Every other
 # region keeps username/password, which still works for them. If attestation is
 # rolled out elsewhere, add that region here — nothing else needs to change.
-DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE}
+#
+# Canada joined after attestation reached that market too: its market config
+# reports "marketSupportsAppAttestation": True, its login is routed to the same
+# emea.bff.cariad.digital backend as Europe, and that backend advertises the
+# device_code grant — so the same device-code login works there (issue #814).
+DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE, REGION_CANADA}
 
 
 def uses_device_code(region: str | None) -> bool:
