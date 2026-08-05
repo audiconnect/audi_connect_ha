@@ -1,4 +1,3 @@
-```yaml
 ---
 minimum_pre_commit_version: "3.6.0"
 
@@ -122,4 +121,3 @@ repos:
           - --ignore-missing-imports
         types:
           - python
-```
