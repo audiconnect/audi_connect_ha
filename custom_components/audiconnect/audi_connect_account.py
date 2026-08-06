@@ -453,14 +453,17 @@ class AudiConnectAccount:
                 climatisation_mode,
             )
 
-            _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
+            _LOGGER.debug(
+                "Successfully started climate control of vehicle %s",
+                vin,
+            )
 
             return True
 
-        except Exception as exception:
-            _LOGGER.error(
-                f"Unable to start climate control of vehicle {vin}. Error: {exception}",
-                exc_info=True,
+        except Exception:
+            _LOGGER.exception(
+                "Unable to start climate control of vehicle %s",
+                vin,
             )
             return False
         finally:
