@@ -48,7 +48,7 @@ repos:
       - id: ruff-check
         args:
           - --fix
-          - --select=E4,E7,E9,F,B
+          - --select=E4,E7,E9,F,B,UP,SIM,G
 
       - id: ruff-format
 
