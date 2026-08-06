@@ -437,7 +437,20 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                f"Sending command to start climate control for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}, Climatisation at Unlock: {climatisation_at_unlock}, Climatisation Mode: {climatisation_mode}"
+                "Sending command to start climate control for vehicle %s with settings - "
+                "Temp(F): %s, Temp(C): %s, Glass Heating: %s, Seat FL: %s, "
+                "Seat FR: %s, Seat RL: %s, Seat RR: %s, "
+                "Climatisation at Unlock: %s, Climatisation Mode: %s",
+                vin,
+                temp_f,
+                temp_c,
+                glass_heating,
+                seat_fl,
+                seat_fr,
+                seat_rl,
+                seat_rr,
+                climatisation_at_unlock,
+                climatisation_mode,
             )
 
             await self._audi_service.start_climate_control(
