@@ -5,9 +5,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-import voluptuous as vol
-
 import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -35,11 +34,11 @@ from .const import (
     CONF_FILTER_VINS,
     CONF_PASSWORD,
     CONF_REFRESH_AFTER_ACTION,
+    CONF_REFRESH_TOKEN,
     CONF_REGION,
-    CONF_UPDATE_SLEEP,
     CONF_SPIN,
     CONF_TARGET_SOC,
-    CONF_REFRESH_TOKEN,
+    CONF_UPDATE_SLEEP,
     CONF_USERNAME,
     DEFAULT_API_LEVEL,
     DOMAIN,
@@ -286,7 +285,6 @@ class AudiAccount(AudiConnectObserver):
 
 
 __all__ = [
-    "AudiAccount",
     "SERVICE_EXECUTE_VEHICLE_ACTION",
     "SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA",
     "SERVICE_REFRESH_CLOUD_DATA",
@@ -302,4 +300,5 @@ __all__ = [
     "SERVICE_START_ENGINE_SCHEMA",
     "SERVICE_STOP_ENGINE",
     "SERVICE_STOP_ENGINE_SCHEMA",
+    "AudiAccount",
 ]

@@ -1,11 +1,10 @@
-import sys
 import asyncio
 import getopt
-
-from audiconnect.audi_connect_account import AudiConnectAccount
-from audiconnect.dashboard import Dashboard
+import sys
 
 from aiohttp import ClientSession
+from audiconnect.audi_connect_account import AudiConnectAccount
+from audiconnect.dashboard import Dashboard
 
 
 def printHelp():

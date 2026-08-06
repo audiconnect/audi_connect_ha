@@ -3,12 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from asyncio import CancelledError, TimeoutError
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
 from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
+import builtins
 
 # ===========================================
 # VERBOSE DEBUG TOGGLE
@@ -159,19 +160,19 @@ class AudiAPI:
                             message=response.reason,
                         )
 
-        except CancelledError:
+        except asyncio.CancelledError as err:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request cancelled (CancelledError).")
-            raise TimeoutError("Timeout error")
+            raise builtins.TimeoutError("Timeout error") from err
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request timed out after %s seconds.", TIMEOUT)
-            raise TimeoutError("Timeout error")
+            raise
 
-        except Exception as e:
+        except Exception:
             if DEBUG_VERBOSE:
-                _LOGGER.exception("Unexpected exception during request: %s", e)
+                _LOGGER.exception("Unexpected exception during request")
             raise
 
     async def get(
@@ -252,13 +253,11 @@ class AudiAPI:
         return data
 
 
-def obj_parser(obj: dict[str, Any]) -> dict[str, Any]:
+def obj_parser(obj):
     """Parse datetime."""
     for key, val in obj.items():
-        try:
+        with suppress(TypeError, ValueError):
             obj[key] = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
-        except (TypeError, ValueError):
-            pass
     return obj
 
 
