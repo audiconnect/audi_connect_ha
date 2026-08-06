@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from asyncio import TimeoutError
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
@@ -252,13 +253,11 @@ class AudiAPI:
         return data
 
 
-def obj_parser(obj: dict[str, Any]) -> dict[str, Any]:
+def obj_parser(obj):
     """Parse datetime."""
     for key, val in obj.items():
-        try:
+        with suppress(TypeError, ValueError):
             obj[key] = datetime.strptime(val, "%Y-%m-%dT%H:%M:%S%z")
-        except (TypeError, ValueError):
-            pass
     return obj
 
 
