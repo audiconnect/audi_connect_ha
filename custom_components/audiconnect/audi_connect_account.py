@@ -159,8 +159,8 @@ class AudiConnectAccount:
             # Credentials/token rejected: propagate so Home Assistant starts reauth
             # instead of retrying something that can never work.
             raise
-        except Exception as exception:
-            if logError is True:
+        except Exception as exception:   # noqa: BLE001
+            if logError:
                 _LOGGER.error(
                     "LOGIN: Failed to establish an Audi session: %s. "
                     "Your stored credentials may no longer be valid; reconfigure "
@@ -208,10 +208,10 @@ class AudiConnectAccount:
 
             return True
 
-        except OSError as exception:
+        except OSError:
             # Force a re-login in case of failure/exception
             self._loggedin = False
-            _LOGGER.exception(exception)
+            _LOGGER.exception("Failed to update Audi Connect vehicle data")
             return False
 
     async def add_or_update_vehicle(self, vehicle, vinlist):
