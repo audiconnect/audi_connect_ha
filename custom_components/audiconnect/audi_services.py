@@ -8,7 +8,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from hashlib import sha256, sha512
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -264,7 +264,7 @@ class AudiService:
             "type": "list",
             "from": "1970-01-01T00:00:00Z",
             # "from":(datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "to": (datetime.now(timezone.utc) + timedelta(minutes=90)).strftime(
+            "to": (datetime.now(UTC) + timedelta(minutes=90)).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),
         }
@@ -945,10 +945,7 @@ class AudiService:
     def _calculate_X_QMAuth(self) -> str:
         # Calculate X-QMAuth value
         gmtime_100sec = int(
-            (
-                datetime.now(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)
-            ).total_seconds()
-            / 100
+            (datetime.now(UTC) - datetime(1970, 1, 1, tzinfo=UTC)).total_seconds() / 100
         )
         xqmauth_secret = bytes(
             [

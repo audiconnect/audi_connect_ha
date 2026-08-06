@@ -3,13 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from asyncio import TimeoutError
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
 from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
+import builtins
 
 # ===========================================
 # VERBOSE DEBUG TOGGLE
@@ -163,9 +163,9 @@ class AudiAPI:
         except asyncio.CancelledError as err:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request cancelled (CancelledError).")
-            raise TimeoutError("Timeout error") from err
+            raise builtins.TimeoutError("Timeout error") from err
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request timed out after %s seconds.", TIMEOUT)
             raise

@@ -5,9 +5,8 @@ import logging
 import re
 import time
 from abc import ABC, abstractmethod
-from asyncio import TimeoutError
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from typing import Any
 
 from aiohttp import ClientResponseError, ClientSession
@@ -15,6 +14,7 @@ from aiohttp import ClientResponseError, ClientSession
 from .audi_api import AudiAPI
 from .audi_services import AudiAuthError, AudiService
 from .util import get_attr, log_exception, parse_datetime, parse_float, parse_int
+import builtins
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -261,7 +261,7 @@ class AudiConnectAccount:
 
             return True
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             _LOGGER.debug(
                 "TimeoutError encountered while refreshing vehicle data for VIN: %s.",
                 redacted_vin,
@@ -712,7 +712,7 @@ class AudiConnectVehicle:
     async def call_update(self, func, ntries: int):
         try:
             await func()
-        except TimeoutError:
+        except builtins.TimeoutError:
             if ntries > 1:
                 await asyncio.sleep(2)
                 await self.call_update(func, ntries - 1)
@@ -764,9 +764,7 @@ class AudiConnectVehicle:
             }
 
             # Initialize with a default very old datetime
-            self._vehicle.state["last_update_time"] = datetime(
-                1970, 1, 1, tzinfo=timezone.utc
-            )
+            self._vehicle.state["last_update_time"] = datetime(1970, 1, 1, tzinfo=UTC)
 
             # Update with the newest carCapturedTimestamp from data_fields
             for f in status.data_fields:
@@ -788,7 +786,7 @@ class AudiConnectVehicle:
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             raise
         except ClientResponseError as resp_exception:
             if resp_exception.status == 404:
@@ -885,7 +883,7 @@ class AudiConnectVehicle:
                     redacted_vin,
                 )
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             _LOGGER.warning(
                 "POSITION: TimeoutError encountered while updating vehicle position for VIN: %s.",
                 redacted_vin,
@@ -986,7 +984,7 @@ class AudiConnectVehicle:
                     redacted_vin,
                 )
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             _LOGGER.debug(
                 "TimeoutError encountered while updating climater for VIN: %s.",
                 redacted_vin,
@@ -1039,7 +1037,7 @@ class AudiConnectVehicle:
                     "statusResponse",
                 )
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             raise
         except ClientResponseError as cre:
             if cre.status == 404:
@@ -1144,7 +1142,7 @@ class AudiConnectVehicle:
                     result, "charger.status.plugStatusData.plugledColor.content"
                 )
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             raise
         except ClientResponseError as cre:
             if cre.status == 404:
@@ -1214,7 +1212,7 @@ class AudiConnectVehicle:
                 "zeroEmissionDistance": td_rst.zeroEmissionDistance,
             }
 
-        except TimeoutError:
+        except builtins.TimeoutError:
             _LOGGER.debug(
                 "TRIP DATA: TimeoutError encountered while updating trip data for VIN: %s.",
                 redacted_vin,
