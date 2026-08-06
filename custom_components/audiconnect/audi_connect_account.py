@@ -159,7 +159,7 @@ class AudiConnectAccount:
             # Credentials/token rejected: propagate so Home Assistant starts reauth
             # instead of retrying something that can never work.
             raise
-        except Exception as exception:   # noqa: BLE001
+        except Exception as exception:  # noqa: BLE001
             if logError:
                 _LOGGER.error(
                     "LOGIN: Failed to establish an Audi session: %s. "
