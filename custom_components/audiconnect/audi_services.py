@@ -1597,10 +1597,8 @@ class AudiService:
                 "error_description",
                 mbboauth_auth_rsptxt[:200],
             )
-            
-            raise AudiAuthError(
-                f"mbboauth token exchange failed: {error_description}"
-            )
+
+            raise AudiAuthError(f"mbboauth token exchange failed: {error_description}")
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
 
