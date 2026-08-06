@@ -218,18 +218,18 @@ class AudiConnectAccount:
         if vehicle.vin is not None and (
             vinlist is None or vehicle.vin.lower() in vinlist
         ):
-                vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
-                if len(vupd) > 0:
-                    if await vupd[0].update() is False:
+            vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
+            if len(vupd) > 0:
+                if await vupd[0].update() is False:
+                    self._loggedin = False
+            else:
+                try:
+                    audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
+                    if await audiVehicle.update() is False:
                         self._loggedin = False
-                else:
-                    try:
-                        audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
-                        if await audiVehicle.update() is False:
-                            self._loggedin = False
-                        self._vehicles.append(audiVehicle)
-                    except Exception:
-                        pass
+                    self._vehicles.append(audiVehicle)
+                except Exception:
+                    pass
 
     async def refresh_vehicle_data(self, vin: str):
         redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
