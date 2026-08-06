@@ -21,6 +21,22 @@ class CurrentVehicleDataResponse:
         self.vin: str = data["vin"]
 
 
+def _count_error_objects(data: Any) -> int:
+    """Count the ``error`` objects anywhere in a selectivestatus payload.
+
+    On a CARIAD outage the API answers 200 but drops an ``error`` object where the
+    ``value`` should be, for every job. Counting them is how we tell a transient
+    outage from a car that just doesn't have a feature, since both otherwise parse
+    to nothing. See audiconnect/audi_connect_ha#793.
+    """
+    if isinstance(data, dict):
+        here = 1 if "error" in data else 0
+        return here + sum(_count_error_objects(v) for v in data.values())
+    if isinstance(data, list):
+        return sum(_count_error_objects(v) for v in data)
+    return 0
+
+
 class VehicleDataResponse:
     OLDAPI_MAPPING = {
         "frontRightLock": "LOCK_STATE_RIGHT_FRONT_DOOR",
@@ -43,9 +59,18 @@ class VehicleDataResponse:
         "roofCoverWindow": "STATE_ROOF_COVER_WINDOW",
     }
 
+    @property
+    def all_jobs_errored(self) -> bool:
+        """True when the payload had error objects and nothing usable came out of
+        it, so a transient CARIAD outage, not a car that's missing features (#793)."""
+        return self.error_count > 0 and not self.data_fields and not self.states
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.data_fields: list[Field] = []
         self.states: list[dict[str, Any]] = []
+        # #793: count the error objects up front, so an all-error outage (200 but
+        # every job errored) can be told apart from a car that lacks a feature.
+        self.error_count: int = _count_error_objects(data)
 
         self._tryAppendFieldWithTs(
             data, "TOTAL_RANGE", ["fuelStatus", "rangeStatus", "value", "totalRange_km"]
