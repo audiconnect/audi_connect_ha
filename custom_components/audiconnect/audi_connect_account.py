@@ -21,6 +21,10 @@ _LOGGER = logging.getLogger(__name__)
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 5
 
+# Ceiling for the exponential backoff between login attempts, so a larger retry
+# count can never stretch a single login into an unbounded wait.
+MAX_LOGIN_RETRY_DELAY = 60
+
 ACTION_LOCK = "lock"
 ACTION_CLIMATISATION = "climatisation"
 ACTION_CHARGER = "charger"
@@ -133,11 +137,16 @@ class AudiConnectAccount:
                 break
 
             if i < self._connect_retries - 1:
-                _LOGGER.warning(
+                # Back off between attempts. When the Audi service is having a
+                # bad day, hammering it at a fixed interval neither helps us nor
+                # them. The last attempt logs the real error, so the ones in
+                # between stay at debug and don't fill the log on every poll.
+                delay = min(self._connect_delay * 2**i, MAX_LOGIN_RETRY_DELAY)
+                _LOGGER.debug(
                     "LOGIN: Login to Audi service failed, retrying in %s seconds",
-                    self._connect_delay,
+                    delay,
                 )
-                await asyncio.sleep(self._connect_delay)
+                await asyncio.sleep(delay)
 
     async def try_login(self, logError):
         try:
