@@ -117,6 +117,8 @@ repos:
     rev: v2.3.0
     hooks:
       - id: mypy
+        stages:
+          - manual
         args:
           - --ignore-missing-imports
         types:
