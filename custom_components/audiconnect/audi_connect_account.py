@@ -399,7 +399,6 @@ class AudiConnectAccount:
                 vin,
             )
 
-
             return True
 
         except Exception as exception:
@@ -487,7 +486,6 @@ class AudiConnectAccount:
                 vin,
             )
 
-
             await self._audi_service.set_battery_charger(vin, activate, timer)
 
             _LOGGER.debug(
@@ -527,7 +525,6 @@ class AudiConnectAccount:
                 "start" if activate else "stop",
                 vin,
             )
-
 
             await self._audi_service.set_window_heating(vin, activate)
 
