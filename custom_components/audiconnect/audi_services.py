@@ -635,7 +635,9 @@ class AudiService:
         target_temperature = None
 
         _LOGGER.debug(
-            f"Attempting to start climate control with API Level {api_level} and country {country}."
+            "Attempting to start climate control with API Level %s and country %s.",
+            api_level,
+            country,
         )
 
         if api_level == 0:
@@ -1110,8 +1112,8 @@ class AudiService:
 
         except AudiAuthError:
             raise
-        except Exception as exception:
-            _LOGGER.error("Refresh token failed: " + str(exception))
+        except Exception:
+            _LOGGER.exception("Refresh token failed")
             return False
 
     async def _discover_endpoints(self) -> None:
@@ -1288,11 +1290,11 @@ class AudiService:
         # forward1 after pwd
         if "Location" not in pw_rsp.headers:
             raise AudiAuthError(
-                "Login redirect missing after password submission (HTTP %d). "
+                f"Login redirect missing after password submission "
+                f"(HTTP {pw_rsp.status}). "
                 "Audi may be showing a consent or terms-of-service prompt. "
                 "Please log in to myAudi via a browser or the myAudi app and "
                 "accept any pending agreements, then restart the integration."
-                % pw_rsp.status
             )
         fwd1_rsp, _fwd1_rsptxt = await self._api.request(
             "GET",
@@ -1591,12 +1593,12 @@ class AudiService:
             # vwToken silently becomes {"error": ...} and only surfaces much later
             # as KeyError('access_token') in get_tripdata() or a TypeError in
             # get_climater(), far from the real cause.
-            raise AudiAuthError(
-                "mbboauth token exchange failed: %s"
-                % mbboauth_auth_json.get(
-                    "error_description", mbboauth_auth_rsptxt[:200]
-                )
+            error_description = mbboauth_auth_json.get(
+                "error_description",
+                mbboauth_auth_rsptxt[:200],
             )
+
+            raise AudiAuthError(f"mbboauth token exchange failed: {error_description}")
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
 

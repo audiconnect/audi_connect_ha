@@ -215,20 +215,21 @@ class AudiConnectAccount:
             return False
 
     async def add_or_update_vehicle(self, vehicle, vinlist):
-        if vehicle.vin is not None:
-            if vinlist is None or vehicle.vin.lower() in vinlist:
-                vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
-                if len(vupd) > 0:
-                    if await vupd[0].update() is False:
+        if vehicle.vin is not None and (
+            vinlist is None or vehicle.vin.lower() in vinlist
+        ):
+            vupd = [x for x in self._vehicles if x.vin == vehicle.vin.lower()]
+            if len(vupd) > 0:
+                if await vupd[0].update() is False:
+                    self._loggedin = False
+            else:
+                try:
+                    audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
+                    if await audiVehicle.update() is False:
                         self._loggedin = False
-                else:
-                    try:
-                        audiVehicle = AudiConnectVehicle(self._audi_service, vehicle)
-                        if await audiVehicle.update() is False:
-                            self._loggedin = False
-                        self._vehicles.append(audiVehicle)
-                    except Exception:
-                        pass
+                    self._vehicles.append(audiVehicle)
+                except Exception:
+                    pass
 
     async def refresh_vehicle_data(self, vin: str):
         redacted_vin = "*" * (len(vin) - 4) + vin[-4:]
@@ -314,17 +315,17 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} to vehicle {vin}".format(
-                    action="lock" if lock else "unlock", vin=vin
-                ),
+                "Sending %s command to vehicle %s",
+                "lock" if lock else "unlock",
+                vin,
             )
 
             await self._audi_service.set_vehicle_lock(vin, lock)
 
             _LOGGER.debug(
-                "Successfully {action} vehicle {vin}".format(
-                    action="locked" if lock else "unlocked", vin=vin
-                ),
+                "Successfully %s vehicle %s",
+                "locked" if lock else "unlocked",
+                vin,
             )
 
             return True
@@ -385,17 +386,17 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} climatisation to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                "Sending command to %s climatisation for vehicle %s",
+                "start" if activate else "stop",
+                vin,
             )
 
             await self._audi_service.set_climatisation(vin, activate)
 
             _LOGGER.debug(
-                "Successfully {action} climatisation of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                "Successfully %s climatisation for vehicle %s",
+                "started" if activate else "stopped",
+                vin,
             )
 
             return True
@@ -436,7 +437,20 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                f"Sending command to start climate control for vehicle {vin} with settings - Temp(F): {temp_f}, Temp(C): {temp_c}, Glass Heating: {glass_heating}, Seat FL: {seat_fl}, Seat FR: {seat_fr}, Seat RL: {seat_rl}, Seat RR: {seat_rr}, Climatisation at Unlock: {climatisation_at_unlock}, Climatisation Mode: {climatisation_mode}"
+                "Sending command to start climate control for vehicle %s with settings - "
+                "Temp(F): %s, Temp(C): %s, Glass Heating: %s, Seat FL: %s, "
+                "Seat FR: %s, Seat RL: %s, Seat RR: %s, "
+                "Climatisation at Unlock: %s, Climatisation Mode: %s",
+                vin,
+                temp_f,
+                temp_c,
+                glass_heating,
+                seat_fl,
+                seat_fr,
+                seat_rl,
+                seat_rr,
+                climatisation_at_unlock,
+                climatisation_mode,
             )
 
             await self._audi_service.start_climate_control(
@@ -452,14 +466,17 @@ class AudiConnectAccount:
                 climatisation_mode,
             )
 
-            _LOGGER.debug(f"Successfully started climate control of vehicle {vin}")
+            _LOGGER.debug(
+                "Successfully started climate control of vehicle %s",
+                vin,
+            )
 
             return True
 
-        except Exception as exception:
-            _LOGGER.error(
-                f"Unable to start climate control of vehicle {vin}. Error: {exception}",
-                exc_info=True,
+        except Exception:
+            _LOGGER.exception(
+                "Unable to start climate control of vehicle %s",
+                vin,
             )
             return False
         finally:
@@ -479,21 +496,19 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action}{timer} charger to vehicle {vin}".format(
-                    action="start" if activate else "stop",
-                    vin=vin,
-                    timer=" timed" if timer else "",
-                ),
+                "Sending command to %s%s charger for vehicle %s",
+                "start" if activate else "stop",
+                " timed" if timer else "",
+                vin,
             )
 
             await self._audi_service.set_battery_charger(vin, activate, timer)
 
             _LOGGER.debug(
-                "Successfully {action}{timer} charger of vehicle {vin}".format(
-                    action="started" if activate else "stopped",
-                    vin=vin,
-                    timer=" timed" if timer else "",
-                ),
+                "Successfully %s%s charger for vehicle %s",
+                "started" if activate else "stopped",
+                " timed" if timer else "",
+                vin,
             )
 
             return True
@@ -522,17 +537,17 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} window heating to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                "Sending command to %s window heating for vehicle %s",
+                "start" if activate else "stop",
+                vin,
             )
 
             await self._audi_service.set_window_heating(vin, activate)
 
             _LOGGER.debug(
-                "Successfully {action} window heating of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                "Successfully %s window heating for vehicle %s",
+                "started" if activate else "stopped",
+                vin,
             )
 
             return True
@@ -561,18 +576,18 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} pre-heater to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                "Sending command to %s pre-heater for vehicle %s",
+                "start" if activate else "stop",
+                vin,
             )
 
             # Pass **kwargs down
             await self._audi_service.set_pre_heater(vin, activate, **kwargs)
 
             _LOGGER.debug(
-                "Successfully {action} pre-heater of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                "Successfully %s pre-heater for vehicle %s",
+                "started" if activate else "stopped",
+                vin,
             )
 
             return True
