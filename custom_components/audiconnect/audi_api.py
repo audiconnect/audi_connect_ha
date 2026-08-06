@@ -169,9 +169,9 @@ class AudiAPI:
                 _LOGGER.debug("Request timed out after %s seconds.", TIMEOUT)
             raise TimeoutError("Timeout error")
 
-        except Exception as e:
+        except Exception:
             if DEBUG_VERBOSE:
-                _LOGGER.exception("Unexpected exception during request: %s", e)
+                _LOGGER.exception("Unexpected exception during request")
             raise
 
     async def get(
