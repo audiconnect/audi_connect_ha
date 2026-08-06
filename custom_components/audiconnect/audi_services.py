@@ -635,7 +635,9 @@ class AudiService:
         target_temperature = None
 
         _LOGGER.debug(
-            f"Attempting to start climate control with API Level {api_level} and country {country}."
+            "Attempting to start climate control with API Level %s and country %s.",
+            api_level,
+            country,
         )
 
         if api_level == 0:
@@ -1110,8 +1112,8 @@ class AudiService:
 
         except AudiAuthError:
             raise
-        except Exception as exception:
-            _LOGGER.error("Refresh token failed: " + str(exception))
+        except Exception:
+            _LOGGER.exception("Refresh token failed")
             return False
 
     async def _discover_endpoints(self) -> None:
