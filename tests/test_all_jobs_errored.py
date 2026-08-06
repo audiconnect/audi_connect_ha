@@ -4,6 +4,7 @@ can keep the last known values instead of quietly pruning every entity.
 Composes with the pytest harness from #815 (no network). On its own it just needs
 the package importable.
 """
+
 from __future__ import annotations
 
 from custom_components.audiconnect.audi_models import (
