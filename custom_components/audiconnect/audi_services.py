@@ -1593,11 +1593,13 @@ class AudiService:
             # vwToken silently becomes {"error": ...} and only surfaces much later
             # as KeyError('access_token') in get_tripdata() or a TypeError in
             # get_climater(), far from the real cause.
+            error_description = mbboauth_auth_json.get(
+                "error_description",
+                mbboauth_auth_rsptxt[:200],
+            )
+            
             raise AudiAuthError(
-                "mbboauth token exchange failed: %s"
-                % mbboauth_auth_json.get(
-                    "error_description", mbboauth_auth_rsptxt[:200]
-                )
+                f"mbboauth token exchange failed: {error_description}"
             )
         # store token and expiration time
         self.mbboauthToken = mbboauth_auth_json
