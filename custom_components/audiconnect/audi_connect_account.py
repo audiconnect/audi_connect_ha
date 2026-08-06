@@ -315,17 +315,17 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} to vehicle {vin}".format(
-                    action="lock" if lock else "unlock", vin=vin
-                ),
+                "Sending %s command to vehicle %s",
+                "lock" if lock else "unlock",
+                vin,
             )
 
             await self._audi_service.set_vehicle_lock(vin, lock)
 
             _LOGGER.debug(
-                "Successfully {action} vehicle {vin}".format(
-                    action="locked" if lock else "unlocked", vin=vin
-                ),
+                "Successfully %s vehicle %s",
+                "locked" if lock else "unlocked",
+                vin,
             )
 
             return True
@@ -386,18 +386,19 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} climatisation to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                "Sending command to %s climatisation for vehicle %s",
+                "start" if activate else "stop",
+                vin,
             )
 
             await self._audi_service.set_climatisation(vin, activate)
 
             _LOGGER.debug(
-                "Successfully {action} climatisation of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                "Successfully %s climatisation for vehicle %s",
+                "started" if activate else "stopped",
+                vin,
             )
+
 
             return True
 
@@ -480,21 +481,20 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action}{timer} charger to vehicle {vin}".format(
-                    action="start" if activate else "stop",
-                    vin=vin,
-                    timer=" timed" if timer else "",
-                ),
+                "Sending command to %s%s charger for vehicle %s",
+                "start" if activate else "stop",
+                " timed" if timer else "",
+                vin,
             )
+
 
             await self._audi_service.set_battery_charger(vin, activate, timer)
 
             _LOGGER.debug(
-                "Successfully {action}{timer} charger of vehicle {vin}".format(
-                    action="started" if activate else "stopped",
-                    vin=vin,
-                    timer=" timed" if timer else "",
-                ),
+                "Successfully %s%s charger for vehicle %s",
+                "started" if activate else "stopped",
+                " timed" if timer else "",
+                vin,
             )
 
             return True
@@ -523,17 +523,18 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} window heating to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                "Sending command to %s window heating for vehicle %s",
+                "start" if activate else "stop",
+                vin,
             )
+
 
             await self._audi_service.set_window_heating(vin, activate)
 
             _LOGGER.debug(
-                "Successfully {action} window heating of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                "Successfully %s window heating for vehicle %s",
+                "started" if activate else "stopped",
+                vin,
             )
 
             return True
@@ -562,18 +563,18 @@ class AudiConnectAccount:
 
         try:
             _LOGGER.debug(
-                "Sending command to {action} pre-heater to vehicle {vin}".format(
-                    action="start" if activate else "stop", vin=vin
-                ),
+                "Sending command to %s pre-heater for vehicle %s",
+                "start" if activate else "stop",
+                vin,
             )
 
             # Pass **kwargs down
             await self._audi_service.set_pre_heater(vin, activate, **kwargs)
 
             _LOGGER.debug(
-                "Successfully {action} pre-heater of vehicle {vin}".format(
-                    action="started" if activate else "stopped", vin=vin
-                ),
+                "Successfully %s pre-heater for vehicle %s",
+                "started" if activate else "stopped",
+                vin,
             )
 
             return True
