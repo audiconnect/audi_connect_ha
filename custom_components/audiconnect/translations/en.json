@@ -29,7 +29,7 @@
       },
       "device": {
         "title": "Sign in to Audi",
-        "description": "Open the following link and sign in with your Audi account to authorise Home Assistant:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **OK**."
+        "description": "Open the following link and sign in with your Audi account to authorise Home Assistant:\n\n[{verification_uri}]({verification_uri})\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **OK**."
       },
       "reauth_confirm": {
         "title": "Re-authenticate with Audi",

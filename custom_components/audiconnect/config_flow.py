@@ -5,7 +5,6 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -42,9 +41,9 @@ from .const import (
     DEFAULT_API_LEVEL,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
-    UPDATE_SLEEP,
     MIN_UPDATE_INTERVAL,
     REGIONS,
+    UPDATE_SLEEP,
     entry_uses_device_code,
     uses_device_code,
 )
@@ -143,7 +142,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_credentials"
             except AudiAuthError:
                 errors["base"] = "invalid_credentials"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Audi password login failed")
                 errors["base"] = "unexpected"
 
@@ -203,7 +202,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._device_code is None:
             try:
                 response = await self._connection.request_device_code()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Audi device authorization request failed")
                 return self.async_abort(reason="device_auth_failed")
             self._device_code = response["device_code"]
@@ -215,7 +214,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 status = await self._connection.poll_device_token(self._device_code)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Audi device token poll failed")
                 status = None
                 errors["base"] = "device_auth_failed"

@@ -43,7 +43,7 @@ class AudiDataUpdateCoordinator(DataUpdateCoordinator[list[Any]]):
             # Let Home Assistant handle reauth / retry-setup instead of masking
             # these as a generic update failure.
             raise
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             raise UpdateFailed(str(err)) from err
 
     @classmethod

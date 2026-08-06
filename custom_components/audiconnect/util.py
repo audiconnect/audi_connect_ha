@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from functools import reduce
 from typing import Any
 
@@ -54,7 +54,7 @@ def parse_datetime(time_value: Any) -> datetime | None:
         ]
         for fmt in formats:
             try:
-                return datetime.strptime(time_value, fmt).replace(tzinfo=timezone.utc)
+                return datetime.strptime(time_value, fmt).replace(tzinfo=UTC)
             except ValueError:
                 continue
     return None

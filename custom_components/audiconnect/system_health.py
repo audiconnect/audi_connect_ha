@@ -74,9 +74,10 @@ async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
 
         # Last successful refresh (coordinator built-in)
         update_time = getattr(coordinator, "last_update_success_time", None)
-        if update_time is not None:
-            if last_refresh is None or update_time > last_refresh:
-                last_refresh = update_time
+        if update_time is not None and (
+            last_refresh is None or update_time > last_refresh
+        ):
+            last_refresh = update_time
 
         # Last update error (coordinator built-in)
         if coordinator.last_exception is not None:

@@ -58,7 +58,12 @@ REGIONS: dict[int, str] = {
 # token exchange there, so the legacy login can no longer complete. Every other
 # region keeps username/password, which still works for them. If attestation is
 # rolled out elsewhere, add that region here — nothing else needs to change.
-DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE}
+#
+# Canada joined after attestation reached that market too: its market config
+# reports "marketSupportsAppAttestation": True, its login is routed to the same
+# emea.bff.cariad.digital backend as Europe, and that backend advertises the
+# device_code grant — so the same device-code login works there (issue #814).
+DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE, REGION_CANADA}
 
 
 def uses_device_code(region: str | None) -> bool:
@@ -97,7 +102,6 @@ __all__ = [
     "CONF_ACTION",
     "CONF_API_LEVEL",
     "CONF_CARNAME",
-    "CONF_DEVICE_ID",
     "CONF_CLIMATE_AT_UNLOCK",
     "CONF_CLIMATE_GLASS",
     "CONF_CLIMATE_MODE",
@@ -107,29 +111,30 @@ __all__ = [
     "CONF_CLIMATE_SEAT_RR",
     "CONF_CLIMATE_TEMP_C",
     "CONF_CLIMATE_TEMP_F",
+    "CONF_DEVICE_ID",
     "CONF_DURATION",
     "CONF_FILTER_VINS",
+    "CONF_PASSWORD",
     "CONF_REFRESH_AFTER_ACTION",
     "CONF_REFRESH_TOKEN",
-    "CONF_UPDATE_SLEEP",
-    "CONF_PASSWORD",
     "CONF_REGION",
-    "CONF_SCAN_INTERVAL",
     "CONF_SCAN_INITIAL",
+    "CONF_SCAN_INTERVAL",
     "CONF_SPIN",
     "CONF_TARGET_SOC",
+    "CONF_UPDATE_SLEEP",
     "CONF_USERNAME",
     "CONF_VIN",
     "DEFAULT_API_LEVEL",
     "DEFAULT_UPDATE_INTERVAL",
+    "DEVICE_CODE_REGIONS",
     "DOMAIN",
     "MIN_UPDATE_INTERVAL",
     "PLATFORMS",
     "REFRESH_VEHICLE_DATA_COMPLETED_EVENT",
     "REFRESH_VEHICLE_DATA_FAILED_EVENT",
     "REGIONS",
-    "DEVICE_CODE_REGIONS",
+    "UPDATE_SLEEP",
     "entry_uses_device_code",
     "uses_device_code",
-    "UPDATE_SLEEP",
 ]
