@@ -1290,11 +1290,11 @@ class AudiService:
         # forward1 after pwd
         if "Location" not in pw_rsp.headers:
             raise AudiAuthError(
-                "Login redirect missing after password submission (HTTP %d). "
+                f"Login redirect missing after password submission "
+                f"(HTTP {pw_rsp.status}). "
                 "Audi may be showing a consent or terms-of-service prompt. "
                 "Please log in to myAudi via a browser or the myAudi app and "
                 "accept any pending agreements, then restart the integration."
-                % pw_rsp.status
             )
         fwd1_rsp, _fwd1_rsptxt = await self._api.request(
             "GET",
