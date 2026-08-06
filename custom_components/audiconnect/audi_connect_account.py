@@ -758,6 +758,20 @@ class AudiConnectVehicle:
 
         try:
             status = await self._audi_service.get_stored_vehicle_data(self._vehicle.vin)
+            # #793: on a CARIAD outage this comes back 200, but every job is an
+            # error object instead of a value, so it parses to nothing. Assigning
+            # that would wipe every field and the entities quietly disappear, while
+            # the update still reports success. Same handling as the 403/502 case
+            # below: keep the last known values, mark the update failed so it
+            # surfaces, and skip the overwrite.
+            if status.all_jobs_errored:
+                self._no_error = False
+                _LOGGER.warning(
+                    "Vehicle status report for %s came back with only errors "
+                    "(transient CARIAD outage); keeping the last known values.",
+                    self._vehicle.vin,
+                )
+                return
             self._vehicle.fields = {
                 status.data_fields[i].name: status.data_fields[i].value
                 for i in range(len(status.data_fields))
