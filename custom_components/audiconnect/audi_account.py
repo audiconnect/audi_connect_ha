@@ -211,16 +211,19 @@ class AudiAccount(AudiConnectObserver):
 
     async def start_climate_control(self, vin: str, service: ServiceCall) -> None:
         """Start climate control for a vehicle by VIN."""
+        # Pass the fields through as supplied, without substituting defaults, so
+        # the service layer can tell "the caller wants everything left alone"
+        # apart from "the caller explicitly asked for all of it off".
         await self.connection.start_climate_control(
             vin.lower(),
             service.data.get(CONF_CLIMATE_TEMP_F),
             service.data.get(CONF_CLIMATE_TEMP_C),
-            service.data.get(CONF_CLIMATE_GLASS, False),
-            service.data.get(CONF_CLIMATE_SEAT_FL, False),
-            service.data.get(CONF_CLIMATE_SEAT_FR, False),
-            service.data.get(CONF_CLIMATE_SEAT_RL, False),
-            service.data.get(CONF_CLIMATE_SEAT_RR, False),
-            service.data.get(CONF_CLIMATE_AT_UNLOCK, False),
+            service.data.get(CONF_CLIMATE_GLASS),
+            service.data.get(CONF_CLIMATE_SEAT_FL),
+            service.data.get(CONF_CLIMATE_SEAT_FR),
+            service.data.get(CONF_CLIMATE_SEAT_RL),
+            service.data.get(CONF_CLIMATE_SEAT_RR),
+            service.data.get(CONF_CLIMATE_AT_UNLOCK),
             service.data.get(CONF_CLIMATE_MODE),
         )
 

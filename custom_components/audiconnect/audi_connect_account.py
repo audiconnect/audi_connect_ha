@@ -419,15 +419,15 @@ class AudiConnectAccount:
     async def start_climate_control(
         self,
         vin: str,
-        temp_f: int,
-        temp_c: int,
-        glass_heating: bool,
-        seat_fl: bool,
-        seat_fr: bool,
-        seat_rl: bool,
-        seat_rr: bool,
-        climatisation_at_unlock: bool,
-        climatisation_mode: str,
+        temp_f: int | None = None,
+        temp_c: int | None = None,
+        glass_heating: bool | None = None,
+        seat_fl: bool | None = None,
+        seat_fr: bool | None = None,
+        seat_rl: bool | None = None,
+        seat_rr: bool | None = None,
+        climatisation_at_unlock: bool | None = None,
+        climatisation_mode: str | None = None,
     ):
         if not self._loggedin:
             await self.login()
