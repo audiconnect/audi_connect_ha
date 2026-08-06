@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from asyncio import CancelledError, TimeoutError
+from asyncio import TimeoutError
 from datetime import UTC, datetime
 from typing import Any
 
@@ -163,7 +163,7 @@ class AudiAPI:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request cancelled (CancelledError).")
             raise TimeoutError("Timeout error") from err
-        
+
         except TimeoutError:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request timed out after %s seconds.", TIMEOUT)
