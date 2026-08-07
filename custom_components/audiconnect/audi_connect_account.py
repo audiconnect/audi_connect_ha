@@ -346,6 +346,7 @@ class AudiConnectAccount:
                     action="lock" if lock else "unlock", vin=vin
                 ),
             )
+            return False
         finally:
             try:
                 await self.notify(vin, ACTION_LOCK)
