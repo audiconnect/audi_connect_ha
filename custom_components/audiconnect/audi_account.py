@@ -208,6 +208,8 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, True)
         elif action == "stop_window_heating":
             await self.connection.set_vehicle_window_heating(vin, False)
+        else:
+            _LOGGER.error("Unknown vehicle action requested: %s", action)
 
     async def start_climate_control(self, vin: str, service: ServiceCall) -> None:
         """Start climate control for a vehicle by VIN."""
