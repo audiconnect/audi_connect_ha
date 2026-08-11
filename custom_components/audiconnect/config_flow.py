@@ -173,9 +173,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             # Schedule the reload ourselves: async_update_reload_and_abort is
             # deprecated (HA 2026.12) for entries that register an update
             # listener, which this integration does.
-            self.hass.config_entries.async_schedule_reload(
-                self._reauth_entry.entry_id
-            )
+            self.hass.config_entries.async_schedule_reload(self._reauth_entry.entry_id)
             return self.async_update_and_abort(
                 self._reauth_entry,
                 data={
@@ -258,9 +256,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             # device-code reauth only changes the refresh token, which the
             # update listener deliberately ignores, so the reload has to be
             # scheduled here explicitly.
-            self.hass.config_entries.async_schedule_reload(
-                self._reauth_entry.entry_id
-            )
+            self.hass.config_entries.async_schedule_reload(self._reauth_entry.entry_id)
             return self.async_update_and_abort(
                 self._reauth_entry,
                 data={
@@ -315,9 +311,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             # Schedule the reload ourselves (see _finish_password_login).
-            self.hass.config_entries.async_schedule_reload(
-                reconfigure_entry.entry_id
-            )
+            self.hass.config_entries.async_schedule_reload(reconfigure_entry.entry_id)
             return self.async_update_and_abort(
                 reconfigure_entry,
                 data_updates={
