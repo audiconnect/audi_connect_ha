@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
@@ -52,12 +53,18 @@ class AudiLock(AudiEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
-        await connection.set_vehicle_lock(self._vehicle.vin, True)
+        if not await connection.set_vehicle_lock(self._vehicle.vin, True):
+            raise HomeAssistantError(
+                "Failed to lock the vehicle; see the log for details"
+            )
         await self.coordinator.async_request_refresh()
 
     async def async_unlock(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
-        await connection.set_vehicle_lock(self._vehicle.vin, False)
+        if not await connection.set_vehicle_lock(self._vehicle.vin, False):
+            raise HomeAssistantError(
+                "Failed to unlock the vehicle; see the log for details"
+            )
         await self.coordinator.async_request_refresh()
 
 
