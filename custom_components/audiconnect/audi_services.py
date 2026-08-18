@@ -13,6 +13,7 @@ from hashlib import sha256, sha512
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 
+from aiohttp import ClientResponseError
 from bs4 import BeautifulSoup
 
 from .audi_api import AudiAPI
@@ -22,6 +23,11 @@ from .util import get_attr, to_byte_array
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
+
+# Charging start/stop confirmation. Kept short because each poll spends one
+# call from the metered daily allowance and blocks the service call.
+CHARGING_CONFIRM_ATTEMPTS = 3
+CHARGING_CONFIRM_SLEEP = 5
 
 SUCCEEDED = "succeeded"
 FAILED = "failed"
@@ -484,23 +490,142 @@ class AudiService:
         )
 
     async def set_battery_charger(self, vin: str, start: bool, timer: bool):
-        if start and timer:
-            data = {"preferredChargeMode": "timer"}
-        elif start:
-            data = {"preferredChargeMode": "manual"}
-        else:
-            raise NotImplementedError(
-                "The 'Stop Charger' service is deprecated and will be removed in a future release."
-            )
+        """Start or stop charging.
 
-        data = json.dumps(data)
+        start=True, timer=True  -> select timer mode, so the car charges on its
+                                   own schedule rather than immediately.
+        start=True, timer=False -> start charging now.
+        start=False             -> stop charging now.
+
+        Until 2.3.1 all three only PUT charging/mode, which sets a *mode
+        preference* and neither starts nor stops a charge, and the stop case
+        raised outright (upstream #725). charging/start and charging/stop are the
+        routes current firmware exposes for the action itself, cross-checked
+        against two independent BFF clients.
+        """
+        if start and timer:
+            await self.set_preferred_charge_mode(vin, "timer")
+            return
+
+        await self._send_charging_command(vin, "start" if start else "stop")
+
+    async def set_preferred_charge_mode(self, vin: str, mode: str) -> None:
+        """Set which mode the car charges in. A preference, not an action: it does
+        not start or stop a charge in progress."""
         headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
 
         await self._api.request(
             "PUT",
             self.__get_cariad_url_for_vin(vin, "charging/mode"),
             headers=headers,
-            data=data,
+            data=json.dumps({"preferredChargeMode": mode}),
+        )
+
+    async def _post_charging_command(
+        self, vin: str, suffix: str, body: dict[str, Any]
+    ) -> Any:
+        """POST one BFF charging command.
+
+        Returns the parsed body, or None when the car answers 204. The shared
+        request helper raises ClientResponseError for every status outside
+        200/202/207, 204 included, so a no-content success arrives here as an
+        exception and has to be turned back into one.
+        """
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        try:
+            return await self._api.request(
+                "POST",
+                self.__get_cariad_url_for_vin(vin, suffix),
+                headers=headers,
+                data=json.dumps(body),
+            )
+        except ClientResponseError as err:
+            if err.status == 204:
+                return None
+            raise
+
+    async def _send_charging_command(self, vin: str, action: str) -> None:
+        """Actually start or stop a charge.
+
+        Separate charging/start and charging/stop are what current firmware
+        exposes; the combined charging/start-stop route is kept as a 404 fallback
+        for older cars. Both shapes are used by CarConnectivity-connector-volkswagen
+        and vwgroup-connect-ha against the same CARIAD BFF.
+        """
+        try:
+            res = await self._post_charging_command(vin, f"charging/{action}", {})
+        except ClientResponseError as err:
+            if err.status != 404:
+                raise
+            _LOGGER.debug(
+                "charging/%s not provisioned for %s, trying the combined route",
+                action,
+                vin,
+            )
+            res = await self._post_charging_command(
+                vin, "charging/start-stop", {"action": action}
+            )
+
+        request_id = get_attr(res, "data.requestID") if isinstance(res, dict) else None
+        if request_id is None:
+            _LOGGER.debug(
+                "Charging %s accepted for %s with no request id to confirm against",
+                action,
+                vin,
+            )
+            return
+
+        await self._confirm_charging_command(vin, action, request_id)
+
+    async def _confirm_charging_command(
+        self, vin: str, action: str, request_id: str
+    ) -> None:
+        """Poll pendingrequests until the car acts on the command.
+
+        Deliberately shorter than check_bff_request_succeeded (10 polls, 10s
+        apart): every poll is an API call against a metered daily allowance, and
+        this runs inside a service call the user is waiting on. Running out of
+        attempts is reported as unconfirmed rather than failed, so a command that
+        did work is never announced as broken. An explicit rejection still
+        raises.
+        """
+        headers = {
+            "Accept": "application/json",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+        }
+
+        for _ in range(CHARGING_CONFIRM_ATTEMPTS):
+            await asyncio.sleep(CHARGING_CONFIRM_SLEEP)
+            res = await self._api.request(
+                "GET",
+                self.__get_cariad_url_for_vin(vin, "pendingrequests"),
+                headers=headers,
+                data=None,
+            )
+
+            for pending_request in get_attr(res, "data") or []:
+                if pending_request.get("id") != request_id:
+                    continue
+                status = pending_request.get("status")
+                if status == "in_progress":
+                    break
+                if status == "successful":
+                    _LOGGER.debug("Charging %s confirmed for %s", action, vin)
+                    return
+                raise Exception(
+                    f"Charging {action} for {vin} was rejected by the vehicle "
+                    f"(request {request_id} reached status {status})"
+                )
+
+        _LOGGER.warning(
+            "Charging %s was accepted for %s but not confirmed within %ds. The "
+            "command may still be carried out; check the charging state after the "
+            "next refresh.",
+            action,
+            vin,
+            CHARGING_CONFIRM_ATTEMPTS * CHARGING_CONFIRM_SLEEP,
         )
 
         # checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(

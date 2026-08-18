@@ -345,6 +345,24 @@ class AudiConnectAccount:
                     "Cloud refresh failed after lock/unlock for %s: %s", vin, ex
                 )
 
+    async def set_charge_mode(self, vin: str, mode: str):
+        """Set the preferred charge mode (manual or timer)."""
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug("Setting charge mode to %s for vehicle %s", mode, vin)
+            await self._audi_service.set_preferred_charge_mode(vin, mode)
+            return True
+        except Exception as exception:
+            log_exception(
+                exception, f"Unable to set charge mode for vehicle {vin}"
+            )
+            return False
+
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
         if not self._loggedin:
@@ -1975,6 +1993,116 @@ class AudiConnectVehicle:
     @property
     def target_state_of_charge_supported(self):
         return parse_int(self._vehicle.state.get("targetstateOfCharge")) is not None
+
+    @property
+    def active_charging_profile_target_soc(self):
+        """Return the target SoC of the location profile the car is parked in.
+
+        This is the limit the car actually charges to. target_state_of_charge is
+        the global setting, which a location profile overrides, so the two
+        disagree whenever a profile is in force (upstream #722).
+        """
+        if self.active_charging_profile_target_soc_supported:
+            return parse_int(
+                self._vehicle.state.get("activeChargingProfileTargetSoc")
+            )
+
+    @property
+    def active_charging_profile_target_soc_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("activeChargingProfileTargetSoc"))
+            is not None
+        )
+
+    @property
+    def active_charging_profile_name(self):
+        """Return the name of the charging profile in force at this location."""
+        if self.active_charging_profile_name_supported:
+            return self._vehicle.state.get("activeChargingProfileName")
+
+    @property
+    def active_charging_profile_name_supported(self):
+        return self._vehicle.state.get("activeChargingProfileName") is not None
+
+    @property
+    def active_charging_profile_id(self):
+        if self.active_charging_profile_id_supported:
+            return parse_int(self._vehicle.state.get("activeChargingProfileId"))
+
+    @property
+    def active_charging_profile_id_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("activeChargingProfileId")) is not None
+        )
+
+    @property
+    def active_charging_profile_min_soc(self):
+        """Return the minimum SoC the profile tops up to regardless of schedule."""
+        if self.active_charging_profile_min_soc_supported:
+            return parse_int(self._vehicle.state.get("activeChargingProfileMinSoc"))
+
+    @property
+    def active_charging_profile_min_soc_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("activeChargingProfileMinSoc"))
+            is not None
+        )
+
+    @property
+    def charging_profiles(self):
+        """Return every location profile, for the attribute payload."""
+        return self._vehicle.state.get("chargingProfiles")
+
+    @property
+    def charging_profiles_supported(self):
+        return isinstance(self._vehicle.state.get("chargingProfiles"), list)
+
+    @property
+    def preferred_charging_time_start(self):
+        if self.preferred_charging_time_start_supported:
+            return self._vehicle.state.get("preferredChargingTimeStart")
+
+    @property
+    def preferred_charging_time_start_supported(self):
+        return self._vehicle.state.get("preferredChargingTimeStart") is not None
+
+    @property
+    def preferred_charging_time_end(self):
+        if self.preferred_charging_time_end_supported:
+            return self._vehicle.state.get("preferredChargingTimeEnd")
+
+    @property
+    def preferred_charging_time_end_supported(self):
+        return self._vehicle.state.get("preferredChargingTimeEnd") is not None
+
+    @property
+    def preferred_charging_time_enabled(self):
+        return self._vehicle.state.get("preferredChargingTimeEnabled")
+
+    @property
+    def charging_timers(self):
+        """Return the departure/charging timers, for the attribute payload."""
+        return self._vehicle.state.get("chargingTimers")
+
+    @property
+    def charging_timers_supported(self):
+        return isinstance(self._vehicle.state.get("chargingTimers"), list)
+
+    @property
+    def charging_timer_enabled_count(self):
+        if self.charging_timer_enabled_count_supported:
+            return parse_int(self._vehicle.state.get("chargingTimerEnabledCount"))
+
+    @property
+    def charging_timer_enabled_count_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("chargingTimerEnabledCount"))
+            is not None
+        )
+
+    @property
+    def next_charging_timer_departure(self):
+        return self._vehicle.state.get("nextChargingTimerDeparture")
 
     @property
     def plug_state(self):
