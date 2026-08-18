@@ -100,7 +100,9 @@ def test_preferred_charging_window(payload):
 
 def test_preferred_window_prefers_the_enabled_one(payload):
     """With several windows the enabled one wins, not merely the first."""
-    profiles = payload["chargingProfiles"]["chargingProfilesStatus"]["value"]["profiles"]
+    profiles = payload["chargingProfiles"]["chargingProfilesStatus"]["value"][
+        "profiles"
+    ]
     profiles[0]["preferredChargingTimes"] = [
         {"id": 1, "enabled": False, "startTimeLocal": "23:13", "endTimeLocal": "02:09"},
         {"id": 2, "enabled": True, "startTimeLocal": "01:30", "endTimeLocal": "05:30"},

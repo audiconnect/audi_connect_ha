@@ -358,9 +358,7 @@ class AudiConnectAccount:
             await self._audi_service.set_preferred_charge_mode(vin, mode)
             return True
         except Exception as exception:
-            log_exception(
-                exception, f"Unable to set charge mode for vehicle {vin}"
-            )
+            log_exception(exception, f"Unable to set charge mode for vehicle {vin}")
             return False
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
@@ -2003,9 +2001,7 @@ class AudiConnectVehicle:
         disagree whenever a profile is in force (upstream #722).
         """
         if self.active_charging_profile_target_soc_supported:
-            return parse_int(
-                self._vehicle.state.get("activeChargingProfileTargetSoc")
-            )
+            return parse_int(self._vehicle.state.get("activeChargingProfileTargetSoc"))
 
     @property
     def active_charging_profile_target_soc_supported(self):
@@ -2031,9 +2027,7 @@ class AudiConnectVehicle:
 
     @property
     def active_charging_profile_id_supported(self):
-        return (
-            parse_int(self._vehicle.state.get("activeChargingProfileId")) is not None
-        )
+        return parse_int(self._vehicle.state.get("activeChargingProfileId")) is not None
 
     @property
     def active_charging_profile_min_soc(self):
@@ -2096,8 +2090,7 @@ class AudiConnectVehicle:
     @property
     def charging_timer_enabled_count_supported(self):
         return (
-            parse_int(self._vehicle.state.get("chargingTimerEnabledCount"))
-            is not None
+            parse_int(self._vehicle.state.get("chargingTimerEnabledCount")) is not None
         )
 
     @property

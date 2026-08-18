@@ -336,11 +336,7 @@ class VehicleDataResponse:
 
         active_id = value.get("vehiclePositionedInProfileID")
         active = next(
-            (
-                p
-                for p in profiles
-                if isinstance(p, dict) and p.get("id") == active_id
-            ),
+            (p for p in profiles if isinstance(p, dict) and p.get("id") == active_id),
             None,
         )
 
