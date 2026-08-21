@@ -369,6 +369,14 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.TIMESTAMP,
     ),
     AudiSensorEntityDescription(
+        key="position_last_updated",
+        attr_key="position_last_updated",
+        name="Position Last Updated",
+        icon="mdi:map-marker-clock",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AudiSensorEntityDescription(
         key="remaining_climatisation_time",
         attr_key="remaining_climatisation_time",
         name="Remaining Climatisation Time",
