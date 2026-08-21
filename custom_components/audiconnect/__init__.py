@@ -22,6 +22,8 @@ from .audi_account import (
     SERVICE_REFRESH_VEHICLE_DATA_SCHEMA,
     SERVICE_SET_CHARGE_MODE,
     SERVICE_SET_CHARGE_MODE_SCHEMA,
+    SERVICE_SET_LOCATION_CHARGE_TARGET,
+    SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA,
     SERVICE_SET_TARGET_SOC,
     SERVICE_SET_TARGET_SOC_SCHEMA,
     SERVICE_START_AUXILIARY_HEATING,
@@ -247,6 +249,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
         vin, account = result
         await account.start_auxiliary_heating(vin, service)
 
+    async def _handle_set_location_charge_target(service: ServiceCall) -> None:
+        result = _resolve_service_call(hass, service)
+        if result is None:
+            return
+        vin, account = result
+        await account.set_location_charge_target(vin, service)
+
     async def _handle_set_charge_mode(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
@@ -306,6 +315,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
             SERVICE_START_AUXILIARY_HEATING,
             _handle_start_auxiliary_heating,
             schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
+        )
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_LOCATION_CHARGE_TARGET):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_LOCATION_CHARGE_TARGET,
+            _handle_set_location_charge_target,
+            schema=SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA,
         )
     if not hass.services.has_service(DOMAIN, SERVICE_SET_CHARGE_MODE):
         hass.services.async_register(
@@ -431,6 +447,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
             SERVICE_START_CLIMATE_CONTROL,
             SERVICE_START_AUXILIARY_HEATING,
             SERVICE_SET_CHARGE_MODE,
+            SERVICE_SET_LOCATION_CHARGE_TARGET,
             SERVICE_SET_TARGET_SOC,
             SERVICE_START_ENGINE,
             SERVICE_STOP_ENGINE,

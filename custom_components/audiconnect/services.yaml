@@ -93,6 +93,30 @@ start_auxiliary_heating:
           step: 10
           unit_of_measurement: "minutes"
 
+set_location_charge_target:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: audiconnect
+    profile_id:
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+    target_soc:
+      required: true
+      example: 80
+      selector:
+        number:
+          min: 20
+          max: 100
+          step: 5
+          unit_of_measurement: "%"
+
 set_charge_mode:
   fields:
     device_id:
