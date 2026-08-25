@@ -25,9 +25,7 @@ from tests.fixture_q8_etron import PAYLOAD
 @pytest.fixture
 def value():
     """chargingProfiles.chargingProfilesStatus.value, as the car reports it."""
-    return copy.deepcopy(
-        PAYLOAD["chargingProfiles"]["chargingProfilesStatus"]["value"]
-    )
+    return copy.deepcopy(PAYLOAD["chargingProfiles"]["chargingProfilesStatus"]["value"])
 
 
 # --- the change itself ------------------------------------------------------------

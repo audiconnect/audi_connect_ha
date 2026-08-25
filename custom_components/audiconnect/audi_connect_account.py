@@ -355,9 +355,7 @@ class AudiConnectAccount:
                     "Cloud refresh failed after lock/unlock for %s: %s", vin, ex
                 )
 
-    async def set_location_charge_target(
-        self, vin: str, profile_id, target_soc: int
-    ):
+    async def set_location_charge_target(self, vin: str, profile_id, target_soc: int):
         """Set a location charging profile's target SoC (the governing value)."""
         if not self._loggedin:
             await self.login()
@@ -366,7 +364,9 @@ class AudiConnectAccount:
         try:
             _LOGGER.debug(
                 "Setting location charge target to %d%% (profile %s) for %s",
-                target_soc, profile_id, vin,
+                target_soc,
+                profile_id,
+                vin,
             )
             await self._audi_service.set_location_charge_target(
                 vin, profile_id, target_soc

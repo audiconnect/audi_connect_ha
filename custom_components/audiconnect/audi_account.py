@@ -89,7 +89,9 @@ SERVICE_SET_LOCATION_CHARGE_TARGET = "set_location_charge_target"
 SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_DEVICE_ID): cv.string,
-        vol.Optional(CONF_PROFILE_ID): vol.All(cv.positive_int, vol.Range(min=1, max=10)),
+        vol.Optional(CONF_PROFILE_ID): vol.All(
+            cv.positive_int, vol.Range(min=1, max=10)
+        ),
         vol.Required(CONF_TARGET_SOC): vol.All(
             cv.positive_int, vol.Range(min=20, max=100)
         ),
@@ -274,9 +276,7 @@ class AudiAccount(AudiConnectObserver):
             duration=service.data.get(CONF_DURATION),
         )
 
-    async def set_location_charge_target(
-        self, vin: str, service: ServiceCall
-    ) -> None:
+    async def set_location_charge_target(self, vin: str, service: ServiceCall) -> None:
         """Set a location profile's target SoC, the value that governs charging
         at that place. Omit profile_id to target where the car is parked now."""
         if not await self.connection.set_location_charge_target(

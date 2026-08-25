@@ -30,9 +30,7 @@ CHARGING_CONFIRM_ATTEMPTS = 3
 CHARGING_CONFIRM_SLEEP = 5
 
 
-def build_profile_update(
-    value: dict, profile_id, target_soc: int
-) -> tuple[int, dict]:
+def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int, dict]:
     """Pure read-modify-write core for a location charging profile.
 
     `value` is chargingProfiles.chargingProfilesStatus.value as the car reports
