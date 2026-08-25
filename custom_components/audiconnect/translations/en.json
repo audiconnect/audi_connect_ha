@@ -194,6 +194,20 @@
         }
       }
     },
+    "set_charge_mode": {
+      "name": "Set Charge Mode",
+      "description": "Set which mode the vehicle charges in. This is a preference and does not start or stop a charge in progress.",
+      "fields": {
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle to set the charge mode for."
+        },
+        "charge_mode": {
+          "name": "Charge Mode",
+          "description": "manual charges whenever plugged in; timer charges only during the vehicle's scheduled times."
+        }
+      }
+    },
     "set_target_soc": {
       "name": "Set Target State of Charge",
       "description": "Set the target state of charge (battery %) for the vehicle.",

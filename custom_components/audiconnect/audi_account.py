@@ -8,7 +8,7 @@ from typing import Any
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .audi_connect_account import (
@@ -37,6 +37,7 @@ from .const import (
     CONF_REFRESH_TOKEN,
     CONF_REGION,
     CONF_SPIN,
+    CONF_CHARGE_MODE,
     CONF_TARGET_SOC,
     CONF_UPDATE_SLEEP,
     CONF_USERNAME,
@@ -80,6 +81,14 @@ SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_DEVICE_ID): cv.string,
         vol.Optional(CONF_DURATION): cv.positive_int,
+    }
+)
+
+SERVICE_SET_CHARGE_MODE = "set_charge_mode"
+SERVICE_SET_CHARGE_MODE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Required(CONF_CHARGE_MODE): vol.In(["manual", "timer"]),
     }
 )
 
@@ -191,11 +200,11 @@ class AudiAccount(AudiConnectObserver):
         elif action == "stop_climatisation":
             await self.connection.set_vehicle_climatisation(vin, False)
         elif action == "start_charger":
-            await self.connection.set_battery_charger(vin, True, False)
+            await self._charger_action(vin, action, True, False)
         elif action == "start_timed_charger":
-            await self.connection.set_battery_charger(vin, True, True)
+            await self._charger_action(vin, action, True, True)
         elif action == "stop_charger":
-            await self.connection.set_battery_charger(vin, False, False)
+            await self._charger_action(vin, action, False, False)
         elif action == "start_preheater":
             _LOGGER.warning(
                 'The "Start Preheater (Legacy)" action is deprecated and will be removed in a future release. '
@@ -210,6 +219,22 @@ class AudiAccount(AudiConnectObserver):
             await self.connection.set_vehicle_window_heating(vin, False)
         else:
             _LOGGER.error("Unknown vehicle action requested: %s", action)
+
+    async def _charger_action(
+        self, vin: str, action: str, start: bool, timer: bool
+    ) -> None:
+        """Run a charger action and raise when it did not take.
+
+        set_battery_charger logs its exceptions and returns None rather than
+        propagating, so a charger command that never reached the car still
+        answered 200 to whoever called the service. Anything driving a Start or
+        Stop button needs to be able to tell the difference.
+        """
+        if not await self.connection.set_battery_charger(vin, start, timer):
+            raise HomeAssistantError(
+                f"Audi Connect could not {action.replace('_', ' ')} for {vin}. "
+                "See the log for the underlying error."
+            )
 
     async def start_climate_control(self, vin: str, service: ServiceCall) -> None:
         """Start climate control for a vehicle by VIN."""
@@ -235,6 +260,13 @@ class AudiAccount(AudiConnectObserver):
             vin=vin.lower(),
             activate=True,
             duration=service.data.get(CONF_DURATION),
+        )
+
+    async def set_charge_mode(self, vin: str, service: ServiceCall) -> None:
+        """Set which mode the car charges in, without starting or stopping one."""
+        await self.connection.set_charge_mode(
+            vin.lower(),
+            service.data.get(CONF_CHARGE_MODE),
         )
 
     async def set_target_soc(self, vin: str, service: ServiceCall) -> None:
@@ -295,6 +327,8 @@ __all__ = [
     "SERVICE_REFRESH_CLOUD_DATA",
     "SERVICE_REFRESH_VEHICLE_DATA",
     "SERVICE_REFRESH_VEHICLE_DATA_SCHEMA",
+    "SERVICE_SET_CHARGE_MODE",
+    "SERVICE_SET_CHARGE_MODE_SCHEMA",
     "SERVICE_SET_TARGET_SOC",
     "SERVICE_SET_TARGET_SOC_SCHEMA",
     "SERVICE_START_AUXILIARY_HEATING",

@@ -24,6 +24,7 @@ CONF_SCAN_INITIAL = "scan_initial"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_API_LEVEL = "api_level"
 CONF_DURATION = "duration"
+CONF_CHARGE_MODE = "charge_mode"
 CONF_TARGET_SOC = "target_soc"
 
 MIN_UPDATE_INTERVAL = 15
@@ -121,6 +122,7 @@ __all__ = [
     "CONF_SCAN_INITIAL",
     "CONF_SCAN_INTERVAL",
     "CONF_SPIN",
+    "CONF_CHARGE_MODE",
     "CONF_TARGET_SOC",
     "CONF_UPDATE_SLEEP",
     "CONF_USERNAME",
