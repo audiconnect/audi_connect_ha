@@ -2072,6 +2072,22 @@ class AudiConnectVehicle:
         return self._vehicle.state.get("isMirrorHeatingActive") is not None
 
     @property
+    def position_last_updated(self):
+        """When the vehicle last reported the position, not when HA last polled.
+
+        parkingposition carries its own carCapturedTimestamp and only moves when
+        the car reports a new position, so a location can be hours old while the
+        entity looks current. Exposing the capture time lets an automation decide
+        whether a position is fresh enough to act on.
+        """
+        if self.position_last_updated_supported:
+            return (self._vehicle.state.get("position") or {}).get("timestamp")
+
+    @property
+    def position_last_updated_supported(self):
+        return (self._vehicle.state.get("position") or {}).get("timestamp") is not None
+
+    @property
     def park_time(self):
         if self.park_time_supported:
             return self._vehicle.state.get("vehicleParkingClock")
