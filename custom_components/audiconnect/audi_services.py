@@ -620,15 +620,15 @@ class AudiService:
     async def start_climate_control(
         self,
         vin: str,
-        temp_f: int,
-        temp_c: int,
-        glass_heating: bool,
-        seat_fl: bool,
-        seat_fr: bool,
-        seat_rl: bool,
-        seat_rr: bool,
-        climatisation_at_unlock: bool = False,
-        climatisation_mode: str = "comfort",
+        temp_f: int | None = None,
+        temp_c: int | None = None,
+        glass_heating: bool | None = None,
+        seat_fl: bool | None = None,
+        seat_fr: bool | None = None,
+        seat_rl: bool | None = None,
+        seat_rr: bool | None = None,
+        climatisation_at_unlock: bool | None = None,
+        climatisation_mode: str | None = None,
     ):
         api_level = self._api_level
         country = self._country
@@ -652,10 +652,10 @@ class AudiService:
 
             # Construct Zone Settings
             zone_settings = [
-                {"value": {"isEnabled": seat_fl, "position": "frontLeft"}},
-                {"value": {"isEnabled": seat_fr, "position": "frontRight"}},
-                {"value": {"isEnabled": seat_rl, "position": "rearLeft"}},
-                {"value": {"isEnabled": seat_rr, "position": "rearRight"}},
+                {"value": {"isEnabled": bool(seat_fl), "position": "frontLeft"}},
+                {"value": {"isEnabled": bool(seat_fr), "position": "frontRight"}},
+                {"value": {"isEnabled": bool(seat_rl), "position": "rearLeft"}},
+                {"value": {"isEnabled": bool(seat_rr), "position": "rearRight"}},
             ]
 
             data = {
@@ -717,27 +717,55 @@ class AudiService:
             )
 
         elif api_level == 1:
-            if temp_f is not None:
-                target_temperature = int((temp_f - 32) * (5 / 9))
-            elif temp_c is not None:
-                target_temperature = int(temp_c)
+            # Some vehicles (for example the Q6 e-tron) reject a settings payload
+            # outright, because they have no comfort climatisation profile to apply
+            # it to. The vehicle reports the request as failed only after it has
+            # synchronised, so the failure shows up in the myAudi app rather than
+            # in our HTTP response. When the caller supplied no settings at all,
+            # send no body and let the vehicle use the settings stored in the car,
+            # which is what the myAudi app does in that case.
+            has_settings = any(
+                value is not None
+                for value in (
+                    temp_f,
+                    temp_c,
+                    climatisation_mode,
+                    climatisation_at_unlock,
+                    glass_heating,
+                    seat_fl,
+                    seat_fr,
+                    seat_rl,
+                    seat_rr,
+                )
+            )
 
-            target_temperature = target_temperature or 21
+            data = None
+            if has_settings:
+                if temp_f is not None:
+                    target_temperature = int((temp_f - 32) * (5 / 9))
+                elif temp_c is not None:
+                    target_temperature = int(temp_c)
 
-            data = {
-                "climatisationMode": climatisation_mode,
-                "targetTemperature": target_temperature,
-                "targetTemperatureUnit": "celsius",
-                "climatisationWithoutExternalPower": True,
-                "climatizationAtUnlock": climatisation_at_unlock,
-                "windowHeatingEnabled": glass_heating,
-                "zoneFrontLeftEnabled": seat_fl,
-                "zoneFrontRightEnabled": seat_fr,
-                "zoneRearLeftEnabled": seat_rl,
-                "zoneRearRightEnabled": seat_rr,
-            }
+                target_temperature = target_temperature or 21
 
-            data = json.dumps(data)
+                data = {
+                    "climatisationMode": climatisation_mode or "comfort",
+                    "targetTemperature": target_temperature,
+                    "targetTemperatureUnit": "celsius",
+                    "climatisationWithoutExternalPower": True,
+                    "climatizationAtUnlock": bool(climatisation_at_unlock),
+                    "windowHeatingEnabled": bool(glass_heating),
+                    "zoneFrontLeftEnabled": bool(seat_fl),
+                    "zoneFrontRightEnabled": bool(seat_fr),
+                    "zoneRearLeftEnabled": bool(seat_rl),
+                    "zoneRearRightEnabled": bool(seat_rr),
+                }
+                data = json.dumps(data)
+            else:
+                _LOGGER.debug(
+                    "No climate settings supplied; starting climatisation with the settings stored in the vehicle."
+                )
+
             headers = {
                 "Authorization": "Bearer " + self._bearer_token_json["access_token"]
             }
