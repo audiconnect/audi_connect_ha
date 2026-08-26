@@ -38,6 +38,7 @@ from .const import (
     CONF_REGION,
     CONF_SPIN,
     CONF_CHARGE_MODE,
+    CONF_PROFILE_ID,
     CONF_TARGET_SOC,
     CONF_UPDATE_SLEEP,
     CONF_USERNAME,
@@ -81,6 +82,19 @@ SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_DEVICE_ID): cv.string,
         vol.Optional(CONF_DURATION): cv.positive_int,
+    }
+)
+
+SERVICE_SET_LOCATION_CHARGE_TARGET = "set_location_charge_target"
+SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Optional(CONF_PROFILE_ID): vol.All(
+            cv.positive_int, vol.Range(min=1, max=10)
+        ),
+        vol.Required(CONF_TARGET_SOC): vol.All(
+            cv.positive_int, vol.Range(min=20, max=100)
+        ),
     }
 )
 
@@ -262,6 +276,19 @@ class AudiAccount(AudiConnectObserver):
             duration=service.data.get(CONF_DURATION),
         )
 
+    async def set_location_charge_target(self, vin: str, service: ServiceCall) -> None:
+        """Set a location profile's target SoC, the value that governs charging
+        at that place. Omit profile_id to target where the car is parked now."""
+        if not await self.connection.set_location_charge_target(
+            vin.lower(),
+            service.data.get(CONF_PROFILE_ID),
+            service.data.get(CONF_TARGET_SOC),
+        ):
+            raise HomeAssistantError(
+                f"Audi Connect could not set the location charge target for {vin}. "
+                "See the log for the underlying error."
+            )
+
     async def set_charge_mode(self, vin: str, service: ServiceCall) -> None:
         """Set which mode the car charges in, without starting or stopping one."""
         await self.connection.set_charge_mode(
@@ -328,6 +355,8 @@ __all__ = [
     "SERVICE_REFRESH_VEHICLE_DATA",
     "SERVICE_REFRESH_VEHICLE_DATA_SCHEMA",
     "SERVICE_SET_CHARGE_MODE",
+    "SERVICE_SET_LOCATION_CHARGE_TARGET",
+    "SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA",
     "SERVICE_SET_CHARGE_MODE_SCHEMA",
     "SERVICE_SET_TARGET_SOC",
     "SERVICE_SET_TARGET_SOC_SCHEMA",

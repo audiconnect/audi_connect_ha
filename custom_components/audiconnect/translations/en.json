@@ -194,6 +194,24 @@
         }
       }
     },
+    "set_location_charge_target": {
+      "name": "Set Location Charge Target",
+      "description": "Set a location charging profile's target state of charge. This is the value that actually governs where a charge stops at that location, unlike the global target. It is a persistent setting: it applies to every charge at that location until changed.",
+      "fields": {
+        "device_id": {
+          "name": "Vehicle",
+          "description": "The Audi vehicle."
+        },
+        "profile_id": {
+          "name": "Profile",
+          "description": "The charging profile id to change. Leave empty to change whichever profile the car is currently parked in."
+        },
+        "target_soc": {
+          "name": "Target State of Charge",
+          "description": "Target charge level for this location, 20-100% in steps of 5."
+        }
+      }
+    },
     "set_charge_mode": {
       "name": "Set Charge Mode",
       "description": "Set which mode the vehicle charges in. This is a preference and does not start or stop a charge in progress.",

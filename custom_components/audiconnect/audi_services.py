@@ -29,6 +29,36 @@ REQUEST_STATUS_SLEEP = 10
 CHARGING_CONFIRM_ATTEMPTS = 3
 CHARGING_CONFIRM_SLEEP = 5
 
+
+def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int, dict]:
+    """Pure read-modify-write core for a location charging profile.
+
+    `value` is chargingProfiles.chargingProfilesStatus.value as the car reports
+    it. Returns (resolved_profile_id, put_body) where put_body is exactly what
+    goes on the wire: {"profile": <the whole profile, one field changed>}.
+
+    Kept pure and module-level so the field-preservation and profile-selection
+    logic is testable against a real payload without standing up the service.
+    """
+    if not (20 <= target_soc <= 100):
+        raise ValueError("Target state of charge must be between 20 and 100 percent")
+
+    profiles = (value or {}).get("profiles") or []
+    if profile_id is None:
+        profile_id = (value or {}).get("vehiclePositionedInProfileID")
+    profile = next((p for p in profiles if p.get("id") == profile_id), None)
+    if profile is None:
+        present = [p.get("id") for p in profiles]
+        raise ValueError(
+            f"No charging profile with id {profile_id} (present: {present})"
+        )
+
+    # Change exactly one field; round-trip the rest, position included.
+    updated = dict(profile)
+    updated["targetSOC_pct"] = target_soc
+    return profile_id, {"profile": updated}
+
+
 SUCCEEDED = "succeeded"
 FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
@@ -643,6 +673,68 @@ class AudiService:
         #     FAILED,
         #     "action.actionState",
         # )
+
+    async def get_charging_profiles_raw(self, vin: str) -> dict:
+        """Fetch just the chargingProfiles job, unparsed.
+
+        The write is a read-modify-write and the BFF replaces the whole profile,
+        so we need the profile exactly as the car reports it, not the scrubbed
+        summary the sensor keeps.
+        """
+        self._api.use_token(self._bearer_token_json)
+        return await self._api.get(
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs="chargingProfiles"
+            )
+        )
+
+    async def set_location_charge_target(
+        self, vin: str, profile_id: int | None, target_soc: int
+    ) -> None:
+        """Set a location charging profile's target SoC.
+
+        This is the value that actually governs where a charge stops at a
+        location; the global charging/settings target does not (upstream #722).
+
+        Endpoint, verb and body shape are from the myAudi app 4.30:
+            PUT charging/profiles   body {"profile": {<whole profile>}}
+        The PUT replaces the entire profile, so this reads the current one,
+        changes only targetSOC_pct, and sends everything else back unchanged.
+        Never invent or drop a field.
+
+        profile_id None targets the profile the car is currently parked in.
+        """
+        raw = await self.get_charging_profiles_raw(vin)
+        value = get_attr(raw, "chargingProfiles.chargingProfilesStatus.value")
+        profile_id, put_body = build_profile_update(value, profile_id, target_soc)
+
+        headers = {
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "Content-Type": "application/json",
+        }
+        try:
+            res = await self._api.request(
+                "PUT",
+                self.__get_cariad_url_for_vin(vin, "charging/profiles"),
+                headers=headers,
+                data=json.dumps(put_body),
+            )
+        except ClientResponseError as err:
+            if err.status == 204:
+                res = None
+            else:
+                raise
+
+        request_id = get_attr(res, "data.requestID") if isinstance(res, dict) else None
+        if request_id is None:
+            _LOGGER.debug(
+                "Location charge target for %s accepted with no request id to confirm",
+                vin,
+            )
+            return
+        await self._confirm_charging_command(
+            vin, f"profile {profile_id} target {target_soc}%", request_id
+        )
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge (battery percentage)."""
