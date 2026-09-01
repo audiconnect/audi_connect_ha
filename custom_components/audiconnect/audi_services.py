@@ -24,6 +24,12 @@ from .util import get_attr, to_byte_array
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
 
+# The home-region lookup can return a ha-5a.prd.<region>.vwg.vwautocloud.net base
+# URI. That host does not present a usable certificate chain, so every call routed
+# there dies with CERTIFICATE_VERIFY_FAILED. Anything containing this is discarded
+# in favour of the static default.
+UNUSABLE_HOME_REGION_HOST = "vwautocloud"
+
 # Charging start/stop confirmation. Kept short because each poll spends one
 # call from the metered daily allowance and blocks the service call.
 CHARGING_CONFIRM_ATTEMPTS = 3
@@ -356,7 +362,20 @@ class AudiService:
                 and res["homeRegion"]["baseUri"].get("content") is not None
             ):
                 uri = res["homeRegion"]["baseUri"]["content"]
-                if uri != "https://mal-1a.prd.ece.vwg-connect.com/api":
+                if UNUSABLE_HOME_REGION_HOST in uri:
+                    # The endpoint hands back ha-5a.prd.<region>.vwg.vwautocloud.net,
+                    # which does not serve a usable certificate chain and fails with
+                    # CERTIFICATE_VERIFY_FAILED. The static default above already
+                    # works, so keep it. The guard at the top of this method covers
+                    # the same host for non-US accounts on API level 1; this covers
+                    # every other combination, which is how US accounts (#829) and
+                    # API level 0 accounts in Europe still reached it.
+                    _LOGGER.debug(
+                        "HOME REGION: ignoring unusable base URI %s, keeping %s",
+                        uri,
+                        self._homeRegion[vin],
+                    )
+                elif uri != "https://mal-1a.prd.ece.vwg-connect.com/api":
                     self._homeRegionSetter[vin] = uri.split("/api")[0]
                     self._homeRegion[vin] = self._homeRegionSetter[vin].replace(
                         "mal-", "fal-"
