@@ -97,9 +97,11 @@ def _raise_refresh_rejected(context: str, parsed: dict, raw: str) -> NoReturn:
     """Raise for a refresh-token exchange that returned no access token.
 
     ``invalid_grant`` → AudiAuthError (reauth genuinely needed); anything else →
-    AudiTokenRefreshError (retryable, no reauth prompt).
+    AudiTokenRefreshError (retryable, no reauth prompt). Used for both the IDK
+    refresh and the mbboauth refresh, so it prefers ``error_description`` (which
+    mbboauth returns) for the message while classifying on ``error``.
     """
-    detail = str(parsed.get("error", raw[:200]))
+    detail = str(parsed.get("error_description") or parsed.get("error") or raw[:200])
     if parsed.get("error") in _REFRESH_REAUTH_ERRORS:
         raise AudiAuthError(f"{context}: {detail}")
     raise AudiTokenRefreshError(f"{context}: {detail}")
@@ -1314,7 +1316,14 @@ class AudiService:
                     rsp_wtxt=True,
                 )
                 # this code is the old "vwToken"
-                self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+                refreshed = json.loads(mbboauth_refresh_rsptxt)
+                if "access_token" not in refreshed:
+                    _raise_refresh_rejected(
+                        "mbboauth refresh rejected",
+                        refreshed,
+                        mbboauth_refresh_rsptxt,
+                    )
+                self.vwToken = refreshed
                 # If a new refresh_token is provided, save it for further refreshes
                 if "refresh_token" in self.vwToken:
                     self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
@@ -1900,7 +1909,12 @@ class AudiService:
                 rsp_wtxt=True,
             )
             # this code is the old "vwToken"
-            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+            refreshed = json.loads(mbboauth_refresh_rsptxt)
+            if "access_token" not in refreshed:
+                _raise_refresh_rejected(
+                    "mbboauth refresh rejected", refreshed, mbboauth_refresh_rsptxt
+                )
+            self.vwToken = refreshed
         else:
             _LOGGER.debug(
                 "mbboauth: no refresh_token in auth response, using auth token directly as vwToken"
