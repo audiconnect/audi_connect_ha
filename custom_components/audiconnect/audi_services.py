@@ -10,7 +10,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, UTC
 from hashlib import sha256, sha512
-from typing import Any
+from typing import Any, NoReturn
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from aiohttp import ClientResponseError
@@ -74,6 +74,37 @@ _LOGGER = logging.getLogger(__name__)
 
 class AudiAuthError(Exception):
     """Raised when authorization is missing or a token has been rejected."""
+
+
+class AudiTokenRefreshError(Exception):
+    """Raised when a token refresh is rejected for a reason re-authenticating
+    cannot fix — e.g. ``invalid_client`` (the client_id is fixed in code, so a
+    reauth reuses the same client), or a transient / malformed response. It is
+    treated as a retryable update failure rather than escalated to reauth.
+    """
+
+
+# OAuth errors on a refresh exchange that genuinely need the user to sign in
+# again: the refresh token itself is rejected, and only a fresh grant can fix
+# it. Everything else — invalid_client, a transient blip, a malformed body — is
+# retried instead of raising an un-actionable reauth prompt. Listing the hard
+# failures (rather than the transient ones) means an unknown code degrades to a
+# retry, which is the harmless direction.
+_REFRESH_REAUTH_ERRORS = frozenset({"invalid_grant"})
+
+
+def _raise_refresh_rejected(context: str, parsed: dict, raw: str) -> NoReturn:
+    """Raise for a refresh-token exchange that returned no access token.
+
+    ``invalid_grant`` → AudiAuthError (reauth genuinely needed); anything else →
+    AudiTokenRefreshError (retryable, no reauth prompt). Used for both the IDK
+    refresh and the mbboauth refresh, so it prefers ``error_description`` (which
+    mbboauth returns) for the message while classifying on ``error``.
+    """
+    detail = str(parsed.get("error_description") or parsed.get("error") or raw[:200])
+    if parsed.get("error") in _REFRESH_REAUTH_ERRORS:
+        raise AudiAuthError(f"{context}: {detail}")
+    raise AudiTokenRefreshError(f"{context}: {detail}")
 
 
 def _to_absolute(absolute_url: str, relative_url: str) -> str:
@@ -1285,7 +1316,14 @@ class AudiService:
                     rsp_wtxt=True,
                 )
                 # this code is the old "vwToken"
-                self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+                refreshed = json.loads(mbboauth_refresh_rsptxt)
+                if "access_token" not in refreshed:
+                    _raise_refresh_rejected(
+                        "mbboauth refresh rejected",
+                        refreshed,
+                        mbboauth_refresh_rsptxt,
+                    )
+                self.vwToken = refreshed
                 # If a new refresh_token is provided, save it for further refreshes
                 if "refresh_token" in self.vwToken:
                     self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
@@ -1318,9 +1356,8 @@ class AudiService:
             )
             refreshed = json.loads(bearer_token_rsptxt)
             if "access_token" not in refreshed:
-                raise AudiAuthError(
-                    "IDK refresh rejected: "
-                    + str(refreshed.get("error", bearer_token_rsptxt[:200]))
+                _raise_refresh_rejected(
+                    "IDK refresh rejected", refreshed, bearer_token_rsptxt
                 )
             self._bearer_token_json = refreshed
 
@@ -1721,9 +1758,7 @@ class AudiService:
         )
         result = json.loads(rsptxt)
         if "access_token" not in result:
-            raise AudiAuthError(
-                "Token refresh rejected: " + str(result.get("error", rsptxt[:200]))
-            )
+            _raise_refresh_rejected("Token refresh rejected", result, rsptxt)
         self._bearer_token_json = result
         await self._finalize_session()
         return self._bearer_token_json.get("refresh_token", refresh_token)
@@ -1874,7 +1909,12 @@ class AudiService:
                 rsp_wtxt=True,
             )
             # this code is the old "vwToken"
-            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+            refreshed = json.loads(mbboauth_refresh_rsptxt)
+            if "access_token" not in refreshed:
+                _raise_refresh_rejected(
+                    "mbboauth refresh rejected", refreshed, mbboauth_refresh_rsptxt
+                )
+            self.vwToken = refreshed
         else:
             _LOGGER.debug(
                 "mbboauth: no refresh_token in auth response, using auth token directly as vwToken"
@@ -1891,4 +1931,4 @@ class AudiService:
         return sha512(b).hexdigest().upper()
 
 
-__all__ = ["AudiService"]
+__all__ = ["AudiAuthError", "AudiService", "AudiTokenRefreshError"]
