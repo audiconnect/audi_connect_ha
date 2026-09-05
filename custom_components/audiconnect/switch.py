@@ -6,7 +6,11 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.components.switch import (
+    SwitchDeviceClass,
+    SwitchEntity,
+    SwitchEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -14,6 +18,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import AudiRuntimeData
 from .audi_entity import AudiEntity, is_entity_supported
 from .coordinator import AudiDataUpdateCoordinator
+
+def _is_charging(value: Any) -> bool:
+    """Only an in-progress charge counts as on; the plug states do not."""
+    return isinstance(value, str) and value.lower() == "charging"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -23,6 +31,7 @@ class AudiSwitchEntityDescription(SwitchEntityDescription):
     attr_key: str
     turn_on_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
     turn_off_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
+    value_fn: Callable[[Any], bool] = bool
 
 
 SWITCH_DESCRIPTIONS: tuple[AudiSwitchEntityDescription, ...] = (
@@ -33,6 +42,24 @@ SWITCH_DESCRIPTIONS: tuple[AudiSwitchEntityDescription, ...] = (
         icon="mdi:radiator",
         turn_on_fn=lambda conn, vin: conn.set_vehicle_pre_heater(vin, True),
         turn_off_fn=lambda conn, vin: conn.set_vehicle_pre_heater(vin, False),
+    ),
+    AudiSwitchEntityDescription(
+        key="charger",
+        attr_key="charging_state",
+        name="Charger",
+        icon="mdi:ev-station",
+        value_fn=_is_charging,
+        turn_on_fn=lambda conn, vin: conn.set_battery_charger(vin, True, False),
+        turn_off_fn=lambda conn, vin: conn.set_battery_charger(vin, False, False),
+    ),
+    AudiSwitchEntityDescription(
+        key="window_heating",
+        attr_key="glass_surface_heating",
+        name="Window heating",
+        icon="mdi:car-defrost-front",
+        device_class=SwitchDeviceClass.SWITCH,
+        turn_on_fn=lambda conn, vin: conn.set_vehicle_window_heating(vin, True),
+        turn_off_fn=lambda conn, vin: conn.set_vehicle_window_heating(vin, False),
     ),
 )
 
@@ -71,7 +98,8 @@ class AudiSwitch(AudiEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        return getattr(self._vehicle, self.entity_description.attr_key, False)
+        value = getattr(self._vehicle, self.entity_description.attr_key, None)
+        return self.entity_description.value_fn(value)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
