@@ -77,18 +77,19 @@ _Note: The integration will reload automatically upon clicking `Submit`, but a H
 
 Each vehicle's device page exposes its actions directly, so the common ones no longer need a service call. Availability depends on what the vehicle reports and, for the lock and engine controls, on an S-PIN being configured.
 
-| Control                          | Type   | Replaces                                                   |
-| -------------------------------- | ------ | ---------------------------------------------------------- |
-| `Door lock`                      | Lock   | `execute_vehicle_action` with `lock` / `unlock`            |
-| `Charger`                        | Switch | `execute_vehicle_action` with `start_/stop_charger`        |
-| `Preheater`                      | Switch | `execute_vehicle_action` with `start_/stop_preheater`      |
-| `Global charge target`           | Number | `set_target_soc`                                           |
-| `Current location charge target` | Number | `set_location_charge_target` (no `profile_id`)             |
-| `<Profile> charge target`        | Number | `set_location_charge_target` with `profile_id`             |
-| `Start timed charging`           | Button | `execute_vehicle_action` with `start_timed_charger`        |
-| `Start engine` / `Stop engine`   | Button | `start_engine` / `stop_engine`                             |
-| `Refresh vehicle data`           | Button | `refresh_vehicle_data`                                     |
->>>>>>> c4b3454 (style: apply pre-commit fixes)
+| Control                          | Type    | Replaces                                                   |
+| -------------------------------- | ------- | ---------------------------------------------------------- |
+| `Door lock`                      | Lock    | `execute_vehicle_action` with `lock` / `unlock`            |
+| `Climatisation`                  | Climate | `start_climate_control` / `stop_climatisation`             |
+| `Charger`                        | Switch  | `execute_vehicle_action` with `start_/stop_charger`        |
+| `Preheater`                      | Switch  | `execute_vehicle_action` with `start_/stop_preheater`      |
+| `Global charge target`           | Number  | `set_target_soc`                                           |
+| `Current location charge target` | Number  | `set_location_charge_target` (no `profile_id`)             |
+| `<Profile> charge target`        | Number  | `set_location_charge_target` with `profile_id`             |
+| `Start timed charging`           | Button  | `execute_vehicle_action` with `start_timed_charger`        |
+| `Start engine` / `Stop engine`   | Button  | `start_engine` / `stop_engine`                             |
+| `Refresh vehicle data`           | Button  | `refresh_vehicle_data`                                     |
+>>>>>>> 28a4e4b (feat: control climatisation with a climate entity)
 
 ### Charge targets
 
@@ -100,7 +101,15 @@ There are three kinds, because the car has three places to put the number:
 
 `sensor.<vehicle>_active_charging_profile_name` says which profile is in force, so a dashboard can show the governing location beside the sliders. The per-profile controls are keyed on the profile id, not its name, so renaming a location in the myAudi app renames the control without breaking automations that reference it.
 
-The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
+### Climatisation
+
+The climate entity turns climatisation on and off and sets the target temperature. The car reports whether climatisation is running and in which mode (heating, cooling, ventilation), so the entity reflects the vehicle rather than what Home Assistant last asked for.
+
+Two things it deliberately does not do. It has no current temperature, because the car reports the outdoor reading and not the cabin, and showing the outside temperature as a climate entity's current temperature would misstate what it measures. And it does not expose seat or glass heating, climatisation-at-unlock, or the comfort/economy mode: the vehicle never reports those back, so a control for them would only ever show what you last set. Use the `start_climate_control` service action for those.
+
+The target temperature is the one value held by Home Assistant rather than read from the car, since the API does not report it. It is restored across restarts.
+
+`start_auxiliary_heating` (duration) stays service-only for the same reason.
 
 ## Service Actions
 
