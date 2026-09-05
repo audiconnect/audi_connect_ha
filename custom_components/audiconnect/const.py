@@ -93,9 +93,12 @@ API_LEVELS: list[int] = [0, 1]
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.CLIMATE,
     Platform.SENSOR,
     Platform.DEVICE_TRACKER,
     Platform.LOCK,
+    Platform.NUMBER,
     Platform.SWITCH,
 ]
 
