@@ -83,10 +83,22 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `Charger`                            | Switch | `execute_vehicle_action` with `start_/stop_charger`           |
 | `Window heating`                     | Switch | `execute_vehicle_action` with `start_/stop_window_heating`    |
 | `Preheater`                          | Switch | `execute_vehicle_action` with `start_/stop_preheater`         |
-| `Target state of charge`             | Number | `set_target_soc`                                              |
+| `Global charge target`               | Number | `set_target_soc`                                              |
+| `Current location charge target`     | Number | `set_location_charge_target` (no `profile_id`)                 |
+| `<Profile> charge target`            | Number | `set_location_charge_target` with `profile_id`                 |
 | `Start timed charging`               | Button | `execute_vehicle_action` with `start_timed_charger`           |
 | `Start engine` / `Stop engine`       | Button | `start_engine` / `stop_engine`                                |
 | `Refresh vehicle data`               | Button | `refresh_vehicle_data`                                        |
+
+### Charge targets
+
+There are three kinds, because the car has three places to put the number:
+
+- **Global charge target** writes `charging/settings`. It does not govern where a charge stops at a location (upstream #722), so it is the least useful of the three and is kept only because it is a real, separately-stored setting.
+- **Current location charge target** writes whichever profile the car is parked in, resolved by the integration from `vehiclePositionedInProfileID`. Use it in automations that should apply wherever the car happens to be.
+- **One number per location profile**, named after the profile ("Home charge target", "Work charge target"). These are enumerated from what the car reports, so a profile added or removed in the car appears or disappears after the next refresh. A profile deleted in the car leaves its control unavailable rather than showing a stale target.
+
+`sensor.<vehicle>_active_charging_profile_name` says which profile is in force, so a dashboard can show the governing location beside the sliders. The per-profile controls are keyed on the profile id, not its name, so renaming a location in the myAudi app renames the control without breaking automations that reference it.
 
 The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
 
