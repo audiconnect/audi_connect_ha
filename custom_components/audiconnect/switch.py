@@ -19,6 +19,7 @@ from . import AudiRuntimeData
 from .audi_entity import AudiEntity, is_entity_supported
 from .coordinator import AudiDataUpdateCoordinator
 
+
 def _is_charging(value: Any) -> bool:
     """Only an in-progress charge counts as on; the plug states do not."""
     return isinstance(value, str) and value.lower() == "charging"
