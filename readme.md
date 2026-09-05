@@ -77,19 +77,19 @@ _Note: The integration will reload automatically upon clicking `Submit`, but a H
 
 Each vehicle's device page exposes its actions directly, so the common ones no longer need a service call. Availability depends on what the vehicle reports and, for the lock and engine controls, on an S-PIN being configured.
 
-| Control                              | Type   | Replaces                                                    |
-| ------------------------------------ | ------ | ----------------------------------------------------------- |
-| `Door lock`                          | Lock   | `execute_vehicle_action` with `lock` / `unlock`               |
-| `Climatisation`                      | Climate | `start_climate_control` / `stop_climatisation`               |
-| `Charger`                            | Switch | `execute_vehicle_action` with `start_/stop_charger`           |
-| `Window heating`                     | Switch | `execute_vehicle_action` with `start_/stop_window_heating`    |
-| `Preheater`                          | Switch | `execute_vehicle_action` with `start_/stop_preheater`         |
-| `Global charge target`               | Number | `set_target_soc`                                              |
-| `Current location charge target`     | Number | `set_location_charge_target` (no `profile_id`)                 |
-| `<Profile> charge target`            | Number | `set_location_charge_target` with `profile_id`                 |
-| `Start timed charging`               | Button | `execute_vehicle_action` with `start_timed_charger`           |
-| `Start engine` / `Stop engine`       | Button | `start_engine` / `stop_engine`                                |
-| `Refresh vehicle data`               | Button | `refresh_vehicle_data`                                        |
+| Control                          | Type    | Replaces                                                   |
+| -------------------------------- | ------- | ---------------------------------------------------------- |
+| `Door lock`                      | Lock    | `execute_vehicle_action` with `lock` / `unlock`            |
+| `Climatisation`                  | Climate | `start_climate_control` / `stop_climatisation`             |
+| `Charger`                        | Switch  | `execute_vehicle_action` with `start_/stop_charger`        |
+| `Window heating`                 | Switch  | `execute_vehicle_action` with `start_/stop_window_heating` |
+| `Preheater`                      | Switch  | `execute_vehicle_action` with `start_/stop_preheater`      |
+| `Global charge target`           | Number  | `set_target_soc`                                           |
+| `Current location charge target` | Number  | `set_location_charge_target` (no `profile_id`)             |
+| `<Profile> charge target`        | Number  | `set_location_charge_target` with `profile_id`             |
+| `Start timed charging`           | Button  | `execute_vehicle_action` with `start_timed_charger`        |
+| `Start engine` / `Stop engine`   | Button  | `start_engine` / `stop_engine`                             |
+| `Refresh vehicle data`           | Button  | `refresh_vehicle_data`                                     |
 
 ### Charge targets
 

@@ -169,7 +169,9 @@ class AudiProfileChargeTarget(AudiChargeTargetEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self._profile_id = profile["id"]
-        self._attr_name = f"{profile.get('name') or f'Profile {self._profile_id}'} charge target"
+        self._attr_name = (
+            f"{profile.get('name') or f'Profile {self._profile_id}'} charge target"
+        )
         self._attr_unique_id = (
             f"{vehicle.vin.lower()}_number_charge_profile_{self._profile_id}_target_soc"
         )

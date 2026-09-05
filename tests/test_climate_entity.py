@@ -195,9 +195,7 @@ def test_setting_a_temperature_while_running_re_sends_it():
     connection = RecordingConnection()
     _, entity = build("heating", connection)
     asyncio.run(entity.async_set_temperature(**{ATTR_TEMPERATURE: 19.5}))
-    assert connection.calls == [
-        ("start_climate_control", (VIN,), {"temp_c": 19.5})
-    ]
+    assert connection.calls == [("start_climate_control", (VIN,), {"temp_c": 19.5})]
 
 
 # --- the write paths --------------------------------------------------------------
@@ -218,9 +216,7 @@ def test_turn_off_uses_the_stop_action_which_is_still_live():
     connection = RecordingConnection()
     _, entity = build("heating", connection)
     asyncio.run(entity.async_set_hvac_mode(HVACMode.OFF))
-    assert connection.calls == [
-        ("set_vehicle_climatisation", (VIN, False), {})
-    ]
+    assert connection.calls == [("set_vehicle_climatisation", (VIN, False), {})]
 
 
 def test_the_legacy_start_really_is_dead():
@@ -237,7 +233,9 @@ def test_the_legacy_start_really_is_dead():
 @pytest.mark.parametrize("mode", [HVACMode.HEAT_COOL, HVACMode.OFF])
 def test_a_failed_command_raises_and_does_not_refresh(mode):
     connection = RecordingConnection(result=False)
-    coordinator, entity = build("off" if mode is HVACMode.HEAT_COOL else "heating", connection)
+    coordinator, entity = build(
+        "off" if mode is HVACMode.HEAT_COOL else "heating", connection
+    )
     with pytest.raises(HomeAssistantError):
         asyncio.run(entity.async_set_hvac_mode(mode))
     assert coordinator.refreshed == 0
