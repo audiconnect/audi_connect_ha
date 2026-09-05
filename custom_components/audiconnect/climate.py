@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from homeassistant.components.climate import (
@@ -91,11 +92,9 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
             return
         if (last := last_state.attributes.get(ATTR_TEMPERATURE)) is None:
             return
-        try:
+        # A recorded "unknown" must not wedge the entity on restart.
+        with contextlib.suppress(TypeError, ValueError):
             self._attr_target_temperature = float(last)
-        except (TypeError, ValueError):
-            # A recorded "unknown" must not wedge the entity on restart.
-            pass
 
     @property
     def _state(self) -> str:
