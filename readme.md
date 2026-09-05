@@ -73,6 +73,23 @@ Find configuration options under **Settings ➤ Devices & Services ➤ Integrati
 
 _Note: The integration will reload automatically upon clicking `Submit`, but a Home Assistant restart is suggested._
 
+## Controls
+
+Each vehicle's device page exposes its actions directly, so the common ones no longer need a service call. Availability depends on what the vehicle reports and, for the lock and engine controls, on an S-PIN being configured.
+
+| Control                        | Type   | Replaces                                                   |
+| ------------------------------ | ------ | ---------------------------------------------------------- |
+| `Door lock`                    | Lock   | `execute_vehicle_action` with `lock` / `unlock`            |
+| `Charger`                      | Switch | `execute_vehicle_action` with `start_/stop_charger`        |
+| `Window heating`               | Switch | `execute_vehicle_action` with `start_/stop_window_heating` |
+| `Preheater`                    | Switch | `execute_vehicle_action` with `start_/stop_preheater`      |
+| `Target state of charge`       | Number | `set_target_soc`                                           |
+| `Start timed charging`         | Button | `execute_vehicle_action` with `start_timed_charger`        |
+| `Start engine` / `Stop engine` | Button | `start_engine` / `stop_engine`                             |
+| `Refresh vehicle data`         | Button | `refresh_vehicle_data`                                     |
+
+The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
+
 ## Service Actions
 
 ### Audi Connect: Refresh Vehicle Data
