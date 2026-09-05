@@ -55,9 +55,7 @@ def calls_of(fn):
     return conn.calls
 
 
-@pytest.mark.parametrize(
-    "description", SWITCH_DESCRIPTIONS, ids=lambda d: d.key
-)
+@pytest.mark.parametrize("description", SWITCH_DESCRIPTIONS, ids=lambda d: d.key)
 def test_switch_callables_hit_methods_that_exist(description):
     for fn in (description.turn_on_fn, description.turn_off_fn):
         [(name, args, _)] = calls_of(fn)
