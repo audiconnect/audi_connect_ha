@@ -32,7 +32,6 @@ VIN = "WAUZZZ00000000001"
 LIVE_METHODS = {
     "set_vehicle_pre_heater",
     "set_battery_charger",
-    "set_vehicle_window_heating",
 }
 
 
@@ -160,8 +159,8 @@ class _Connection:
 def _switch(result):
     from custom_components.audiconnect.switch import AudiSwitch
 
-    description = next(d for d in SWITCH_DESCRIPTIONS if d.key == "window_heating")
-    vehicle = type("V", (), {"vin": VIN, "glass_surface_heating": False})()
+    description = next(d for d in SWITCH_DESCRIPTIONS if d.key == "charger")
+    vehicle = type("V", (), {"vin": VIN, "charging_state": "off"})()
     return _Coordinator(result), AudiSwitch(_Coordinator(result), description, vehicle)
 
 

@@ -81,7 +81,6 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | ------------------------------ | ------ | ---------------------------------------------------------- |
 | `Door lock`                    | Lock   | `execute_vehicle_action` with `lock` / `unlock`            |
 | `Charger`                      | Switch | `execute_vehicle_action` with `start_/stop_charger`        |
-| `Window heating`               | Switch | `execute_vehicle_action` with `start_/stop_window_heating` |
 | `Preheater`                    | Switch | `execute_vehicle_action` with `start_/stop_preheater`      |
 | `Target state of charge`       | Number | `set_target_soc`                                           |
 | `Start timed charging`         | Button | `execute_vehicle_action` with `start_timed_charger`        |

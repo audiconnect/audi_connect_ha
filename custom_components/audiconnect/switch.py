@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.switch import (
-    SwitchDeviceClass,
     SwitchEntity,
     SwitchEntityDescription,
 )
@@ -53,15 +52,6 @@ SWITCH_DESCRIPTIONS: tuple[AudiSwitchEntityDescription, ...] = (
         value_fn=_is_charging,
         turn_on_fn=lambda conn, vin: conn.set_battery_charger(vin, True, False),
         turn_off_fn=lambda conn, vin: conn.set_battery_charger(vin, False, False),
-    ),
-    AudiSwitchEntityDescription(
-        key="window_heating",
-        attr_key="glass_surface_heating",
-        name="Window heating",
-        icon="mdi:car-defrost-front",
-        device_class=SwitchDeviceClass.SWITCH,
-        turn_on_fn=lambda conn, vin: conn.set_vehicle_window_heating(vin, True),
-        turn_off_fn=lambda conn, vin: conn.set_vehicle_window_heating(vin, False),
     ),
 )
 
