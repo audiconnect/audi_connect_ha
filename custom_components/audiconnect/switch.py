@@ -13,6 +13,7 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
@@ -30,8 +31,8 @@ class AudiSwitchEntityDescription(SwitchEntityDescription):
     """Describes an Audi switch entity."""
 
     attr_key: str
-    turn_on_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
-    turn_off_fn: Callable[[Any, str], Coroutine[Any, Any, None]]
+    turn_on_fn: Callable[[Any, str], Coroutine[Any, Any, bool]]
+    turn_off_fn: Callable[[Any, str], Coroutine[Any, Any, bool]]
     value_fn: Callable[[Any], bool] = bool
 
 
@@ -102,15 +103,19 @@ class AudiSwitch(AudiEntity, SwitchEntity):
         value = getattr(self._vehicle, self.entity_description.attr_key, None)
         return self.entity_description.value_fn(value)
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
+    async def _run(self, fn: Callable[[Any, str], Coroutine[Any, Any, bool]]) -> None:
         connection = self.coordinator.account.connection
-        await self.entity_description.turn_on_fn(connection, self._vehicle.vin)
+        if not await fn(connection, self._vehicle.vin):
+            raise HomeAssistantError(
+                f"Failed to switch {self.name}; see the log for details"
+            )
         await self.coordinator.async_request_refresh()
 
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._run(self.entity_description.turn_on_fn)
+
     async def async_turn_off(self, **kwargs: Any) -> None:
-        connection = self.coordinator.account.connection
-        await self.entity_description.turn_off_fn(connection, self._vehicle.vin)
-        await self.coordinator.async_request_refresh()
+        await self._run(self.entity_description.turn_off_fn)
 
 
 __all__ = ["AudiSwitch", "async_setup_entry"]

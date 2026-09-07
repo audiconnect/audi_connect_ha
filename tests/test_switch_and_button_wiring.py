@@ -16,6 +16,7 @@ import asyncio
 import inspect
 
 import pytest
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.audiconnect.audi_connect_account import AudiConnectAccount
 from custom_components.audiconnect.button import (
@@ -129,3 +130,57 @@ def test_no_spin_still_means_no_engine_buttons():
 
 def test_the_gate_is_case_insensitive():
     assert not _engine_controls_supported(_Vehicle(spin="1234", car_type="Electric"))
+
+
+# --- a failed command must not read as success --------------------------------------
+
+
+class _Coordinator:
+    last_update_success = True
+
+    def __init__(self, result):
+        self.account = type("A", (), {"connection": _Connection(result)})()
+        self.refreshed = 0
+
+    async def async_request_refresh(self):
+        self.refreshed += 1
+
+
+class _Connection:
+    def __init__(self, result):
+        self.result = result
+
+    def __getattr__(self, name):
+        async def _call(*a, **k):
+            return self.result
+
+        return _call
+
+
+def _switch(result):
+    from custom_components.audiconnect.switch import AudiSwitch
+
+    description = next(d for d in SWITCH_DESCRIPTIONS if d.key == "window_heating")
+    vehicle = type("V", (), {"vin": VIN, "glass_surface_heating": False})()
+    return _Coordinator(result), AudiSwitch(_Coordinator(result), description, vehicle)
+
+
+def test_a_rejected_command_raises_rather_than_reporting_success():
+    """Found live: window heating hit a 404 and the switch reported success,
+    because it never looked at what the connection returned. The lock, number
+    and climate entities all raise; this one silently did not."""
+    coordinator, switch = _switch(False)
+    switch.coordinator = coordinator
+    with pytest.raises(HomeAssistantError):
+        asyncio.run(switch.async_turn_on())
+    assert coordinator.refreshed == 0
+
+    with pytest.raises(HomeAssistantError):
+        asyncio.run(switch.async_turn_off())
+
+
+def test_a_successful_command_refreshes():
+    coordinator, switch = _switch(True)
+    switch.coordinator = coordinator
+    asyncio.run(switch.async_turn_on())
+    assert coordinator.refreshed == 1
