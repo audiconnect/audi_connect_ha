@@ -241,6 +241,21 @@ def test_a_failed_command_raises_and_does_not_refresh(mode):
     assert coordinator.refreshed == 0
 
 
+def test_the_advertised_step_matches_what_the_car_receives():
+    """api_level 1 sends int(temp_c), so a 0.5 step would promise a precision
+    the car discards. Same class of defect as #751's Fahrenheit round trip,
+    reached by truncation instead."""
+    import inspect
+
+    from custom_components.audiconnect import audi_services
+
+    source = inspect.getsource(audi_services.AudiService.start_climate_control)
+    assert "int(temp_c)" in source  # control: the truncation is still there
+
+    _, entity = build()
+    assert entity.target_temperature_step == 1.0
+
+
 def test_turn_on_and_off_are_advertised():
     _, entity = build()
     assert entity.supported_features & ClimateEntityFeature.TURN_ON
