@@ -1799,6 +1799,23 @@ class AudiConnectVehicle:
         return check is not None and check != "unsupported"
 
     @property
+    def preferred_charge_mode(self):
+        """Return the charge mode the car is set to, not the one in progress."""
+        if self.preferred_charge_mode_supported:
+            return self._vehicle.state.get("preferredChargeMode")
+
+    @property
+    def preferred_charge_mode_supported(self):
+        check = self._vehicle.state.get("preferredChargeMode")
+        return check is not None and check != "unsupported"
+
+    @property
+    def available_charge_modes(self):
+        """Return the modes the car says it accepts, which can be empty."""
+        modes = self._vehicle.state.get("availableChargeModes")
+        return modes if isinstance(modes, list) else None
+
+    @property
     def energy_flow(self):
         """Return charging mode"""
         if self.energy_flow_supported:
