@@ -69,7 +69,11 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         | ClimateEntityFeature.TURN_OFF
     )
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_target_temperature_step = 0.5
+    # The api_level 1 payload truncates the target to a whole number
+    # (int(temp_c)), so a half-degree step would advertise a precision the car
+    # never receives. api_level 0 keeps the fraction, but the step has to hold
+    # for both.
+    _attr_target_temperature_step = 1.0
     _attr_min_temp = _MIN_TEMP_C
     _attr_max_temp = _MAX_TEMP_C
 
