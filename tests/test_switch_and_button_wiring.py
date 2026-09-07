@@ -18,7 +18,10 @@ import inspect
 import pytest
 
 from custom_components.audiconnect.audi_connect_account import AudiConnectAccount
-from custom_components.audiconnect.button import BUTTON_DESCRIPTIONS
+from custom_components.audiconnect.button import (
+    BUTTON_DESCRIPTIONS,
+    _engine_controls_supported,
+)
 from custom_components.audiconnect.switch import SWITCH_DESCRIPTIONS
 
 VIN = "WAUZZZ00000000001"
@@ -80,3 +83,49 @@ def test_button_callables_are_awaitable(description):
     result = description.press_fn(Account(), VIN)
     assert inspect.isawaitable(result)
     asyncio.run(result)
+
+
+# --- the engine buttons ----------------------------------------------------------
+
+
+class _Vehicle:
+    def __init__(self, spin=None, car_type=None):
+        self._audi_service = type("Svc", (), {"_spin": spin})()
+        if car_type is not None:
+            self.car_type = car_type
+
+
+def _engine_buttons(vehicle):
+    return [
+        d.key
+        for d in BUTTON_DESCRIPTIONS
+        if d.key in ("start_engine", "stop_engine") and d.supported_fn(vehicle)
+    ]
+
+
+def test_battery_electric_cars_get_no_engine_buttons():
+    """Found on a live BEV: the buttons were created because an S-PIN was set,
+    with nothing checking whether there is an engine to start."""
+    assert _engine_buttons(_Vehicle(spin="1234", car_type="electric")) == []
+
+
+def test_a_combustion_car_still_gets_them():
+    assert _engine_buttons(_Vehicle(spin="1234", car_type="gasoline")) == [
+        "start_engine",
+        "stop_engine",
+    ]
+
+
+@pytest.mark.parametrize("car_type", [None, "unsupported", "hybrid", ""])
+def test_an_unknown_car_type_keeps_the_buttons(car_type):
+    """Omitting a control the car does support is the worse failure, so only a
+    positive "electric" suppresses them."""
+    assert len(_engine_buttons(_Vehicle(spin="1234", car_type=car_type))) == 2
+
+
+def test_no_spin_still_means_no_engine_buttons():
+    assert _engine_buttons(_Vehicle(spin=None, car_type="gasoline")) == []
+
+
+def test_the_gate_is_case_insensitive():
+    assert not _engine_controls_supported(_Vehicle(spin="1234", car_type="Electric"))
