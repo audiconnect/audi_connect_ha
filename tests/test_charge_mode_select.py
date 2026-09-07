@@ -122,11 +122,41 @@ def test_an_absent_setting_reads_as_no_selection(value):
     assert entity.current_option is None
 
 
-def test_a_mode_outside_the_option_list_is_still_shown():
-    """Better to show a mode we did not expect than to render the entity
-    invalid by reporting a current_option that is not in options."""
+def test_a_mode_outside_the_option_list_is_added_to_the_options():
+    """Home Assistant renders the entity as unknown when current_option is not
+    in options, so an unexpected-but-real mode has to join the list rather than
+    just be returned."""
     _, entity = build(preferred="somethingelse", available=["manual", "timer"])
     assert entity.current_option == "somethingelse"
+    assert entity.current_option in entity.options
+
+
+@pytest.mark.parametrize("reported", ["invalid", "unsupported", "unknown", "INVALID"])
+def test_a_non_answer_reads_as_no_selection(reported):
+    """The live car reports "invalid" while parked, which is a resting state
+    rather than an error. It must not be offered as a selectable mode."""
+    _, entity = build(preferred=reported)
+    assert entity.current_option is None
+    assert reported not in entity.options
+
+
+def test_the_option_list_never_contains_a_non_answer():
+    _, entity = build(preferred="manual", available=["manual", "invalid", "timer"])
+    assert entity.options == ["manual", "timer"]
+
+
+def test_current_option_is_always_in_options_or_none():
+    """The invariant Home Assistant enforces, checked across every case above."""
+    for preferred, available in (
+        ("manual", None),
+        ("timer", ["manual", "timer"]),
+        ("hybrid", ["manual"]),
+        ("invalid", []),
+        (None, None),
+        ("", ["manual"]),
+    ):
+        _, entity = build(preferred=preferred, available=available)
+        assert entity.current_option is None or entity.current_option in entity.options
 
 
 # --- writing ----------------------------------------------------------------------

@@ -21,11 +21,32 @@ _ATTR_KEY = "preferred_charge_mode"
 # than the source of truth.
 _FALLBACK_MODES = ["manual", "timer"]
 
+# What the car sends when it has no answer rather than a mode. A live vehicle
+# reported "invalid" while parked, so this is the normal resting state, not an
+# error.
+_NOT_A_MODE = frozenset({"invalid", "unsupported", "unknown", ""})
+
+
+def _current_mode(vehicle: Any) -> str | None:
+    value = getattr(vehicle, "preferred_charge_mode", None)
+    if not isinstance(value, str) or value.lower() in _NOT_A_MODE:
+        return None
+    return value
+
 
 def _options_for(vehicle: Any) -> list[str]:
     reported = getattr(vehicle, "available_charge_modes", None)
-    usable = [m for m in reported or [] if isinstance(m, str) and m]
-    return usable or list(_FALLBACK_MODES)
+    usable = [
+        m for m in reported or [] if isinstance(m, str) and m.lower() not in _NOT_A_MODE
+    ]
+    options = usable or list(_FALLBACK_MODES)
+    # Home Assistant renders the entity as unknown when current_option is not in
+    # options, so a mode the car reports but does not list has to be added
+    # rather than merely passed through.
+    current = _current_mode(vehicle)
+    if current is not None and current not in options:
+        options = [*options, current]
+    return options
 
 
 async def async_setup_entry(
@@ -66,12 +87,7 @@ class AudiChargeModeSelect(AudiEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        value = getattr(self._vehicle, _ATTR_KEY, None)
-        # A mode the car reports but does not list stays visible rather than
-        # rendering the entity invalid.
-        if isinstance(value, str) and value and value not in self.options:
-            return value
-        return value if isinstance(value, str) and value else None
+        return _current_mode(self._vehicle)
 
     async def async_select_option(self, option: str) -> None:
         connection = self.coordinator.account.connection
