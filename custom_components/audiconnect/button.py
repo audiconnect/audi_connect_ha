@@ -23,6 +23,19 @@ def _spin_available(vehicle: Any) -> bool:
     return getattr(service, "_spin", None) is not None
 
 
+def _engine_controls_supported(vehicle: Any) -> bool:
+    """Battery-electric cars have no engine to start, so they get no buttons.
+
+    Only a positive "electric" suppresses them: an unreported or unrecognised
+    car type leaves the buttons in place, since omitting a control the car does
+    support is the worse failure.
+    """
+    if not _spin_available(vehicle):
+        return False
+    car_type = getattr(vehicle, "car_type", None)
+    return not (isinstance(car_type, str) and car_type.lower() == "electric")
+
+
 @dataclass(frozen=True, kw_only=True)
 class AudiButtonEntityDescription(ButtonEntityDescription):
     """Describes an Audi button entity."""
@@ -52,14 +65,14 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         key="start_engine",
         name="Start engine",
         icon="mdi:car-key",
-        supported_fn=_spin_available,
+        supported_fn=_engine_controls_supported,
         press_fn=lambda account, vin: account.start_engine(vin),
     ),
     AudiButtonEntityDescription(
         key="stop_engine",
         name="Stop engine",
         icon="mdi:car-off",
-        supported_fn=_spin_available,
+        supported_fn=_engine_controls_supported,
         press_fn=lambda account, vin: account.stop_engine(vin),
     ),
 )
