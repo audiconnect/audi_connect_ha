@@ -53,15 +53,6 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         press_fn=lambda account, vin: account.refresh_vehicle_data(vin),
     ),
     AudiButtonEntityDescription(
-        key="start_timed_charging",
-        name="Start timed charging",
-        icon="mdi:timer-play-outline",
-        supported_fn=lambda vehicle: is_entity_supported(vehicle, "charging_state"),
-        press_fn=lambda account, vin: account.connection.set_battery_charger(
-            vin, True, True
-        ),
-    ),
-    AudiButtonEntityDescription(
         key="start_engine",
         name="Start engine",
         icon="mdi:car-key",
