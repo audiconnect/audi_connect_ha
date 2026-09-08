@@ -19,6 +19,15 @@ _ATTR_KEY = "preferred_charge_mode"
 # What set_charge_mode accepts. The car also reports availableChargeModes, but
 # it comes back empty on at least one vehicle, so this is the fallback rather
 # than the source of truth.
+#
+# These are the app's two charging modes: "manual" is Quick start, charging as
+# soon as the car is plugged in, and "timer" is Charge by departure time.
+#
+# The car can only adopt "timer" when the charging location it is parked at has
+# a time window enabled. Without one the app greys the option out. The
+# integration cannot, because an empty availableChargeModes is exactly the
+# signal that would let it, so setting "timer" in that state is accepted and
+# echoed back without the vehicle acting on it. Observed on a live car.
 _FALLBACK_MODES = ["manual", "timer"]
 
 # What the car sends when it has no answer rather than a mode. A live vehicle
