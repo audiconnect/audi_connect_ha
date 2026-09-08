@@ -108,7 +108,7 @@ Two things it deliberately does not do. It has no current temperature, because t
 
 The target temperature comes from the car, which reports it in its climatisation settings. Home Assistant only holds a value as a fallback for a vehicle that reports none, and for the moment between asking for a change and the car confirming it. Note the car stores half degrees while the write truncates to whole ones, so a target set outside Home Assistant can read as 15.5 even though the control steps in whole degrees.
 
-The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as diagnostic sensors. They are read-only here; the car does accept a settings write, and controls for them follow separately.
+The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as diagnostic sensors. They are read-only: there is no settings endpoint, so the only way to change them is the `start_climate_control` service action, which sends them when it starts.
 
 `start_auxiliary_heating` (duration) stays service-only for the same reason.
 
@@ -120,11 +120,6 @@ The car reports what it can do, separately from what any one poll contains, and 
 
 Vehicles that do not report a capability list are unaffected and keep the previous behaviour.
 
-### Charge mode
-
-`manual` is the app's **Quick start**: the car charges as soon as it is plugged in. `timer` is **Charge by departure time**, and the car can only adopt it when the charging location it is parked at has a time window enabled. Without one the app greys the option out; the integration cannot, because the vehicle reports `availableChargeModes` as an empty list. Setting `timer` in that state is accepted and echoed back without taking effect.
-
-Changing the mode does not stop a charge in progress. Stopping one reliably is done through the car's departure timers, which are global to the vehicle rather than per location, and which Octopus Intelligent uses to suspend a charge by moving the first timer into the future. The integration does not write those yet.
 ### Flash lights
 
 Flashes the vehicle's lights for ten seconds. The car must have reported a position, because the API requires one; the control refuses rather than sending a request that would be rejected.
