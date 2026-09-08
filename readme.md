@@ -87,6 +87,7 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `<Profile> charge target`        | Number  | `set_location_charge_target` with `profile_id`        |
 | `Start engine` / `Stop engine`   | Button  | `start_engine` / `stop_engine`                        |
 | `Charge mode`                    | Select  | `set_charge_mode`                                     |
+| `Flash lights`                   | Button  | n/a, new                                                   |
 | `Refresh vehicle data`           | Button  | `refresh_vehicle_data`                                |
 
 ### Charge targets
@@ -124,6 +125,11 @@ Vehicles that do not report a capability list are unaffected and keep the previo
 `manual` is the app's **Quick start**: the car charges as soon as it is plugged in. `timer` is **Charge by departure time**, and the car can only adopt it when the charging location it is parked at has a time window enabled. Without one the app greys the option out; the integration cannot, because the vehicle reports `availableChargeModes` as an empty list. Setting `timer` in that state is accepted and echoed back without taking effect.
 
 Changing the mode does not stop a charge in progress. Stopping one reliably is done through the car's departure timers, which are global to the vehicle rather than per location, and which Octopus Intelligent uses to suspend a charge by moving the first timer into the future. The integration does not write those yet.
+### Flash lights
+
+Flashes the vehicle's lights for ten seconds. The car must have reported a position, because the API requires one; the control refuses rather than sending a request that would be rejected.
+
+The horn is not exposed. The endpoint that flashes the lights also sounds them together, one string apart, and the integration sends only the flash mode with no way for a caller to reach the other.
 
 ## Service Actions
 

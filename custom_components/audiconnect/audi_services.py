@@ -736,6 +736,39 @@ class AudiService:
             vin, f"profile {profile_id} target {target_soc}%", request_id
         )
 
+    async def flash_lights(
+        self, vin: str, latitude: float, longitude: float, duration_s: int = 10
+    ) -> None:
+        """Flash the vehicle's lights.
+
+        Endpoint and body shape are from WeConnect-python, which drives the same
+        Cariad BFF:
+
+            POST {bff}/vehicle/v1/vehicles/{vin}/honkandflash
+            {"duration_s": 10, "mode": "flash",
+             "userPosition": {"latitude": .., "longitude": ..}}
+
+        The position is required, which is why a GET against this path returns
+        404 rather than 405: there is no GET route at all.
+
+        The mode is hard-coded. The same endpoint sounds the horn when given
+        "honkandflash", and there is deliberately no parameter through which a
+        caller could reach that: a control that can wake a street by passing the
+        wrong string is not worth the flexibility.
+        """
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        data = {
+            "duration_s": duration_s,
+            "mode": "flash",
+            "userPosition": {"latitude": latitude, "longitude": longitude},
+        }
+        await self._api.request(
+            "POST",
+            self.__get_cariad_url_for_vin(vin, "honkandflash"),
+            headers=headers,
+            data=json.dumps(data),
+        )
+
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge (battery percentage)."""
         if not (20 <= target_soc <= 100):

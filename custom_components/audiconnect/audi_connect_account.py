@@ -395,6 +395,34 @@ class AudiConnectAccount:
             log_exception(exception, f"Unable to set charge mode for vehicle {vin}")
             return False
 
+    async def flash_lights(self, vin: str, duration_s: int = 10) -> bool:
+        """Flash the vehicle's lights. Never sounds the horn."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+
+        vehicle = next((v for v in self.vehicles if v.vin.lower() == vin.lower()), None)
+        position = getattr(vehicle, "position", None) if vehicle else None
+        latitude = (position or {}).get("latitude")
+        longitude = (position or {}).get("longitude")
+        if latitude is None or longitude is None:
+            # The API requires it, so failing here is clearer than a 400 from
+            # the far end.
+            _LOGGER.warning(
+                "Cannot flash lights for %s: the car has not reported a position",
+                vin,
+            )
+            return False
+
+        try:
+            _LOGGER.debug("Flashing lights for vehicle %s", vin)
+            await self._audi_service.flash_lights(vin, latitude, longitude, duration_s)
+            return True
+        except Exception as exception:
+            log_exception(exception, f"Unable to flash lights for vehicle {vin}")
+            return False
+
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
         if not self._loggedin:
