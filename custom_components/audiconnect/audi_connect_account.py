@@ -395,6 +395,32 @@ class AudiConnectAccount:
             log_exception(exception, f"Unable to set charge mode for vehicle {vin}")
             return False
 
+    async def set_climatisation_setting(self, vin: str, field: str, value) -> bool:
+        """Change one climatisation setting, leaving the others as they are."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug("Setting %s=%s for vehicle %s", field, value, vin)
+            await self._audi_service.set_climatisation_settings(
+                vin.lower(), **{field: value}
+            )
+            return True
+        except Exception as exception:
+            log_exception(exception, f"Unable to set {field} for vehicle {vin}")
+            return False
+        finally:
+            try:
+                await self.notify(vin, ACTION_CLIMATISATION)
+            except Exception as ex:
+                _LOGGER.warning(
+                    "Cloud refresh failed after a climatisation setting for %s: %s",
+                    vin,
+                    ex,
+                )
+
     async def flash_lights(self, vin: str, duration_s: int = 10) -> bool:
         """Flash the vehicle's lights. Never sounds the horn."""
         if not self._loggedin:

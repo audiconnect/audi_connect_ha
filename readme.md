@@ -108,7 +108,9 @@ Two things it deliberately does not do. It has no current temperature, because t
 
 The target temperature comes from the car, which reports it in its climatisation settings. Home Assistant only holds a value as a fallback for a vehicle that reports none, and for the moment between asking for a change and the car confirming it. Note the car stores half degrees while the write truncates to whole ones, so a target set outside Home Assistant can read as 15.5 even though the control steps in whole degrees.
 
-The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as diagnostic sensors. They are read-only: there is no settings endpoint, so the only way to change them is the `start_climate_control` service action, which sends them when it starts.
+The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as switches under configuration. They are written through the car's settings endpoint without starting climatisation, which the myAudi app does not offer: there, a heated seat can only be enabled while starting the air conditioning.
+
+Each toggle sends the whole settings object back with one field changed, because the endpoint replaces rather than merges. Changing a seat therefore cannot clear the target temperature.
 
 `start_auxiliary_heating` (duration) stays service-only for the same reason.
 

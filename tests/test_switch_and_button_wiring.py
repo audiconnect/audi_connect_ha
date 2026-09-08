@@ -31,6 +31,7 @@ VIN = "WAUZZZ00000000001"
 # AudiConnectAccount and to be usable for that direction.
 LIVE_METHODS = {
     "set_vehicle_pre_heater",
+    "set_climatisation_setting",
 }
 
 
