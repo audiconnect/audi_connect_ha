@@ -81,16 +81,13 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | -------------------------------- | ------- | ----------------------------------------------------- |
 | `Door lock`                      | Lock    | `execute_vehicle_action` with `lock` / `unlock`       |
 | `Climatisation`                  | Climate | `start_climate_control` / `stop_climatisation`        |
-| `Charger`                        | Switch  | `execute_vehicle_action` with `start_/stop_charger`   |
 | `Preheater`                      | Switch  | `execute_vehicle_action` with `start_/stop_preheater` |
 | `Global charge target`           | Number  | `set_target_soc`                                      |
 | `Current location charge target` | Number  | `set_location_charge_target` (no `profile_id`)        |
 | `<Profile> charge target`        | Number  | `set_location_charge_target` with `profile_id`        |
-| `Start timed charging`           | Button  | `execute_vehicle_action` with `start_timed_charger`   |
 | `Start engine` / `Stop engine`   | Button  | `start_engine` / `stop_engine`                        |
 | `Charge mode`                    | Select  | `set_charge_mode`                                     |
 | `Refresh vehicle data`           | Button  | `refresh_vehicle_data`                                |
-
 
 ### Charge targets
 
@@ -111,6 +108,12 @@ Two things it deliberately does not do. It has no current temperature, because t
 The target temperature is held by Home Assistant and restored across restarts. The car does report one, as `targetTemperature_C` in its climatisation settings, but that block is not parsed yet; a follow-up reads it and keeps the local value only as a fallback.
 
 `start_auxiliary_heating` (duration) stays service-only for the same reason.
+
+### Charge mode
+
+`manual` is the app's **Quick start**: the car charges as soon as it is plugged in. `timer` is **Charge by departure time**, and the car can only adopt it when the charging location it is parked at has a time window enabled. Without one the app greys the option out; the integration cannot, because the vehicle reports `availableChargeModes` as an empty list. Setting `timer` in that state is accepted and echoed back without taking effect.
+
+Changing the mode does not stop a charge in progress. Stopping one reliably is done through the car's departure timers, which are global to the vehicle rather than per location, and which Octopus Intelligent uses to suspend a charge by moving the first timer into the future. The integration does not write those yet.
 
 ## Service Actions
 

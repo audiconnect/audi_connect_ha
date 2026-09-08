@@ -20,11 +20,6 @@ from .audi_entity import AudiEntity, is_entity_supported
 from .coordinator import AudiDataUpdateCoordinator
 
 
-def _is_charging(value: Any) -> bool:
-    """Only an in-progress charge counts as on; the plug states do not."""
-    return isinstance(value, str) and value.lower() == "charging"
-
-
 @dataclass(frozen=True, kw_only=True)
 class AudiSwitchEntityDescription(SwitchEntityDescription):
     """Describes an Audi switch entity."""
@@ -43,15 +38,6 @@ SWITCH_DESCRIPTIONS: tuple[AudiSwitchEntityDescription, ...] = (
         icon="mdi:radiator",
         turn_on_fn=lambda conn, vin: conn.set_vehicle_pre_heater(vin, True),
         turn_off_fn=lambda conn, vin: conn.set_vehicle_pre_heater(vin, False),
-    ),
-    AudiSwitchEntityDescription(
-        key="charger",
-        attr_key="charging_state",
-        name="Charger",
-        icon="mdi:ev-station",
-        value_fn=_is_charging,
-        turn_on_fn=lambda conn, vin: conn.set_battery_charger(vin, True, False),
-        turn_off_fn=lambda conn, vin: conn.set_battery_charger(vin, False, False),
     ),
 )
 
