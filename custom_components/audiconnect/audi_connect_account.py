@@ -2214,6 +2214,69 @@ class AudiConnectVehicle:
             return True
 
     @property
+    def climatisation_target_temperature(self):
+        """Return the target temperature the car is set to, in Celsius.
+
+        Reported by the car, so it does not have to be held locally. Note the
+        car stores half degrees even though the api_level 1 write truncates to
+        whole ones.
+        """
+        if self.climatisation_target_temperature_supported:
+            return self._vehicle.state.get("climatisationTargetTemperatureC")
+
+    @property
+    def climatisation_target_temperature_supported(self):
+        return self._vehicle.state.get("climatisationTargetTemperatureC") is not None
+
+    @property
+    def climatisation_window_heating_enabled(self):
+        return self._vehicle.state.get("climatisationWindowHeatingEnabled")
+
+    @property
+    def climatisation_window_heating_enabled_supported(self):
+        return self._vehicle.state.get("climatisationWindowHeatingEnabled") is not None
+
+    @property
+    def climatisation_at_unlock(self):
+        return self._vehicle.state.get("climatisationAtUnlock")
+
+    @property
+    def climatisation_at_unlock_supported(self):
+        return self._vehicle.state.get("climatisationAtUnlock") is not None
+
+    @property
+    def climatisation_zone_front_left(self):
+        return self._vehicle.state.get("climatisationZoneFrontLeft")
+
+    @property
+    def climatisation_zone_front_left_supported(self):
+        return self._vehicle.state.get("climatisationZoneFrontLeft") is not None
+
+    @property
+    def climatisation_zone_front_right(self):
+        return self._vehicle.state.get("climatisationZoneFrontRight")
+
+    @property
+    def climatisation_zone_front_right_supported(self):
+        return self._vehicle.state.get("climatisationZoneFrontRight") is not None
+
+    @property
+    def climatisation_zone_rear_left(self):
+        return self._vehicle.state.get("climatisationZoneRearLeft")
+
+    @property
+    def climatisation_zone_rear_left_supported(self):
+        return self._vehicle.state.get("climatisationZoneRearLeft") is not None
+
+    @property
+    def climatisation_zone_rear_right(self):
+        return self._vehicle.state.get("climatisationZoneRearRight")
+
+    @property
+    def climatisation_zone_rear_right_supported(self):
+        return self._vehicle.state.get("climatisationZoneRearRight") is not None
+
+    @property
     def outdoor_temperature(self):
         if self.outdoor_temperature_supported:
             return self._vehicle.state.get("outdoorTemperature")

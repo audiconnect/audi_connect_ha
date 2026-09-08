@@ -108,7 +108,9 @@ The climate entity turns climatisation on and off and sets the target temperatur
 
 Two things it deliberately does not do. It has no current temperature, because the car reports the outdoor reading and not the cabin, and showing the outside temperature as a climate entity's current temperature would misstate what it measures. And it does not expose seat or glass heating, climatisation-at-unlock, or the comfort/economy mode: the vehicle never reports those back, so a control for them would only ever show what you last set. Use the `start_climate_control` service action for those.
 
-The target temperature is held by Home Assistant and restored across restarts. The car does report one, as `targetTemperature_C` in its climatisation settings, but that block is not parsed yet; a follow-up reads it and keeps the local value only as a fallback.
+The target temperature comes from the car, which reports it in its climatisation settings. Home Assistant only holds a value as a fallback for a vehicle that reports none, and for the moment between asking for a change and the car confirming it. Note the car stores half degrees while the write truncates to whole ones, so a target set outside Home Assistant can read as 15.5 even though the control steps in whole degrees.
+
+The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as diagnostic sensors. They are read-only here; the car does accept a settings write, and controls for them follow separately.
 
 `start_auxiliary_heating` (duration) stays service-only for the same reason.
 
