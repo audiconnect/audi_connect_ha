@@ -89,7 +89,6 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `Start engine` / `Stop engine`   | Button | `start_engine` / `stop_engine`                        |
 | `Refresh vehicle data`           | Button | `refresh_vehicle_data`                                |
 
-> > > > > > > c4b3454 (style: apply pre-commit fixes)
 
 ### Charge targets
 
