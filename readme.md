@@ -81,15 +81,12 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | -------------------------------- | ------- | ----------------------------------------------------- |
 | `Door lock`                      | Lock    | `execute_vehicle_action` with `lock` / `unlock`       |
 | `Climatisation`                  | Climate | `start_climate_control` / `stop_climatisation`        |
-| `Charger`                        | Switch  | `execute_vehicle_action` with `start_/stop_charger`   |
 | `Preheater`                      | Switch  | `execute_vehicle_action` with `start_/stop_preheater` |
 | `Global charge target`           | Number  | `set_target_soc`                                      |
 | `Current location charge target` | Number  | `set_location_charge_target` (no `profile_id`)        |
 | `<Profile> charge target`        | Number  | `set_location_charge_target` with `profile_id`        |
-| `Start timed charging`           | Button  | `execute_vehicle_action` with `start_timed_charger`   |
 | `Start engine` / `Stop engine`   | Button  | `start_engine` / `stop_engine`                        |
 | `Refresh vehicle data`           | Button  | `refresh_vehicle_data`                                |
-
 
 ### Charge targets
 
