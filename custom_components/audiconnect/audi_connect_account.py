@@ -2208,6 +2208,32 @@ class AudiConnectVehicle:
             return self._vehicle.state.get("climatisationState")
 
     @property
+    def capabilities(self) -> frozenset[str]:
+        """What the car says it can do. Empty when it does not report the list,
+        which every caller must treat as "unknown", never as "nothing"."""
+        value = self._vehicle.state.get("userCapabilities")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    @property
+    def impaired_capabilities(self) -> frozenset[str]:
+        """Capabilities the car lists while also reporting an error against
+        them. Listed is not the same as working."""
+        value = self._vehicle.state.get("userCapabilitiesImpaired")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    def has_capability(self, capability: str) -> bool | None:
+        """True, False, or None when the car reports no capability list at all.
+
+        Three-valued deliberately: a caller that cannot tell "not capable" from
+        "did not say" will delete entities on the vehicles that never report
+        the list.
+        """
+        caps = self.capabilities
+        if not caps:
+            return None
+        return capability in caps
+
+    @property
     def climatisation_state_supported(self):
         check = self._vehicle.state.get("climatisationState")
         if check:

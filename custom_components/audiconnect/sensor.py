@@ -37,6 +37,11 @@ class AudiSensorEntityDescription(SensorEntityDescription):
     """Describes an Audi sensor entity."""
 
     attr_key: str
+    # The car's own capability id, where one maps cleanly. Given one, entity
+    # creation follows the capability rather than whether this poll carried
+    # the value, so a partial poll leaves the entity unavailable instead of
+    # deleting it.
+    capability: str | None = None
     value_fn: Callable[[Any], Any] | None = None
     extra_attrs_fn: Callable[[Any], dict[str, Any]] | None = None
     unit_fn: Callable[[Any], str | None] | None = None
@@ -393,6 +398,7 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
     AudiSensorEntityDescription(
         key="park_time",
         attr_key="park_time",
+        capability="parkingPosition",
         name="Park Time",
         icon="mdi:car-clock",
         device_class=SensorDeviceClass.TIMESTAMP,
@@ -400,6 +406,7 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
     AudiSensorEntityDescription(
         key="position_last_updated",
         attr_key="position_last_updated",
+        capability="parkingPosition",
         name="Position Last Updated",
         icon="mdi:map-marker-clock",
         device_class=SensorDeviceClass.TIMESTAMP,
@@ -486,7 +493,9 @@ async def async_setup_entry(
     for config_vehicle in runtime_data.account.config_vehicles:
         vehicle = config_vehicle.vehicle
         for description in SENSOR_DESCRIPTIONS:
-            if is_entity_supported(vehicle, description.attr_key):
+            if is_entity_supported(
+                vehicle, description.attr_key, description.capability
+            ):
                 entities.append(
                     AudiSensor(runtime_data.coordinator, description, vehicle)
                 )

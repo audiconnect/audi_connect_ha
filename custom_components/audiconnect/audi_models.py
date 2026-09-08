@@ -354,6 +354,7 @@ class VehicleDataResponse:
         )
         self._parseChargingProfiles(data)
         self._parseChargingTimers(data)
+        self._parseUserCapabilities(data)
 
     def _appendState(self, name: str, value: Any, ts: Any) -> None:
         """Append a derived state. Used by the charging-profile and timer parsers,
@@ -362,6 +363,55 @@ class VehicleDataResponse:
         if value is None or not ts:
             return
         self.states.append({"name": name, "value": value, "measure_time": ts})
+
+    def _parseUserCapabilities(self, data: dict[str, Any]) -> None:
+        """Record what the car says it can do, as distinct from what this poll
+        happened to contain.
+
+        Entity creation is otherwise gated on a field being present right now,
+        so a partial or rate-limited poll deletes controls until the next
+        reload. The capability list is stable across polls and is the thing that
+        should decide whether an entity exists at all.
+
+        Job-level, not field-level: it answers "does this car do charging",
+        never "does it report targetSOC_pct".
+        """
+        value = self._getFromJson(
+            data, ["userCapabilities", "capabilitiesStatus", "value"]
+        )
+        if not isinstance(value, list):
+            return
+
+        ids = []
+        impaired = []
+        for entry in value:
+            if not isinstance(entry, dict):
+                continue
+            cap_id = entry.get("id")
+            if not isinstance(cap_id, str) or not cap_id:
+                continue
+            ids.append(cap_id)
+            # A listed capability can still be reporting an error, so it is not
+            # the same as a working one.
+            if entry.get("status"):
+                impaired.append(cap_id)
+
+        if not ids:
+            return
+
+        # No timestamp accompanies this block, and it does not need one: it is a
+        # statement about the vehicle rather than a reading from it.
+        self.states.append(
+            {"name": "userCapabilities", "value": sorted(ids), "measure_time": None}
+        )
+        if impaired:
+            self.states.append(
+                {
+                    "name": "userCapabilitiesImpaired",
+                    "value": sorted(impaired),
+                    "measure_time": None,
+                }
+            )
 
     def _parseChargingProfiles(self, data: dict[str, Any]) -> None:
         """Parse the location charging profiles.

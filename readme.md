@@ -110,9 +110,17 @@ Two things it deliberately does not do. It has no current temperature, because t
 
 The target temperature comes from the car, which reports it in its climatisation settings. Home Assistant only holds a value as a fallback for a vehicle that reports none, and for the moment between asking for a change and the car confirming it. Note the car stores half degrees while the write truncates to whole ones, so a target set outside Home Assistant can read as 15.5 even though the control steps in whole degrees.
 
-The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as diagnostic sensors. They are read-only: there is no settings endpoint, so the only way to change them is the `start_climate_control` service action, which sends them when it starts.
+The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as diagnostic sensors. They are read-only here; the car does accept a settings write, and controls for them follow separately.
 
 `start_auxiliary_heating` (duration) stays service-only for the same reason.
+
+### Why an entity sometimes disappears
+
+Entities are created when the integration sets up, and until now that decision asked whether the value was present in the poll it happened to be holding. A partial or rate-limited poll therefore removed controls: on one vehicle a `429 Too Many Requests` took sixteen entities away, including a parking-position sensor for a car that plainly has parking position. They returned only after a reload.
+
+The car reports what it can do, separately from what any one poll contains, and the integration now asks that list instead where a capability maps cleanly onto an entity. A missing value leaves the entity unavailable rather than deleting it.
+
+Vehicles that do not report a capability list are unaffected and keep the previous behaviour.
 
 ## Service Actions
 
