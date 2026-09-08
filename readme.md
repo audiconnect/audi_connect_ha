@@ -83,6 +83,7 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `Preheater`                    | Switch | `execute_vehicle_action` with `start_/stop_preheater` |
 | `Target state of charge`       | Number | `set_target_soc`                                      |
 | `Start engine` / `Stop engine` | Button | `start_engine` / `stop_engine`                        |
+| `Flash lights`                 | Button | n/a, new                                              |
 | `Refresh vehicle data`         | Button | `refresh_vehicle_data`                                |
 
 The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
@@ -106,6 +107,12 @@ Entities are created when the integration sets up, and until now that decision a
 The car reports what it can do, separately from what any one poll contains, and the integration now asks that list instead where a capability maps cleanly onto an entity. A missing value leaves the entity unavailable rather than deleting it.
 
 Vehicles that do not report a capability list are unaffected and keep the previous behaviour.
+
+### Flash lights
+
+Flashes the vehicle's lights for ten seconds. The car must have reported a position, because the API requires one; the control refuses rather than sending a request that would be rejected.
+
+The horn is not exposed. The endpoint that flashes the lights also sounds them together, one string apart, and the integration sends only the flash mode with no way for a caller to reach the other.
 
 ## Service Actions
 
