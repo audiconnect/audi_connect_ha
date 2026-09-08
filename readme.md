@@ -80,14 +80,24 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | Control                        | Type   | Replaces                                                   |
 | ------------------------------ | ------ | ---------------------------------------------------------- |
 | `Door lock`                    | Lock   | `execute_vehicle_action` with `lock` / `unlock`            |
-| `Charger`                      | Switch | `execute_vehicle_action` with `start_/stop_charger`        |
 | `Preheater`                    | Switch | `execute_vehicle_action` with `start_/stop_preheater`      |
 | `Target state of charge`       | Number | `set_target_soc`                                           |
-| `Start timed charging`         | Button | `execute_vehicle_action` with `start_timed_charger`        |
 | `Start engine` / `Stop engine` | Button | `start_engine` / `stop_engine`                             |
 | `Refresh vehicle data`         | Button | `refresh_vehicle_data`                                     |
 
 The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
+
+### Starting and stopping a charge
+
+Neither is exposed, because neither could be shown to work.
+
+Stopping is accepted by the API and confirmed by the car, and the charge continues. Sent twice from a settled state on a live vehicle, which carried on drawing 6.5 kW both times.
+
+Starting is unproven. It appeared to work once, but the car had a target well above its state of charge at that moment and would have charged anyway; repeated later with the target below the state of charge, the command was accepted and nothing happened. There is no evidence separating "the button started the charge" from "the car was going to charge regardless".
+
+Timed charging is not exposed either, for the same reason: it goes through the same command as start and stop.
+
+Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
 
 ## Service Actions
 

@@ -159,8 +159,8 @@ class _Connection:
 def _switch(result):
     from custom_components.audiconnect.switch import AudiSwitch
 
-    description = next(d for d in SWITCH_DESCRIPTIONS if d.key == "charger")
-    vehicle = type("V", (), {"vin": VIN, "charging_state": "off"})()
+    description = next(d for d in SWITCH_DESCRIPTIONS if d.key == "preheater_active")
+    vehicle = type("V", (), {"vin": VIN, "preheater_active": False})()
     return _Coordinator(result), AudiSwitch(_Coordinator(result), description, vehicle)
 
 
