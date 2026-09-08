@@ -32,6 +32,7 @@ VIN = "WAUZZZ00000000001"
 LIVE_METHODS = {
     "set_vehicle_pre_heater",
     "set_battery_charger",
+    "set_climatisation_setting",
 }
 
 
