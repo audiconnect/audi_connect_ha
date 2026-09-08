@@ -56,9 +56,10 @@ async def async_setup_entry(
 class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     """Climatisation as a climate entity.
 
-    The car reports whether climatisation is running and in which mode, but not
-    the temperature it was asked for, so the target is held here and restored
-    across restarts. Everything else comes from the vehicle.
+    Everything comes from the vehicle, including the target temperature, which
+    the car reports in climatisationSettings. The locally held value is only a
+    fallback for a car that does not report one, and for the moment between
+    asking for a change and the car confirming it.
     """
 
     _attr_name = "Climatisation"
@@ -110,6 +111,14 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         return self._state not in _INACTIVE_STATES
 
     @property
+    def target_temperature(self) -> float | None:
+        """Prefer what the car reports over what we last asked for."""
+        reported = getattr(self._vehicle, "climatisation_target_temperature", None)
+        if isinstance(reported, (int, float)):
+            return float(reported)
+        return self._attr_target_temperature
+
+    @property
     def hvac_mode(self) -> HVACMode:
         return HVACMode.HEAT_COOL if self._is_running else HVACMode.OFF
 
@@ -129,6 +138,12 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
             "climatisation_state": getattr(self._vehicle, _ATTR_KEY, None),
+            "window_heating_enabled": getattr(
+                self._vehicle, "climatisation_window_heating_enabled", None
+            ),
+            "climatisation_at_unlock": getattr(
+                self._vehicle, "climatisation_at_unlock", None
+            ),
             "remaining_climatisation_time": getattr(
                 self._vehicle, "remaining_climatisation_time", None
             ),
