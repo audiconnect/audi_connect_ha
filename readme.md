@@ -125,6 +125,7 @@ Vehicles that do not report a capability list are unaffected and keep the previo
 `manual` is the app's **Quick start**: the car charges as soon as it is plugged in. `timer` is **Charge by departure time**, and the car can only adopt it when the charging location it is parked at has a time window enabled. Without one the app greys the option out; the integration cannot, because the vehicle reports `availableChargeModes` as an empty list. Setting `timer` in that state is accepted and echoed back without taking effect.
 
 Changing the mode does not stop a charge in progress. Stopping one reliably is done through the car's departure timers, which are global to the vehicle rather than per location, and which Octopus Intelligent uses to suspend a charge by moving the first timer into the future. The integration does not write those yet.
+
 ### Flash lights
 
 Flashes the vehicle's lights for ten seconds. The car must have reported a position, because the API requires one; the control refuses rather than sending a request that would be rejected.
