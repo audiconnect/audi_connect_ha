@@ -838,9 +838,15 @@ class AudiConnectVehicle:
                         self._vehicle.state["last_update_time"], new_time
                     )
 
-            # Update with the newest carCapturedTimestamp from states
+            # Update with the newest carCapturedTimestamp from states.
+            # A state can carry no timestamp: userCapabilities is a statement
+            # about the vehicle rather than a reading from it. Skipping those
+            # here keeps the scan independent of how lenient parse_datetime is.
             for state in status.states:
-                new_time = parse_datetime(state.get("measure_time"))
+                ts = state.get("measure_time")
+                if not ts:
+                    continue
+                new_time = parse_datetime(ts)
                 if new_time:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
