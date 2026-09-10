@@ -838,9 +838,15 @@ class AudiConnectVehicle:
                         self._vehicle.state["last_update_time"], new_time
                     )
 
-            # Update with the newest carCapturedTimestamp from states
+            # Update with the newest carCapturedTimestamp from states.
+            # A state can carry no timestamp: userCapabilities is a statement
+            # about the vehicle rather than a reading from it. Skipping those
+            # here keeps the scan independent of how lenient parse_datetime is.
             for state in status.states:
-                new_time = parse_datetime(state.get("measure_time"))
+                ts = state.get("measure_time")
+                if not ts:
+                    continue
+                new_time = parse_datetime(ts)
                 if new_time:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
@@ -1799,6 +1805,23 @@ class AudiConnectVehicle:
         return check is not None and check != "unsupported"
 
     @property
+    def preferred_charge_mode(self):
+        """Return the charge mode the car is set to, not the one in progress."""
+        if self.preferred_charge_mode_supported:
+            return self._vehicle.state.get("preferredChargeMode")
+
+    @property
+    def preferred_charge_mode_supported(self):
+        check = self._vehicle.state.get("preferredChargeMode")
+        return check is not None and check != "unsupported"
+
+    @property
+    def available_charge_modes(self):
+        """Return the modes the car says it accepts, which can be empty."""
+        modes = self._vehicle.state.get("availableChargeModes")
+        return modes if isinstance(modes, list) else None
+
+    @property
     def energy_flow(self):
         """Return charging mode"""
         if self.energy_flow_supported:
@@ -2191,10 +2214,99 @@ class AudiConnectVehicle:
             return self._vehicle.state.get("climatisationState")
 
     @property
+    def capabilities(self) -> frozenset[str]:
+        """What the car says it can do. Empty when it does not report the list,
+        which every caller must treat as "unknown", never as "nothing"."""
+        value = self._vehicle.state.get("userCapabilities")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    @property
+    def impaired_capabilities(self) -> frozenset[str]:
+        """Capabilities the car lists while also reporting an error against
+        them. Listed is not the same as working."""
+        value = self._vehicle.state.get("userCapabilitiesImpaired")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    def has_capability(self, capability: str) -> bool | None:
+        """True, False, or None when the car reports no capability list at all.
+
+        Three-valued deliberately: a caller that cannot tell "not capable" from
+        "did not say" will delete entities on the vehicles that never report
+        the list.
+        """
+        caps = self.capabilities
+        if not caps:
+            return None
+        return capability in caps
+
+    @property
     def climatisation_state_supported(self):
         check = self._vehicle.state.get("climatisationState")
         if check:
             return True
+
+    @property
+    def climatisation_target_temperature(self):
+        """Return the target temperature the car is set to, in Celsius.
+
+        Reported by the car, so it does not have to be held locally. Note the
+        car stores half degrees even though the api_level 1 write truncates to
+        whole ones.
+        """
+        if self.climatisation_target_temperature_supported:
+            return self._vehicle.state.get("climatisationTargetTemperatureC")
+
+    @property
+    def climatisation_target_temperature_supported(self):
+        return self._vehicle.state.get("climatisationTargetTemperatureC") is not None
+
+    @property
+    def climatisation_window_heating_enabled(self):
+        return self._vehicle.state.get("climatisationWindowHeatingEnabled")
+
+    @property
+    def climatisation_window_heating_enabled_supported(self):
+        return self._vehicle.state.get("climatisationWindowHeatingEnabled") is not None
+
+    @property
+    def climatisation_at_unlock(self):
+        return self._vehicle.state.get("climatisationAtUnlock")
+
+    @property
+    def climatisation_at_unlock_supported(self):
+        return self._vehicle.state.get("climatisationAtUnlock") is not None
+
+    @property
+    def climatisation_zone_front_left(self):
+        return self._vehicle.state.get("climatisationZoneFrontLeft")
+
+    @property
+    def climatisation_zone_front_left_supported(self):
+        return self._vehicle.state.get("climatisationZoneFrontLeft") is not None
+
+    @property
+    def climatisation_zone_front_right(self):
+        return self._vehicle.state.get("climatisationZoneFrontRight")
+
+    @property
+    def climatisation_zone_front_right_supported(self):
+        return self._vehicle.state.get("climatisationZoneFrontRight") is not None
+
+    @property
+    def climatisation_zone_rear_left(self):
+        return self._vehicle.state.get("climatisationZoneRearLeft")
+
+    @property
+    def climatisation_zone_rear_left_supported(self):
+        return self._vehicle.state.get("climatisationZoneRearLeft") is not None
+
+    @property
+    def climatisation_zone_rear_right(self):
+        return self._vehicle.state.get("climatisationZoneRearRight")
+
+    @property
+    def climatisation_zone_rear_right_supported(self):
+        return self._vehicle.state.get("climatisationZoneRearRight") is not None
 
     @property
     def outdoor_temperature(self):

@@ -221,7 +221,7 @@ class AudiService:
             "measurements",
             "oilLevel",
             "readiness",
-            # "userCapabilities",
+            "userCapabilities",
             "vehicleHealthInspection",
             "vehicleHealthWarnings",
             "vehicleLights",
