@@ -1799,6 +1799,23 @@ class AudiConnectVehicle:
         return check is not None and check != "unsupported"
 
     @property
+    def preferred_charge_mode(self):
+        """Return the charge mode the car is set to, not the one in progress."""
+        if self.preferred_charge_mode_supported:
+            return self._vehicle.state.get("preferredChargeMode")
+
+    @property
+    def preferred_charge_mode_supported(self):
+        check = self._vehicle.state.get("preferredChargeMode")
+        return check is not None and check != "unsupported"
+
+    @property
+    def available_charge_modes(self):
+        """Return the modes the car says it accepts, which can be empty."""
+        modes = self._vehicle.state.get("availableChargeModes")
+        return modes if isinstance(modes, list) else None
+
+    @property
     def energy_flow(self):
         """Return charging mode"""
         if self.energy_flow_supported:
@@ -2195,6 +2212,69 @@ class AudiConnectVehicle:
         check = self._vehicle.state.get("climatisationState")
         if check:
             return True
+
+    @property
+    def climatisation_target_temperature(self):
+        """Return the target temperature the car is set to, in Celsius.
+
+        Reported by the car, so it does not have to be held locally. Note the
+        car stores half degrees even though the api_level 1 write truncates to
+        whole ones.
+        """
+        if self.climatisation_target_temperature_supported:
+            return self._vehicle.state.get("climatisationTargetTemperatureC")
+
+    @property
+    def climatisation_target_temperature_supported(self):
+        return self._vehicle.state.get("climatisationTargetTemperatureC") is not None
+
+    @property
+    def climatisation_window_heating_enabled(self):
+        return self._vehicle.state.get("climatisationWindowHeatingEnabled")
+
+    @property
+    def climatisation_window_heating_enabled_supported(self):
+        return self._vehicle.state.get("climatisationWindowHeatingEnabled") is not None
+
+    @property
+    def climatisation_at_unlock(self):
+        return self._vehicle.state.get("climatisationAtUnlock")
+
+    @property
+    def climatisation_at_unlock_supported(self):
+        return self._vehicle.state.get("climatisationAtUnlock") is not None
+
+    @property
+    def climatisation_zone_front_left(self):
+        return self._vehicle.state.get("climatisationZoneFrontLeft")
+
+    @property
+    def climatisation_zone_front_left_supported(self):
+        return self._vehicle.state.get("climatisationZoneFrontLeft") is not None
+
+    @property
+    def climatisation_zone_front_right(self):
+        return self._vehicle.state.get("climatisationZoneFrontRight")
+
+    @property
+    def climatisation_zone_front_right_supported(self):
+        return self._vehicle.state.get("climatisationZoneFrontRight") is not None
+
+    @property
+    def climatisation_zone_rear_left(self):
+        return self._vehicle.state.get("climatisationZoneRearLeft")
+
+    @property
+    def climatisation_zone_rear_left_supported(self):
+        return self._vehicle.state.get("climatisationZoneRearLeft") is not None
+
+    @property
+    def climatisation_zone_rear_right(self):
+        return self._vehicle.state.get("climatisationZoneRearRight")
+
+    @property
+    def climatisation_zone_rear_right_supported(self):
+        return self._vehicle.state.get("climatisationZoneRearRight") is not None
 
     @property
     def outdoor_temperature(self):

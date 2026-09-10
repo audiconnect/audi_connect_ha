@@ -221,6 +221,37 @@ class VehicleDataResponse:
             -1,
             ["charging", "chargingStatus", "value", "chargeMode"],
         )
+        # The mode of the charge in progress, above, is not the mode the car is
+        # SET to: that is preferredChargeMode, which is what set_charge_mode
+        # writes. They agree most of the time, which is what makes reading the
+        # wrong one hard to notice.
+        #
+        # The chargeMode block carries no carCapturedTimestamp of its own, so
+        # _tryAppendStateWithTs drops it silently. Borrow the charging status
+        # timestamp, which is the freshness marker for the same fetch.
+        charge_mode_ts = self._getFromJson(
+            data, ["charging", "chargingStatus", "value", "carCapturedTimestamp"]
+        )
+        self._appendState(
+            "preferredChargeMode",
+            self._getFromJson(
+                data, ["charging", "chargeMode", "value", "preferredChargeMode"]
+            ),
+            charge_mode_ts,
+        )
+        available_modes = self._getFromJson(
+            data, ["charging", "chargeMode", "value", "availableChargeModes"]
+        )
+        if available_modes is not None:
+            # An empty list is a real answer ("the car lists none"), and
+            # _appendState would drop it as falsy.
+            self.states.append(
+                {
+                    "name": "availableChargeModes",
+                    "value": available_modes,
+                    "measure_time": charge_mode_ts,
+                }
+            )
         self._tryAppendStateWithTs(
             data,
             "chargingPower",
@@ -293,6 +324,23 @@ class VehicleDataResponse:
             -1,
             ["climatisation", "climatisationStatus", "value", "climatisationState"],
         )
+        # The whole climatisationSettings block was fetched and dropped. The
+        # target temperature in particular is reported by the car, so it does
+        # not have to be held locally and guessed at.
+        for name, key in (
+            ("climatisationTargetTemperatureC", "targetTemperature_C"),
+            ("climatisationTargetTemperatureF", "targetTemperature_F"),
+            ("climatisationWindowHeatingEnabled", "windowHeatingEnabled"),
+            ("climatisationAtUnlock", "climatizationAtUnlock"),
+            ("climatisationWithoutExternalPower", "climatisationWithoutExternalPower"),
+            ("climatisationZoneFrontLeft", "zoneFrontLeftEnabled"),
+            ("climatisationZoneFrontRight", "zoneFrontRightEnabled"),
+            ("climatisationZoneRearLeft", "zoneRearLeftEnabled"),
+            ("climatisationZoneRearRight", "zoneRearRightEnabled"),
+        ):
+            self._tryAppendStateWithTs(
+                data, name, -1, ["climatisation", "climatisationSettings", "value", key]
+            )
         self._tryAppendStateWithTs(
             data,
             "remainingClimatisationTime",
