@@ -12,7 +12,7 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -134,25 +134,54 @@ class AudiSwitch(AudiEntity, SwitchEntity):
         super().__init__(coordinator, vehicle)
         self.entity_description = description
         self._attr_unique_id = f"{vehicle.vin.lower()}_switch_{description.key}"
+        self._assumed: bool | None = None
+        self._reported_at_write: bool | None = None
 
-    @property
-    def is_on(self) -> bool:
+    def _reported(self) -> bool:
         value = getattr(self._vehicle, self.entity_description.attr_key, None)
         return self.entity_description.value_fn(value)
 
-    async def _run(self, fn: Callable[[Any, str], Coroutine[Any, Any, bool]]) -> None:
+    @property
+    def is_on(self) -> bool:
+        if self._assumed is not None:
+            return self._assumed
+        return self._reported()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        # Stop assuming as soon as the car reports anything OTHER than what it
+        # said before the write, whether or not that matches what was asked for.
+        # Waiting for it to match our own value instead would mask a change made
+        # elsewhere (the myAudi app), leaving the entity stuck on a stale guess.
+        if self._assumed is not None and self._reported() != self._reported_at_write:
+            self._assumed = None
+            self._reported_at_write = None
+        super()._handle_coordinator_update()
+
+    async def _run(
+        self, fn: Callable[[Any, str], Coroutine[Any, Any, bool]], target: bool
+    ) -> None:
         connection = self.coordinator.account.connection
         if not await fn(connection, self._vehicle.vin):
             raise HomeAssistantError(
                 f"Failed to switch {self.name}; see the log for details"
             )
+        # The car acknowledges the write before it reports the new value, so the
+        # refresh below usually re-reads the old one and the switch snaps back to
+        # its previous position until the next poll: 15 minutes by default, which
+        # reads as the command having failed. Found on a live vehicle, where the
+        # car and the myAudi app both showed window heating enabled while the
+        # entity still showed off.
+        self._reported_at_write = self._reported()
+        self._assumed = target
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self._run(self.entity_description.turn_on_fn)
+        await self._run(self.entity_description.turn_on_fn, True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self._run(self.entity_description.turn_off_fn)
+        await self._run(self.entity_description.turn_off_fn, False)
 
 
 __all__ = ["AudiSwitch", "async_setup_entry"]
