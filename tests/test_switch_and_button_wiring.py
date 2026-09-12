@@ -161,7 +161,14 @@ def _switch(result):
 
     description = next(d for d in SWITCH_DESCRIPTIONS if d.key == "preheater_active")
     vehicle = type("V", (), {"vin": VIN, "preheater_active": False})()
-    return _Coordinator(result), AudiSwitch(_Coordinator(result), description, vehicle)
+    coordinator = _Coordinator(result)
+    switch = AudiSwitch(_Coordinator(result), description, vehicle)
+    # The entity is built outside hass here, and a CoordinatorEntity has
+    # should_poll False, so HA does not write state for us after a service call
+    # and the switch must do it itself. Stub the write; the state machine is not
+    # what these tests are about.
+    switch.async_write_ha_state = lambda: None
+    return coordinator, switch
 
 
 def test_a_rejected_command_raises_rather_than_reporting_success():
