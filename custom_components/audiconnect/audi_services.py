@@ -36,6 +36,54 @@ CHARGING_CONFIRM_ATTEMPTS = 3
 CHARGING_CONFIRM_SLEEP = 5
 
 
+# The settings the car round-trips. Anything outside this set is rejected rather
+# than sent, so a typo becomes an error here instead of a field the car ignores.
+_CLIMATISATION_SETTING_FIELDS = frozenset(
+    {
+        "targetTemperature",
+        "targetTemperature_C",
+        "targetTemperature_F",
+        "targetTemperatureUnit",
+        "climatisationWithoutExternalPower",
+        "climatizationAtUnlock",
+        "windowHeatingEnabled",
+        "heaterSource",
+        "zoneFrontLeftEnabled",
+        "zoneFrontRightEnabled",
+        "zoneRearLeftEnabled",
+        "zoneRearRightEnabled",
+    }
+)
+
+
+def build_climatisation_settings_update(value: dict, **changes: Any) -> dict:
+    """Pure read-modify-write core for the climatisation settings.
+
+    `value` is climatisation.climatisationSettings.value as the car reports it.
+    Returns the body for PUT climatisation/settings: every field the car gave
+    back, with the named ones changed.
+
+    Read-modify-write for the same reason the charging profile write is: the
+    endpoint takes the whole object, so sending one field would drop the rest.
+    A toggle of a heated seat must not clear the target temperature or the
+    heater source.
+
+    carCapturedTimestamp is dropped. It is the server describing when it last
+    observed the settings, not a setting, and echoing it back is meaningless at
+    best.
+    """
+    if not isinstance(value, dict) or not value:
+        raise ValueError("No climatisation settings to update")
+
+    unknown = set(changes) - set(_CLIMATISATION_SETTING_FIELDS)
+    if unknown:
+        raise ValueError(f"Not climatisation settings: {sorted(unknown)}")
+
+    body = {k: v for k, v in value.items() if k != "carCapturedTimestamp"}
+    body.update(changes)
+    return body
+
+
 def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int, dict]:
     """Pure read-modify-write core for a location charging profile.
 
@@ -221,7 +269,7 @@ class AudiService:
             "measurements",
             "oilLevel",
             "readiness",
-            # "userCapabilities",
+            "userCapabilities",
             "vehicleHealthInspection",
             "vehicleHealthWarnings",
             "vehicleLights",
@@ -784,6 +832,81 @@ class AudiService:
             return
         await self._confirm_charging_command(
             vin, f"profile {profile_id} target {target_soc}%", request_id
+        )
+
+    async def get_climatisation_settings_raw(self, vin: str) -> dict:
+        """Fetch just the climatisation job, unparsed.
+
+        The write replaces the whole settings object, so it needs the fields
+        exactly as the car reports them rather than the parsed subset.
+        """
+        self._api.use_token(self._bearer_token_json)
+        data = await self._api.get(
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs="climatisation"
+            )
+        )
+        value = (
+            (data or {})
+            .get("climatisation", {})
+            .get("climatisationSettings", {})
+            .get("value")
+        )
+        return value if isinstance(value, dict) else {}
+
+    async def set_climatisation_settings(self, vin: str, **changes: Any) -> None:
+        """Change climatisation settings without starting climatisation.
+
+        PUT {bff}/vehicle/v1/vehicles/{vin}/climatisation/settings
+
+        Endpoint and field names are from WeConnect-python, which drives the
+        same Cariad BFF. An earlier GET against this path returned 404, which
+        was read as the endpoint not existing; it means there is no GET route.
+        The honk-and-flash work later demonstrated the same 404-on-GET on this
+        API for a path that is perfectly real for its own verb.
+        """
+        current = await self.get_climatisation_settings_raw(vin)
+        body = build_climatisation_settings_update(current, **changes)
+
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        await self._api.request(
+            "PUT",
+            self.__get_cariad_url_for_vin(vin, "climatisation/settings"),
+            headers=headers,
+            data=json.dumps(body),
+        )
+
+    async def flash_lights(
+        self, vin: str, latitude: float, longitude: float, duration_s: int = 10
+    ) -> None:
+        """Flash the vehicle's lights.
+
+        Endpoint and body shape are from WeConnect-python, which drives the same
+        Cariad BFF:
+
+            POST {bff}/vehicle/v1/vehicles/{vin}/honkandflash
+            {"duration_s": 10, "mode": "flash",
+             "userPosition": {"latitude": .., "longitude": ..}}
+
+        The position is required, which is why a GET against this path returns
+        404 rather than 405: there is no GET route at all.
+
+        The mode is hard-coded. The same endpoint sounds the horn when given
+        "honkandflash", and there is deliberately no parameter through which a
+        caller could reach that: a control that can wake a street by passing the
+        wrong string is not worth the flexibility.
+        """
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        data = {
+            "duration_s": duration_s,
+            "mode": "flash",
+            "userPosition": {"latitude": latitude, "longitude": longitude},
+        }
+        await self._api.request(
+            "POST",
+            self.__get_cariad_url_for_vin(vin, "honkandflash"),
+            headers=headers,
+            data=json.dumps(data),
         )
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
