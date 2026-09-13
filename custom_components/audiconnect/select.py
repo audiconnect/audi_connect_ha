@@ -11,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 _ATTR_KEY = "preferred_charge_mode"
@@ -58,7 +58,9 @@ async def async_setup_entry(
     async_add_entities(
         AudiChargeModeSelect(runtime_data.coordinator, config_vehicle.vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
-        if is_entity_supported(config_vehicle.vehicle, _ATTR_KEY)
+        if should_create_entity(
+            hass, "select", "charge_mode", config_vehicle.vehicle, _ATTR_KEY
+        )
     )
 
 
@@ -79,7 +81,7 @@ class AudiChargeModeSelect(AudiEntity, SelectEntity):
         vehicle: Any,
     ) -> None:
         super().__init__(coordinator, vehicle)
-        self._attr_unique_id = f"{vehicle.vin.lower()}_select_charge_mode"
+        self._attr_unique_id = entity_unique_id(vehicle, "select", "charge_mode")
 
     @property
     def options(self) -> list[str]:

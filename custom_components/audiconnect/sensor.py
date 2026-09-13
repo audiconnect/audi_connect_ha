@@ -27,7 +27,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 from .util import parse_datetime
 
@@ -493,8 +493,13 @@ async def async_setup_entry(
     for config_vehicle in runtime_data.account.config_vehicles:
         vehicle = config_vehicle.vehicle
         for description in SENSOR_DESCRIPTIONS:
-            if is_entity_supported(
-                vehicle, description.attr_key, description.capability
+            if should_create_entity(
+                hass,
+                "sensor",
+                description.key,
+                vehicle,
+                description.attr_key,
+                description.capability,
             ):
                 entities.append(
                     AudiSensor(runtime_data.coordinator, description, vehicle)
@@ -527,7 +532,7 @@ class AudiSensor(AudiEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self.entity_description = description
-        self._attr_unique_id = f"{vehicle.vin.lower()}_sensor_{description.key}"
+        self._attr_unique_id = entity_unique_id(vehicle, "sensor", description.key)
 
     @property
     def native_value(self) -> Any:

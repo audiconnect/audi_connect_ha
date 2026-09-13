@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 _POSITION_ATTR_KEY = "position"
@@ -26,8 +26,13 @@ async def async_setup_entry(
     entities = [
         AudiDeviceTracker(runtime_data.coordinator, config_vehicle.vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
-        if is_entity_supported(
-            config_vehicle.vehicle, _POSITION_ATTR_KEY, "parkingPosition"
+        if should_create_entity(
+            hass,
+            "device_tracker",
+            _POSITION_ATTR_KEY,
+            config_vehicle.vehicle,
+            _POSITION_ATTR_KEY,
+            "parkingPosition",
         )
     ]
     async_add_entities(entities)
@@ -47,8 +52,8 @@ class AudiDeviceTracker(AudiEntity, TrackerEntity):
         vehicle: Any,
     ) -> None:
         super().__init__(coordinator, vehicle)
-        self._attr_unique_id = (
-            f"{vehicle.vin.lower()}_device_tracker_{_POSITION_ATTR_KEY}"
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "device_tracker", _POSITION_ATTR_KEY
         )
 
     def _position(self) -> dict[str, Any]:

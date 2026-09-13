@@ -19,7 +19,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 # The Cariad API rejects anything outside 20-100 and only accepts 5% steps.
@@ -90,8 +90,12 @@ async def async_setup_entry(
         AudiNumber(runtime_data.coordinator, description, vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
         for description in NUMBER_DESCRIPTIONS
-        if is_entity_supported(
-            (vehicle := config_vehicle.vehicle), description.attr_key
+        if should_create_entity(
+            hass,
+            "number",
+            description.key,
+            vehicle := config_vehicle.vehicle,
+            description.attr_key,
         )
     ]
     entities.extend(
@@ -140,7 +144,7 @@ class AudiNumber(AudiChargeTargetEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self.entity_description = description
-        self._attr_unique_id = f"{vehicle.vin.lower()}_number_{description.key}"
+        self._attr_unique_id = entity_unique_id(vehicle, "number", description.key)
 
     @property
     def native_value(self) -> float | None:
@@ -172,8 +176,8 @@ class AudiProfileChargeTarget(AudiChargeTargetEntity):
         self._attr_name = (
             f"{profile.get('name') or f'Profile {self._profile_id}'} charge target"
         )
-        self._attr_unique_id = (
-            f"{vehicle.vin.lower()}_number_charge_profile_{self._profile_id}_target_soc"
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "number", f"charge_profile_{self._profile_id}_target_soc"
         )
 
     @property
