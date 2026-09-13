@@ -251,7 +251,7 @@ def test_the_advertised_step_matches_what_the_car_receives():
 
     from custom_components.audiconnect import audi_services
 
-    source = inspect.getsource(audi_services.AudiService.start_climate_control)
+    source = inspect.getsource(audi_services.build_climatisation_start_body)
     assert "int(temp_c)" in source  # control: the truncation is still there
 
     _, entity = build()

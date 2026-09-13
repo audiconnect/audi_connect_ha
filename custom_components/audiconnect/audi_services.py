@@ -65,6 +65,83 @@ def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int,
     return profile_id, {"profile": updated}
 
 
+# Fields the start body carries straight over from the car's stored settings.
+# Only those the car actually reports are sent: a vehicle with no rear zones
+# never receives zoneRear* keys, which is also the shape the myAudi app sends.
+_START_PASSTHROUGH = (
+    "climatisationWithoutExternalPower",
+    "climatizationAtUnlock",
+    "windowHeatingEnabled",
+    "zoneFrontLeftEnabled",
+    "zoneFrontRightEnabled",
+    "zoneRearLeftEnabled",
+    "zoneRearRightEnabled",
+    "heaterSource",
+)
+
+# Caller parameter -> the field it overrides in the start body.
+_START_OVERRIDES = {
+    "climatisation_at_unlock": "climatizationAtUnlock",
+    "glass_heating": "windowHeatingEnabled",
+    "seat_fl": "zoneFrontLeftEnabled",
+    "seat_fr": "zoneFrontRightEnabled",
+    "seat_rl": "zoneRearLeftEnabled",
+    "seat_rr": "zoneRearRightEnabled",
+}
+
+
+def build_climatisation_start_body(settings: dict, **params: Any) -> dict:
+    """Pure read-modify-write core for climatisation/start.
+
+    `settings` is climatisation.climatisationSettings.value as the car reports
+    it. Returns the body for POST climatisation/start: the car's own settings,
+    with only the parameters the caller actually supplied changed.
+
+    Built this way because the endpoint REPLACES rather than merges. The
+    previous body was assembled from constants, so every parameter the caller
+    omitted went out as bool(None), which is False. Starting climatisation from
+    the climate entity, which passes only a target temperature, therefore wiped
+    the stored window heating, every seat zone and climatisation-at-unlock.
+    Found on a live vehicle 2026-09-12: the myAudi app's own start kept those
+    settings and ours cleared them, on the same car minutes apart.
+
+    A parameter left as None means "leave whatever the car has", never False.
+    """
+    if not isinstance(settings, dict) or not settings:
+        raise ValueError("No climatisation settings to start from")
+
+    body: dict[str, Any] = {
+        key: settings[key] for key in _START_PASSTHROUGH if key in settings
+    }
+
+    temp_f = params.get("temp_f")
+    temp_c = params.get("temp_c")
+    if temp_f is not None:
+        target: Any = int((temp_f - 32) * (5 / 9))
+    elif temp_c is not None:
+        target = int(temp_c)
+    else:
+        # Unchanged, so pass the car's own value through rather than rounding
+        # it: the car stores half degrees and we were not asked to touch this.
+        target = settings.get("targetTemperature_C")
+    body["targetTemperature"] = 21 if target is None else target
+    body["targetTemperatureUnit"] = "celsius"
+
+    # Unchanged from before this became a read-modify-write: #771 fixed a literal
+    # null going on the wire, and "comfort" is the value that has been accepted
+    # on real vehicles. The car does not report a mode in its settings, so there
+    # is nothing stored to preserve and no evidence that omitting it is safe.
+    mode = params.get("climatisation_mode") or settings.get("climatisationMode")
+    body["climatisationMode"] = mode or "comfort"
+
+    for name, field in _START_OVERRIDES.items():
+        value = params.get(name)
+        if value is not None:
+            body[field] = bool(value)
+
+    return body
+
+
 SUCCEEDED = "succeeded"
 FAILED = "failed"
 REQUEST_SUCCESSFUL = "request_successful"
@@ -805,6 +882,26 @@ class AudiService:
             data=json.dumps(data),
         )
 
+    async def get_climatisation_settings_raw(self, vin: str) -> dict:
+        """Fetch just the climatisation job, unparsed.
+
+        The start endpoint replaces the whole settings object, so it needs the
+        fields exactly as the car reports them rather than a parsed subset.
+        """
+        self._api.use_token(self._bearer_token_json)
+        data = await self._api.get(
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs="climatisation"
+            )
+        )
+        value = (
+            (data or {})
+            .get("climatisation", {})
+            .get("climatisationSettings", {})
+            .get("value")
+        )
+        return value if isinstance(value, dict) else {}
+
     async def set_climatisation(self, vin: str, start: bool):
         api_level = self._api_level
         country = self._country
@@ -1008,26 +1105,24 @@ class AudiService:
 
             data = None
             if has_settings:
-                if temp_f is not None:
-                    target_temperature = int((temp_f - 32) * (5 / 9))
-                elif temp_c is not None:
-                    target_temperature = int(temp_c)
-
-                target_temperature = target_temperature or 21
-
-                data = {
-                    "climatisationMode": climatisation_mode or "comfort",
-                    "targetTemperature": target_temperature,
-                    "targetTemperatureUnit": "celsius",
-                    "climatisationWithoutExternalPower": True,
-                    "climatizationAtUnlock": bool(climatisation_at_unlock),
-                    "windowHeatingEnabled": bool(glass_heating),
-                    "zoneFrontLeftEnabled": bool(seat_fl),
-                    "zoneFrontRightEnabled": bool(seat_fr),
-                    "zoneRearLeftEnabled": bool(seat_rl),
-                    "zoneRearRightEnabled": bool(seat_rr),
-                }
-                data = json.dumps(data)
+                # Read-modify-write: the endpoint replaces the settings object,
+                # so anything not sent is cleared. Build from what the car
+                # currently holds and change only what the caller asked for.
+                stored = await self.get_climatisation_settings_raw(vin)
+                data = json.dumps(
+                    build_climatisation_start_body(
+                        stored,
+                        temp_f=temp_f,
+                        temp_c=temp_c,
+                        climatisation_mode=climatisation_mode,
+                        climatisation_at_unlock=climatisation_at_unlock,
+                        glass_heating=glass_heating,
+                        seat_fl=seat_fl,
+                        seat_fr=seat_fr,
+                        seat_rl=seat_rl,
+                        seat_rr=seat_rr,
+                    )
+                )
             else:
                 _LOGGER.debug(
                     "No climate settings supplied; starting climatisation with the settings stored in the vehicle."

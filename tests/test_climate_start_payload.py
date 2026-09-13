@@ -29,6 +29,26 @@ class _RecordingAPI:
         )
         return {"action": {"actionId": "test-action"}}
 
+    async def get(self, url, **kwargs):
+        """The start reads the car's stored settings first. These values are
+        deliberately ON so a body that clears them is visible in the assertions."""
+        return {
+            "climatisation": {
+                "climatisationSettings": {
+                    "value": {
+                        "carCapturedTimestamp": "2026-09-12 12:00:00+00:00",
+                        "targetTemperature_C": 15.5,
+                        "targetTemperature_F": 60,
+                        "climatisationWithoutExternalPower": True,
+                        "climatizationAtUnlock": True,
+                        "windowHeatingEnabled": True,
+                        "zoneFrontLeftEnabled": True,
+                        "zoneFrontRightEnabled": True,
+                    }
+                }
+            }
+        }
+
 
 def _service(api_level: int, country: str = "DE") -> tuple[AudiService, _RecordingAPI]:
     api = _RecordingAPI()
@@ -67,14 +87,62 @@ def test_supplied_temperature_still_sends_a_body() -> None:
 
 
 def test_a_single_supplied_setting_is_enough_to_send_a_body() -> None:
-    # Asking for one seat is still asking for something, so the vehicle's own
-    # settings must not silently win.
+    # Asking for one seat is still asking for something, so a body is sent.
     service, api = _service(api_level=1)
     _start(service, seat_fl=True)
 
     body = json.loads(api.calls[0]["data"])
     assert body["zoneFrontLeftEnabled"] is True
-    assert body["zoneFrontRightEnabled"] is False
+
+
+def test_an_unsupplied_setting_keeps_what_the_car_has() -> None:
+    """Changed deliberately on 2026-09-12, replacing an assertion that an
+    unsupplied zone was sent as False. That behaviour was the defect: the
+    endpoint replaces rather than merges, so starting climatisation from the
+    climate entity (which passes only a temperature) wiped the stored window
+    heating and every seat zone. Confirmed live, where the myAudi app's own
+    start preserved them and ours cleared them on the same car minutes apart.
+    None now means leave it alone; only an explicit False turns something off."""
+    service, api = _service(api_level=1)
+    _start(service, seat_fl=True)
+
+    body = json.loads(api.calls[0]["data"])
+    assert body["zoneFrontRightEnabled"] is True  # the car's value, not forced off
+    assert body["windowHeatingEnabled"] is True
+    assert body["climatizationAtUnlock"] is True
+
+
+def test_a_temperature_only_start_preserves_the_stored_settings() -> None:
+    """The exact live regression: the climate entity passes only temp_c."""
+    service, api = _service(api_level=1)
+    _start(service, temp_c=20)
+
+    body = json.loads(api.calls[0]["data"])
+    assert body["targetTemperature"] == 20
+    assert body["windowHeatingEnabled"] is True
+    assert body["zoneFrontLeftEnabled"] is True
+    assert body["zoneFrontRightEnabled"] is True
+
+
+def test_an_unchanged_temperature_is_not_rounded() -> None:
+    """The car stores half degrees. Passing its own value back through int()
+    would quietly move 15.5 to 15 on a start that never asked to change it."""
+    service, api = _service(api_level=1)
+    _start(service, seat_fl=True)
+
+    body = json.loads(api.calls[0]["data"])
+    assert body["targetTemperature"] == 15.5
+
+
+def test_a_car_without_rear_zones_is_not_sent_any() -> None:
+    """Only the fields the car reports are sent. #771's vehicles reject a
+    payload they have no profile for, and inventing rear zones is exactly that."""
+    service, api = _service(api_level=1)
+    _start(service, seat_fl=True)
+
+    body = json.loads(api.calls[0]["data"])
+    assert "zoneRearLeftEnabled" not in body
+    assert "zoneRearRightEnabled" not in body
 
 
 def test_climatisation_mode_defaults_instead_of_serialising_null() -> None:
