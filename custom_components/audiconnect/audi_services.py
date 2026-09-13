@@ -35,6 +35,13 @@ UNUSABLE_HOME_REGION_HOST = "vwautocloud"
 CHARGING_CONFIRM_ATTEMPTS = 3
 CHARGING_CONFIRM_SLEEP = 5
 
+# Climatisation needs a longer window than charging. Measured on a live vehicle
+# 2026-09-13: a start the car never acted on sat at in_progress through +10s and
+# +20s and only reached "timeout" at about +60s, so the 15s charging budget would
+# expire before the failure was visible and report it as merely unconfirmed.
+CLIMATISATION_CONFIRM_ATTEMPTS = 8
+CLIMATISATION_CONFIRM_SLEEP = 10
+
 
 def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int, dict]:
     """Pure read-modify-write core for a location charging profile.
@@ -737,6 +744,25 @@ class AudiService:
     async def _confirm_charging_command(
         self, vin: str, action: str, request_id: str
     ) -> None:
+        """Confirm a charging command. Thin wrapper kept for its call sites."""
+        await self._confirm_vehicle_request(
+            vin,
+            action,
+            request_id,
+            noun="Charging",
+            attempts=CHARGING_CONFIRM_ATTEMPTS,
+            sleep=CHARGING_CONFIRM_SLEEP,
+        )
+
+    async def _confirm_vehicle_request(
+        self,
+        vin: str,
+        action: str,
+        request_id: str,
+        noun: str = "Charging",
+        attempts: int = CHARGING_CONFIRM_ATTEMPTS,
+        sleep: int = CHARGING_CONFIRM_SLEEP,
+    ) -> None:
         """Poll pendingrequests until the car acts on the command.
 
         Deliberately shorter than check_bff_request_succeeded (10 polls, 10s
@@ -753,8 +779,8 @@ class AudiService:
             "Content-Type": "application/json; charset=utf-8",
         }
 
-        for _ in range(CHARGING_CONFIRM_ATTEMPTS):
-            await asyncio.sleep(CHARGING_CONFIRM_SLEEP)
+        for _ in range(attempts):
+            await asyncio.sleep(sleep)
             res = await self._api.request(
                 "GET",
                 self.__get_cariad_url_for_vin(vin, "pendingrequests"),
@@ -769,20 +795,21 @@ class AudiService:
                 if status == "in_progress":
                     break
                 if status == "successful":
-                    _LOGGER.debug("Charging %s confirmed for %s", action, vin)
+                    _LOGGER.debug("%s %s confirmed for %s", noun, action, vin)
                     return
                 raise Exception(
-                    f"Charging {action} for {vin} was rejected by the vehicle "
+                    f"{noun} {action} for {vin} was rejected by the vehicle "
                     f"(request {request_id} reached status {status})"
                 )
 
         _LOGGER.warning(
-            "Charging %s was accepted for %s but not confirmed within %ds. The "
-            "command may still be carried out; check the charging state after the "
-            "next refresh.",
+            "%s %s was accepted for %s but not confirmed within %ds. The command "
+            "may still be carried out; check the vehicle state after the next "
+            "refresh.",
+            noun,
             action,
             vin,
-            CHARGING_CONFIRM_ATTEMPTS * CHARGING_CONFIRM_SLEEP,
+            attempts * sleep,
         )
 
         # checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
@@ -1137,6 +1164,28 @@ class AudiService:
                 headers=headers,
                 data=data,
             )
+
+            # The 200 is the gateway accepting the request, not the car acting on
+            # it. Measured on a live vehicle 2026-09-13: a start the car ignored
+            # returned 200 with a requestID and only reported "timeout" in
+            # pendingrequests about a minute later, so without this a command that
+            # never ran was announced as success. Same class as #847's rejected
+            # switch command.
+            request_id = get_attr(res, "data.requestID")
+            if request_id is not None:
+                await self._confirm_vehicle_request(
+                    vin,
+                    "start",
+                    request_id,
+                    noun="Climatisation",
+                    attempts=CLIMATISATION_CONFIRM_ATTEMPTS,
+                    sleep=CLIMATISATION_CONFIRM_SLEEP,
+                )
+            else:
+                _LOGGER.debug(
+                    "Climatisation start accepted for %s with no request id to confirm",
+                    vin,
+                )
 
             # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
             #     vin=vin.upper(),
