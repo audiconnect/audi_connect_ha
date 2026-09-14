@@ -98,6 +98,7 @@ Starting is unproven. It appeared to work once, but the car had a target well ab
 Timed charging is not exposed either, for the same reason: it goes through the same command as start and stop.
 
 Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
+
 ## Why an entity sometimes disappears
 
 Entities are created when the integration sets up, and until now that decision asked whether the value was present in the poll it happened to be holding. A partial or rate-limited poll therefore removed controls: on one vehicle a `429 Too Many Requests` took sixteen entities away, including a parking-position sensor for a car that plainly has parking position. They returned only after a reload.
