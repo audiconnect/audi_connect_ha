@@ -959,6 +959,7 @@ class AudiService:
             headers=headers,
             data=json.dumps(body),
         )
+
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge (battery percentage)."""
         if not (20 <= target_soc <= 100):

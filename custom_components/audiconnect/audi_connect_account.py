@@ -420,6 +420,7 @@ class AudiConnectAccount:
                     vin,
                     ex,
                 )
+
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
         if not self._loggedin:
