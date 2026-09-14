@@ -99,6 +99,14 @@ Timed charging is not exposed either, for the same reason: it goes through the s
 
 Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
 
+## Why an entity sometimes disappears
+
+Entities are created when the integration sets up, and until now that decision asked whether the value was present in the poll it happened to be holding. A partial or rate-limited poll therefore removed controls: on one vehicle a `429 Too Many Requests` took sixteen entities away, including a parking-position sensor for a car that plainly has parking position. They returned only after a reload.
+
+The car reports what it can do, separately from what any one poll contains, and the integration now asks that list instead where a capability maps cleanly onto an entity. A missing value leaves the entity unavailable rather than deleting it.
+
+Vehicles that do not report a capability list are unaffected and keep the previous behaviour.
+
 ## Service Actions
 
 ### Audi Connect: Refresh Vehicle Data
