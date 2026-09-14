@@ -77,14 +77,14 @@ _Note: The integration will reload automatically upon clicking `Submit`, but a H
 
 Each vehicle's device page exposes its actions directly, so the common ones no longer need a service call. Availability depends on what the vehicle reports and, for the lock and engine controls, on an S-PIN being configured.
 
-| Control                        | Type   | Replaces                                              |
-| ------------------------------ | ------ | ----------------------------------------------------- |
-| `Door lock`                    | Lock   | `execute_vehicle_action` with `lock` / `unlock`       |
-| `Climatisation`                | Climate | `start_climate_control` / `stop_climatisation`       |
-| `Preheater`                    | Switch | `execute_vehicle_action` with `start_/stop_preheater` |
-| `Target state of charge`       | Number | `set_target_soc`                                      |
-| `Start engine` / `Stop engine` | Button | `start_engine` / `stop_engine`                        |
-| `Refresh vehicle data`         | Button | `refresh_vehicle_data`                                |
+| Control                        | Type    | Replaces                                              |
+| ------------------------------ | ------- | ----------------------------------------------------- |
+| `Door lock`                    | Lock    | `execute_vehicle_action` with `lock` / `unlock`       |
+| `Climatisation`                | Climate | `start_climate_control` / `stop_climatisation`        |
+| `Preheater`                    | Switch  | `execute_vehicle_action` with `start_/stop_preheater` |
+| `Target state of charge`       | Number  | `set_target_soc`                                      |
+| `Start engine` / `Stop engine` | Button  | `start_engine` / `stop_engine`                        |
+| `Refresh vehicle data`         | Button  | `refresh_vehicle_data`                                |
 
 The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
 
@@ -99,6 +99,7 @@ Starting is unproven. It appeared to work once, but the car had a target well ab
 Timed charging is not exposed either, for the same reason: it goes through the same command as start and stop.
 
 Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
+
 ## Climatisation
 
 The climate entity turns climatisation on and off and sets the target temperature. The car reports whether climatisation is running and in which mode (heating, cooling, ventilation), so the entity reflects the vehicle rather than what Home Assistant last asked for.
