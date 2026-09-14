@@ -1,0 +1,6 @@
+# Pinned deliberately, so a release of Home Assistant or pytest cannot turn CI
+# red on a pull request that did not change anything. Bump when you want to
+# test against a newer Home Assistant.
+homeassistant==2026.7.4
+pytest==9.1.1
+pytest-asyncio==1.4.0
