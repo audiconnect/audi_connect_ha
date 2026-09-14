@@ -72,6 +72,8 @@ class AudiChargeModeSelect(AudiEntity, SelectEntity):
     running under a different mode than the one configured.
     """
 
+    _backing_attr = _ATTR_KEY
+
     _attr_name = "Charge mode"
     _attr_icon = "mdi:battery-clock"
 

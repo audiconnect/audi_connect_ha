@@ -20,6 +20,17 @@ from .coordinator import AudiDataUpdateCoordinator
 _LOCK_ATTR_KEY = "lock"
 
 
+def _spin_configured(vehicle: Any) -> bool:
+    """lock_supported also requires an S-PIN, which the user sets.
+
+    Removing it must remove the lock, so that half of the gate cannot be
+    overridden by the entity having existed before. Same reasoning that
+    keeps the engine buttons out of the rescue.
+    """
+    service = getattr(vehicle, "_audi_service", None)
+    return getattr(service, "_spin", None) is not None
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -30,7 +41,12 @@ async def async_setup_entry(
         AudiLock(runtime_data.coordinator, config_vehicle.vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
         if should_create_entity(
-            hass, "lock", _LOCK_ATTR_KEY, config_vehicle.vehicle, _LOCK_ATTR_KEY
+            hass,
+            "lock",
+            _LOCK_ATTR_KEY,
+            vehicle := config_vehicle.vehicle,
+            _LOCK_ATTR_KEY,
+            configured=_spin_configured(vehicle),
         )
     ]
     async_add_entities(entities)
@@ -40,6 +56,7 @@ class AudiLock(AudiEntity, LockEntity):
     """Representation of an Audi lock."""
 
     _attr_name = "Door lock"
+    _backing_attr = "doors_trunk_status"
 
     def __init__(
         self,

@@ -64,6 +64,8 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     asking for a change and the car confirming it.
     """
 
+    _backing_attr = _ATTR_KEY
+
     _attr_name = "Climatisation"
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL]
     _attr_supported_features = (

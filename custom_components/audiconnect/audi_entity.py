@@ -75,6 +75,8 @@ def should_create_entity(
     vehicle: Any,
     attr_key: str,
     capability: str | None = None,
+    *,
+    configured: bool = True,
 ) -> bool:
     """Whether a platform should create this entity for this vehicle.
 
@@ -85,16 +87,25 @@ def should_create_entity(
     at all gets no protection from it whatsoever.
 
     An entity already in the registry is one this integration created for this
-    car on an earlier, better poll. Recreating it costs nothing and it reports
-    unavailable while the value is missing, which is the truthful state. Losing
-    it deletes the user's history, their dashboard card and any automation
-    referring to it.
+    car on an earlier, better poll. Recreating it costs nothing, and it reports
+    unavailable while its value is missing (see AudiEntity.available), which is
+    the truthful state. Losing it deletes the user's history, their dashboard
+    card and any automation referring to it.
 
     The car's own "no" still wins. A capability the car explicitly does not
     list is a statement about the vehicle rather than about this poll, so a
     stale registry entry does not resurrect an entity for a feature the car
-    says it does not have.
+    says it does not have. That only bites where a description names a
+    capability, which today is the parking-position family; everywhere else the
+    rescue rests on the registry alone.
+
+    ``configured`` is the other kind of "no", and it is not about this poll
+    either. A control gated on something the user set, an S-PIN above all, must
+    disappear when they unset it, so a registry entry cannot bring it back.
+    Pass it wherever the gate is a configuration fact rather than vehicle data.
     """
+    if not configured:
+        return False
     if _capability_verdict(vehicle, capability) is False:
         return False
     if is_entity_supported(vehicle, attr_key, capability):
@@ -108,6 +119,33 @@ class AudiEntity(CoordinatorEntity[AudiDataUpdateCoordinator]):
     """Base class for all Audi entities."""
 
     _attr_has_entity_name = True
+
+    # The vehicle attribute this entity reads. Set by platforms whose entity
+    # has no entity_description to carry it.
+    _backing_attr: str | None = None
+
+    @property
+    def available(self) -> bool:
+        """Unavailable when the car is not reporting this entity's value.
+
+        Without this, an entity kept across a thin poll reports a value it does
+        not have: a switch reads off, a lock reads unlocked, a sensor reads
+        unknown. For a stored setting that may well be on, "off" is not a
+        gentler version of "no data", it is a wrong answer that an automation
+        will act on.
+
+        This is deliberately not limited to entities the registry rescued. An
+        entity whose backing value is absent is in the same state however it
+        came to exist, and Home Assistant already has a word for it.
+        """
+        if not super().available:
+            return False
+        attr = self._backing_attr or getattr(
+            getattr(self, "entity_description", None), "attr_key", None
+        )
+        if attr is None:
+            return True
+        return getattr(self._vehicle, attr, None) is not None
 
     def __init__(
         self,

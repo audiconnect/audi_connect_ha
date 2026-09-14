@@ -256,3 +256,111 @@ def test_the_gate_and_the_entity_agree_on_the_unique_id():
         assert "entity_unique_id(" in source, (
             f"{module.__name__} does not build its unique_id through the helper"
         )
+
+
+# --- the two kinds of "no" ---------------------------------------------------------
+
+
+def test_removing_the_s_pin_removes_the_lock_even_though_it_existed_before(hass):
+    """The must-fire case for the configuration gate.
+
+    lock_supported is doors_trunk_status_supported AND an S-PIN being set. The
+    first half is about this poll and the second is about what the user
+    configured, and only the first may be overridden by history. Unsetting the
+    S-PIN has to take the lock away, exactly as it takes the engine buttons.
+    """
+    register(hass, "lock", entity_unique_id(Vehicle(), "lock", "lock"))
+    no_spin = Vehicle(lock=True)
+
+    assert not should_create_entity(
+        hass, "lock", "lock", no_spin, "lock", configured=False
+    )
+
+
+def test_the_lock_is_still_rescued_when_the_s_pin_is_there(hass):
+    """The control for the test above: same call, S-PIN present."""
+    register(hass, "lock", entity_unique_id(Vehicle(), "lock", "lock"))
+    thin_poll = Vehicle()  # no lock attribute in this poll
+
+    assert should_create_entity(
+        hass, "lock", "lock", thin_poll, "lock", configured=True
+    )
+
+
+def test_the_configuration_gate_does_not_invent_an_entity_either(hass):
+    """configured=True is permission to consider, not an answer."""
+    assert not should_create_entity(
+        hass, "lock", "lock", Vehicle(), "lock", configured=True
+    )
+
+
+# --- a kept entity says it has no data, rather than inventing one -------------------
+
+
+class _Coordinator:
+    last_update_success = True
+
+    def async_add_listener(self, *args, **kwargs):
+        return lambda: None
+
+
+def _entity(vehicle, backing=None, description=None):
+    from custom_components.audiconnect.audi_entity import AudiEntity
+
+    e = AudiEntity(_Coordinator(), vehicle)
+    if backing is not None:
+        e._backing_attr = backing
+    if description is not None:
+        e.entity_description = description
+    return e
+
+
+def test_a_kept_entity_reports_unavailable_rather_than_a_value_it_lacks():
+    """Without this the rescue trades one wrong answer for another: a settings
+    switch reads off for a setting that may well be on, and an automation acts
+    on it."""
+    assert _entity(Vehicle(), backing="glass_surface_heating").available is False
+
+
+def test_the_same_entity_is_available_once_the_car_reports_it():
+    """The control. A probe that never returns True is not measuring."""
+    assert (
+        _entity(
+            Vehicle(glass_surface_heating=False), backing="glass_surface_heating"
+        ).available
+        is True
+    )
+
+
+def test_a_value_of_false_is_data_and_not_absence():
+    """bool(None) is False too, which is the whole bug this PR exists around."""
+    e = _entity(Vehicle(glass_surface_heating=False), backing="glass_surface_heating")
+    assert e.available is True
+
+
+def test_an_entity_with_no_backing_attribute_stays_available():
+    """Entities not fed by a single vehicle field are untouched."""
+    assert _entity(Vehicle()).available is True
+
+
+def test_a_failed_refresh_still_wins():
+    """The coordinator's own verdict is not overridden."""
+    e = _entity(Vehicle(glass_surface_heating=True), backing="glass_surface_heating")
+    e.coordinator.last_update_success = False
+    assert e.available is False
+
+
+# --- the class attribute must not eat the docstring --------------------------------
+
+
+def test_every_entity_class_kept_its_docstring():
+    """_backing_attr placed above a class docstring silently replaces it, and
+    nothing else in this suite would notice."""
+    from custom_components.audiconnect.climate import AudiClimate
+    from custom_components.audiconnect.device_tracker import AudiDeviceTracker
+    from custom_components.audiconnect.lock import AudiLock
+    from custom_components.audiconnect.select import AudiChargeModeSelect
+
+    for cls in (AudiClimate, AudiChargeModeSelect, AudiLock, AudiDeviceTracker):
+        assert cls.__doc__, f"{cls.__name__} lost its docstring"
+        assert cls._backing_attr, f"{cls.__name__} has no backing attribute"

@@ -45,6 +45,7 @@ class AudiDeviceTracker(AudiEntity, TrackerEntity):
     _attr_name = "Position"
     _attr_should_poll = False
     _attr_source_type = SourceType.GPS
+    _backing_attr = _POSITION_ATTR_KEY
 
     def __init__(
         self,
