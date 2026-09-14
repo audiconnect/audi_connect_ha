@@ -41,7 +41,7 @@ def test_the_car_stores_a_half_degree_the_write_cannot_send(states):
 
     assert states["climatisationTargetTemperatureC"] % 1 != 0
     assert "int(temp_c)" in inspect.getsource(
-        audi_services.AudiService.start_climate_control
+        audi_services.build_climatisation_start_body
     )
 
 
