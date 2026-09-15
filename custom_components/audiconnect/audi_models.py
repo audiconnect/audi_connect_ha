@@ -324,6 +324,23 @@ class VehicleDataResponse:
             -1,
             ["climatisation", "climatisationStatus", "value", "climatisationState"],
         )
+        # The whole climatisationSettings block was fetched and dropped. The
+        # target temperature in particular is reported by the car, so it does
+        # not have to be held locally and guessed at.
+        for name, key in (
+            ("climatisationTargetTemperatureC", "targetTemperature_C"),
+            ("climatisationTargetTemperatureF", "targetTemperature_F"),
+            ("climatisationWindowHeatingEnabled", "windowHeatingEnabled"),
+            ("climatisationAtUnlock", "climatizationAtUnlock"),
+            ("climatisationWithoutExternalPower", "climatisationWithoutExternalPower"),
+            ("climatisationZoneFrontLeft", "zoneFrontLeftEnabled"),
+            ("climatisationZoneFrontRight", "zoneFrontRightEnabled"),
+            ("climatisationZoneRearLeft", "zoneRearLeftEnabled"),
+            ("climatisationZoneRearRight", "zoneRearRightEnabled"),
+        ):
+            self._tryAppendStateWithTs(
+                data, name, -1, ["climatisation", "climatisationSettings", "value", key]
+            )
         self._tryAppendStateWithTs(
             data,
             "remainingClimatisationTime",
