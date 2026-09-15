@@ -37,6 +37,11 @@ class AudiSensorEntityDescription(SensorEntityDescription):
     """Describes an Audi sensor entity."""
 
     attr_key: str
+    # The car's own capability id, where one maps cleanly. Given one, entity
+    # creation follows the capability rather than whether this poll carried
+    # the value, so a partial poll leaves the entity unavailable instead of
+    # deleting it.
+    capability: str | None = None
     value_fn: Callable[[Any], Any] | None = None
     extra_attrs_fn: Callable[[Any], dict[str, Any]] | None = None
     unit_fn: Callable[[Any], str | None] | None = None
@@ -66,6 +71,35 @@ def _trip_data_attrs(vehicle: Any, attr_key: str) -> dict[str, Any]:
         "tripID": td.get("tripID"),
         "zeroEmissionDistance": td.get("zeroEmissionDistance"),
     }
+
+
+def _active_profile_attrs(vehicle: Any) -> dict[str, Any]:
+    """Everything needed to see why the car is charging to the number it is."""
+    attrs: dict[str, Any] = {
+        "profile_id": getattr(vehicle, "active_charging_profile_id", None),
+        "profile_name": getattr(vehicle, "active_charging_profile_name", None),
+        "min_soc_pct": getattr(vehicle, "active_charging_profile_min_soc", None),
+        "global_target_soc_pct": getattr(vehicle, "target_state_of_charge", None),
+        "preferred_charging_time_start": getattr(
+            vehicle, "preferred_charging_time_start", None
+        ),
+        "preferred_charging_time_end": getattr(
+            vehicle, "preferred_charging_time_end", None
+        ),
+        "preferred_charging_time_enabled": getattr(
+            vehicle, "preferred_charging_time_enabled", None
+        ),
+        "profiles": getattr(vehicle, "charging_profiles", None),
+    }
+    return {k: v for k, v in attrs.items() if v is not None}
+
+
+def _charging_timer_attrs(vehicle: Any) -> dict[str, Any]:
+    attrs: dict[str, Any] = {
+        "timers": getattr(vehicle, "charging_timers", None),
+        "next_departure": getattr(vehicle, "next_charging_timer_departure", None),
+    }
+    return {k: v for k, v in attrs.items() if v is not None}
 
 
 SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
@@ -364,9 +398,19 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
     AudiSensorEntityDescription(
         key="park_time",
         attr_key="park_time",
+        capability="parkingPosition",
         name="Park Time",
         icon="mdi:car-clock",
         device_class=SensorDeviceClass.TIMESTAMP,
+    ),
+    AudiSensorEntityDescription(
+        key="position_last_updated",
+        attr_key="position_last_updated",
+        capability="parkingPosition",
+        name="Position Last Updated",
+        icon="mdi:map-marker-clock",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     AudiSensorEntityDescription(
         key="remaining_climatisation_time",
@@ -389,6 +433,52 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         icon="mdi:clock",
         native_unit_of_measurement=UnitOfTime.MINUTES,
     ),
+    AudiSensorEntityDescription(
+        key="active_charging_profile_target_soc",
+        attr_key="active_charging_profile_target_soc",
+        name="Active Charging Profile Target SoC",
+        icon="mdi:map-marker-check",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        extra_attrs_fn=_active_profile_attrs,
+    ),
+    AudiSensorEntityDescription(
+        key="active_charging_profile_name",
+        attr_key="active_charging_profile_name",
+        name="Active Charging Profile",
+        icon="mdi:map-marker",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AudiSensorEntityDescription(
+        key="active_charging_profile_min_soc",
+        attr_key="active_charging_profile_min_soc",
+        name="Active Charging Profile Min SoC",
+        icon="mdi:battery-alert-variant-outline",
+        native_unit_of_measurement=PERCENTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AudiSensorEntityDescription(
+        key="preferred_charging_time_start",
+        attr_key="preferred_charging_time_start",
+        name="Preferred Charging Window Start",
+        icon="mdi:clock-start",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AudiSensorEntityDescription(
+        key="preferred_charging_time_end",
+        attr_key="preferred_charging_time_end",
+        name="Preferred Charging Window End",
+        icon="mdi:clock-end",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AudiSensorEntityDescription(
+        key="charging_timer_enabled_count",
+        attr_key="charging_timer_enabled_count",
+        name="Charging Timers Enabled",
+        icon="mdi:timer-cog-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        extra_attrs_fn=_charging_timer_attrs,
+    ),
 )
 
 
@@ -403,7 +493,9 @@ async def async_setup_entry(
     for config_vehicle in runtime_data.account.config_vehicles:
         vehicle = config_vehicle.vehicle
         for description in SENSOR_DESCRIPTIONS:
-            if is_entity_supported(vehicle, description.attr_key):
+            if is_entity_supported(
+                vehicle, description.attr_key, description.capability
+            ):
                 entities.append(
                     AudiSensor(runtime_data.coordinator, description, vehicle)
                 )

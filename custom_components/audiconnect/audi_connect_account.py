@@ -355,6 +355,74 @@ class AudiConnectAccount:
                     "Cloud refresh failed after lock/unlock for %s: %s", vin, ex
                 )
 
+    async def set_location_charge_target(self, vin: str, profile_id, target_soc: int):
+        """Set a location charging profile's target SoC (the governing value)."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+        try:
+            _LOGGER.debug(
+                "Setting location charge target to %d%% (profile %s) for %s",
+                target_soc,
+                profile_id,
+                vin,
+            )
+            await self._audi_service.set_location_charge_target(
+                vin, profile_id, target_soc
+            )
+            return True
+        except Exception as exception:
+            log_exception(
+                exception,
+                f"Unable to set location charge target for vehicle {vin}",
+            )
+            return False
+
+    async def set_charge_mode(self, vin: str, mode: str):
+        """Set the preferred charge mode (manual or timer)."""
+        if not self._loggedin:
+            await self.login()
+
+        if not self._loggedin:
+            return False
+
+        try:
+            _LOGGER.debug("Setting charge mode to %s for vehicle %s", mode, vin)
+            await self._audi_service.set_preferred_charge_mode(vin, mode)
+            return True
+        except Exception as exception:
+            log_exception(exception, f"Unable to set charge mode for vehicle {vin}")
+            return False
+
+    async def flash_lights(self, vin: str, duration_s: int = 10) -> bool:
+        """Flash the vehicle's lights. Never sounds the horn."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+
+        vehicle = next((v for v in self.vehicles if v.vin.lower() == vin.lower()), None)
+        position = getattr(vehicle, "position", None) if vehicle else None
+        latitude = (position or {}).get("latitude")
+        longitude = (position or {}).get("longitude")
+        if latitude is None or longitude is None:
+            # The API requires it, so failing here is clearer than a 400 from
+            # the far end.
+            _LOGGER.warning(
+                "Cannot flash lights for %s: the car has not reported a position",
+                vin,
+            )
+            return False
+
+        try:
+            _LOGGER.debug("Flashing lights for vehicle %s", vin)
+            await self._audi_service.flash_lights(vin, latitude, longitude, duration_s)
+            return True
+        except Exception as exception:
+            log_exception(exception, f"Unable to flash lights for vehicle {vin}")
+            return False
+
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge for the vehicle battery."""
         if not self._loggedin:
@@ -798,9 +866,15 @@ class AudiConnectVehicle:
                         self._vehicle.state["last_update_time"], new_time
                     )
 
-            # Update with the newest carCapturedTimestamp from states
+            # Update with the newest carCapturedTimestamp from states.
+            # A state can carry no timestamp: userCapabilities is a statement
+            # about the vehicle rather than a reading from it. Skipping those
+            # here keeps the scan independent of how lenient parse_datetime is.
             for state in status.states:
-                new_time = parse_datetime(state.get("measure_time"))
+                ts = state.get("measure_time")
+                if not ts:
+                    continue
+                new_time = parse_datetime(ts)
                 if new_time:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
@@ -1759,6 +1833,23 @@ class AudiConnectVehicle:
         return check is not None and check != "unsupported"
 
     @property
+    def preferred_charge_mode(self):
+        """Return the charge mode the car is set to, not the one in progress."""
+        if self.preferred_charge_mode_supported:
+            return self._vehicle.state.get("preferredChargeMode")
+
+    @property
+    def preferred_charge_mode_supported(self):
+        check = self._vehicle.state.get("preferredChargeMode")
+        return check is not None and check != "unsupported"
+
+    @property
+    def available_charge_modes(self):
+        """Return the modes the car says it accepts, which can be empty."""
+        modes = self._vehicle.state.get("availableChargeModes")
+        return modes if isinstance(modes, list) else None
+
+    @property
     def energy_flow(self):
         """Return charging mode"""
         if self.energy_flow_supported:
@@ -1987,6 +2078,111 @@ class AudiConnectVehicle:
         return parse_int(self._vehicle.state.get("targetstateOfCharge")) is not None
 
     @property
+    def active_charging_profile_target_soc(self):
+        """Return the target SoC of the location profile the car is parked in.
+
+        This is the limit the car actually charges to. target_state_of_charge is
+        the global setting, which a location profile overrides, so the two
+        disagree whenever a profile is in force (upstream #722).
+        """
+        if self.active_charging_profile_target_soc_supported:
+            return parse_int(self._vehicle.state.get("activeChargingProfileTargetSoc"))
+
+    @property
+    def active_charging_profile_target_soc_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("activeChargingProfileTargetSoc"))
+            is not None
+        )
+
+    @property
+    def active_charging_profile_name(self):
+        """Return the name of the charging profile in force at this location."""
+        if self.active_charging_profile_name_supported:
+            return self._vehicle.state.get("activeChargingProfileName")
+
+    @property
+    def active_charging_profile_name_supported(self):
+        return self._vehicle.state.get("activeChargingProfileName") is not None
+
+    @property
+    def active_charging_profile_id(self):
+        if self.active_charging_profile_id_supported:
+            return parse_int(self._vehicle.state.get("activeChargingProfileId"))
+
+    @property
+    def active_charging_profile_id_supported(self):
+        return parse_int(self._vehicle.state.get("activeChargingProfileId")) is not None
+
+    @property
+    def active_charging_profile_min_soc(self):
+        """Return the minimum SoC the profile tops up to regardless of schedule."""
+        if self.active_charging_profile_min_soc_supported:
+            return parse_int(self._vehicle.state.get("activeChargingProfileMinSoc"))
+
+    @property
+    def active_charging_profile_min_soc_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("activeChargingProfileMinSoc"))
+            is not None
+        )
+
+    @property
+    def charging_profiles(self):
+        """Return every location profile, for the attribute payload."""
+        return self._vehicle.state.get("chargingProfiles")
+
+    @property
+    def charging_profiles_supported(self):
+        return isinstance(self._vehicle.state.get("chargingProfiles"), list)
+
+    @property
+    def preferred_charging_time_start(self):
+        if self.preferred_charging_time_start_supported:
+            return self._vehicle.state.get("preferredChargingTimeStart")
+
+    @property
+    def preferred_charging_time_start_supported(self):
+        return self._vehicle.state.get("preferredChargingTimeStart") is not None
+
+    @property
+    def preferred_charging_time_end(self):
+        if self.preferred_charging_time_end_supported:
+            return self._vehicle.state.get("preferredChargingTimeEnd")
+
+    @property
+    def preferred_charging_time_end_supported(self):
+        return self._vehicle.state.get("preferredChargingTimeEnd") is not None
+
+    @property
+    def preferred_charging_time_enabled(self):
+        return self._vehicle.state.get("preferredChargingTimeEnabled")
+
+    @property
+    def charging_timers(self):
+        """Return the departure/charging timers, for the attribute payload."""
+        return self._vehicle.state.get("chargingTimers")
+
+    @property
+    def charging_timers_supported(self):
+        return isinstance(self._vehicle.state.get("chargingTimers"), list)
+
+    @property
+    def charging_timer_enabled_count(self):
+        if self.charging_timer_enabled_count_supported:
+            return parse_int(self._vehicle.state.get("chargingTimerEnabledCount"))
+
+    @property
+    def charging_timer_enabled_count_supported(self):
+        return (
+            parse_int(self._vehicle.state.get("chargingTimerEnabledCount")) is not None
+        )
+
+    @property
+    def next_charging_timer_departure(self):
+        return self._vehicle.state.get("nextChargingTimerDeparture")
+
+    @property
     def plug_state(self):
         """Return plug state"""
         if self.plug_state_supported:
@@ -2046,6 +2242,32 @@ class AudiConnectVehicle:
             return self._vehicle.state.get("climatisationState")
 
     @property
+    def capabilities(self) -> frozenset[str]:
+        """What the car says it can do. Empty when it does not report the list,
+        which every caller must treat as "unknown", never as "nothing"."""
+        value = self._vehicle.state.get("userCapabilities")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    @property
+    def impaired_capabilities(self) -> frozenset[str]:
+        """Capabilities the car lists while also reporting an error against
+        them. Listed is not the same as working."""
+        value = self._vehicle.state.get("userCapabilitiesImpaired")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    def has_capability(self, capability: str) -> bool | None:
+        """True, False, or None when the car reports no capability list at all.
+
+        Three-valued deliberately: a caller that cannot tell "not capable" from
+        "did not say" will delete entities on the vehicles that never report
+        the list.
+        """
+        caps = self.capabilities
+        if not caps:
+            return None
+        return capability in caps
+
+    @property
     def climatisation_state_supported(self):
         check = self._vehicle.state.get("climatisationState")
         if check:
@@ -2070,6 +2292,22 @@ class AudiConnectVehicle:
     @property
     def glass_surface_heating_supported(self):
         return self._vehicle.state.get("isMirrorHeatingActive") is not None
+
+    @property
+    def position_last_updated(self):
+        """When the vehicle last reported the position, not when HA last polled.
+
+        parkingposition carries its own carCapturedTimestamp and only moves when
+        the car reports a new position, so a location can be hours old while the
+        entity looks current. Exposing the capture time lets an automation decide
+        whether a position is fresh enough to act on.
+        """
+        if self.position_last_updated_supported:
+            return (self._vehicle.state.get("position") or {}).get("timestamp")
+
+    @property
+    def position_last_updated_supported(self):
+        return (self._vehicle.state.get("position") or {}).get("timestamp") is not None
 
     @property
     def park_time(self):

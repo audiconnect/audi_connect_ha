@@ -221,6 +221,37 @@ class VehicleDataResponse:
             -1,
             ["charging", "chargingStatus", "value", "chargeMode"],
         )
+        # The mode of the charge in progress, above, is not the mode the car is
+        # SET to: that is preferredChargeMode, which is what set_charge_mode
+        # writes. They agree most of the time, which is what makes reading the
+        # wrong one hard to notice.
+        #
+        # The chargeMode block carries no carCapturedTimestamp of its own, so
+        # _tryAppendStateWithTs drops it silently. Borrow the charging status
+        # timestamp, which is the freshness marker for the same fetch.
+        charge_mode_ts = self._getFromJson(
+            data, ["charging", "chargingStatus", "value", "carCapturedTimestamp"]
+        )
+        self._appendState(
+            "preferredChargeMode",
+            self._getFromJson(
+                data, ["charging", "chargeMode", "value", "preferredChargeMode"]
+            ),
+            charge_mode_ts,
+        )
+        available_modes = self._getFromJson(
+            data, ["charging", "chargeMode", "value", "availableChargeModes"]
+        )
+        if available_modes is not None:
+            # An empty list is a real answer ("the car lists none"), and
+            # _appendState would drop it as falsy.
+            self.states.append(
+                {
+                    "name": "availableChargeModes",
+                    "value": available_modes,
+                    "measure_time": charge_mode_ts,
+                }
+            )
         self._tryAppendStateWithTs(
             data,
             "chargingPower",
@@ -304,6 +335,186 @@ class VehicleDataResponse:
                 "remainingClimatisationTime_min",
             ],
         )
+        self._parseChargingProfiles(data)
+        self._parseChargingTimers(data)
+        self._parseUserCapabilities(data)
+
+    def _appendState(self, name: str, value: Any, ts: Any) -> None:
+        """Append a derived state. Used by the charging-profile and timer parsers,
+        which pick values out of a list rather than a fixed path, so they can't go
+        through _tryAppendStateWithTs."""
+        if value is None or not ts:
+            return
+        self.states.append({"name": name, "value": value, "measure_time": ts})
+
+    def _parseUserCapabilities(self, data: dict[str, Any]) -> None:
+        """Record what the car says it can do, as distinct from what this poll
+        happened to contain.
+
+        Entity creation is otherwise gated on a field being present right now,
+        so a partial or rate-limited poll deletes controls until the next
+        reload. The capability list is stable across polls and is the thing that
+        should decide whether an entity exists at all.
+
+        Job-level, not field-level: it answers "does this car do charging",
+        never "does it report targetSOC_pct".
+        """
+        value = self._getFromJson(
+            data, ["userCapabilities", "capabilitiesStatus", "value"]
+        )
+        if not isinstance(value, list):
+            return
+
+        ids = []
+        impaired = []
+        for entry in value:
+            if not isinstance(entry, dict):
+                continue
+            cap_id = entry.get("id")
+            if not isinstance(cap_id, str) or not cap_id:
+                continue
+            ids.append(cap_id)
+            # A listed capability can still be reporting an error, so it is not
+            # the same as a working one.
+            if entry.get("status"):
+                impaired.append(cap_id)
+
+        if not ids:
+            return
+
+        # No timestamp accompanies this block, and it does not need one: it is a
+        # statement about the vehicle rather than a reading from it.
+        self.states.append(
+            {"name": "userCapabilities", "value": sorted(ids), "measure_time": None}
+        )
+        if impaired:
+            self.states.append(
+                {
+                    "name": "userCapabilitiesImpaired",
+                    "value": sorted(impaired),
+                    "measure_time": None,
+                }
+            )
+
+    def _parseChargingProfiles(self, data: dict[str, Any]) -> None:
+        """Parse the location charging profiles.
+
+        The profile matching the car's current position is what actually governs a
+        charge; the global charging/settings targetSOC_pct does not. A car sitting
+        at a location whose profile says 60% will stop there while the global
+        setting still reads 70% (upstream audiconnect#722, still open as of 2.3.1).
+        """
+        value = self._getFromJson(
+            data, ["chargingProfiles", "chargingProfilesStatus", "value"]
+        )
+        if not isinstance(value, dict):
+            return
+
+        ts = value.get("carCapturedTimestamp")
+        profiles = value.get("profiles")
+        if not isinstance(profiles, list):
+            profiles = []
+
+        active_id = value.get("vehiclePositionedInProfileID")
+        active = next(
+            (p for p in profiles if isinstance(p, dict) and p.get("id") == active_id),
+            None,
+        )
+
+        # position carries the owner's home coordinates, so it is deliberately not
+        # copied into the attribute summary that ends up in the recorder database.
+        summary = [
+            {
+                "id": p.get("id"),
+                "name": p.get("name"),
+                "targetSOC_pct": p.get("targetSOC_pct"),
+                "minSOC_pct": p.get("minSOC_pct"),
+                "minSOC_enabled": p.get("minSOC_enabled"),
+                "preferredChargingTimes": p.get("preferredChargingTimes"),
+            }
+            for p in profiles
+            if isinstance(p, dict)
+        ]
+
+        self._appendState("chargingProfiles", summary, ts)
+        self._appendState("chargingProfileCount", len(summary), ts)
+        self._appendState("activeChargingProfileId", active_id, ts)
+
+        if active is None:
+            return
+
+        self._appendState("activeChargingProfileName", active.get("name"), ts)
+        self._appendState(
+            "activeChargingProfileTargetSoc", active.get("targetSOC_pct"), ts
+        )
+        self._appendState("activeChargingProfileMinSoc", active.get("minSOC_pct"), ts)
+
+        # The preferred charging window is the per-location time band; this is the
+        # field a smart-tariff scheduler writes when it moves a charge.
+        times = active.get("preferredChargingTimes")
+        if isinstance(times, list) and times:
+            window = next(
+                (t for t in times if isinstance(t, dict) and t.get("enabled")),
+                times[0] if isinstance(times[0], dict) else None,
+            )
+            if window is not None:
+                self._appendState(
+                    "preferredChargingTimeStart", window.get("startTimeLocal"), ts
+                )
+                self._appendState(
+                    "preferredChargingTimeEnd", window.get("endTimeLocal"), ts
+                )
+                # bool is appended explicitly: _appendState drops None, and False
+                # is a meaningful value here.
+                enabled = window.get("enabled")
+                if enabled is not None:
+                    self._appendState("preferredChargingTimeEnabled", bool(enabled), ts)
+
+    def _parseChargingTimers(self, data: dict[str, Any]) -> None:
+        """Parse the departure/charging timers.
+
+        Note these are the *chargingTimers* job. departureTimers/departureProfiles
+        are requested by get_stored_vehicle_data but are not returned for every
+        model (a Q8 e-tron returns neither), so nothing here may depend on them.
+        """
+        value = self._getFromJson(
+            data, ["chargingTimers", "chargingTimersStatus", "value"]
+        )
+        if not isinstance(value, dict):
+            return
+
+        ts = value.get("carCapturedTimestamp")
+        timers = value.get("timers")
+        if not isinstance(timers, list):
+            return
+
+        summary = []
+        for t in timers:
+            if not isinstance(t, dict):
+                continue
+            recurring = t.get("recurringTimer")
+            entry = {
+                "id": t.get("id"),
+                "enabled": t.get("enabled"),
+                "climatisation": t.get("climatisation"),
+            }
+            if isinstance(recurring, dict):
+                entry["departureTimeLocal"] = recurring.get("departureTimeLocal")
+                entry["repetitionDays"] = recurring.get("repetitionDays")
+            summary.append(entry)
+
+        self._appendState("chargingTimers", summary, ts)
+        self._appendState(
+            "chargingTimerEnabledCount",
+            sum(1 for t in summary if t.get("enabled")),
+            ts,
+        )
+
+        active = [t for t in summary if t.get("enabled")]
+        if active:
+            self._appendState(
+                "nextChargingTimerDeparture", active[0].get("departureTimeLocal"), ts
+            )
 
     def _tryAppendStateWithTs(
         self, json: dict[str, Any], name: str, tsoff: int, loc: list[str]
