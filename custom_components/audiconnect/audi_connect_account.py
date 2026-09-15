@@ -422,6 +422,7 @@ class AudiConnectAccount:
             await self.login()
         if not self._loggedin:
             return False
+
         vehicle = next((v for v in self.vehicles if v.vin.lower() == vin.lower()), None)
         position = getattr(vehicle, "position", None) if vehicle else None
         latitude = (position or {}).get("latitude")
