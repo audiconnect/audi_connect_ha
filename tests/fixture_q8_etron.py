@@ -378,6 +378,293 @@ PAYLOAD = {
             }
         },
     },
+    "userCapabilities": {
+        "capabilitiesStatus": {
+            "value": [
+                {
+                    "id": "access",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "amazonMusic",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "bluetoothIdent",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "car2Phone",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "charging",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "chargingProfiles",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "chargingTimers",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "cityModels",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "climatisation",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "climatisationTimers",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {"id": "cubicNetwork", "userDisablingAllowed": False},
+                {
+                    "id": "dataPlan",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "dealerAppointment",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "destinationSync",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "eRoutePlanner",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "emergencyCalling",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "engineType",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "fuelStatus",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "functionOnDemand",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "googleEarth",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "gracenote",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "honkAndFlash",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {"id": "hybridRadio", "userDisablingAllowed": False},
+                {
+                    "id": "hybridRadioRange",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "localHazards",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "mapUpdate",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {"id": "mapUpdateSd", "userDisablingAllowed": False},
+                {
+                    "id": "measurements",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "news",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "onStreetParking",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "onlineCarCare",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "onlineLogBook",
+                    "userDisablingAllowed": False,
+                    "status": [2003],
+                },
+                {
+                    "id": "onlineSpeech",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "onlineTraffic",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "onlineTrafficPlus",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "parkingPosition",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {"id": "plugAndCharge", "userDisablingAllowed": True},
+                {
+                    "id": "poiSearch",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "predictiveRouting",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {"id": "residualCapacityHVBattery", "userDisablingAllowed": True},
+                {
+                    "id": "rewardChallenges",
+                    "userDisablingAllowed": True,
+                    "status": [1003, 1004],
+                },
+                {
+                    "id": "roadsideAssistant",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "state",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "theftWarning",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "theming",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "transactionHistoryAntiTheftAlert",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "transactionHistoryAntiTheftAlertDelete",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "transactionHistoryHonkFlash",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "transactionHistoryLockUnlock",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "tripStatistics",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "vehicleHealthCampaigns",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "vehicleHealthInspection",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "vehicleHealthWakeUp",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "vehicleHealthWarnings",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "vehicleLights",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "vehicleWakeUp",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "vehicleWakeUpTrigger",
+                    "expirationDate": "2033-09-30",
+                    "userDisablingAllowed": False,
+                },
+                {
+                    "id": "webAppPoiSearch",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "webAppWeather",
+                    "expirationDate": "2026-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {
+                    "id": "webRadio",
+                    "expirationDate": "2122-09-30",
+                    "userDisablingAllowed": True,
+                },
+                {"id": "wifiHotspot", "userDisablingAllowed": True},
+            ]
+        }
+    },
     "vehicleHealthInspection": {
         "maintenanceStatus": {
             "value": {

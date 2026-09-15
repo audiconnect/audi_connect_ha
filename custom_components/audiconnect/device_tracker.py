@@ -26,7 +26,9 @@ async def async_setup_entry(
     entities = [
         AudiDeviceTracker(runtime_data.coordinator, config_vehicle.vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
-        if is_entity_supported(config_vehicle.vehicle, _POSITION_ATTR_KEY)
+        if is_entity_supported(
+            config_vehicle.vehicle, _POSITION_ATTR_KEY, "parkingPosition"
+        )
     ]
     async_add_entities(entities)
 

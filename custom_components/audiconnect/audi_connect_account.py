@@ -838,9 +838,15 @@ class AudiConnectVehicle:
                         self._vehicle.state["last_update_time"], new_time
                     )
 
-            # Update with the newest carCapturedTimestamp from states
+            # Update with the newest carCapturedTimestamp from states.
+            # A state can carry no timestamp: userCapabilities is a statement
+            # about the vehicle rather than a reading from it. Skipping those
+            # here keeps the scan independent of how lenient parse_datetime is.
             for state in status.states:
-                new_time = parse_datetime(state.get("measure_time"))
+                ts = state.get("measure_time")
+                if not ts:
+                    continue
+                new_time = parse_datetime(ts)
                 if new_time:
                     self._vehicle.state["last_update_time"] = max(
                         self._vehicle.state["last_update_time"], new_time
@@ -2206,6 +2212,32 @@ class AudiConnectVehicle:
     def climatisation_state(self):
         if self.climatisation_state_supported:
             return self._vehicle.state.get("climatisationState")
+
+    @property
+    def capabilities(self) -> frozenset[str]:
+        """What the car says it can do. Empty when it does not report the list,
+        which every caller must treat as "unknown", never as "nothing"."""
+        value = self._vehicle.state.get("userCapabilities")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    @property
+    def impaired_capabilities(self) -> frozenset[str]:
+        """Capabilities the car lists while also reporting an error against
+        them. Listed is not the same as working."""
+        value = self._vehicle.state.get("userCapabilitiesImpaired")
+        return frozenset(value) if isinstance(value, list) else frozenset()
+
+    def has_capability(self, capability: str) -> bool | None:
+        """True, False, or None when the car reports no capability list at all.
+
+        Three-valued deliberately: a caller that cannot tell "not capable" from
+        "did not say" will delete entities on the vehicles that never report
+        the list.
+        """
+        caps = self.capabilities
+        if not caps:
+            return None
+        return capability in caps
 
     @property
     def climatisation_state_supported(self):
