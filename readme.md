@@ -85,6 +85,7 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `Current location target`      | Number | `set_location_charge_target` (no `profile_id`)        |
 | `<Profile> charge target`      | Number | `set_location_charge_target` with `profile_id`        |
 | `Start engine` / `Stop engine` | Button | `start_engine` / `stop_engine`                        |
+| `Charge mode`                  | Select | `set_charge_mode`                                     |
 | `Refresh vehicle data`         | Button | `refresh_vehicle_data`                                |
 
 ### Charge targets
