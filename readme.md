@@ -82,9 +82,23 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `Door lock`                    | Lock    | `execute_vehicle_action` with `lock` / `unlock`       |
 | `Climatisation`                | Climate | `start_climate_control` / `stop_climatisation`        |
 | `Preheater`                    | Switch  | `execute_vehicle_action` with `start_/stop_preheater` |
-| `Target state of charge`       | Number  | `set_target_soc`                                      |
+| `Global charge target`         | Number  | `set_target_soc`                                      |
+| `Current location target`      | Number  | `set_location_charge_target` (no `profile_id`)        |
+| `<Profile> charge target`      | Number  | `set_location_charge_target` with `profile_id`        |
 | `Start engine` / `Stop engine` | Button  | `start_engine` / `stop_engine`                        |
+| `Flash lights`                 | Button  | n/a, new                                              |
+| `Charge mode`                  | Select  | `set_charge_mode`                                     |
 | `Refresh vehicle data`         | Button  | `refresh_vehicle_data`                                |
+
+### Charge targets
+
+There are three kinds, because the car has three places to put the number:
+
+- **Global charge target** writes `charging/settings`. It does not govern where a charge stops at a location (upstream #722), so it is the least useful of the three and is kept only because it is a real, separately-stored setting.
+- **Current location charge target** writes whichever profile the car is parked in, resolved by the integration from `vehiclePositionedInProfileID`. Use it in automations that should apply wherever the car happens to be.
+- **One number per location profile**, named after the profile ("Home charge target", "Work charge target"). These are enumerated from what the car reports, so a profile added or removed in the car appears or disappears after the next refresh. A profile deleted in the car leaves its control unavailable rather than showing a stale target.
+
+`sensor.<vehicle>_active_charging_profile_name` says which profile is in force, so a dashboard can show the governing location beside the sliders. The per-profile controls are keyed on the profile id, not its name, so renaming a location in the myAudi app renames the control without breaking automations that reference it.
 
 The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
 
@@ -121,6 +135,12 @@ Entities are created when the integration sets up, and until now that decision a
 The car reports what it can do, separately from what any one poll contains, and the integration now asks that list instead where a capability maps cleanly onto an entity. A missing value leaves the entity unavailable rather than deleting it.
 
 Vehicles that do not report a capability list are unaffected and keep the previous behaviour.
+
+### Flash lights
+
+Flashes the vehicle's lights for ten seconds. The car must have reported a position, because the API requires one; the control refuses rather than sending a request that would be rejected.
+
+The horn is not exposed. The endpoint that flashes the lights also sounds them together, one string apart, and the integration sends only the flash mode with no way for a caller to reach the other.
 
 ## Service Actions
 

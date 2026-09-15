@@ -221,6 +221,37 @@ class VehicleDataResponse:
             -1,
             ["charging", "chargingStatus", "value", "chargeMode"],
         )
+        # The mode of the charge in progress, above, is not the mode the car is
+        # SET to: that is preferredChargeMode, which is what set_charge_mode
+        # writes. They agree most of the time, which is what makes reading the
+        # wrong one hard to notice.
+        #
+        # The chargeMode block carries no carCapturedTimestamp of its own, so
+        # _tryAppendStateWithTs drops it silently. Borrow the charging status
+        # timestamp, which is the freshness marker for the same fetch.
+        charge_mode_ts = self._getFromJson(
+            data, ["charging", "chargingStatus", "value", "carCapturedTimestamp"]
+        )
+        self._appendState(
+            "preferredChargeMode",
+            self._getFromJson(
+                data, ["charging", "chargeMode", "value", "preferredChargeMode"]
+            ),
+            charge_mode_ts,
+        )
+        available_modes = self._getFromJson(
+            data, ["charging", "chargeMode", "value", "availableChargeModes"]
+        )
+        if available_modes is not None:
+            # An empty list is a real answer ("the car lists none"), and
+            # _appendState would drop it as falsy.
+            self.states.append(
+                {
+                    "name": "availableChargeModes",
+                    "value": available_modes,
+                    "measure_time": charge_mode_ts,
+                }
+            )
         self._tryAppendStateWithTs(
             data,
             "chargingPower",
