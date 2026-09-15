@@ -13,7 +13,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity
+from .audi_entity import AudiEntity, is_entity_supported
 from .coordinator import AudiDataUpdateCoordinator
 
 
@@ -51,6 +51,18 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         icon="mdi:cloud-refresh",
         entity_category=EntityCategory.DIAGNOSTIC,
         press_fn=lambda account, vin: account.refresh_vehicle_data(vin),
+    ),
+    AudiButtonEntityDescription(
+        key="flash_lights",
+        name="Flash lights",
+        icon="mdi:car-light-high",
+        # Gated on the car's own capability, not on a field being present in
+        # the current poll. The horn shares this capability and is deliberately
+        # not exposed.
+        supported_fn=lambda vehicle: is_entity_supported(
+            vehicle, "position", "honkAndFlash"
+        ),
+        press_fn=lambda account, vin: account.connection.flash_lights(vin),
     ),
     AudiButtonEntityDescription(
         key="start_engine",
