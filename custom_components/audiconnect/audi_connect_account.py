@@ -397,6 +397,11 @@ class AudiConnectAccount:
 
     async def set_climatisation_setting(self, vin: str, field: str, value) -> bool:
         """Change one climatisation setting, leaving the others as they are."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+
         try:
             _LOGGER.debug("Setting %s=%s for vehicle %s", field, value, vin)
             await self._audi_service.set_climatisation_settings(
