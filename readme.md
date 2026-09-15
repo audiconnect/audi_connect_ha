@@ -77,17 +77,18 @@ _Note: The integration will reload automatically upon clicking `Submit`, but a H
 
 Each vehicle's device page exposes its actions directly, so the common ones no longer need a service call. Availability depends on what the vehicle reports and, for the lock and engine controls, on an S-PIN being configured.
 
-| Control                        | Type   | Replaces                                              |
-| ------------------------------ | ------ | ----------------------------------------------------- |
-| `Door lock`                    | Lock   | `execute_vehicle_action` with `lock` / `unlock`       |
-| `Preheater`                    | Switch | `execute_vehicle_action` with `start_/stop_preheater` |
-| `Global charge target`         | Number | `set_target_soc`                                      |
-| `Current location target`      | Number | `set_location_charge_target` (no `profile_id`)        |
-| `<Profile> charge target`      | Number | `set_location_charge_target` with `profile_id`        |
-| `Start engine` / `Stop engine` | Button | `start_engine` / `stop_engine`                        |
-| `Flash lights`                 | Button | n/a, new                                              |
-| `Charge mode`                  | Select | `set_charge_mode`                                     |
-| `Refresh vehicle data`         | Button | `refresh_vehicle_data`                                |
+| Control                        | Type    | Replaces                                              |
+| ------------------------------ | ------- | ----------------------------------------------------- |
+| `Door lock`                    | Lock    | `execute_vehicle_action` with `lock` / `unlock`       |
+| `Climatisation`                | Climate | `start_climate_control` / `stop_climatisation`        |
+| `Preheater`                    | Switch  | `execute_vehicle_action` with `start_/stop_preheater` |
+| `Global charge target`         | Number  | `set_target_soc`                                      |
+| `Current location target`      | Number  | `set_location_charge_target` (no `profile_id`)        |
+| `<Profile> charge target`      | Number  | `set_location_charge_target` with `profile_id`        |
+| `Start engine` / `Stop engine` | Button  | `start_engine` / `stop_engine`                        |
+| `Flash lights`                 | Button  | n/a, new                                              |
+| `Charge mode`                  | Select  | `set_charge_mode`                                     |
+| `Refresh vehicle data`         | Button  | `refresh_vehicle_data`                                |
 
 ### Charge targets
 
@@ -112,6 +113,16 @@ Starting is unproven. It appeared to work once, but the car had a target well ab
 Timed charging is not exposed either, for the same reason: it goes through the same command as start and stop.
 
 Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
+
+## Climatisation
+
+The climate entity turns climatisation on and off and sets the target temperature. The car reports whether climatisation is running and in which mode (heating, cooling, ventilation), so the entity reflects the vehicle rather than what Home Assistant last asked for.
+
+Two things it deliberately does not do. It has no current temperature, because the car reports the outdoor reading and not the cabin, and showing the outside temperature as a climate entity's current temperature would misstate what it measures. And it does not expose seat or glass heating, climatisation-at-unlock, or the comfort/economy mode: the vehicle never reports those back, so a control for them would only ever show what you last set. Use the `start_climate_control` service action for those.
+
+The target temperature is held by Home Assistant and restored across restarts. The car does report one, as `targetTemperature_C` in its climatisation settings, but that block is not parsed yet; #853 reads it and keeps the local value only as a fallback.
+
+`start_auxiliary_heating` (duration) stays service-only for the same reason.
 
 ## Why an entity sometimes disappears
 
