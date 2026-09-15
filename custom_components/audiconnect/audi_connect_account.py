@@ -415,7 +415,7 @@ class AudiConnectAccount:
                     vin,
                     ex,
                 )
-      
+
     async def flash_lights(self, vin: str, duration_s: int = 10) -> bool:
         """Flash the vehicle's lights. Never sounds the horn."""
         if not self._loggedin:
