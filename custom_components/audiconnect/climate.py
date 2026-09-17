@@ -19,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 _ATTR_KEY = "climatisation_state"
@@ -49,7 +49,9 @@ async def async_setup_entry(
     async_add_entities(
         AudiClimate(runtime_data.coordinator, config_vehicle.vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
-        if is_entity_supported(config_vehicle.vehicle, _ATTR_KEY)
+        if should_create_entity(
+            hass, "climate", "climatisation", config_vehicle.vehicle, _ATTR_KEY
+        )
     )
 
 
@@ -61,6 +63,8 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     fallback for a car that does not report one, and for the moment between
     asking for a change and the car confirming it.
     """
+
+    _backing_attr = _ATTR_KEY
 
     _attr_name = "Climatisation"
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL]
@@ -84,7 +88,7 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         vehicle: Any,
     ) -> None:
         super().__init__(coordinator, vehicle)
-        self._attr_unique_id = f"{vehicle.vin.lower()}_climate_climatisation"
+        self._attr_unique_id = entity_unique_id(vehicle, "climate", "climatisation")
         self._attr_target_temperature = _DEFAULT_TEMP_C
 
     async def async_added_to_hass(self) -> None:

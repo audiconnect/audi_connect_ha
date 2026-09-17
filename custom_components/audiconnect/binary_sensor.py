@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, is_entity_supported
+from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 
@@ -197,8 +197,12 @@ async def async_setup_entry(
         AudiBinarySensor(runtime_data.coordinator, description, vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
         for description in BINARY_SENSOR_DESCRIPTIONS
-        if is_entity_supported(
-            (vehicle := config_vehicle.vehicle), description.attr_key
+        if should_create_entity(
+            hass,
+            "binary_sensor",
+            description.key,
+            vehicle := config_vehicle.vehicle,
+            description.attr_key,
         )
     ]
     async_add_entities(entities)
@@ -217,7 +221,9 @@ class AudiBinarySensor(AudiEntity, BinarySensorEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self.entity_description = description
-        self._attr_unique_id = f"{vehicle.vin.lower()}_binary_sensor_{description.key}"
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "binary_sensor", description.key
+        )
 
     @property
     def is_on(self) -> bool | None:
