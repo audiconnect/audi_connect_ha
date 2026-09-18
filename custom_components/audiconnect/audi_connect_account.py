@@ -794,6 +794,14 @@ class AudiConnectVehicle:
         return self._vin
 
     @property
+    def _redacted_vin(self) -> str:
+        """The last four characters only. A VIN identifies a specific car and
+        its owner, and these messages end up in logs people paste into issues;
+        the reporter of #862 had to redact it by hand."""
+        vin = self._vehicle.vin
+        return "*" * (len(vin) - 4) + vin[-4:]
+
+    @property
     def csid(self):
         return self._vehicle.csid
 
@@ -846,7 +854,7 @@ class AudiConnectVehicle:
         except Exception as exception:
             log_exception(
                 exception,
-                f"Unable to update vehicle data {info} of {self._vehicle.vin}",
+                f"Unable to update vehicle data {info} of {self._redacted_vin}",
             )
 
     def log_exception_once(self, exception, message):
@@ -927,17 +935,17 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     resp_exception,
-                    f"Unable to obtain the vehicle status report of {self._vehicle.vin}",
+                    f"Unable to obtain the vehicle status report of {self._redacted_vin}",
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                f"Unable to obtain the vehicle status report of {self._vehicle.vin}",
+                f"Unable to obtain the vehicle status report of {self._redacted_vin}",
             )
 
     async def update_vehicle_position(self):
         # Redact all but the last 4 characters of the VIN
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        redacted_vin = self._redacted_vin
         _LOGGER.debug(
             "POSITION: Starting update_vehicle_position for VIN: %s", redacted_vin
         )
@@ -1050,7 +1058,7 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_climater(self):
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        redacted_vin = self._redacted_vin
         if not self.support_climater:
             return
 
@@ -1149,7 +1157,7 @@ class AudiConnectVehicle:
             )
 
     async def update_vehicle_preheater(self):
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        redacted_vin = self._redacted_vin
         if not self.support_preheater:
             return
 
@@ -1164,9 +1172,14 @@ class AudiConnectVehicle:
         except builtins.TimeoutError:
             raise
         except ClientResponseError as cre:
-            if cre.status == 404:
+            if cre.status in (401, 404):
+                # 404: the car has no preheater. 401: the legacy fs-car host
+                # refuses this account outright, which for the purposes of this
+                # poll is the same answer. Left as an error it logged a
+                # traceback on every restart with nothing the user could switch
+                # off (#862).
                 _LOGGER.debug(
-                    "PREHEATER: ClientResponseError with status %s for VIN: %s. Vehicle does not support preheater — disabling.",
+                    "PREHEATER: ClientResponseError with status %s for VIN: %s. Preheater not available — disabling.",
                     cre.status,
                     redacted_vin,
                 )
@@ -1182,16 +1195,16 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     cre,
-                    f"Unable to obtain the vehicle preheater state for {self._vehicle.vin}",
+                    f"Unable to obtain the vehicle preheater state for {self._redacted_vin}",
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                f"Unable to obtain the vehicle preheater state for {self._vehicle.vin}",
+                f"Unable to obtain the vehicle preheater state for {self._redacted_vin}",
             )
 
     async def update_vehicle_charger(self):
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        redacted_vin = self._redacted_vin
         if not self.support_charger:
             return
 
@@ -1285,12 +1298,12 @@ class AudiConnectVehicle:
             else:
                 self.log_exception_once(
                     cre,
-                    f"Unable to obtain the vehicle charger state for {self._vehicle.vin}",
+                    f"Unable to obtain the vehicle charger state for {self._redacted_vin}",
                 )
         except Exception as exception:
             self.log_exception_once(
                 exception,
-                f"Unable to obtain the vehicle charger state for {self._vehicle.vin}",
+                f"Unable to obtain the vehicle charger state for {self._redacted_vin}",
             )
 
     async def update_vehicle_longterm(self):
@@ -1300,7 +1313,7 @@ class AudiConnectVehicle:
         await self.update_vehicle_tripdata("shortTerm")
 
     async def update_vehicle_tripdata(self, kind: str):
-        redacted_vin = "*" * (len(self._vehicle.vin) - 4) + self._vehicle.vin[-4:]
+        redacted_vin = self._redacted_vin
         if not self.support_trip_data:
             _LOGGER.debug(
                 "TRIP DATA: Trip data support is disabled for VIN: %s. Exiting update process.",
