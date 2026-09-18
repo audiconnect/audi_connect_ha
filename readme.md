@@ -73,6 +73,75 @@ Find configuration options under **Settings ➤ Devices & Services ➤ Integrati
 
 _Note: The integration will reload automatically upon clicking `Submit`, but a Home Assistant restart is suggested._
 
+## Controls
+
+Each vehicle's device page exposes its actions directly, so the common ones no longer need a service call. Availability depends on what the vehicle reports and, for the lock and engine controls, on an S-PIN being configured.
+
+| Control                        | Type    | Replaces                                              |
+| ------------------------------ | ------- | ----------------------------------------------------- |
+| `Door lock`                    | Lock    | `execute_vehicle_action` with `lock` / `unlock`       |
+| `Climatisation`                | Climate | `start_climate_control` / `stop_climatisation`        |
+| `Preheater`                    | Switch  | `execute_vehicle_action` with `start_/stop_preheater` |
+| `Global charge target`         | Number  | `set_target_soc`                                      |
+| `Current location target`      | Number  | `set_location_charge_target` (no `profile_id`)        |
+| `<Profile> charge target`      | Number  | `set_location_charge_target` with `profile_id`        |
+| `Start engine` / `Stop engine` | Button  | `start_engine` / `stop_engine`                        |
+| `Flash lights`                 | Button  | n/a, new                                              |
+| `Charge mode`                  | Select  | `set_charge_mode`                                     |
+| `Refresh vehicle data`         | Button  | `refresh_vehicle_data`                                |
+
+### Charge targets
+
+There are three kinds, because the car has three places to put the number:
+
+- **Global charge target** writes `charging/settings`. It does not govern where a charge stops at a location (upstream #722), so it is the least useful of the three and is kept only because it is a real, separately-stored setting.
+- **Current location charge target** writes whichever profile the car is parked in, resolved by the integration from `vehiclePositionedInProfileID`. Use it in automations that should apply wherever the car happens to be.
+- **One number per location profile**, named after the profile ("Home charge target", "Work charge target"). These are enumerated from what the car reports, so a profile added or removed in the car appears or disappears after the next refresh. A profile deleted in the car leaves its control unavailable rather than showing a stale target.
+
+`sensor.<vehicle>_active_charging_profile_name` says which profile is in force, so a dashboard can show the governing location beside the sliders. The per-profile controls are keyed on the profile id, not its name, so renaming a location in the myAudi app renames the control without breaking automations that reference it.
+
+The service actions below still work and remain the way to reach the parameterised commands: `start_climate_control` (temperature, seat and glass heating, climatisation mode) and `start_auxiliary_heating` (duration) both take settings the vehicle does not report back, so they have no on-page control.
+
+### Starting and stopping a charge
+
+Neither is exposed, because neither could be shown to work.
+
+Stopping is accepted by the API and confirmed by the car, and the charge continues. Sent twice from a settled state on a live vehicle, which carried on drawing 6.5 kW both times.
+
+Starting is unproven. It appeared to work once, but the car had a target well above its state of charge at that moment and would have charged anyway; repeated later with the target below the state of charge, the command was accepted and nothing happened. There is no evidence separating "the button started the charge" from "the car was going to charge regardless".
+
+Timed charging is not exposed either, for the same reason: it goes through the same command as start and stop.
+
+Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
+
+## Climatisation
+
+The climate entity turns climatisation on and off and sets the target temperature. The car reports whether climatisation is running and in which mode (heating, cooling, ventilation), so the entity reflects the vehicle rather than what Home Assistant last asked for.
+
+Two things it deliberately does not do. It has no current temperature, because the car reports the outdoor reading and not the cabin, and showing the outside temperature as a climate entity's current temperature would misstate what it measures. And it does not expose seat or glass heating, climatisation-at-unlock, or the comfort/economy mode: the vehicle never reports those back, so a control for them would only ever show what you last set. Use the `start_climate_control` service action for those.
+
+The target temperature comes from the car, which reports it in its climatisation settings. Home Assistant only holds a value as a fallback for a vehicle that reports none, and for the moment between asking for a change and the car confirming it. Note the car stores half degrees while the write truncates to whole ones, so a target set outside Home Assistant can read as 15.5 even though the control steps in whole degrees.
+
+The rest of the climatisation settings the car reports (window heating, climatisation at unlock, and the seat zones it has) appear as switches under configuration. They are written through the car's settings endpoint without starting climatisation, which the myAudi app does not offer: there, a heated seat can only be enabled while starting the air conditioning.
+
+Each toggle sends the whole settings object back with one field changed, because the endpoint replaces rather than merges. Changing a seat therefore cannot clear the target temperature.
+
+`start_auxiliary_heating` (duration) stays service-only for the same reason.
+
+## Why an entity sometimes disappears
+
+Entities are created when the integration sets up, and until now that decision asked whether the value was present in the poll it happened to be holding. A partial or rate-limited poll therefore removed controls: on one vehicle a `429 Too Many Requests` took sixteen entities away, including a parking-position sensor for a car that plainly has parking position. They returned only after a reload.
+
+The car reports what it can do, separately from what any one poll contains, and the integration now asks that list instead where a capability maps cleanly onto an entity. A missing value leaves the entity unavailable rather than deleting it.
+
+Vehicles that do not report a capability list are unaffected and keep the previous behaviour.
+
+### Flash lights
+
+Flashes the vehicle's lights for ten seconds. The car must have reported a position, because the API requires one; the control refuses rather than sending a request that would be rejected.
+
+The horn is not exposed. The endpoint that flashes the lights also sounds them together, one string apart, and the integration sends only the flash mode with no way for a caller to reach the other.
+
 ## Service Actions
 
 ### Audi Connect: Refresh Vehicle Data

@@ -10,9 +10,10 @@ import re
 import uuid
 from datetime import datetime, timedelta, UTC
 from hashlib import sha256, sha512
-from typing import Any
+from typing import Any, NoReturn
 from urllib.parse import parse_qs, urlencode, urlparse
 
+from aiohttp import ClientResponseError
 from bs4 import BeautifulSoup
 
 from .audi_api import AudiAPI
@@ -22,6 +23,179 @@ from .util import get_attr, to_byte_array
 
 MAX_RESPONSE_ATTEMPTS = 10
 REQUEST_STATUS_SLEEP = 10
+
+# The home-region lookup can return a ha-5a.prd.<region>.vwg.vwautocloud.net base
+# URI. That host does not present a usable certificate chain, so every call routed
+# there dies with CERTIFICATE_VERIFY_FAILED. Anything containing this is discarded
+# in favour of the static default.
+UNUSABLE_HOME_REGION_HOST = "vwautocloud"
+
+# Charging start/stop confirmation. Kept short because each poll spends one
+# call from the metered daily allowance and blocks the service call.
+CHARGING_CONFIRM_ATTEMPTS = 3
+CHARGING_CONFIRM_SLEEP = 5
+
+# Climatisation needs a longer window than charging. Measured on a live vehicle
+# 2026-09-13: a start the car never acted on sat at in_progress through +10s and
+# +20s and only reached "timeout" at about +60s, so the 15s charging budget would
+# expire before the failure was visible and report it as merely unconfirmed.
+CLIMATISATION_CONFIRM_ATTEMPTS = 8
+CLIMATISATION_CONFIRM_SLEEP = 10
+
+
+# The settings the car round-trips. Anything outside this set is rejected rather
+# than sent, so a typo becomes an error here instead of a field the car ignores.
+_CLIMATISATION_SETTING_FIELDS = frozenset(
+    {
+        "targetTemperature",
+        "targetTemperature_C",
+        "targetTemperature_F",
+        "targetTemperatureUnit",
+        "climatisationWithoutExternalPower",
+        "climatizationAtUnlock",
+        "windowHeatingEnabled",
+        "heaterSource",
+        "zoneFrontLeftEnabled",
+        "zoneFrontRightEnabled",
+        "zoneRearLeftEnabled",
+        "zoneRearRightEnabled",
+    }
+)
+
+
+def build_climatisation_settings_update(value: dict, **changes: Any) -> dict:
+    """Pure read-modify-write core for the climatisation settings.
+
+    `value` is climatisation.climatisationSettings.value as the car reports it.
+    Returns the body for PUT climatisation/settings: every field the car gave
+    back, with the named ones changed.
+
+    Read-modify-write for the same reason the charging profile write is: the
+    endpoint takes the whole object, so sending one field would drop the rest.
+    A toggle of a heated seat must not clear the target temperature or the
+    heater source.
+
+    carCapturedTimestamp is dropped. It is the server describing when it last
+    observed the settings, not a setting, and echoing it back is meaningless at
+    best.
+    """
+    if not isinstance(value, dict) or not value:
+        raise ValueError("No climatisation settings to update")
+
+    unknown = set(changes) - set(_CLIMATISATION_SETTING_FIELDS)
+    if unknown:
+        raise ValueError(f"Not climatisation settings: {sorted(unknown)}")
+
+    body = {k: v for k, v in value.items() if k != "carCapturedTimestamp"}
+    body.update(changes)
+    return body
+
+
+def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int, dict]:
+    """Pure read-modify-write core for a location charging profile.
+
+    `value` is chargingProfiles.chargingProfilesStatus.value as the car reports
+    it. Returns (resolved_profile_id, put_body) where put_body is exactly what
+    goes on the wire: {"profile": <the whole profile, one field changed>}.
+
+    Kept pure and module-level so the field-preservation and profile-selection
+    logic is testable against a real payload without standing up the service.
+    """
+    if not (20 <= target_soc <= 100):
+        raise ValueError("Target state of charge must be between 20 and 100 percent")
+
+    profiles = (value or {}).get("profiles") or []
+    if profile_id is None:
+        profile_id = (value or {}).get("vehiclePositionedInProfileID")
+    profile = next((p for p in profiles if p.get("id") == profile_id), None)
+    if profile is None:
+        present = [p.get("id") for p in profiles]
+        raise ValueError(
+            f"No charging profile with id {profile_id} (present: {present})"
+        )
+
+    # Change exactly one field; round-trip the rest, position included.
+    updated = dict(profile)
+    updated["targetSOC_pct"] = target_soc
+    return profile_id, {"profile": updated}
+
+
+# Fields the start body carries straight over from the car's stored settings.
+# Only those the car actually reports are sent: a vehicle with no rear zones
+# never receives zoneRear* keys, which is also the shape the myAudi app sends.
+_START_PASSTHROUGH = (
+    "climatisationWithoutExternalPower",
+    "climatizationAtUnlock",
+    "windowHeatingEnabled",
+    "zoneFrontLeftEnabled",
+    "zoneFrontRightEnabled",
+    "zoneRearLeftEnabled",
+    "zoneRearRightEnabled",
+    "heaterSource",
+)
+
+# Caller parameter -> the field it overrides in the start body.
+_START_OVERRIDES = {
+    "climatisation_at_unlock": "climatizationAtUnlock",
+    "glass_heating": "windowHeatingEnabled",
+    "seat_fl": "zoneFrontLeftEnabled",
+    "seat_fr": "zoneFrontRightEnabled",
+    "seat_rl": "zoneRearLeftEnabled",
+    "seat_rr": "zoneRearRightEnabled",
+}
+
+
+def build_climatisation_start_body(settings: dict, **params: Any) -> dict:
+    """Pure read-modify-write core for climatisation/start.
+
+    `settings` is climatisation.climatisationSettings.value as the car reports
+    it. Returns the body for POST climatisation/start: the car's own settings,
+    with only the parameters the caller actually supplied changed.
+
+    Built this way because the endpoint REPLACES rather than merges. The
+    previous body was assembled from constants, so every parameter the caller
+    omitted went out as bool(None), which is False. Starting climatisation from
+    the climate entity, which passes only a target temperature, therefore wiped
+    the stored window heating, every seat zone and climatisation-at-unlock.
+    Found on a live vehicle 2026-09-12: the myAudi app's own start kept those
+    settings and ours cleared them, on the same car minutes apart.
+
+    A parameter left as None means "leave whatever the car has", never False.
+    """
+    if not isinstance(settings, dict) or not settings:
+        raise ValueError("No climatisation settings to start from")
+
+    body: dict[str, Any] = {
+        key: settings[key] for key in _START_PASSTHROUGH if key in settings
+    }
+
+    temp_f = params.get("temp_f")
+    temp_c = params.get("temp_c")
+    if temp_f is not None:
+        target: Any = int((temp_f - 32) * (5 / 9))
+    elif temp_c is not None:
+        target = int(temp_c)
+    else:
+        # Unchanged, so pass the car's own value through rather than rounding
+        # it: the car stores half degrees and we were not asked to touch this.
+        target = settings.get("targetTemperature_C")
+    body["targetTemperature"] = 21 if target is None else target
+    body["targetTemperatureUnit"] = "celsius"
+
+    # Unchanged from before this became a read-modify-write: #771 fixed a literal
+    # null going on the wire, and "comfort" is the value that has been accepted
+    # on real vehicles. The car does not report a mode in its settings, so there
+    # is nothing stored to preserve and no evidence that omitting it is safe.
+    mode = params.get("climatisation_mode") or settings.get("climatisationMode")
+    body["climatisationMode"] = mode or "comfort"
+
+    for name, field in _START_OVERRIDES.items():
+        value = params.get(name)
+        if value is not None:
+            body[field] = bool(value)
+
+    return body
+
 
 SUCCEEDED = "succeeded"
 FAILED = "failed"
@@ -38,6 +212,37 @@ _LOGGER = logging.getLogger(__name__)
 
 class AudiAuthError(Exception):
     """Raised when authorization is missing or a token has been rejected."""
+
+
+class AudiTokenRefreshError(Exception):
+    """Raised when a token refresh is rejected for a reason re-authenticating
+    cannot fix — e.g. ``invalid_client`` (the client_id is fixed in code, so a
+    reauth reuses the same client), or a transient / malformed response. It is
+    treated as a retryable update failure rather than escalated to reauth.
+    """
+
+
+# OAuth errors on a refresh exchange that genuinely need the user to sign in
+# again: the refresh token itself is rejected, and only a fresh grant can fix
+# it. Everything else — invalid_client, a transient blip, a malformed body — is
+# retried instead of raising an un-actionable reauth prompt. Listing the hard
+# failures (rather than the transient ones) means an unknown code degrades to a
+# retry, which is the harmless direction.
+_REFRESH_REAUTH_ERRORS = frozenset({"invalid_grant"})
+
+
+def _raise_refresh_rejected(context: str, parsed: dict, raw: str) -> NoReturn:
+    """Raise for a refresh-token exchange that returned no access token.
+
+    ``invalid_grant`` → AudiAuthError (reauth genuinely needed); anything else →
+    AudiTokenRefreshError (retryable, no reauth prompt). Used for both the IDK
+    refresh and the mbboauth refresh, so it prefers ``error_description`` (which
+    mbboauth returns) for the message while classifying on ``error``.
+    """
+    detail = str(parsed.get("error_description") or parsed.get("error") or raw[:200])
+    if parsed.get("error") in _REFRESH_REAUTH_ERRORS:
+        raise AudiAuthError(f"{context}: {detail}")
+    raise AudiTokenRefreshError(f"{context}: {detail}")
 
 
 def _to_absolute(absolute_url: str, relative_url: str) -> str:
@@ -148,7 +353,7 @@ class AudiService:
             "measurements",
             "oilLevel",
             "readiness",
-            # "userCapabilities",
+            "userCapabilities",
             "vehicleHealthInspection",
             "vehicleHealthWarnings",
             "vehicleLights",
@@ -320,7 +525,20 @@ class AudiService:
                 and res["homeRegion"]["baseUri"].get("content") is not None
             ):
                 uri = res["homeRegion"]["baseUri"]["content"]
-                if uri != "https://mal-1a.prd.ece.vwg-connect.com/api":
+                if UNUSABLE_HOME_REGION_HOST in uri:
+                    # The endpoint hands back ha-5a.prd.<region>.vwg.vwautocloud.net,
+                    # which does not serve a usable certificate chain and fails with
+                    # CERTIFICATE_VERIFY_FAILED. The static default above already
+                    # works, so keep it. The guard at the top of this method covers
+                    # the same host for non-US accounts on API level 1; this covers
+                    # every other combination, which is how US accounts (#829) and
+                    # API level 0 accounts in Europe still reached it.
+                    _LOGGER.debug(
+                        "HOME REGION: ignoring unusable base URI %s, keeping %s",
+                        uri,
+                        self._homeRegion[vin],
+                    )
+                elif uri != "https://mal-1a.prd.ece.vwg-connect.com/api":
                     self._homeRegionSetter[vin] = uri.split("/api")[0]
                     self._homeRegion[vin] = self._homeRegionSetter[vin].replace(
                         "mal-", "fal-"
@@ -484,23 +702,162 @@ class AudiService:
         )
 
     async def set_battery_charger(self, vin: str, start: bool, timer: bool):
-        if start and timer:
-            data = {"preferredChargeMode": "timer"}
-        elif start:
-            data = {"preferredChargeMode": "manual"}
-        else:
-            raise NotImplementedError(
-                "The 'Stop Charger' service is deprecated and will be removed in a future release."
-            )
+        """Start or stop charging.
 
-        data = json.dumps(data)
+        start=True, timer=True  -> select timer mode, so the car charges on its
+                                   own schedule rather than immediately.
+        start=True, timer=False -> start charging now.
+        start=False             -> stop charging now.
+
+        Until 2.3.1 all three only PUT charging/mode, which sets a *mode
+        preference* and neither starts nor stops a charge, and the stop case
+        raised outright (upstream #725). charging/start and charging/stop are the
+        routes current firmware exposes for the action itself, cross-checked
+        against two independent BFF clients.
+        """
+        if start and timer:
+            await self.set_preferred_charge_mode(vin, "timer")
+            return
+
+        await self._send_charging_command(vin, "start" if start else "stop")
+
+    async def set_preferred_charge_mode(self, vin: str, mode: str) -> None:
+        """Set which mode the car charges in. A preference, not an action: it does
+        not start or stop a charge in progress."""
         headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
 
         await self._api.request(
             "PUT",
             self.__get_cariad_url_for_vin(vin, "charging/mode"),
             headers=headers,
-            data=data,
+            data=json.dumps({"preferredChargeMode": mode}),
+        )
+
+    async def _post_charging_command(
+        self, vin: str, suffix: str, body: dict[str, Any]
+    ) -> Any:
+        """POST one BFF charging command.
+
+        Returns the parsed body, or None when the car answers 204. The shared
+        request helper raises ClientResponseError for every status outside
+        200/202/207, 204 included, so a no-content success arrives here as an
+        exception and has to be turned back into one.
+        """
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        try:
+            return await self._api.request(
+                "POST",
+                self.__get_cariad_url_for_vin(vin, suffix),
+                headers=headers,
+                data=json.dumps(body),
+            )
+        except ClientResponseError as err:
+            if err.status == 204:
+                return None
+            raise
+
+    async def _send_charging_command(self, vin: str, action: str) -> None:
+        """Actually start or stop a charge.
+
+        Separate charging/start and charging/stop are what current firmware
+        exposes; the combined charging/start-stop route is kept as a 404 fallback
+        for older cars. Both shapes are used by CarConnectivity-connector-volkswagen
+        and vwgroup-connect-ha against the same CARIAD BFF.
+        """
+        try:
+            res = await self._post_charging_command(vin, f"charging/{action}", {})
+        except ClientResponseError as err:
+            if err.status != 404:
+                raise
+            _LOGGER.debug(
+                "charging/%s not provisioned for %s, trying the combined route",
+                action,
+                vin,
+            )
+            res = await self._post_charging_command(
+                vin, "charging/start-stop", {"action": action}
+            )
+
+        request_id = get_attr(res, "data.requestID") if isinstance(res, dict) else None
+        if request_id is None:
+            _LOGGER.debug(
+                "Charging %s accepted for %s with no request id to confirm against",
+                action,
+                vin,
+            )
+            return
+
+        await self._confirm_charging_command(vin, action, request_id)
+
+    async def _confirm_charging_command(
+        self, vin: str, action: str, request_id: str
+    ) -> None:
+        """Confirm a charging command. Thin wrapper kept for its call sites."""
+        await self._confirm_vehicle_request(
+            vin,
+            action,
+            request_id,
+            noun="Charging",
+            attempts=CHARGING_CONFIRM_ATTEMPTS,
+            sleep=CHARGING_CONFIRM_SLEEP,
+        )
+
+    async def _confirm_vehicle_request(
+        self,
+        vin: str,
+        action: str,
+        request_id: str,
+        noun: str = "Charging",
+        attempts: int = CHARGING_CONFIRM_ATTEMPTS,
+        sleep: int = CHARGING_CONFIRM_SLEEP,
+    ) -> None:
+        """Poll pendingrequests until the car acts on the command.
+
+        Deliberately shorter than check_bff_request_succeeded (10 polls, 10s
+        apart): every poll is an API call against a metered daily allowance, and
+        this runs inside a service call the user is waiting on. Running out of
+        attempts is reported as unconfirmed rather than failed, so a command that
+        did work is never announced as broken. An explicit rejection still
+        raises.
+        """
+        headers = {
+            "Accept": "application/json",
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/json; charset=utf-8",
+        }
+
+        for _ in range(attempts):
+            await asyncio.sleep(sleep)
+            res = await self._api.request(
+                "GET",
+                self.__get_cariad_url_for_vin(vin, "pendingrequests"),
+                headers=headers,
+                data=None,
+            )
+
+            for pending_request in get_attr(res, "data") or []:
+                if pending_request.get("id") != request_id:
+                    continue
+                status = pending_request.get("status")
+                if status == "in_progress":
+                    break
+                if status == "successful":
+                    _LOGGER.debug("%s %s confirmed for %s", noun, action, vin)
+                    return
+                raise Exception(
+                    f"{noun} {action} for {vin} was rejected by the vehicle "
+                    f"(request {request_id} reached status {status})"
+                )
+
+        _LOGGER.warning(
+            "%s %s was accepted for %s but not confirmed within %ds. The command "
+            "may still be carried out; check the vehicle state after the next "
+            "refresh.",
+            noun,
+            action,
+            vin,
+            attempts * sleep,
         )
 
         # checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
@@ -518,6 +875,123 @@ class AudiService:
         #     FAILED,
         #     "action.actionState",
         # )
+
+    async def get_charging_profiles_raw(self, vin: str) -> dict:
+        """Fetch just the chargingProfiles job, unparsed.
+
+        The write is a read-modify-write and the BFF replaces the whole profile,
+        so we need the profile exactly as the car reports it, not the scrubbed
+        summary the sensor keeps.
+        """
+        self._api.use_token(self._bearer_token_json)
+        return await self._api.get(
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs="chargingProfiles"
+            )
+        )
+
+    async def set_location_charge_target(
+        self, vin: str, profile_id: int | None, target_soc: int
+    ) -> None:
+        """Set a location charging profile's target SoC.
+
+        This is the value that actually governs where a charge stops at a
+        location; the global charging/settings target does not (upstream #722).
+
+        Endpoint, verb and body shape are from the myAudi app 4.30:
+            PUT charging/profiles   body {"profile": {<whole profile>}}
+        The PUT replaces the entire profile, so this reads the current one,
+        changes only targetSOC_pct, and sends everything else back unchanged.
+        Never invent or drop a field.
+
+        profile_id None targets the profile the car is currently parked in.
+        """
+        raw = await self.get_charging_profiles_raw(vin)
+        value = get_attr(raw, "chargingProfiles.chargingProfilesStatus.value")
+        profile_id, put_body = build_profile_update(value, profile_id, target_soc)
+
+        headers = {
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "Content-Type": "application/json",
+        }
+        try:
+            res = await self._api.request(
+                "PUT",
+                self.__get_cariad_url_for_vin(vin, "charging/profiles"),
+                headers=headers,
+                data=json.dumps(put_body),
+            )
+        except ClientResponseError as err:
+            if err.status == 204:
+                res = None
+            else:
+                raise
+
+        request_id = get_attr(res, "data.requestID") if isinstance(res, dict) else None
+        if request_id is None:
+            _LOGGER.debug(
+                "Location charge target for %s accepted with no request id to confirm",
+                vin,
+            )
+            return
+        await self._confirm_charging_command(
+            vin, f"profile {profile_id} target {target_soc}%", request_id
+        )
+
+    async def flash_lights(
+        self, vin: str, latitude: float, longitude: float, duration_s: int = 10
+    ) -> None:
+        """Flash the vehicle's lights.
+
+        Endpoint and body shape are from WeConnect-python, which drives the same
+        Cariad BFF:
+
+            POST {bff}/vehicle/v1/vehicles/{vin}/honkandflash
+            {"duration_s": 10, "mode": "flash",
+             "userPosition": {"latitude": .., "longitude": ..}}
+
+        The position is required, which is why a GET against this path returns
+        404 rather than 405: there is no GET route at all.
+
+        The mode is hard-coded. The same endpoint sounds the horn when given
+        "honkandflash", and there is deliberately no parameter through which a
+        caller could reach that: a control that can wake a street by passing the
+        wrong string is not worth the flexibility.
+        """
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        data = {
+            "duration_s": duration_s,
+            "mode": "flash",
+            "userPosition": {"latitude": latitude, "longitude": longitude},
+        }
+        await self._api.request(
+            "POST",
+            self.__get_cariad_url_for_vin(vin, "honkandflash"),
+            headers=headers,
+            data=json.dumps(data),
+        )
+
+    async def set_climatisation_settings(self, vin: str, **changes: Any) -> None:
+        """Change climatisation settings without starting climatisation.
+
+        PUT {bff}/vehicle/v1/vehicles/{vin}/climatisation/settings
+
+        Endpoint and field names are from WeConnect-python, which drives the
+        same Cariad BFF. An earlier GET against this path returned 404, which
+        was read as the endpoint not existing; it means there is no GET route.
+        The honk-and-flash work later demonstrated the same 404-on-GET on this
+        API for a path that is perfectly real for its own verb.
+        """
+        current = await self.get_climatisation_settings_raw(vin)
+        body = build_climatisation_settings_update(current, **changes)
+
+        headers = {"Authorization": "Bearer " + self._bearer_token_json["access_token"]}
+        await self._api.request(
+            "PUT",
+            self.__get_cariad_url_for_vin(vin, "climatisation/settings"),
+            headers=headers,
+            data=json.dumps(body),
+        )
 
     async def set_target_state_of_charge(self, vin: str, target_soc: int):
         """Set the target state of charge (battery percentage)."""
@@ -537,6 +1011,26 @@ class AudiService:
             headers=headers,
             data=json.dumps(data),
         )
+
+    async def get_climatisation_settings_raw(self, vin: str) -> dict:
+        """Fetch just the climatisation job, unparsed.
+
+        The start endpoint replaces the whole settings object, so it needs the
+        fields exactly as the car reports them rather than a parsed subset.
+        """
+        self._api.use_token(self._bearer_token_json)
+        data = await self._api.get(
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs="climatisation"
+            )
+        )
+        value = (
+            (data or {})
+            .get("climatisation", {})
+            .get("climatisationSettings", {})
+            .get("value")
+        )
+        return value if isinstance(value, dict) else {}
 
     async def set_climatisation(self, vin: str, start: bool):
         api_level = self._api_level
@@ -741,26 +1235,24 @@ class AudiService:
 
             data = None
             if has_settings:
-                if temp_f is not None:
-                    target_temperature = int((temp_f - 32) * (5 / 9))
-                elif temp_c is not None:
-                    target_temperature = int(temp_c)
-
-                target_temperature = target_temperature or 21
-
-                data = {
-                    "climatisationMode": climatisation_mode or "comfort",
-                    "targetTemperature": target_temperature,
-                    "targetTemperatureUnit": "celsius",
-                    "climatisationWithoutExternalPower": True,
-                    "climatizationAtUnlock": bool(climatisation_at_unlock),
-                    "windowHeatingEnabled": bool(glass_heating),
-                    "zoneFrontLeftEnabled": bool(seat_fl),
-                    "zoneFrontRightEnabled": bool(seat_fr),
-                    "zoneRearLeftEnabled": bool(seat_rl),
-                    "zoneRearRightEnabled": bool(seat_rr),
-                }
-                data = json.dumps(data)
+                # Read-modify-write: the endpoint replaces the settings object,
+                # so anything not sent is cleared. Build from what the car
+                # currently holds and change only what the caller asked for.
+                stored = await self.get_climatisation_settings_raw(vin)
+                data = json.dumps(
+                    build_climatisation_start_body(
+                        stored,
+                        temp_f=temp_f,
+                        temp_c=temp_c,
+                        climatisation_mode=climatisation_mode,
+                        climatisation_at_unlock=climatisation_at_unlock,
+                        glass_heating=glass_heating,
+                        seat_fl=seat_fl,
+                        seat_fr=seat_fr,
+                        seat_rl=seat_rl,
+                        seat_rr=seat_rr,
+                    )
+                )
             else:
                 _LOGGER.debug(
                     "No climate settings supplied; starting climatisation with the settings stored in the vehicle."
@@ -775,6 +1267,28 @@ class AudiService:
                 headers=headers,
                 data=data,
             )
+
+            # The 200 is the gateway accepting the request, not the car acting on
+            # it. Measured on a live vehicle 2026-09-13: a start the car ignored
+            # returned 200 with a requestID and only reported "timeout" in
+            # pendingrequests about a minute later, so without this a command that
+            # never ran was announced as success. Same class as #847's rejected
+            # switch command.
+            request_id = get_attr(res, "data.requestID")
+            if request_id is not None:
+                await self._confirm_vehicle_request(
+                    vin,
+                    "start",
+                    request_id,
+                    noun="Climatisation",
+                    attempts=CLIMATISATION_CONFIRM_ATTEMPTS,
+                    sleep=CLIMATISATION_CONFIRM_SLEEP,
+                )
+            else:
+                _LOGGER.debug(
+                    "Climatisation start accepted for %s with no request id to confirm",
+                    vin,
+                )
 
             # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
             #     vin=vin.upper(),
@@ -1068,7 +1582,14 @@ class AudiService:
                     rsp_wtxt=True,
                 )
                 # this code is the old "vwToken"
-                self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+                refreshed = json.loads(mbboauth_refresh_rsptxt)
+                if "access_token" not in refreshed:
+                    _raise_refresh_rejected(
+                        "mbboauth refresh rejected",
+                        refreshed,
+                        mbboauth_refresh_rsptxt,
+                    )
+                self.vwToken = refreshed
                 # If a new refresh_token is provided, save it for further refreshes
                 if "refresh_token" in self.vwToken:
                     self.mbboauthToken["refresh_token"] = self.vwToken["refresh_token"]
@@ -1101,9 +1622,8 @@ class AudiService:
             )
             refreshed = json.loads(bearer_token_rsptxt)
             if "access_token" not in refreshed:
-                raise AudiAuthError(
-                    "IDK refresh rejected: "
-                    + str(refreshed.get("error", bearer_token_rsptxt[:200]))
+                _raise_refresh_rejected(
+                    "IDK refresh rejected", refreshed, bearer_token_rsptxt
                 )
             self._bearer_token_json = refreshed
 
@@ -1504,9 +2024,7 @@ class AudiService:
         )
         result = json.loads(rsptxt)
         if "access_token" not in result:
-            raise AudiAuthError(
-                "Token refresh rejected: " + str(result.get("error", rsptxt[:200]))
-            )
+            _raise_refresh_rejected("Token refresh rejected", result, rsptxt)
         self._bearer_token_json = result
         await self._finalize_session()
         return self._bearer_token_json.get("refresh_token", refresh_token)
@@ -1657,7 +2175,12 @@ class AudiService:
                 rsp_wtxt=True,
             )
             # this code is the old "vwToken"
-            self.vwToken = json.loads(mbboauth_refresh_rsptxt)
+            refreshed = json.loads(mbboauth_refresh_rsptxt)
+            if "access_token" not in refreshed:
+                _raise_refresh_rejected(
+                    "mbboauth refresh rejected", refreshed, mbboauth_refresh_rsptxt
+                )
+            self.vwToken = refreshed
         else:
             _LOGGER.debug(
                 "mbboauth: no refresh_token in auth response, using auth token directly as vwToken"
@@ -1674,4 +2197,4 @@ class AudiService:
         return sha512(b).hexdigest().upper()
 
 
-__all__ = ["AudiService"]
+__all__ = ["AudiAuthError", "AudiService", "AudiTokenRefreshError"]
