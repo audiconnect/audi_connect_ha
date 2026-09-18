@@ -56,7 +56,6 @@ class AudiLock(AudiEntity, LockEntity):
     """Representation of an Audi lock."""
 
     _attr_name = "Door lock"
-    _backing_attr = "doors_trunk_status"
 
     def __init__(
         self,
@@ -67,8 +66,21 @@ class AudiLock(AudiEntity, LockEntity):
         self._attr_unique_id = entity_unique_id(vehicle, "lock", _LOCK_ATTR_KEY)
 
     @property
-    def is_locked(self) -> bool:
-        return self._vehicle.doors_trunk_status == "Locked"
+    def is_locked(self) -> bool | None:
+        """The car's own verdict first. The per-door derivation is the fallback,
+        and None when neither is there: a missing value shown as "unlocked" is
+        what #861 reported, and it is worse than showing nothing."""
+        status = self._vehicle.door_lock_status
+        if status is not None:
+            return status == "locked"
+        derived = self._vehicle.doors_trunk_status
+        if derived is not None:
+            return derived == "Locked"
+        return None
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.is_locked is not None
 
     async def async_lock(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
