@@ -2,10 +2,11 @@
 
 Upstream #862 (guidobbb): every poll logged a full traceback because the legacy
 fs-car status endpoint answered 401 for that account, and there was no entity
-to switch off to make it stop. The existing handling already treats 404 as
-"this car does not do preheater" and disables the poll; 401 from the legacy
-host means the same thing for this account and was falling through to the
-generic error path, once per VIN, with the full VIN in the message.
+to switch off to make it stop. 401 was falling through to the
+generic error path, once per VIN, with the full VIN in the message. It now
+joins the 403/502 branch: logged at debug, feature left on, because a 401 can
+also be a temporary account ban (Kolbi on #864) and disabling until restart
+would be the wrong answer to that.
 
 The redaction half is the same defect in six messages, so it is fixed in all
 six rather than in the one the issue happened to hit.
@@ -72,16 +73,29 @@ def run(coro):
 # --- the 401 ----------------------------------------------------------------------
 
 
-def test_a_401_disables_the_preheater_poll_like_a_404(caplog):
+def test_a_401_is_quiet_and_keeps_the_feature_on(caplog):
     v = AudiConnectVehicle(FailingService(401), FakeVehicle())
     with caplog.at_level(logging.DEBUG):
         run(v.update_vehicle_preheater())
-    assert v.support_preheater is False
+    assert v.support_preheater is True
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert [
+        r
+        for r in caplog.records
+        if r.levelno == logging.DEBUG and "401" in r.getMessage()
+    ]
 
 
-def test_once_disabled_the_endpoint_is_not_called_again():
+def test_a_401_is_retried_on_the_next_poll():
     svc = FailingService(401)
+    v = AudiConnectVehicle(svc, FakeVehicle())
+    run(v.update_vehicle_preheater())
+    run(v.update_vehicle_preheater())
+    assert svc.calls == 2
+
+
+def test_a_404_is_not_retried():
+    svc = FailingService(404)
     v = AudiConnectVehicle(svc, FakeVehicle())
     run(v.update_vehicle_preheater())
     run(v.update_vehicle_preheater())

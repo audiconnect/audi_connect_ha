@@ -1172,21 +1172,18 @@ class AudiConnectVehicle:
         except builtins.TimeoutError:
             raise
         except ClientResponseError as cre:
-            if cre.status in (401, 404):
-                # 404: the car has no preheater. 401: the legacy fs-car host
-                # refuses this account outright, which for the purposes of this
-                # poll is the same answer. Left as an error it logged a
-                # traceback on every restart with nothing the user could switch
-                # off (#862).
+            if cre.status == 404:
                 _LOGGER.debug(
                     "PREHEATER: ClientResponseError with status %s for VIN: %s. Preheater not available — disabling.",
                     cre.status,
                     redacted_vin,
                 )
                 self.support_preheater = False
-            elif cre.status in (403, 502):
-                # Transient CARIAD gateway error; keep the feature enabled so the
-                # next poll can recover, matching the other status endpoints.
+            elif cre.status in (401, 403, 502):
+                # Gateway or account-side refusal that may not be permanent (a
+                # temporary API ban answers 401 too), so keep the feature enabled
+                # and let the next poll recover. Left as an error, a 401 logged a
+                # traceback on every restart with nothing to switch off (#862).
                 _LOGGER.debug(
                     "PREHEATER: Received status %s while updating preheater for VIN: %s. This is typically transient and may resolve on its own.",
                     cre.status,
