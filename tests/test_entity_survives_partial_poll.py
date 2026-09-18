@@ -363,4 +363,9 @@ def test_every_entity_class_kept_its_docstring():
 
     for cls in (AudiClimate, AudiChargeModeSelect, AudiLock, AudiDeviceTracker):
         assert cls.__doc__, f"{cls.__name__} lost its docstring"
-        assert cls._backing_attr, f"{cls.__name__} has no backing attribute"
+        # Availability must be wired one way or the other: a single backing
+        # attribute for the base class to read, or the class's own `available`.
+        # The lock reads two sources (the car-wide verdict, then the per-door
+        # derivation) and so overrides rather than naming one attribute.
+        wired = cls._backing_attr or "available" in cls.__dict__
+        assert wired, f"{cls.__name__} has no availability wiring"

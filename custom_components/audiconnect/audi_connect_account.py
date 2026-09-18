@@ -2433,9 +2433,27 @@ class AudiConnectVehicle:
         if check:
             return True
 
+    @property
+    def door_lock_status(self):
+        """The car's own lock verdict for the whole vehicle, "locked" or
+        "unlocked". Preferred over doors_trunk_status, which needs all four
+        doors and so has nothing to say about a coupé."""
+        if self.door_lock_status_supported:
+            return self._vehicle.state.get("doorLockStatus")
+
+    @property
+    def door_lock_status_supported(self):
+        check = self._vehicle.state.get("doorLockStatus")
+        return check is not None and check != "unsupported"
+
+    @property
     def lock_supported(self):
-        return (
-            self.doors_trunk_status_supported and self._audi_service._spin is not None
+        """A property, not a method. As a method the support check saw a bound
+        function, which is always truthy, and created the lock on every car
+        including those with no S-PIN and no way to know the state (#861)."""
+        return bool(
+            self._audi_service._spin is not None
+            and (self.door_lock_status_supported or self.doors_trunk_status_supported)
         )
 
     @property

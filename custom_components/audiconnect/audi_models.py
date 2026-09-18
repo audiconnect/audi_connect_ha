@@ -145,6 +145,16 @@ class VehicleDataResponse:
         self.appendWindowState(data)
         self.appendDoorState(data)
 
+        # The car's own verdict on the whole vehicle. The per-door derivation
+        # above needs all four doors and a coupé has two, which is how a locked
+        # A5 read as unlocked (#861). This field was in every poll all along.
+        self._tryAppendStateWithTs(
+            data,
+            "doorLockStatus",
+            -1,
+            ["access", "accessStatus", "value", "doorLockStatus"],
+        )
+
         self._tryAppendStateWithTs(
             data, "carType", -1, ["fuelStatus", "rangeStatus", "value", "carType"]
         )
