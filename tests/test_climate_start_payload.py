@@ -221,7 +221,9 @@ def test_api_level_0_bare_temperature_start_sends_no_null_booleans() -> None:
     element_settings = body["action"]["settings"]["climaterElementSettings"]
     assert element_settings["isClimatisationAtUnlock"] is False
     assert element_settings["isMirrorHeatingEnabled"] is False
-    assert body["action"]["settings"]["targetTemperature"] == 2941  # 21degC in deciKelvin
+    assert (
+        body["action"]["settings"]["targetTemperature"] == 2941
+    )  # 21degC in deciKelvin
 
 
 def test_api_level_0_explicit_booleans_are_preserved() -> None:
