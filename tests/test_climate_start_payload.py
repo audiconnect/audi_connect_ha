@@ -191,3 +191,53 @@ def test_api_level_0_zone_settings_are_unchanged_by_missing_values() -> None:
         False,
     ]
     assert body["action"]["settings"]["targetTemperature"] == 2941
+
+
+def test_api_level_0_bare_temperature_start_sends_no_null_booleans() -> None:
+    """The live regression, API level 0 (the legacy fs-car backend).
+
+    The climate entity's bare turn_on() calls start_climate_control with only
+    temp_c. Before this test was added, isClimatisationAtUnlock and
+    isMirrorHeatingEnabled were passed straight through unwrapped, so a call
+    with only temp_c put a literal JSON `null` on the wire for both. The
+    fs-car climater/actions endpoint rejects that payload outright with HTTP
+    400, before the command is even queued as a trackable action -- so the
+    failure never reaches check_request_succeeded and is invisible to its
+    SUCCEEDED/FAILED handling. Reproduced live on 2026-09-22 against a real
+    Audi A3 Sportback e-tron (API level 0 account).
+
+    Unlike API level 1 (#849), API level 0 has never read the car's stored
+    settings back before starting, so the contract here is simpler: every
+    boolean field is a real True/False, exactly like the zone settings already
+    are, never a bare None turning into `null`.
+    """
+    service, api = _service(api_level=0, country="US")
+    _start(service, temp_c=21)
+
+    raw = api.calls[0]["data"]
+    assert "null" not in raw, f"literal JSON null on the wire: {raw}"
+
+    body = json.loads(raw)
+    element_settings = body["action"]["settings"]["climaterElementSettings"]
+    assert element_settings["isClimatisationAtUnlock"] is False
+    assert element_settings["isMirrorHeatingEnabled"] is False
+    assert (
+        body["action"]["settings"]["targetTemperature"] == 2941
+    )  # 21degC in deciKelvin
+
+
+def test_api_level_0_explicit_booleans_are_preserved() -> None:
+    # An explicit instruction (as Arsenal's climatisation_distante.yaml sends)
+    # must still come through as-is, not be flattened by the None -> False fix.
+    service, api = _service(api_level=0, country="US")
+    _start(
+        service,
+        temp_c=21,
+        climatisation_at_unlock=True,
+        glass_heating=True,
+    )
+
+    body = json.loads(api.calls[0]["data"])
+    element_settings = body["action"]["settings"]["climaterElementSettings"]
+    assert element_settings["isClimatisationAtUnlock"] is True
+    assert element_settings["isMirrorHeatingEnabled"] is True

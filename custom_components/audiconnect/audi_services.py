@@ -1160,8 +1160,15 @@ class AudiService:
                         "climatisationWithoutHVpower": True,
                         "heaterSource": "electric",
                         "climaterElementSettings": {
-                            "isClimatisationAtUnlock": climatisation_at_unlock,
-                            "isMirrorHeatingEnabled": glass_heating,
+                            # bool()-wrapped like the zone settings below: this
+                            # endpoint expects a JSON boolean here, never null.
+                            # The raw (Optional[bool]) parameter serialises as
+                            # `null` when the caller supplies only a temperature
+                            # (the climate entity's bare turn_on, #849), and the
+                            # legacy fs-car backend rejects that payload with
+                            # HTTP 400 before it is queued as a trackable action.
+                            "isClimatisationAtUnlock": bool(climatisation_at_unlock),
+                            "isMirrorHeatingEnabled": bool(glass_heating),
                             "zoneSettings": {"zoneSetting": zone_settings},
                         },
                     },
