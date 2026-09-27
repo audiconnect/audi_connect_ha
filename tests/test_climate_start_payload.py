@@ -241,3 +241,64 @@ def test_api_level_0_explicit_booleans_are_preserved() -> None:
     element_settings = body["action"]["settings"]["climaterElementSettings"]
     assert element_settings["isClimatisationAtUnlock"] is True
     assert element_settings["isMirrorHeatingEnabled"] is True
+
+
+async def _reports_no_settings(url, **kwargs):
+    """#873: a car (2024 Q8 Sportback e-tron) that reports its climatisation
+    status but no climatisationSettings at all."""
+    return {
+        "climatisation": {
+            "climatisationStatus": {
+                "value": {
+                    "climatisationState": "off",
+                    "remainingClimatisationTime_min": 0,
+                }
+            }
+        }
+    }
+
+
+def test_a_car_that_reports_no_settings_can_still_be_started_with_settings() -> None:
+    """#873: with nothing stored to read, the start used to raise "No
+    climatisation settings to start from" before sending anything, so every
+    start with settings failed. It now falls back to the 2.4.0 body."""
+    service, api = _service(api_level=1)
+    api.get = _reports_no_settings
+    _start(service, temp_c=21, glass_heating=True, seat_fl=True, seat_fr=True)
+
+    assert len(api.calls) == 1
+    body = json.loads(api.calls[0]["data"])
+    assert body["targetTemperature"] == 21
+    assert body["targetTemperatureUnit"] == "celsius"
+    assert body["climatisationMode"] == "comfort"
+    assert body["climatisationWithoutExternalPower"] is True
+    assert body["windowHeatingEnabled"] is True
+    assert body["zoneFrontLeftEnabled"] is True
+    assert body["zoneFrontRightEnabled"] is True
+    assert body["zoneRearLeftEnabled"] is False
+    assert body["zoneRearRightEnabled"] is False
+    assert body["climatizationAtUnlock"] is False
+
+
+def test_without_reported_settings_an_unsupplied_setting_is_off() -> None:
+    """Nothing is stored to preserve, so an unsupplied setting is False again,
+    as before the read-modify-write, and never a literal null."""
+    service, api = _service(api_level=1)
+    api.get = _reports_no_settings
+    _start(service, temp_c=19)
+
+    raw = api.calls[0]["data"]
+    assert "null" not in raw, f"literal JSON null on the wire: {raw}"
+    body = json.loads(raw)
+    assert body["targetTemperature"] == 19
+    assert body["windowHeatingEnabled"] is False
+    assert body["zoneFrontLeftEnabled"] is False
+
+
+def test_without_reported_settings_a_bare_start_still_sends_no_body() -> None:
+    # The #771 path does not read the settings and is unaffected by #873.
+    service, api = _service(api_level=1)
+    api.get = _reports_no_settings
+    _start(service)
+
+    assert api.calls[0]["data"] is None
