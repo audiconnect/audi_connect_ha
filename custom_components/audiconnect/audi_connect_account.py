@@ -608,9 +608,13 @@ class AudiConnectAccount:
 
             await self._audi_service.set_battery_charger(vin, activate, timer)
 
+            # The BFF can accept a charging request without the vehicle
+            # confirming that it acted on it. AudiService logs that distinction
+            # after polling pendingrequests; do not turn an unconfirmed request
+            # into a success claim here.
             _LOGGER.debug(
-                "Successfully %s%s charger for vehicle %s",
-                "started" if activate else "stopped",
+                "Sent %s%s charging request for vehicle %s",
+                "start" if activate else "stop",
                 " timed" if timer else "",
                 vin,
             )
