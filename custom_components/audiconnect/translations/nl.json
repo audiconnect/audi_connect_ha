@@ -35,6 +35,10 @@
         "title": "Opnieuw authenticeren bij Audi",
         "description": "Uw Audi-autorisatie is verlopen. Open de volgende link en meld u opnieuw aan:\n\n[{verification_uri}]({verification_uri})\n\nAls om een code wordt gevraagd, voer in: **{user_code}**\n\nZodra u het verzoek hebt goedgekeurd, klikt u op **OK**."
       },
+      "reauth_device_start": {
+        "title": "Opnieuw authenticeren bij Audi",
+        "description": "Uw Audi-machtiging is verlopen. Klik op Verzenden om een nieuwe aanmeldcode aan te vragen. De code is vijf minuten geldig."
+      },
       "reconfigure": {
         "title": "Audi Connect-configuratie bijwerken",
         "data": {

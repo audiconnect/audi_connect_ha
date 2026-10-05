@@ -35,6 +35,10 @@
         "title": "Re-authenticate with Audi",
         "description": "Your Audi authorisation has expired. Open the following link and sign in again:\n\n{verification_uri}\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **OK**."
       },
+      "reauth_device_start": {
+        "title": "Re-authenticate with Audi",
+        "description": "Your Audi authorisation has expired. Press Submit to request a fresh sign-in code. The code will be valid for five minutes."
+      },
       "reconfigure": {
         "title": "Update Audi Connect Configuration",
         "data": {

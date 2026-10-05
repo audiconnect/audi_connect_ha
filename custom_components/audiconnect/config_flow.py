@@ -285,7 +285,20 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_API_LEVEL, DEFAULT_API_LEVEL
             ),
         }
+        if entry_uses_device_code(self._reauth_entry.data):
+            return await self.async_step_reauth_device_start()
         return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_device_start(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Request a device code only when a person opens the reauth flow."""
+        if user_input is not None:
+            return await self.async_step_device()
+        return self.async_show_form(
+            step_id="reauth_device_start",
+            data_schema=vol.Schema({}),
+        )
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None

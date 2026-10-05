@@ -35,6 +35,10 @@
         "title": "Todenna uudelleen Audiin",
         "description": "Audi-valtuutuksesi on vanhentunut. Avaa seuraava linkki ja kirjaudu uudelleen:\n\n[{verification_uri}]({verification_uri})\n\nJos sinulta pyydetään koodia, syötä: **{user_code}**\n\nKun olet hyväksynyt pyynnön, paina **OK**."
       },
+      "reauth_device_start": {
+        "title": "Todenna uudelleen Audiin",
+        "description": "Audi-valtuutuksesi on vanhentunut. Pyydä uusi kirjautumiskoodi valitsemalla Lähetä. Koodi on voimassa viisi minuuttia."
+      },
       "reconfigure": {
         "title": "Päivitä Audi Connect -määritykset",
         "data": {

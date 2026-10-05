@@ -35,6 +35,10 @@
         "title": "Reautenticar com a Audi",
         "description": "A sua autorização Audi expirou. Abra a ligação seguinte e inicie sessão novamente:\n\n[{verification_uri}]({verification_uri})\n\nSe lhe for pedido um código, introduza: **{user_code}**\n\nApós aprovar o pedido, prima **OK**."
       },
+      "reauth_device_start": {
+        "title": "Reautenticar com a Audi",
+        "description": "A autorização da Audi expirou. Prima Enviar para pedir um novo código de início de sessão. O código será válido durante cinco minutos."
+      },
       "reconfigure": {
         "title": "Atualizar a configuração do Audi Connect",
         "data": {
