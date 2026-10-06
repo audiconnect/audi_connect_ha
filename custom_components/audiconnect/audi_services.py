@@ -144,6 +144,20 @@ _START_OVERRIDES = {
     "seat_rr": "zoneRearRightEnabled",
 }
 
+# What the start body was built from before it read the car's settings (2.4.0).
+# Used only when the car reports no climatisationSettings at all (#873): there is
+# nothing stored to preserve then, and refusing to start leaves no way to start
+# climatisation with any settings from Home Assistant.
+_START_DEFAULTS = {
+    "climatisationWithoutExternalPower": True,
+    "climatizationAtUnlock": False,
+    "windowHeatingEnabled": False,
+    "zoneFrontLeftEnabled": False,
+    "zoneFrontRightEnabled": False,
+    "zoneRearLeftEnabled": False,
+    "zoneRearRightEnabled": False,
+}
+
 
 def build_climatisation_start_body(settings: dict, **params: Any) -> dict:
     """Pure read-modify-write core for climatisation/start.
@@ -161,9 +175,16 @@ def build_climatisation_start_body(settings: dict, **params: Any) -> dict:
     settings and ours cleared them, on the same car minutes apart.
 
     A parameter left as None means "leave whatever the car has", never False.
+
+    Some cars report the climatisation status but no settings at all (#873, a
+    2024 Q8 Sportback e-tron: selectivestatus has no climatisationSettings).
+    Then there is nothing to preserve, so the body is built from the defaults
+    the start used before this became a read-modify-write, and an unsupplied
+    parameter means False again. Raising here instead made every start with
+    settings fail before anything was sent.
     """
     if not isinstance(settings, dict) or not settings:
-        raise ValueError("No climatisation settings to start from")
+        settings = dict(_START_DEFAULTS)
 
     body: dict[str, Any] = {
         key: settings[key] for key in _START_PASSTHROUGH if key in settings
@@ -1160,8 +1181,15 @@ class AudiService:
                         "climatisationWithoutHVpower": True,
                         "heaterSource": "electric",
                         "climaterElementSettings": {
-                            "isClimatisationAtUnlock": climatisation_at_unlock,
-                            "isMirrorHeatingEnabled": glass_heating,
+                            # bool()-wrapped like the zone settings below: this
+                            # endpoint expects a JSON boolean here, never null.
+                            # The raw (Optional[bool]) parameter serialises as
+                            # `null` when the caller supplies only a temperature
+                            # (the climate entity's bare turn_on, #849), and the
+                            # legacy fs-car backend rejects that payload with
+                            # HTTP 400 before it is queued as a trackable action.
+                            "isClimatisationAtUnlock": bool(climatisation_at_unlock),
+                            "isMirrorHeatingEnabled": bool(glass_heating),
                             "zoneSettings": {"zoneSetting": zone_settings},
                         },
                     },
@@ -1239,6 +1267,10 @@ class AudiService:
                 # so anything not sent is cleared. Build from what the car
                 # currently holds and change only what the caller asked for.
                 stored = await self.get_climatisation_settings_raw(vin)
+                if not stored:
+                    _LOGGER.debug(
+                        "Vehicle reports no climatisation settings; building the start body from defaults."
+                    )
                 data = json.dumps(
                     build_climatisation_start_body(
                         stored,
