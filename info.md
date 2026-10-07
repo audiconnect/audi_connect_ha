@@ -13,11 +13,11 @@ To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations
 
 **username**
 
-- (string)(Required) The username associated with your Audi Connect account.
+- (string)(Required outside Europe) The username associated with your Audi Connect account. European accounts use browser-based device-code sign-in.
 
 **password**
 
-- (string)(Required) The password for your Audi Connect account.
+- (string)(Required outside Europe) The password for your Audi Connect account. European accounts use browser-based device-code sign-in.
 
 **S-PIN**
 
