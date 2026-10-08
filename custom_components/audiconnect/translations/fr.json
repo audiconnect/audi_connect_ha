@@ -37,7 +37,7 @@
       },
       "reauth_device_start": {
         "title": "Réauthentification Audi",
-        "description": "Votre autorisation Audi a expiré. Cliquez sur Envoyer pour demander un nouveau code de connexion. Le code sera valide pendant cinq minutes."
+        "description": "Votre autorisation Audi a expiré. Cliquez sur Valider pour demander un nouveau code de connexion. Le code sera valide pendant cinq minutes."
       },
       "reconfigure": {
         "title": "Mettre à jour la configuration Audi Connect",
