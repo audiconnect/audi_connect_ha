@@ -35,6 +35,10 @@
         "title": "Erneut bei Audi authentifizieren",
         "description": "Ihre Audi-Autorisierung ist abgelaufen. Öffnen Sie den folgenden Link und melden Sie sich erneut an:\n\n[{verification_uri}]({verification_uri})\n\nFalls Sie nach einem Code gefragt werden, geben Sie ein: **{user_code}**\n\nSobald Sie die Anfrage bestätigt haben, klicken Sie auf **OK**."
       },
+      "reauth_device_start": {
+        "title": "Erneut bei Audi authentifizieren",
+        "description": "Ihre Audi-Autorisierung ist abgelaufen. Klicken Sie auf Senden, um einen neuen Anmeldecode anzufordern. Der Code ist fünf Minuten lang gültig."
+      },
       "reconfigure": {
         "title": "Audi Connect-Konfiguration aktualisieren",
         "data": {
