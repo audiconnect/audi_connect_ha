@@ -169,11 +169,16 @@ class AudiConnectAccount:
             # instead of retrying something that can never work.
             raise
         except Exception as exception:  # noqa: BLE001
+            # A rejected token or credentials raised AudiAuthError above, so this
+            # is a failure that a new sign-in won't fix (an outage, or a change on
+            # Audi's side). Don't point the user at reconfiguring: removing the
+            # entry can leave them unable to add it back until the cause is fixed.
             if logError:
                 _LOGGER.error(
                     "LOGIN: Failed to establish an Audi session: %s. "
-                    "Your stored credentials may no longer be valid; reconfigure "
-                    "the Audi Connect integration to sign in again.",
+                    "Will keep retrying. If this persists, check the Audi Connect "
+                    "issue tracker before removing the integration; re-adding it "
+                    "may not be possible while the cause is on Audi's side.",
                     str(exception),
                 )
             return False

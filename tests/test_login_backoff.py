@@ -8,8 +8,10 @@ No network: try_login and the sleep are both replaced.
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from custom_components.audiconnect import audi_connect_account
+from custom_components.audiconnect.audi_services import AudiTokenRefreshError
 from custom_components.audiconnect.audi_connect_account import (
     MAX_LOGIN_RETRY_DELAY,
     AudiConnectAccount,
@@ -84,3 +86,21 @@ def test_retries_stop_at_the_configured_count(monkeypatch) -> None:
     # The final attempt is the one allowed to report the error.
     assert len(attempts) == account._connect_retries
     assert attempts == [False, False, True]
+
+
+def test_retryable_failure_does_not_suggest_reconfiguring(monkeypatch, caplog) -> None:
+    # #891: an Audi-side rejection reaches this path, and telling the user to
+    # reconfigure led them to delete entries they then couldn't add back.
+    account, _slept = _account(monkeypatch)
+
+    async def _rejected(_refresh_token):
+        raise AudiTokenRefreshError("Token refresh rejected: invalid assertion headers")
+
+    monkeypatch.setattr(account._audi_service, "login_with_refresh_token", _rejected)
+    with caplog.at_level(logging.ERROR):
+        assert asyncio.run(account.try_login(True)) is False
+
+    (message,) = [r.getMessage() for r in caplog.records]
+    assert "invalid assertion headers" in message
+    assert "reconfigure" not in message
+    assert "before removing" in message

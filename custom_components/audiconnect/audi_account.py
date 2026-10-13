@@ -51,20 +51,39 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _single_device_id(value: Any) -> str:
+    """Accept the device either as a string or as a one-item list.
+
+    An action called from a dashboard (e.g. a picture-elements action-button
+    with `data: {device_id: ...}`) arrives with device_id as a list, which a
+    plain cv.string rejects with "value should be a string" (#873). The actions
+    target exactly one vehicle, so more than one device is still refused.
+    """
+    if isinstance(value, list):
+        if len(value) != 1:
+            raise vol.Invalid("exactly one device is required")
+        value = value[0]
+    return cv.string(value)
+
+
 SERVICE_REFRESH_VEHICLE_DATA = "refresh_vehicle_data"
 SERVICE_REFRESH_VEHICLE_DATA_SCHEMA = vol.Schema(
-    {vol.Required(CONF_DEVICE_ID): cv.string}
+    {vol.Required(CONF_DEVICE_ID): _single_device_id}
 )
 
 SERVICE_EXECUTE_VEHICLE_ACTION = "execute_vehicle_action"
 SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA = vol.Schema(
-    {vol.Required(CONF_DEVICE_ID): cv.string, vol.Required(CONF_ACTION): cv.string}
+    {
+        vol.Required(CONF_DEVICE_ID): _single_device_id,
+        vol.Required(CONF_ACTION): cv.string,
+    }
 )
 
 SERVICE_START_CLIMATE_CONTROL = "start_climate_control"
 SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Required(CONF_DEVICE_ID): _single_device_id,
         vol.Optional(CONF_CLIMATE_TEMP_F): cv.positive_int,
         vol.Optional(CONF_CLIMATE_TEMP_C): cv.positive_int,
         vol.Optional(CONF_CLIMATE_GLASS): cv.boolean,
@@ -80,7 +99,7 @@ SERVICE_START_CLIMATE_CONTROL_SCHEMA = vol.Schema(
 SERVICE_START_AUXILIARY_HEATING = "start_auxiliary_heating"
 SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Required(CONF_DEVICE_ID): _single_device_id,
         vol.Optional(CONF_DURATION): cv.positive_int,
     }
 )
@@ -88,7 +107,7 @@ SERVICE_START_AUXILIARY_HEATING_SCHEMA = vol.Schema(
 SERVICE_SET_LOCATION_CHARGE_TARGET = "set_location_charge_target"
 SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Required(CONF_DEVICE_ID): _single_device_id,
         vol.Optional(CONF_PROFILE_ID): vol.All(
             cv.positive_int, vol.Range(min=1, max=10)
         ),
@@ -101,7 +120,7 @@ SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA = vol.Schema(
 SERVICE_SET_CHARGE_MODE = "set_charge_mode"
 SERVICE_SET_CHARGE_MODE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Required(CONF_DEVICE_ID): _single_device_id,
         vol.Required(CONF_CHARGE_MODE): vol.In(["manual", "timer"]),
     }
 )
@@ -109,7 +128,7 @@ SERVICE_SET_CHARGE_MODE_SCHEMA = vol.Schema(
 SERVICE_SET_TARGET_SOC = "set_target_soc"
 SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DEVICE_ID): cv.string,
+        vol.Required(CONF_DEVICE_ID): _single_device_id,
         vol.Required(CONF_TARGET_SOC): vol.All(
             cv.positive_int, vol.Range(min=20, max=100)
         ),
@@ -117,10 +136,14 @@ SERVICE_SET_TARGET_SOC_SCHEMA = vol.Schema(
 )
 
 SERVICE_START_ENGINE = "start_engine"
-SERVICE_START_ENGINE_SCHEMA = vol.Schema({vol.Required(CONF_DEVICE_ID): cv.string})
+SERVICE_START_ENGINE_SCHEMA = vol.Schema(
+    {vol.Required(CONF_DEVICE_ID): _single_device_id}
+)
 
 SERVICE_STOP_ENGINE = "stop_engine"
-SERVICE_STOP_ENGINE_SCHEMA = vol.Schema({vol.Required(CONF_DEVICE_ID): cv.string})
+SERVICE_STOP_ENGINE_SCHEMA = vol.Schema(
+    {vol.Required(CONF_DEVICE_ID): _single_device_id}
+)
 
 SERVICE_REFRESH_CLOUD_DATA = "refresh_cloud_data"
 
