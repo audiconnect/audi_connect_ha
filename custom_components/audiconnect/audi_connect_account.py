@@ -575,7 +575,8 @@ class AudiConnectAccount:
                 climatisation_mode,
             )
 
-            # False is the car not confirming in time; None is nothing to confirm.
+            # False is the car not confirming in time; None carries no verdict
+            # (nothing to confirm against, or a legacy path that settled it itself).
             if confirmed is False:
                 _LOGGER.debug(
                     "Climate control start accepted for vehicle %s but not confirmed by the car",

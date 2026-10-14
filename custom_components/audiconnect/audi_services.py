@@ -1156,8 +1156,10 @@ class AudiService:
     ) -> bool | None:
         """Start climatisation.
 
-        Returns whether the car confirmed it: True, False when the wait ran out,
-        or None when there was nothing to confirm against.
+        Returns whether the car confirmed it: True, or False when the wait ran
+        out. None means there is no verdict to report: the gateway gave nothing
+        to confirm against, or this is the legacy api_level 0 path, whose own
+        poll has already confirmed or raised.
         """
         api_level = self._api_level
         country = self._country
