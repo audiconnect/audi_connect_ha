@@ -562,7 +562,7 @@ class AudiConnectAccount:
                 climatisation_mode,
             )
 
-            await self._audi_service.start_climate_control(
+            confirmed = await self._audi_service.start_climate_control(
                 vin,
                 temp_f,
                 temp_c,
@@ -575,10 +575,17 @@ class AudiConnectAccount:
                 climatisation_mode,
             )
 
-            _LOGGER.debug(
-                "Successfully started climate control of vehicle %s",
-                vin,
-            )
+            # False is the car not confirming in time; None is nothing to confirm.
+            if confirmed is False:
+                _LOGGER.debug(
+                    "Climate control start accepted for vehicle %s but not confirmed by the car",
+                    vin,
+                )
+            else:
+                _LOGGER.debug(
+                    "Successfully started climate control of vehicle %s",
+                    vin,
+                )
 
             return True
 
@@ -611,14 +618,25 @@ class AudiConnectAccount:
                 vin,
             )
 
-            await self._audi_service.set_battery_charger(vin, activate, timer)
-
-            _LOGGER.debug(
-                "Successfully %s%s charger for vehicle %s",
-                "started" if activate else "stopped",
-                " timed" if timer else "",
-                vin,
+            confirmed = await self._audi_service.set_battery_charger(
+                vin, activate, timer
             )
+
+            # False is the car not confirming in time; None is nothing to confirm.
+            if confirmed is False:
+                _LOGGER.debug(
+                    "Charger %s%s command accepted for vehicle %s but not confirmed by the car",
+                    "start" if activate else "stop",
+                    " timed" if timer else "",
+                    vin,
+                )
+            else:
+                _LOGGER.debug(
+                    "Successfully %s%s charger for vehicle %s",
+                    "started" if activate else "stopped",
+                    " timed" if timer else "",
+                    vin,
+                )
 
             return True
 

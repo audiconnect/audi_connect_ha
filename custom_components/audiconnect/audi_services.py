@@ -722,8 +722,13 @@ class AudiService:
             "requestStatusResponse.status",
         )
 
-    async def set_battery_charger(self, vin: str, start: bool, timer: bool):
+    async def set_battery_charger(
+        self, vin: str, start: bool, timer: bool
+    ) -> bool | None:
         """Start or stop charging.
+
+        Returns whether the car confirmed the command: True, False when the wait
+        ran out, or None when there was nothing to confirm against.
 
         start=True, timer=True  -> select timer mode, so the car charges on its
                                    own schedule rather than immediately.
@@ -738,9 +743,9 @@ class AudiService:
         """
         if start and timer:
             await self.set_preferred_charge_mode(vin, "timer")
-            return
+            return None
 
-        await self._send_charging_command(vin, "start" if start else "stop")
+        return await self._send_charging_command(vin, "start" if start else "stop")
 
     async def set_preferred_charge_mode(self, vin: str, mode: str) -> None:
         """Set which mode the car charges in. A preference, not an action: it does
@@ -777,7 +782,7 @@ class AudiService:
                 return None
             raise
 
-    async def _send_charging_command(self, vin: str, action: str) -> None:
+    async def _send_charging_command(self, vin: str, action: str) -> bool | None:
         """Actually start or stop a charge.
 
         Separate charging/start and charging/stop are what current firmware
@@ -806,15 +811,15 @@ class AudiService:
                 action,
                 vin,
             )
-            return
+            return None
 
-        await self._confirm_charging_command(vin, action, request_id)
+        return await self._confirm_charging_command(vin, action, request_id)
 
     async def _confirm_charging_command(
         self, vin: str, action: str, request_id: str
-    ) -> None:
+    ) -> bool:
         """Confirm a charging command. Thin wrapper kept for its call sites."""
-        await self._confirm_vehicle_request(
+        return await self._confirm_vehicle_request(
             vin,
             action,
             request_id,
@@ -831,8 +836,11 @@ class AudiService:
         noun: str = "Charging",
         attempts: int = CHARGING_CONFIRM_ATTEMPTS,
         sleep: int = CHARGING_CONFIRM_SLEEP,
-    ) -> None:
+    ) -> bool:
         """Poll pendingrequests until the car acts on the command.
+
+        Returns True once the car confirms, and False when the attempts run out
+        first, so the caller can tell the two apart.
 
         Deliberately shorter than check_bff_request_succeeded (10 polls, 10s
         apart): every poll is an API call against a metered daily allowance, and
@@ -865,7 +873,7 @@ class AudiService:
                     break
                 if status == "successful":
                     _LOGGER.debug("%s %s confirmed for %s", noun, action, vin)
-                    return
+                    return True
                 raise Exception(
                     f"{noun} {action} for {vin} was rejected by the vehicle "
                     f"(request {request_id} reached status {status})"
@@ -880,6 +888,7 @@ class AudiService:
             vin,
             attempts * sleep,
         )
+        return False
 
         # checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
         #     homeRegion=await self._get_home_region(vin.upper()),
@@ -1144,7 +1153,12 @@ class AudiService:
         seat_rr: bool | None = None,
         climatisation_at_unlock: bool | None = None,
         climatisation_mode: str | None = None,
-    ):
+    ) -> bool | None:
+        """Start climatisation.
+
+        Returns whether the car confirmed it: True, False when the wait ran out,
+        or None when there was nothing to confirm against.
+        """
         api_level = self._api_level
         country = self._country
         target_temperature = None
@@ -1308,7 +1322,7 @@ class AudiService:
             # switch command.
             request_id = get_attr(res, "data.requestID")
             if request_id is not None:
-                await self._confirm_vehicle_request(
+                return await self._confirm_vehicle_request(
                     vin,
                     "start",
                     request_id,
@@ -1316,11 +1330,10 @@ class AudiService:
                     attempts=CLIMATISATION_CONFIRM_ATTEMPTS,
                     sleep=CLIMATISATION_CONFIRM_SLEEP,
                 )
-            else:
-                _LOGGER.debug(
-                    "Climatisation start accepted for %s with no request id to confirm",
-                    vin,
-                )
+            _LOGGER.debug(
+                "Climatisation start accepted for %s with no request id to confirm",
+                vin,
+            )
 
             # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
             #     vin=vin.upper(),
