@@ -7,6 +7,9 @@
 
 ## Notices
 
+> [!Important]
+> **Authentication status (2026-10-31).** Since 2026-10-12, a server-side change at Audi/CARIAD has broken the integration's authentication for affected regions: existing EU entries stop refreshing (`invalid assertion headers`) and new sign-ins fail (`unauthorized_client`). There is no known integration-side fix at this time. Please read the pinned status issue [#903](https://github.com/audiconnect/audi_connect_ha/issues/903) before opening a login or refresh issue.
+
 Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
 
 > [!Caution]
