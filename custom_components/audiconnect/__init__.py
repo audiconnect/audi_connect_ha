@@ -47,7 +47,7 @@ from .const import (
     DEFAULT_API_LEVEL,
     DOMAIN,
     PLATFORMS,
-    uses_device_code,
+    uses_auth0,
 )
 from .coordinator import AudiDataUpdateCoordinator
 
@@ -101,14 +101,9 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
     if config_entry.version == 2:
         # v2 -> v3:
-        # Authentication is now region-dependent. Where Audi enforces Play Integrity
-        # attestation on the token exchange (Europe), the username/password login can
-        # no longer complete, so the credentials are dropped and setup starts a
-        # reauthentication with the Device Authorization Grant. Every other region
-        # keeps its working credentials untouched — wiping them there would break an
-        # account that has no device-code alternative available yet.
+        # Drop credentials in regions that require interactive authentication.
         new_data = {**config_entry.data}
-        if uses_device_code(new_data.get(CONF_REGION)) and not new_data.get(
+        if uses_auth0(new_data.get(CONF_REGION)) and not new_data.get(
             CONF_REFRESH_TOKEN
         ):
             new_data.pop(CONF_PASSWORD, None)
@@ -400,7 +395,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if not has_refresh_token and not has_credentials:
         raise ConfigEntryAuthFailed(
             "Audi Connect needs to sign in again"
-            if uses_device_code(config_entry.data.get(CONF_REGION))
+            if uses_auth0(config_entry.data.get(CONF_REGION))
             else "Audi Connect needs your myAudi username and password to sign in"
         )
 

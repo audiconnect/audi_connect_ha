@@ -4,13 +4,18 @@
       "already_configured": "Account has already been configured",
       "reauth_successful": "Re-authentication was successful",
       "reconfigure_successful": "Reconfiguration was successful",
-      "device_auth_failed": "Could not start device sign-in with Audi. Please try again later."
+      "device_auth_failed": "Could not start device sign-in with Audi. Please try again later.",
+      "auth0_auth_failed": "Could not start browser sign-in with Audi. Please try again later."
     },
     "create_entry": {},
     "error": {
       "authorization_pending": "Sign-in not detected yet. Approve the request in your browser, then press OK.",
       "device_auth_failed": "Device sign-in failed. Please start again.",
-      "invalid_credentials": "Invalid credentials"
+      "invalid_credentials": "Invalid credentials",
+      "invalid_auth0_callback": "The myAudi callback URL is invalid or belongs to a different sign-in attempt.",
+      "auth0_denied": "Audi sign-in was cancelled or denied.",
+      "auth0_auth_failed": "Audi rejected the authorization code. Start the sign-in again.",
+      "unexpected": "Unexpected error"
     },
     "step": {
       "user": {
@@ -30,6 +35,20 @@
       "device": {
         "title": "Sign in to Audi",
         "description": "Open the following link and sign in with your Audi account to authorise Home Assistant:\n\n[{verification_uri}]({verification_uri})\n\nIf you are asked for a code, enter: **{user_code}**\n\nOnce you have approved it, press **OK**."
+      },
+      "auth0": {
+        "title": "Sign in to Audi",
+        "description": "Open [{authorization_url}]({authorization_url}) in a private browser window and sign in. Audi then redirects to a localhost page that may show an unable-to-connect error; this is expected. Copy the complete URL from the browser address bar and paste it below.",
+        "data": {
+          "callback_url": "myAudi callback URL"
+        }
+      },
+      "reauth_auth0": {
+        "title": "Re-authenticate with Audi",
+        "description": "Open [{authorization_url}]({authorization_url}) in a private browser window and sign in. Audi then redirects to a localhost page that may show an unable-to-connect error; this is expected. Copy the complete URL from the browser address bar and paste it below.",
+        "data": {
+          "callback_url": "myAudi callback URL"
+        }
       },
       "reauth_confirm": {
         "title": "Re-authenticate with Audi",

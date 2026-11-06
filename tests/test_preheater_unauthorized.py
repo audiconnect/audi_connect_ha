@@ -66,6 +66,12 @@ class FailingService:
         self._raise()
 
 
+class Auth0Service:
+    """Only the session type matters for constructor capability routing."""
+
+    uses_auth0 = True
+
+
 def run(coro):
     return asyncio.run(coro)
 
@@ -116,6 +122,52 @@ def test_a_404_still_disables_too(caplog):
     with caplog.at_level(logging.DEBUG):
         run(v.update_vehicle_preheater())
     assert v.support_preheater is False
+
+
+# --- Auth0 / modern CARIAD state --------------------------------------------------
+
+
+def test_auth0_vehicle_skips_only_legacy_duplicate_polls():
+    v = AudiConnectVehicle(Auth0Service(), FakeVehicle())
+
+    assert v.support_status_report is True
+    assert v.support_position is True
+    assert v.support_climater is False
+    assert v.support_preheater is False
+    assert v.support_charger is False
+    assert v.support_trip_data is False
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("off", False),
+        ("invalid", False),
+        ("heating", True),
+        ("ventilation", True),
+        ("future-running-mode", True),
+    ],
+)
+def test_preheater_active_falls_back_to_modern_climatisation_state(state, expected):
+    v = AudiConnectVehicle(Auth0Service(), FakeVehicle())
+    v._vehicle.state["climatisationState"] = state
+
+    assert v.preheater_active_supported is True
+    assert v.preheater_active is expected
+
+
+def test_preheater_active_prefers_legacy_state_when_both_are_present():
+    v = AudiConnectVehicle(Auth0Service(), FakeVehicle())
+    v._vehicle.state.update(
+        {
+            "climatisationState": "off",
+            "preheaterState": {
+                "climatisationStateReport": {"climatisationState": "heating"}
+            },
+        }
+    )
+
+    assert v.preheater_active is True
 
 
 # --- the VIN ----------------------------------------------------------------------

@@ -7,17 +7,19 @@ Configuration is done through the Home Assistant UI.
 
 To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
+In regions using Audi's Auth0 login, Home Assistant displays a browser sign-in link. After signing in, Audi redirects to a localhost page that may show an unable-to-connect error. Copy the complete URL from the browser address bar and paste it into the Home Assistant form.
+
 ![image](https://github.com/user-attachments/assets/68f4a38b-f09d-4486-a1a1-ab8a564095ab)
 
 ### Configuration Variables
 
 **username**
 
-- (string)(Required) The username associated with your Audi Connect account.
+- (string) The username associated with your Audi Connect account. Required only in password-login regions.
 
 **password**
 
-- (string)(Required) The password for your Audi Connect account.
+- (string) The password for your Audi Connect account. Required only in password-login regions.
 
 **S-PIN**
 
