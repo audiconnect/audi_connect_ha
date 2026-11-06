@@ -39,6 +39,8 @@ CONF_FILTER_VINS = "filter_vins"
 CONF_REFRESH_AFTER_ACTION = "refresh_vehicle_data_after_action"
 CONF_REFRESH_TOKEN = "refresh_token"
 CONF_UPDATE_SLEEP = "update_sleep"
+AUTH0_REFRESH_TOKEN_PREFIX = "auth0:"
+AUTH0_REDIRECT_URI = "http://localhost:8080/myaudi-callback"
 
 REFRESH_VEHICLE_DATA_FAILED_EVENT = "refresh_failed"
 REFRESH_VEHICLE_DATA_COMPLETED_EVENT = "refresh_completed"
@@ -55,38 +57,22 @@ REGIONS: dict[int, str] = {
     4: REGION_CHINA,
 }
 
-# Regions that must authenticate with the Device Authorization Grant (RFC 8628).
-# Audi enforces Play Integrity attestation on the password (authorization-code)
-# token exchange there, so the legacy login can no longer complete. Every other
-# region keeps username/password, which still works for them. If attestation is
-# rolled out elsewhere, add that region here — nothing else needs to change.
-#
-# Canada joined after attestation reached that market too: its market config
-# reports "marketSupportsAppAttestation": True, its login is routed to the same
-# emea.bff.cariad.digital backend as Europe, and that backend advertises the
-# device_code grant — so the same device-code login works there (issue #814).
-DEVICE_CODE_REGIONS: set[str] = {REGION_EUROPE, REGION_CANADA}
+AUTH0_REGIONS: set[str] = {REGION_EUROPE, REGION_CANADA}
 
 
-def uses_device_code(region: str | None) -> bool:
-    """Return True when the region must use the device-code login."""
-    return (region or REGION_EUROPE) in DEVICE_CODE_REGIONS
+def uses_auth0(region: str | None) -> bool:
+    """Return whether the region uses the interactive Auth0 login."""
+    return (region or REGION_EUROPE) in AUTH0_REGIONS
 
 
-def entry_uses_device_code(entry_data: Mapping[str, Any]) -> bool:
-    """Return True when this entry should authenticate with the device-code flow.
-
-    Whatever the entry already holds wins over the region default. Device-code was
-    offered to every region in the 2.2.1b1/b2 pre-releases, so an entry outside
-    Europe can legitimately hold a working refresh token; forcing it onto the
-    password login would break a session that is fine. The region only decides for
-    an entry that has no usable credential yet.
-    """
-    if entry_data.get(CONF_REFRESH_TOKEN):
+def entry_uses_auth0(entry_data: Mapping[str, Any]) -> bool:
+    """Return whether an entry should reauthenticate with Auth0."""
+    refresh_token = entry_data.get(CONF_REFRESH_TOKEN)
+    if isinstance(refresh_token, str) and refresh_token.startswith(
+        AUTH0_REFRESH_TOKEN_PREFIX
+    ):
         return True
-    if entry_data.get(CONF_USERNAME) and entry_data.get(CONF_PASSWORD):
-        return False
-    return uses_device_code(entry_data.get(CONF_REGION))
+    return uses_auth0(entry_data.get(CONF_REGION))
 
 
 API_LEVELS: list[int] = [0, 1]
@@ -105,6 +91,9 @@ PLATFORMS: list[Platform] = [
 
 __all__ = [
     "API_LEVELS",
+    "AUTH0_REFRESH_TOKEN_PREFIX",
+    "AUTH0_REDIRECT_URI",
+    "AUTH0_REGIONS",
     "CONF_ACTION",
     "CONF_API_LEVEL",
     "CONF_CARNAME",
@@ -135,7 +124,6 @@ __all__ = [
     "CONF_VIN",
     "DEFAULT_API_LEVEL",
     "DEFAULT_UPDATE_INTERVAL",
-    "DEVICE_CODE_REGIONS",
     "DOMAIN",
     "MIN_UPDATE_INTERVAL",
     "PLATFORMS",
@@ -143,6 +131,6 @@ __all__ = [
     "REFRESH_VEHICLE_DATA_FAILED_EVENT",
     "REGIONS",
     "UPDATE_SLEEP",
-    "entry_uses_device_code",
-    "uses_device_code",
+    "entry_uses_auth0",
+    "uses_auth0",
 ]

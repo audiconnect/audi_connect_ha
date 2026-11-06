@@ -1,8 +1,4 @@
-"""#840: a rejected IDK refresh should only prompt a reauth when the refresh
-token itself is dead (``invalid_grant``). Anything else — ``invalid_client``
-(the client_id is fixed in code, so a reauth can't help), a transient blip, a
-malformed body — must degrade to a retryable error instead of an un-actionable
-reauth prompt.
+"""Classify refresh failures as actionable reauth or retryable errors.
 
 No network: the classifier is a pure function over the parsed token response.
 """
@@ -27,6 +23,13 @@ def test_invalid_grant_needs_reauth() -> None:
             "mbboauth refresh rejected",
             {"error": "invalid_grant", "error_description": "token expired"},
             "",
+        )
+
+
+def test_idk_attestation_rejection_migrates_to_auth0() -> None:
+    with pytest.raises(AudiAuthError):
+        _raise_refresh_rejected(
+            "IDK refresh rejected", {"error": "invalid assertion headers"}, ""
         )
 
 

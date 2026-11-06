@@ -1,9 +1,7 @@
-"""Tests for the OAuth Device Authorization Grant auth state machine.
+"""Tests for the OAuth authentication state machine.
 
 Mocks the full AudiAPI HTTP surface (markets, market config, OIDC discovery,
-device authorization, token endpoint, AZS and mbboauth) and exercises
-AudiService.request_device_code / poll_device_token / login_with_refresh_token /
-get_id_token_subject.
+device authorization, token endpoints, AZS and mbboauth).
 """
 
 from __future__ import annotations
@@ -11,6 +9,7 @@ from __future__ import annotations
 import base64
 import json
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -21,6 +20,8 @@ from custom_components.audiconnect.audi_services import (
 )
 
 TOKEN_ENDPOINT = "https://identity.vwgroup.io/oidc/v1/token"
+AUTH0_TOKEN_ENDPOINT = "https://group.identity.vwgroup.io/oauth/token"
+AUTH0_PREFIX = "auth0:"
 DEVICE_AUTH_ENDPOINT = "https://identity.vwgroup.io/oidc/v1/device_authorization"
 AZS_BASE = "https://azs.example.com/login/v1/audi"
 MBB_BASE = "https://mbboauth.example.com/mbbcoauth"
@@ -42,6 +43,14 @@ IDK_TOKEN_OK = {
     "expires_in": 3600,
 }
 
+AUTH0_TOKEN_OK = {
+    "access_token": "auth0-access",
+    "id_token": ID_TOKEN,
+    "refresh_token": "auth0-refresh-1",
+    "token_type": "bearer",
+    "expires_in": 3600,
+}
+
 
 class FakeResponse:
     cookies = {"fake": "cookie"}
@@ -56,6 +65,8 @@ class FakeAudiAPI:
         self.xclientid = "unset"
         # Overridable per-test: response for the IDK token endpoint.
         self.token_endpoint_response: dict[str, Any] = IDK_TOKEN_OK
+        self.auth0_token_endpoint_response: dict[str, Any] = AUTH0_TOKEN_OK
+        self.vehicle_information_response: dict[str, Any] | None = None
         self.mbb_auth_includes_refresh = True
 
     def use_token(self, token) -> None:
@@ -113,6 +124,8 @@ class FakeAudiAPI:
             }
         if url == TOKEN_ENDPOINT:
             return self.token_endpoint_response
+        if url == AUTH0_TOKEN_ENDPOINT:
+            return self.auth0_token_endpoint_response
         if url == AZS_BASE + "/token":
             return {"access_token": "azs-access", "token_type": "bearer"}
         if url == MBB_BASE + "/mobile/register/v1":
@@ -124,6 +137,9 @@ class FakeAudiAPI:
                     body["refresh_token"] = "mbb-refresh"
                 return body
             return {"access_token": "vw-access", "token_type": "bearer"}
+        if url == "https://app-api.live-my.audi.com/vgql/v1/graphql":
+            assert self.vehicle_information_response is not None
+            return self.vehicle_information_response
         raise AssertionError(f"Unmocked endpoint: {method} {url}")
 
 
@@ -210,6 +226,110 @@ async def test_login_with_refresh_token_rotates(service, api):
     # Session was finalized.
     assert service.audiToken["access_token"] == "azs-access"
     assert service.vwToken["access_token"] == "vw-access"
+
+
+async def test_login_with_auth0_refresh_token_uses_direct_cariad_token(service, api):
+    api.auth0_token_endpoint_response = dict(
+        AUTH0_TOKEN_OK, refresh_token="auth0-refresh-2"
+    )
+
+    new_token = await service.login_with_refresh_token(f"{AUTH0_PREFIX}auth0-refresh-1")
+
+    assert new_token == f"{AUTH0_PREFIX}auth0-refresh-2"
+    assert service.current_refresh_token() == f"{AUTH0_PREFIX}auth0-refresh-2"
+    assert service.uses_auth0 is True
+    assert service.audiToken["access_token"] == "auth0-access"
+    assert service.vwToken["access_token"] == "auth0-access"
+    assert service.mbboauthToken is None
+    assert service.xclientId is None
+    assert api.xclientid is None
+
+    _method, _url, body = next(c for c in api.calls if c[1] == AUTH0_TOKEN_ENDPOINT)
+    assert "grant_type=refresh_token" in body
+    assert "refresh_token=auth0-refresh-1" in body
+    assert "audience=https%3A%2F%2Fapi.cariad.com" in body
+    assert not any(call[1] == AZS_BASE + "/token" for call in api.calls)
+    assert not any(call[1].startswith(MBB_BASE) for call in api.calls)
+
+
+async def test_auth0_authorization_code_login(service, api):
+    url = await service.get_auth0_authorization_url("challenge", "expected-state")
+    params = parse_qs(urlparse(url).query)
+
+    assert params["client_id"] == [CLIENT_ID]
+    assert params["audience"] == ["https://api.cariad.com"]
+    assert params["redirect_uri"] == ["http://localhost:8080/myaudi-callback"]
+    assert params["code_challenge"] == ["challenge"]
+    assert params["state"] == ["expected-state"]
+
+    refresh_token = await service.login_with_auth0_code("auth-code", "verifier")
+
+    assert refresh_token == f"{AUTH0_PREFIX}auth0-refresh-1"
+    _method, _url, body = api.calls[-1]
+    assert "grant_type=authorization_code" in body
+    assert "code=auth-code" in body
+    assert "code_verifier=verifier" in body
+    assert "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fmyaudi-callback" in body
+
+
+async def test_auth0_refresh_preserves_unrotated_token(service, api):
+    api.auth0_token_endpoint_response = {
+        key: value for key, value in AUTH0_TOKEN_OK.items() if key != "refresh_token"
+    }
+
+    new_token = await service.login_with_refresh_token(f"{AUTH0_PREFIX}auth0-refresh-1")
+
+    assert new_token == f"{AUTH0_PREFIX}auth0-refresh-1"
+    assert service.current_refresh_token() == f"{AUTH0_PREFIX}auth0-refresh-1"
+
+
+async def test_auth0_refresh_if_necessary_stays_on_auth0(service, api):
+    await service.login_with_refresh_token(f"{AUTH0_PREFIX}auth0-refresh-1")
+    api.calls.clear()
+    api.auth0_token_endpoint_response = dict(
+        AUTH0_TOKEN_OK, refresh_token="auth0-refresh-2"
+    )
+
+    assert await service.refresh_token_if_necessary(3400) is True
+
+    assert [call[1] for call in api.calls] == [AUTH0_TOKEN_ENDPOINT]
+    assert service.current_refresh_token() == f"{AUTH0_PREFIX}auth0-refresh-2"
+
+
+async def test_auth0_rejected_refresh_token_raises(service, api):
+    api.auth0_token_endpoint_response = {
+        "error": "invalid_grant",
+        "error_description": "Unknown or invalid refresh token.",
+    }
+
+    with pytest.raises(AudiAuthError, match="Unknown or invalid refresh token"):
+        await service.login_with_refresh_token(f"{AUTH0_PREFIX}stale-token")
+
+
+async def test_vehicle_information_keeps_data_with_nonfatal_enrichment_errors(
+    service, api
+):
+    service._language = "de"
+    service.audiToken = AUTH0_TOKEN_OK
+    api.vehicle_information_response = {
+        "data": {
+            "userVehicles": [
+                {
+                    "vin": "WAUZZZ4M1RD012345",
+                    "csid": None,
+                    "vehicle": None,
+                    "nickname": "Test Car",
+                }
+            ]
+        },
+        "errors": [{"message": "Unable to fetch vehicle core data for given vin"}],
+    }
+
+    result = await service.get_vehicle_information()
+
+    assert len(result.vehicles) == 1
+    assert result.vehicles[0].vin == "WAUZZZ4M1RD012345"
+    assert result.vehicles[0].title == "Test Car"
 
 
 async def test_login_with_rejected_refresh_token_raises(service, api):

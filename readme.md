@@ -8,7 +8,7 @@
 ## Notices
 
 > [!Important]
-> **Authentication status (2026-10-31).** Since 2026-10-12, a server-side change at Audi/CARIAD has broken the integration's authentication for affected regions: existing EU entries stop refreshing (`invalid assertion headers`) and new sign-ins fail (`unauthorized_client`). There is no known integration-side fix at this time. Please read the pinned status issue [#903](https://github.com/audiconnect/audi_connect_ha/issues/903) before opening a login or refresh issue.
+> **Authentication status.** Audi's legacy device and refresh flows are blocked in affected regions. The integration now uses the interactive myAudi Auth0/PKCE flow there. Existing entries that fail with `invalid assertion headers` will request reauthentication. See [#903](https://github.com/audiconnect/audi_connect_ha/issues/903) for background.
 
 Due to API changes, **currently not all functionality is available**. Please open a issue to report the topics you are missing.
 
@@ -51,12 +51,14 @@ Configuration is done through the Home Assistant UI.
 
 To add the integration, go to **Settings ➤ Devices & Services ➤ Integrations**, click **➕ Add Integration**, and search for "Audi Connect".
 
+For Auth0 regions, Home Assistant displays an Audi login link. Open it in a private browser window and sign in. Audi redirects to its registered `http://localhost:8080/myaudi-callback` URL; an unable-to-connect page is expected because no local server is required. Copy the complete URL from the browser address bar and paste it into the Home Assistant form. Home Assistant validates the OAuth state and exchanges the one-time code using PKCE.
+
 ### Configuration Variables
 
 | Name            | Type     | Default | Description                                                                                                                                                                                                                          |
 | --------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Username`      | `string` | –       | The username associated with your Audi Connect account.                                                                                                                                                                              |
-| `Password`      | `string` | –       | The password for your Audi Connect account.                                                                                                                                                                                          |
+| `Username`      | `string` | –       | The username associated with your Audi Connect account. Used only in regions that retain password login.                                                                                                                             |
+| `Password`      | `string` | –       | The password for your Audi Connect account. Used only in regions that retain password login.                                                                                                                                         |
 | `S-PIN`         | `string` | –       | The S-PIN for your Audi Connect account to perform certain service actions.<br>(**Optional**)                                                                                                                                        |
 | `Region`        | `string` | `DE`    | The region where your Audi Connect account is registered:<br>• `DE` – Europe<br>• `US` – United States<br>• `CA` – Canada<br>• `CN` – China                                                                                          |
 | `Scan Interval` | `int`    | `15`    | Frequency (in minutes) to fetch status data from Audi Connect.<br>Minimum allowed is 15 minutes.<br>\* _Can be updated later via the CONFIGURE menu._                                                                                |

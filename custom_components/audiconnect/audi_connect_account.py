@@ -32,6 +32,8 @@ ACTION_WINDOW_HEATING = "window_heating"
 ACTION_PRE_HEATER = "pre_heater"
 ACTION_ENGINE = "engine"
 
+_INACTIVE_PREHEATER_STATES = frozenset({"off", "invalid", "unsupported", "error", ""})
+
 
 class AudiConnectObserver(ABC):
     @abstractmethod
@@ -96,6 +98,20 @@ class AudiConnectAccount:
             self._refresh_token = new_token
             if self._on_refresh_token_update is not None:
                 self._on_refresh_token_update(new_token)
+
+    async def get_auth0_authorization_url(self, code_challenge: str, state: str) -> str:
+        """Return the interactive myAudi authorization URL."""
+        return await self._audi_service.get_auth0_authorization_url(
+            code_challenge, state
+        )
+
+    async def login_with_auth0_code(self, code: str, code_verifier: str) -> None:
+        """Complete an interactive Auth0 login."""
+        self._refresh_token = await self._audi_service.login_with_auth0_code(
+            code, code_verifier
+        )
+        self._loggedin = True
+        self._logintime = time.time()
 
     async def request_device_code(self) -> dict[str, Any]:
         """Start the device authorization grant (used by config/reauth flow)."""
@@ -787,10 +803,13 @@ class AudiConnectVehicle:
 
         self.support_status_report = True
         self.support_position = True
-        self.support_climater = True
-        self.support_preheater = True
-        self.support_charger = True
-        self.support_trip_data = True
+
+        # Auth0 uses selectivestatus; the legacy fs-car polls reject its token.
+        uses_auth0 = getattr(self._audi_service, "uses_auth0", False)
+        self.support_climater = not uses_auth0
+        self.support_preheater = not uses_auth0
+        self.support_charger = not uses_auth0
+        self.support_trip_data = not uses_auth0
 
         self.charging_complete_time_frozen = None
 
@@ -1494,17 +1513,19 @@ class AudiConnectVehicle:
 
     @property
     def preheater_active(self):
-        if self.preheater_active_supported:
-            res = (
-                self._vehicle.state["preheaterState"]
-                .get("climatisationStateReport")
-                .get("climatisationState")
-            )
-            return res != "off"
+        state = self._vehicle.state.get("climatisationState")
+        legacy = self._vehicle.state.get("preheaterState")
+        if legacy:
+            report = legacy.get("climatisationStateReport") or {}
+            if (legacy_state := report.get("climatisationState")) is not None:
+                state = legacy_state
+        if state is None:
+            return None
+        return str(state).lower() not in _INACTIVE_PREHEATER_STATES
 
     @property
     def preheater_active_supported(self):
-        return self.preheater_state_supported
+        return self.preheater_active is not None
 
     @property
     def preheater_duration(self):
