@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup
 
 from .audi_api import AudiAPI
 from .audi_models import TripDataResponse, VehicleDataResponse, VehiclesResponse
-from .const import DEFAULT_API_LEVEL
+from .const import AUTH0_REDIRECT_URI, AUTH0_REFRESH_TOKEN_PREFIX, DEFAULT_API_LEVEL
 from .util import get_attr, to_byte_array
 
 MAX_RESPONSE_ATTEMPTS = 10
@@ -228,6 +228,12 @@ REQUEST_FAILED = "request_failed"
 # other scopes cover account identity and the CARIAD BFF vehicle data.
 DEVICE_CODE_SCOPE = "openid mbb profile badge cars dealers vin"
 
+# Auth0 tokens target CARIAD directly and cannot use the legacy IDK endpoint.
+_AUTH0_AUTHORIZATION_ENDPOINT = "https://group.identity.vwgroup.io/authorize"
+_AUTH0_TOKEN_ENDPOINT = "https://group.identity.vwgroup.io/oauth/token"
+_AUTH0_AUDIENCE = "https://api.cariad.com"
+_AUTH0_SCOPE = "openid profile offline_access"
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -249,7 +255,7 @@ class AudiTokenRefreshError(Exception):
 # retried instead of raising an un-actionable reauth prompt. Listing the hard
 # failures (rather than the transient ones) means an unknown code degrades to a
 # retry, which is the harmless direction.
-_REFRESH_REAUTH_ERRORS = frozenset({"invalid_grant"})
+_REFRESH_REAUTH_ERRORS = frozenset({"invalid_grant", "invalid assertion headers"})
 
 
 def _raise_refresh_rejected(context: str, parsed: dict, raw: str) -> NoReturn:
@@ -289,6 +295,7 @@ class AudiService:
         self._tokenEndpoint = ""
         self._authorizationEndpoint = ""
         self._bearer_token_json = None
+        self._uses_auth0 = False
         self._client_id = ""
         self._authorizationServerBaseURLLive = ""
         self._api_level = api_level
@@ -452,15 +459,23 @@ class AudiService:
             rsp_wtxt=True,
         )
         vins = json.loads(rep_rsptxt)
-        if "errors" in vins:
-            raise Exception(f"API returned errors: {vins['errors']}")
-
         if "data" not in vins or vins["data"] is None:
+            if "errors" in vins:
+                raise Exception(f"API returned errors: {vins['errors']}")
             raise Exception("No data in API response")
 
         if vins["data"].get("userVehicles") is None:
+            if "errors" in vins:
+                raise Exception(f"API returned errors: {vins['errors']}")
             raise Exception(
                 "No vehicle data in API response - possible authentication issue"
+            )
+
+        # GraphQL may return usable vehicle data with enrichment errors.
+        if "errors" in vins:
+            _LOGGER.debug(
+                "Vehicle discovery returned non-fatal enrichment errors: %s",
+                [error.get("message") for error in vins["errors"]],
             )
 
         response = VehiclesResponse()
@@ -1566,6 +1581,89 @@ class AudiService:
         # v1:01da27b0:fbdb6e4ba3109bc68040cb83f380796f4d3bb178a626c4cc7e166815b806e4b5
         return "v1:01da27b0:" + xqmauth_val
 
+    async def _request_auth0_token(
+        self, data: dict[str, str], context: str
+    ) -> dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Accept-Charset": "utf-8",
+            "User-Agent": AudiAPI.HDR_USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        encoded = urlencode(data, encoding="utf-8").replace("+", "%20")
+        _rsp, rsptxt = await self._api.request(
+            "POST",
+            _AUTH0_TOKEN_ENDPOINT,
+            encoded,
+            headers=headers,
+            allow_redirects=False,
+            rsp_wtxt=True,
+        )
+        result = json.loads(rsptxt)
+        if "access_token" not in result:
+            _raise_refresh_rejected(context, result, rsptxt)
+        return result
+
+    def _set_auth0_session(self, result: dict[str, Any]) -> None:
+        self._uses_auth0 = True
+        self._bearer_token_json = result
+        self.audiToken = result
+        self.vwToken = result
+        self.mbboauthToken = None
+        self.xclientId = None
+        self._api.set_xclient_id(None)
+
+    async def get_auth0_authorization_url(self, code_challenge: str, state: str) -> str:
+        """Return the interactive myAudi Auth0 authorization URL."""
+        await self._discover_endpoints()
+        params = {
+            "client_id": self._client_id,
+            "audience": _AUTH0_AUDIENCE,
+            "redirect_uri": AUTH0_REDIRECT_URI,
+            "response_type": "code",
+            "scope": _AUTH0_SCOPE,
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "state": state,
+            "ui_locales": f"{self._language}-{self._country.upper()}",
+        }
+        return f"{_AUTH0_AUTHORIZATION_ENDPOINT}?{urlencode(params)}"
+
+    async def login_with_auth0_code(self, code: str, code_verifier: str) -> str:
+        """Exchange an interactive Auth0 authorization code."""
+        if not self._client_id:
+            await self._discover_endpoints()
+        result = await self._request_auth0_token(
+            {
+                "client_id": self._client_id,
+                "grant_type": "authorization_code",
+                "code": code,
+                "code_verifier": code_verifier,
+                "redirect_uri": AUTH0_REDIRECT_URI,
+            },
+            "Auth0 code exchange rejected",
+        )
+        if "refresh_token" not in result:
+            raise AudiAuthError("Auth0 did not issue a refresh token")
+        self._set_auth0_session(result)
+        return AUTH0_REFRESH_TOKEN_PREFIX + result["refresh_token"]
+
+    async def _refresh_auth0_token(self, refresh_token: str) -> dict[str, Any]:
+        """Refresh a token issued by the myAudi Auth0 public client."""
+        result = await self._request_auth0_token(
+            {
+                "client_id": self._client_id,
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "audience": _AUTH0_AUDIENCE,
+                "scope": _AUTH0_SCOPE,
+            },
+            "Auth0 refresh rejected",
+        )
+        result.setdefault("refresh_token", refresh_token)
+        self._set_auth0_session(result)
+        return result
+
     # TR/2021-12-01: Refresh token before it expires
     # returns True when refresh was required and successful, otherwise False
     async def refresh_token_if_necessary(self, elapsed_sec: int) -> bool:
@@ -1586,6 +1684,12 @@ class AudiService:
             return False
 
         try:
+            if self._uses_auth0:
+                await self._refresh_auth0_token(
+                    self._bearer_token_json["refresh_token"]
+                )
+                return True
+
             # mbboauth refresh — only when a refresh_token is available. The auth
             # response no longer always includes one; when it doesn't, vwToken
             # keeps its current value instead of blocking the IDK refresh below.
@@ -2027,12 +2131,19 @@ class AudiService:
         return "error"
 
     async def login_with_refresh_token(self, refresh_token: str) -> str:
-        """Obtain a session from a stored IDK refresh token.
+        """Obtain a session from a stored IDK or Auth0 refresh token.
 
-        Uses the standard ``refresh_token`` grant, which needs no Play Integrity
-        attestation. Returns the (possibly rotated) refresh token to persist.
+        Auth0 refresh tokens are persisted with a provider prefix so they use
+        the direct Auth0 issuer instead of the attestation-gated IDK BFF.
         """
         await self._discover_endpoints()
+
+        if refresh_token.startswith(AUTH0_REFRESH_TOKEN_PREFIX):
+            raw_refresh_token = refresh_token[len(AUTH0_REFRESH_TOKEN_PREFIX) :]
+            result = await self._refresh_auth0_token(raw_refresh_token)
+            return AUTH0_REFRESH_TOKEN_PREFIX + result["refresh_token"]
+
+        self._uses_auth0 = False
         headers = {
             "Accept": "application/json",
             "Accept-Charset": "utf-8",
@@ -2062,10 +2173,18 @@ class AudiService:
         return self._bearer_token_json.get("refresh_token", refresh_token)
 
     def current_refresh_token(self) -> str | None:
-        """Return the current IDK refresh token (rotates on each refresh)."""
+        """Return the current provider-tagged refresh token."""
         if self._bearer_token_json is None:
             return None
-        return self._bearer_token_json.get("refresh_token")
+        refresh_token = self._bearer_token_json.get("refresh_token")
+        if refresh_token and self._uses_auth0:
+            return AUTH0_REFRESH_TOKEN_PREFIX + refresh_token
+        return refresh_token
+
+    @property
+    def uses_auth0(self) -> bool:
+        """Return whether this session uses the modern CARIAD Auth0 API."""
+        return self._uses_auth0
 
     def get_id_token_subject(self) -> str | None:
         """Return a stable account identifier (email or sub) from the id token."""
