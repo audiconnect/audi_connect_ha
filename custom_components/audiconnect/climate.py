@@ -23,12 +23,10 @@ from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 _ATTR_KEY = "climatisation_state"
-
 # services.yaml bounds the temp_c field the same way.
 _MIN_TEMP_C = 15
 _MAX_TEMP_C = 30
 _DEFAULT_TEMP_C = 21.0
-
 # What the car reports when climatisation is doing nothing. Anything else is a
 # running mode, so unknown modes read as on rather than silently as off.
 _INACTIVE_STATES = frozenset({"off", "invalid", "unsupported", "error", ""})
@@ -65,7 +63,6 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     """
 
     _backing_attr = _ATTR_KEY
-
     _attr_name = "Climatisation"
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL]
     _attr_supported_features = (
@@ -73,6 +70,10 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         | ClimateEntityFeature.TURN_ON
         | ClimateEntityFeature.TURN_OFF
     )
+    # HA 2026.11+: native temperature unit. Keep the legacy shorthand for
+    # older HA releases; HA 2026.11 prefers the native attribute and does not
+    # warn when both are provided.
+    _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     # The api_level 1 payload truncates the target to a whole number
     # (int(temp_c)), so a half-degree step would advertise a precision the car
@@ -89,7 +90,7 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     ) -> None:
         super().__init__(coordinator, vehicle)
         self._attr_unique_id = entity_unique_id(vehicle, "climate", "climatisation")
-        self._attr_target_temperature = _DEFAULT_TEMP_C
+        self._attr_native_target_temperature = _DEFAULT_TEMP_C
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -103,7 +104,7 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
             return
         # A recorded "unknown" must not wedge the entity on restart.
         with contextlib.suppress(TypeError, ValueError):
-            self._attr_target_temperature = float(last)
+            self._attr_native_target_temperature = float(last)
 
     @property
     def _state(self) -> str:
@@ -115,12 +116,17 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         return self._state not in _INACTIVE_STATES
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Prefer what the car reports over what we last asked for."""
         reported = getattr(self._vehicle, "climatisation_target_temperature", None)
         if isinstance(reported, (int, float)):
             return float(reported)
-        return self._attr_target_temperature
+        return self._attr_native_target_temperature
+
+    @property
+    def target_temperature(self) -> float | None:
+        """Compatibility for Home Assistant releases older than 2026.11."""
+        return self.native_target_temperature
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -137,7 +143,6 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     # current_temperature is deliberately absent: the car reports outdoor
     # temperature, not cabin temperature, and showing the outside reading as the
     # climate entity's current temperature would misstate what it measures.
-
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
@@ -164,7 +169,7 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         # Only temp_c is sent: the service prefers temp_f when both are given,
         # so passing a converted Fahrenheit value would quantise the 0.5 step.
         if not await connection.start_climate_control(
-            self._vehicle.vin, temp_c=self.target_temperature
+            self._vehicle.vin, temp_c=self.native_target_temperature
         ):
             raise HomeAssistantError(
                 "Failed to start climatisation; see the log for details"
@@ -182,7 +187,7 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
-        self._attr_target_temperature = float(temperature)
+        self._attr_native_target_temperature = float(temperature)
         self.async_write_ha_state()
         # Re-send only if it is already running, so setting a temperature while
         # off does not start the car climatising.
