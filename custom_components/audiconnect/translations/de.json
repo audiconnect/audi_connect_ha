@@ -4,13 +4,18 @@
       "already_configured": "Das Konto wurde bereits konfiguriert",
       "reauth_successful": "Die erneute Authentifizierung war erfolgreich",
       "reconfigure_successful": "Die Neukonfiguration war erfolgreich",
-      "device_auth_failed": "Die Geräteanmeldung bei Audi konnte nicht gestartet werden. Bitte versuchen Sie es später erneut."
+      "device_auth_failed": "Die Geräteanmeldung bei Audi konnte nicht gestartet werden. Bitte versuchen Sie es später erneut.",
+      "auth0_auth_failed": "Die Browseranmeldung bei Audi konnte nicht gestartet werden. Bitte versuchen Sie es später erneut."
     },
     "create_entry": {},
     "error": {
       "authorization_pending": "Anmeldung noch nicht erkannt. Bestätigen Sie die Anfrage in Ihrem Browser und klicken Sie dann auf OK.",
       "device_auth_failed": "Die Geräteanmeldung ist fehlgeschlagen. Bitte beginnen Sie erneut.",
-      "invalid_credentials": "Ungültige Anmeldeinformationen"
+      "invalid_credentials": "Ungültige Anmeldeinformationen",
+      "invalid_auth0_callback": "Die myAudi-Rückruf-URL ist ungültig oder gehört zu einem anderen Anmeldeversuch.",
+      "auth0_denied": "Die Audi-Anmeldung wurde abgebrochen oder abgelehnt.",
+      "auth0_auth_failed": "Audi hat den Autorisierungscode abgelehnt. Bitte starten Sie die Anmeldung erneut.",
+      "unexpected": "Unerwarteter Fehler"
     },
     "step": {
       "user": {
@@ -63,6 +68,20 @@
           "username": "Benutzername",
           "password": "Passwort"
         }
+      },
+      "auth0": {
+        "title": "Bei Audi anmelden",
+        "description": "Öffnen Sie [{authorization_url}]({authorization_url}) in einem privaten Browserfenster und melden Sie sich an. Audi leitet Sie anschließend auf eine lokale Adresse (localhost) weiter, bei der eine Verbindungsfehlermeldung erscheinen kann. Das ist normal. Kopieren Sie die vollständige URL aus der Adressleiste des Browsers und fügen Sie sie unten ein.",
+        "data": {
+          "callback_url": "myAudi-Rückruf-URL"
+        }
+      },
+      "reauth_auth0": {
+        "title": "Erneut bei Audi authentifizieren",
+        "description": "Öffnen Sie [{authorization_url}]({authorization_url}) in einem privaten Browserfenster und melden Sie sich erneut an. Audi leitet Sie anschließend auf eine lokale Adresse (localhost) weiter, bei der eine Verbindungsfehlermeldung erscheinen kann. Das ist normal. Kopieren Sie die vollständige URL aus der Adressleiste des Browsers und fügen Sie sie unten ein.",
+        "data": {
+          "callback_url": "myAudi-Rückruf-URL"
+        }
       }
     }
   },
@@ -71,12 +90,18 @@
       "init": {
         "data": {
           "scan_initial": "Cloud-Update beim Start",
-          "scan_interval": "Abfrageintervall"
+          "scan_interval": "Abfrageintervall",
+          "refresh_vehicle_data_after_action": "Fahrzeugdaten nach einer Aktion aktualisieren",
+          "update_sleep": "Verzögerung der Cloud-Aktualisierung",
+          "filter_vins": "Ausgeschlossene VINs"
         },
         "title": "Audi Connect-Optionen",
         "data_description": {
           "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
-          "scan_interval": "Minuten zwischen Cloud-Abfragen."
+          "scan_interval": "Minuten zwischen Cloud-Abfragen.",
+          "refresh_vehicle_data_after_action": "Sendet nach jeder Fahrzeugaktion (z. B. Klimatisieren oder Verriegeln) einen Aktualisierungsbefehl an das Fahrzeug. Normalerweise ist dies nicht erforderlich, da sich das Fahrzeug nach einer Aktion selbst bei der Cloud meldet. Jede Fahrzeugaktualisierung zählt zum API-Limit. Erhöhen Sie stattdessen die Verzögerung der Cloud-Aktualisierung.",
+          "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln.",
+          "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden."
         }
       }
     }
@@ -85,9 +110,9 @@
     "vehicle_actions": {
       "options": {
         "lock": "Sperren",
-        "unlock": "Freischalten",
+        "unlock": "Entriegeln",
         "start_climatisation": "Klimatisierung starten (Legacy)",
-        "stop_climatisation": "Schluss mit der Klimatisierung",
+        "stop_climatisation": "Klimatisierung stoppen",
         "start_charger": "Ladegerät starten",
         "start_timed_charger": "Starten Sie das zeitgesteuerte Ladegerät",
         "stop_charger": "Stoppen Sie das Ladegerät",
@@ -111,7 +136,7 @@
       }
     },
     "execute_vehicle_action": {
-      "name": "Fahrzeugaktionen ausfuhren",
+      "name": "Fahrzeugaktion ausführen",
       "description": "Führt verschiedene Aktionen am Fahrzeug aus.",
       "fields": {
         "device_id": {
@@ -160,12 +185,100 @@
         "seat_rr": {
           "name": "Automatischer Sitzkomfort: Hinten rechts",
           "description": "(Optional) Aktivieren oder deaktivieren Sie den automatischen Sitzkomfort für den rechten Rücksitz."
+        },
+        "climatisation_at_unlock": {
+          "name": "Klimatisierung beim Entriegeln fortsetzen",
+          "description": "(Optional) Legt fest, ob die Klimatisierung nach dem Entriegeln des Fahrzeugs weiterlaufen soll."
+        },
+        "climatisation_mode": {
+          "name": "Klimatisierungsmodus",
+          "description": "(Optional) Maximaler Komfort (Comfort) oder energiesparender Betrieb (Economy). Standard ist Comfort."
         }
       }
     },
     "refresh_cloud_data": {
       "name": "Cloud-Daten aktualisieren",
       "description": "Ruft aktuelle Cloud-Daten ab, ohne eine Fahrzeugaktualisierung auszulösen. Die Daten sind möglicherweise veraltet, wenn das Fahrzeug nicht kürzlich eingecheckt wurde."
+    },
+    "start_auxiliary_heating": {
+      "name": "Standheizung starten",
+      "description": "Startet die Standheizung des Fahrzeugs mit optional einstellbarer Laufzeit.",
+      "fields": {
+        "device_id": {
+          "name": "Fahrzeug",
+          "description": "Das Audi-Fahrzeug, bei dem die Standheizung gestartet werden soll."
+        },
+        "duration": {
+          "name": "Dauer",
+          "description": "Anzahl der Minuten, die die Standheizung vor dem Abschalten laufen soll. Standardmäßig 20 Minuten."
+        }
+      }
+    },
+    "set_location_charge_target": {
+      "name": "Standortbezogenes Ladeziel festlegen",
+      "description": "Legt den Zielladezustand für ein standortbezogenes Ladeprofil fest. Dieser Wert bestimmt, wann der Ladevorgang an diesem Standort endet, unabhängig vom globalen Ladeziel. Die Einstellung bleibt für künftige Ladevorgänge an diesem Standort erhalten.",
+      "fields": {
+        "device_id": {
+          "name": "Fahrzeug",
+          "description": "Das Audi-Fahrzeug."
+        },
+        "profile_id": {
+          "name": "Profil",
+          "description": "ID des zu ändernden Ladeprofils. Leer lassen, um das Profil des aktuellen Fahrzeugstandorts zu verwenden."
+        },
+        "target_soc": {
+          "name": "Zielladezustand",
+          "description": "Zielladezustand für diesen Standort: 20 bis 100 % in Schritten von 5 %."
+        }
+      }
+    },
+    "set_charge_mode": {
+      "name": "Lademodus festlegen",
+      "description": "Legt den Lademodus des Fahrzeugs fest. Die Einstellung startet oder stoppt keinen laufenden Ladevorgang.",
+      "fields": {
+        "device_id": {
+          "name": "Fahrzeug",
+          "description": "Das Audi-Fahrzeug, dessen Lademodus geändert werden soll."
+        },
+        "charge_mode": {
+          "name": "Lademodus",
+          "description": "Mit manual wird nach dem Anschließen sofort geladen; mit timer nur zu den im Fahrzeug geplanten Zeiten."
+        }
+      }
+    },
+    "set_target_soc": {
+      "name": "Zielladezustand festlegen",
+      "description": "Legt den Zielladezustand der Fahrzeugbatterie in Prozent fest.",
+      "fields": {
+        "device_id": {
+          "name": "Fahrzeug",
+          "description": "Das Audi-Fahrzeug, dessen Zielladezustand geändert werden soll."
+        },
+        "target_soc": {
+          "name": "Zielladezustand",
+          "description": "Zielladezustand in Prozent (20 bis 100 %)."
+        }
+      }
+    },
+    "start_engine": {
+      "name": "Motor starten",
+      "description": "Startet den Fahrzeugmotor aus der Ferne. Die S-PIN muss in der Konfiguration hinterlegt sein.",
+      "fields": {
+        "device_id": {
+          "name": "Fahrzeug",
+          "description": "Das Audi-Fahrzeug, dessen Motor gestartet werden soll."
+        }
+      }
+    },
+    "stop_engine": {
+      "name": "Motor stoppen",
+      "description": "Stoppt den Fahrzeugmotor aus der Ferne.",
+      "fields": {
+        "device_id": {
+          "name": "Fahrzeug",
+          "description": "Das Audi-Fahrzeug, dessen Motor gestoppt werden soll."
+        }
+      }
     }
   }
 }
