@@ -18,7 +18,12 @@ from bs4 import BeautifulSoup
 
 from .audi_api import AudiAPI
 from .api_probe import run_read_only_probes
-from .capability_jobs import capability_snapshot, select_jobs
+from .capability_jobs import (
+    BASE_SELECTIVE_JOBS,
+    capability_snapshot,
+    observed_readable_jobs,
+    select_jobs,
+)
 from .audi_models import TripDataResponse, VehicleDataResponse, VehiclesResponse
 from .const import AUTH0_REDIRECT_URI, AUTH0_REFRESH_TOKEN_PREFIX, DEFAULT_API_LEVEL
 from .util import get_attr, to_byte_array
@@ -301,6 +306,8 @@ class AudiService:
         # Scoped to the live session: next polling cycles omit explicitly
         # unsupported CARIAD jobs, without any additional Audi requests.
         self._cariad_capabilities: dict[str, tuple[frozenset[str], frozenset[str]]] = {}
+        # Fixed job labels only, never data values. Scoped to this Audi session.
+        self._cariad_observed_jobs: dict[str, frozenset[str]] = {}
         self._client_id = ""
         self._authorizationServerBaseURLLive = ""
         self._api_level = api_level
@@ -384,17 +391,19 @@ class AudiService:
         )
 
     async def get_stored_vehicle_data(self, vin: str):
-        """Read vehicle data, avoiding jobs Audi explicitly says it cannot serve.
+        """Poll CARIAD with explicit aliases and previously observed valid jobs.
 
-        First poll stays broad to discover the car's capabilities. Subsequent
-        polls retain only the reported, healthy jobs. A missing capabilities
-        list keeps the original broad query; no negative assumptions or new
-        API requests. Refresh userCapabilities on every poll so changes to
-        services are picked up automatically.
+        A 207 or a partial payload may contain useful jobs alongside errors.
+        Preserve the evidence and mark incomplete reports for conservative
+        state merging; do not add retries or extra network calls.
         """
         key = vin.upper()
         known = self._cariad_capabilities.get(key)
-        jobs = select_jobs(*known) if known is not None else select_jobs()
+        observed = self._cariad_observed_jobs.get(key, frozenset())
+        jobs = (
+            select_jobs(*known, observed=observed)
+            if known is not None else select_jobs()
+        )
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
             self.__get_cariad_url_for_vin(
@@ -404,13 +413,24 @@ class AudiService:
         snapshot = capability_snapshot(data)
         if snapshot is not None:
             self._cariad_capabilities[key] = snapshot
+        learned = observed_readable_jobs(data, jobs)
+        if learned:
+            self._cariad_observed_jobs[key] = observed | learned
+        response = VehicleDataResponse(data)
+        # Pruned requests and missing job keys are never complete snapshots.
+        # A successful HTTP status (including 207) does not change this.
+        response.partial_response = (
+            len(jobs) != len(BASE_SELECTIVE_JOBS)
+            or not isinstance(data, dict)
+            or any(job not in data for job in jobs)
+        )
         _LOGGER.debug(
             "Vehicle selective-status received (%d jobs; capabilities %s; "
-            "payload redacted)",
-            len(jobs),
-            "known" if snapshot is not None else "unknown",
+            "partial=%s; payload redacted)",
+            len(jobs), "known" if snapshot is not None else "unknown",
+            response.partial_response,
         )
-        return VehicleDataResponse(data)
+        return response
 
     async def get_charger(self, vin: str):
         self._api.use_token(self.vwToken)

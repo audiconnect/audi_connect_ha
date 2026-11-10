@@ -961,8 +961,17 @@ class AudiConnectVehicle:
                     self._vehicle.vin,
                 )
                 return
+            if not status.data_fields and not status.states:
+                # HTTP 200/207 may still carry no usable vehicle measurement.
+                # Never discard cached fields or claim a fully refreshed car.
+                self._no_error = False
+                _LOGGER.debug(
+                    "Vehicle status response contained no usable data; "
+                    "keeping previous state and fields."
+                )
+                return
             new_fields = {field.name: field.value for field in status.data_fields}
-            if status.error_count:
+            if status.error_count or getattr(status, "partial_response", False):
                 # Some CARIAD jobs may fail while other ones succeed with HTTP 200.
                 # Preserve unaffected fields rather than removing sensors after
                 # every partial response. A cached value is NOT freshly measured.
