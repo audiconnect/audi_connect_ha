@@ -84,7 +84,7 @@
         }
       }
     }
-  },
+  }, 
   "options": {
     "step": {
       "init": {
@@ -92,18 +92,51 @@
           "scan_initial": "Cloud-Update beim Start",
           "scan_interval": "Abfrageintervall",
           "refresh_vehicle_data_after_action": "Fahrzeugdaten nach einer Aktion aktualisieren",
+          "climate_quick_start": "Klimatisierung mit gespeicherten Fahrzeugeinstellungen starten",
           "update_sleep": "Verzögerung der Cloud-Aktualisierung",
-          "filter_vins": "Ausgeschlossene VINs"
+          "filter_vins": "Ausgeschlossene VINs",
+          "edit_local_dealer": "Händler- und Servicedaten lokal bearbeiten",
+          "experimental_commands": "Experimentelle Fahrzeugsteuerungen aktivieren"
         },
         "title": "Audi Connect-Optionen",
         "data_description": {
           "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
           "scan_interval": "Minuten zwischen Cloud-Abfragen.",
           "refresh_vehicle_data_after_action": "Sendet nach jeder Fahrzeugaktion (z. B. Klimatisieren oder Verriegeln) einen Aktualisierungsbefehl an das Fahrzeug. Normalerweise ist dies nicht erforderlich, da sich das Fahrzeug nach einer Aktion selbst bei der Cloud meldet. Jede Fahrzeugaktualisierung zählt zum API-Limit. Erhöhen Sie stattdessen die Verzögerung der Cloud-Aktualisierung.",
+          "climate_quick_start": "Beim Einschalten der Klimatisierung wird eine CARIAD-Startanfrage ohne zusätzliche Parameter gesendet. Dabei verwendet das Fahrzeug seine gespeicherten Einstellungen. Die in Home Assistant angezeigte Solltemperatur wird nicht übertragen. Diese Option dient als alternative Startmethode für neuere Fahrzeuge und sollte nur bei Bedarf aktiviert werden.",
           "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln.",
-          "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden."
+          "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden.",
+          "edit_local_dealer": "Öffnet ein Formular zur lokalen Speicherung von Händlerdaten, Serviceterminen und Garantieinformationen in Home Assistant. Dabei werden keine Anfragen an die Audi-API gesendet.",
+          "experimental_commands": "Aktiviert zusätzliche, manuell auslösbare CARIAD-Fahrzeugaktionen für das Laden, die Scheibenheizung und das Aufwecken des Fahrzeugs. Standardmässig deaktiviert. Die tatsächliche Ausführung muss überprüft werden, da eine erfolgreiche API-Antwort nicht zwangsläufig bedeutet, dass das Fahrzeug die Aktion ausgeführt hat."
+        }
+      },
+      "dealer_vehicle": {
+        "title": "Fahrzeug auswählen",
+        "data": {
+          "vehicle": "Audi-Fahrzeug"
+        }
+      },
+      "dealer": {
+        "title": "Händler- und Servicedaten (lokal)",
+        "description": "Diese Informationen werden ausschliesslich lokal in Home Assistant gespeichert. Es werden keine Händlerdaten von Audi abgerufen.",
+        "data": {
+          "dealer_name": "Händlername",
+          "dealer_city": "Ort",
+          "dealer_address": "Adresse",
+          "dealer_phone": "Telefonnummer",
+          "dealer_website": "Webseite",
+          "next_service_date": "Nächster Servicetermin",
+          "warranty_expiry": "Garantieende",
+          "clear": "Lokale Daten dieses Fahrzeugs löschen"
         }
       }
+    },
+    "error": {
+      "invalid_dealer": "Bitte überprüfen Sie die Datumsangaben, die Webseite und die Feldlängen.",
+      "invalid_vehicle": "Bitte wählen Sie ein gültiges Fahrzeug aus."
+    },
+    "abort": {
+      "no_vehicle_available": "Derzeit ist kein Audi-Fahrzeug geladen."
     }
   },
   "selector": {
