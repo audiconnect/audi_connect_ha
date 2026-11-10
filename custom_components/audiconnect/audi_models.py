@@ -362,8 +362,36 @@ class VehicleDataResponse:
                 "remainingClimatisationTime_min",
             ],
         )
+        # Additional modern CARIAD fields interpreted by CarConnectivity:
+        # keep numeric charging limits distinct from qualitative settings.
+        for name, key in (
+            ("chargingCurrentLimitA", "maxChargeCurrentAC_A"),
+            ("chargingCurrentLimitMode", "maxChargeCurrentAC"),
+            ("chargingPlugAutoUnlock", "autoUnlockPlugWhenChargedAC"),
+        ):
+            self._tryAppendStateWithTs(
+                data, name, -1, ["charging", "chargingSettings", "value", key]
+            )
+        # Audi reports online/active at the vehicle, not at the cloud gateway.
+        # This readiness block may have no capture time: never assign an
+        # invented timestamp or claim every other status is freshly measured.
+        connection = self._getFromJson(
+            data, ["readiness", "readinessStatus", "value", "connectionState"]
+        )
+        if isinstance(connection, dict):
+            for name, source in (
+                ("vehicleReportedOnline", "isOnline"),
+                ("vehicleReportedActive", "isActive"),
+            ):
+                if isinstance(connection.get(source), bool):
+                    self.states.append({
+                        "name": name, "value": connection[source],
+                        "measure_time": None,
+                    })
+
         self._parseChargingProfiles(data)
         self._parseChargingTimers(data)
+        self._parseClimatisationTimers(data)
         self._parseUserCapabilities(data)
 
     def _appendState(self, name: str, value: Any, ts: Any) -> None:
@@ -542,6 +570,64 @@ class VehicleDataResponse:
             self._appendState(
                 "nextChargingTimerDeparture", active[0].get("departureTimeLocal"), ts
             )
+
+    def _parseClimatisationTimers(self, data: dict[str, Any]) -> None:
+        """Expose the Q8's real climate timers without pretending local time is UTC.
+
+        Audi returns each timer's startDateTimeLocal in the car's local clock.
+        Until an explicit timezone is supplied, it must remain a string, not
+        a HA timestamp sensor with a guessed offset. Keep the state bounded and
+        strip every field except the small, documented timer subset.
+        """
+        block = self._getFromJson(
+            data, ["climatisationTimers", "climatisationTimersStatus", "value"]
+        )
+        if not isinstance(block, dict):
+            return
+        ts = block.get("carCapturedTimestamp")
+        timers = block.get("timers")
+        if not isinstance(timers, list):
+            return
+        entries: list[dict[str, Any]] = []
+        for timer in timers[:12]:
+            if not isinstance(timer, dict):
+                continue
+            record: dict[str, Any] = {}
+            if isinstance(timer.get("id"), (int, str)):
+                record["id"] = timer["id"]
+            if isinstance(timer.get("enabled"), bool):
+                record["enabled"] = timer["enabled"]
+            single = timer.get("singleTimer")
+            if isinstance(single, dict):
+                local_start = single.get("startDateTimeLocal")
+                if isinstance(local_start, str) and len(local_start) <= 40:
+                    record["startDateTimeLocal"] = local_start
+            recurring = timer.get("recurringTimer")
+            if isinstance(recurring, dict):
+                local_time = recurring.get("departureTimeLocal")
+                if isinstance(local_time, str) and len(local_time) <= 40:
+                    record["departureTimeLocal"] = local_time
+                days = recurring.get("repetitionDays")
+                if isinstance(days, list):
+                    record["repetitionDays"] = [
+                        day for day in days[:7]
+                        if isinstance(day, (str, int))
+                    ]
+            entries.append(record)
+
+        self._appendState("climatisationTimers", entries, ts)
+        self._appendState("climatisationTimerCount", len(entries), ts)
+        self._appendState(
+            "climatisationTimerEnabledCount",
+            sum(item.get("enabled") is True for item in entries),
+            ts,
+        )
+        enabled_starts = sorted(
+            item["startDateTimeLocal"] for item in entries
+            if item.get("enabled") is True and "startDateTimeLocal" in item
+        )
+        if enabled_starts:
+            self._appendState("nextClimatisationTimerLocal", enabled_starts[0], ts)
 
     def _tryAppendStateWithTs(
         self, json: dict[str, Any], name: str, tsoff: int, loc: list[str]
@@ -856,34 +942,50 @@ class Vehicle:
         self.vin: str = ""
         self.csid: str = ""
         self.model: str = ""
+        self.model_source: str = "unavailable"
         self.model_year: str = ""
         self.model_family: str = ""
         self.title: str = ""
 
+    @staticmethod
+    def _clean_label(value: Any) -> str:
+        """Accept a non-blank Audi string, never the literal None or object."""
+        return value.strip() if isinstance(value, str) else ""
+
     def parse(self, data: dict[str, Any]) -> None:
-        self.vin = data.get("vin")
-        self.csid = data.get("csid")
-        if (
-            data.get("vehicle") is not None
-            and data.get("vehicle").get("media") is not None
-        ):
-            self.model = data.get("vehicle").get("media").get("longName")
-        if (
-            data.get("vehicle") is not None
-            and data.get("vehicle").get("core") is not None
-        ):
-            self.model_year = data.get("vehicle").get("core").get("modelYear")
-        if data.get("nickname") is not None and len(data.get("nickname")) > 0:
-            self.title = data.get("nickname")
-        elif (
-            data.get("vehicle") is not None
-            and data.get("vehicle").get("media") is not None
-        ):
-            self.title = data.get("vehicle").get("media").get("shortName")
+        self.vin = data.get("vin") or ""
+        self.csid = data.get("csid") or ""
+        vehicle = data.get("vehicle") or {}
+        if not isinstance(vehicle, dict):
+            vehicle = {}
+        media = vehicle.get("media") or {}
+        if not isinstance(media, dict):
+            media = {}
+        core = vehicle.get("core") or {}
+        if not isinstance(core, dict):
+            core = {}
+
+        # Auth0 GraphQL returns a nonfatal enrichment error on some cars;
+        # media.longName is then absent. shortName is still manufacturer data.
+        long_name = self._clean_label(media.get("longName"))
+        short_name = self._clean_label(media.get("shortName"))
+        nickname = self._clean_label(data.get("nickname"))
+        if long_name:
+            self.model, self.model_source = long_name, "audi_long_name"
+        elif short_name:
+            self.model, self.model_source = short_name, "audi_short_name"
+        elif nickname:
+            # Last resort: a user-defined vehicle label, NOT a verified model.
+            self.model, self.model_source = nickname, "nickname_fallback"
+        else:
+            self.model, self.model_source = "", "unavailable"
+
+        year = core.get("modelYear")
+        self.model_year = str(year) if year is not None and str(year).strip() else ""
+        self.title = nickname or short_name or long_name or "Audi vehicle"
 
     def __str__(self) -> str:
         return str(self.__dict__)
-
 
 class VehiclesResponse:
     def __init__(self) -> None:

@@ -157,12 +157,18 @@ class AudiEntity(CoordinatorEntity[AudiDataUpdateCoordinator]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        model_info = (self._vehicle.model or "Unknown").replace("Audi ", "")
+        model_info = (self._vehicle.model or self._vehicle.title or "Unknown").strip()
+        if model_info.startswith("Audi "):
+            model_info = model_info[5:]
+        model_year = getattr(self._vehicle, "model_year", "") or ""
+        display_model = (
+            f"{model_info} ({model_year})" if model_year else model_info
+        )
         return DeviceInfo(
             identifiers={(DOMAIN, self._vehicle.vin.lower())},
             manufacturer="Audi",
-            name=self._vehicle.title,
-            model=f"{model_info} ({self._vehicle.model_year})",
+            name=self._vehicle.title or "Audi vehicle",
+            model=display_model,
         )
 
 

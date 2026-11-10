@@ -79,6 +79,40 @@ class AudiConnectAccount:
 
         self._observers: list[AudiConnectObserver] = []
 
+        # Per-vehicle, in-memory diagnostic probe results; no raw response data.
+        self._readonly_probe_reports: dict[str, dict[str, Any]] = {}
+        self._readonly_probe_attempted: dict[str, float] = {}
+        self._readonly_probe_lock = asyncio.Lock()
+
+    async def probe_read_only_api(self, vin: str, *, extended: bool = False) -> dict[str, Any]:
+        """Explicit, rate-limited diagnostic GET probes; never a vehicle action."""
+        vin_key = vin.lower()
+        if not self._loggedin:
+            raise RuntimeError("Audi connection is not authenticated")
+        if not any(vehicle.vin.lower() == vin_key for vehicle in self._vehicles):
+            raise ValueError("Vehicle is not present in this Audi account")
+
+        async with self._readonly_probe_lock:
+            now = time.monotonic()
+            last_attempt = self._readonly_probe_attempted.get(vin_key)
+            if last_attempt is not None and now - last_attempt < 900:
+                report = self._readonly_probe_reports.get(vin_key)
+                expected_mode = "extended" if extended else "core"
+                if report is not None and report.get("mode") == expected_mode:
+                    return report
+                raise RuntimeError("API diagnostic probe cooldown is active; retry later")
+            # Record before dispatch so repeated failed scans cannot hammer Audi.
+            self._readonly_probe_attempted[vin_key] = now
+            report = await self._audi_service.probe_known_read_only_paths(
+                vin, extended=extended
+            )
+            self._readonly_probe_reports[vin_key] = report
+            return report
+
+    def get_read_only_probe_report(self, vin: str) -> dict[str, Any] | None:
+        """Return only the sanitized previous report, never start new traffic."""
+        return self._readonly_probe_reports.get(vin.lower())
+
     @property
     def refresh_token(self) -> str | None:
         """Return the current IDK refresh token."""
@@ -336,7 +370,7 @@ class AudiConnectAccount:
             )
             return False
 
-    async def set_vehicle_lock(self, vin: str, lock: bool):
+    async def set_vehicle_lock(self, vin: str, lock: bool, *, refresh: bool = True):
         if not self._loggedin:
             await self.login()
 
@@ -353,9 +387,8 @@ class AudiConnectAccount:
             await self._audi_service.set_vehicle_lock(vin, lock)
 
             _LOGGER.debug(
-                "Successfully %s vehicle %s",
-                "locked" if lock else "unlocked",
-                vin,
+                "Audi %s request acknowledged by gateway; physical door state "
+                "awaiting verification", "lock" if lock else "unlock",
             )
 
             return True
@@ -363,18 +396,20 @@ class AudiConnectAccount:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to {action} {vin}".format(
-                    action="lock" if lock else "unlock", vin=vin
+                "Unable to %s vehicle %s" % (
+                    "lock" if lock else "unlock",
+                    "*" * max(0, len(vin) - 4) + vin[-4:],
                 ),
             )
             return False
         finally:
-            try:
-                await self.notify(vin, ACTION_LOCK)
-            except Exception as ex:
-                _LOGGER.warning(
-                    "Cloud refresh failed after lock/unlock for %s: %s", vin, ex
-                )
+            if refresh:
+                try:
+                    await self.notify(vin, ACTION_LOCK)
+                except Exception:
+                    _LOGGER.warning(
+                        "Cloud refresh after Audi access request failed"
+                    )
 
     async def set_location_charge_target(self, vin: str, profile_id, target_soc: int):
         """Set a location charging profile's target SoC (the governing value)."""
@@ -653,6 +688,21 @@ class AudiConnectAccount:
                     "Cloud refresh failed after charger action for %s: %s", vin, ex
                 )
 
+    async def trigger_vehicle_wakeup(self, vin: str) -> bool:
+        """User-initiated wake request, not background polling or confirmation."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+        try:
+            await self._audi_service.trigger_vehicle_wakeup(vin)
+            return True
+        except Exception:
+            _LOGGER.warning(
+                "Audi wake-up request failed (no VIN or authentication details logged)"
+            )
+            return False
+
     async def set_vehicle_window_heating(self, vin: str, activate: bool):
         if not self._loggedin:
             await self.login()
@@ -838,6 +888,10 @@ class AudiConnectVehicle:
         return self._vehicle.model
 
     @property
+    def model_source(self):
+        return getattr(self._vehicle, "model_source", "unavailable")
+
+    @property
     def model_year(self):
         return self._vehicle.model_year
 
@@ -908,37 +962,41 @@ class AudiConnectVehicle:
                     self._vehicle.vin,
                 )
                 return
-            self._vehicle.fields = {
-                status.data_fields[i].name: status.data_fields[i].value
-                for i in range(len(status.data_fields))
-            }
+            new_fields = {field.name: field.value for field in status.data_fields}
+            if status.error_count:
+                # Some CARIAD jobs may fail while other ones succeed with HTTP 200.
+                # Preserve unaffected fields rather than removing sensors after
+                # every partial response. A cached value is NOT freshly measured.
+                self._vehicle.fields.update(new_fields)
+            else:
+                self._vehicle.fields = new_fields
 
-            # Initialize with a default very old datetime
-            self._vehicle.state["last_update_time"] = datetime(1970, 1, 1, tzinfo=UTC)
-
-            # Update with the newest carCapturedTimestamp from data_fields
-            for f in status.data_fields:
-                new_time = parse_datetime(f.measure_time)
-                if new_time:
-                    self._vehicle.state["last_update_time"] = max(
-                        self._vehicle.state["last_update_time"], new_time
-                    )
-
-            # Update with the newest carCapturedTimestamp from states.
-            # A state can carry no timestamp: userCapabilities is a statement
-            # about the vehicle rather than a reading from it. Skipping those
-            # here keeps the scan independent of how lenient parse_datetime is.
-            for state in status.states:
-                ts = state.get("measure_time")
-                if not ts:
+            # The newest source measurement can remain old while an HTTP request
+            # succeeds. A partial/untimestamped response must never reset the
+            # vehicle to the 1970 sentinel or claim a fresh car reading.
+            prior = self._vehicle.state.get("last_update_time")
+            last_observed = (
+                prior if isinstance(prior, datetime) and prior.tzinfo
+                and prior.year >= 2020
+                else datetime(1970, 1, 1, tzinfo=UTC)
+            )
+            for field in status.data_fields:
+                if not field.measure_time:
                     continue
-                new_time = parse_datetime(ts)
-                if new_time:
-                    self._vehicle.state["last_update_time"] = max(
-                        self._vehicle.state["last_update_time"], new_time
-                    )
+                new_time = parse_datetime(field.measure_time)
+                if new_time and new_time.tzinfo and new_time.year >= 2020:
+                    last_observed = max(last_observed, new_time)
+            for state in status.states:
+                timestamp = state.get("measure_time")
+                if not timestamp:
+                    continue
+                new_time = parse_datetime(timestamp)
+                if new_time and new_time.tzinfo and new_time.year >= 2020:
+                    last_observed = max(last_observed, new_time)
+            self._vehicle.state["last_update_time"] = last_observed
 
-            # Update other states
+            # Keep previous per-feature readings when CARIAD reports only a
+            # partial response; the global latest timestamp is not their age.
             for state in status.states:
                 self._vehicle.state[state["name"]] = state["value"]
 
@@ -1936,6 +1994,43 @@ class AudiConnectVehicle:
             return True
 
     @property
+    def charging_current_limit_a(self):
+        """Modern numeric AC charging current limit reported by CARIAD."""
+        value = self._vehicle.state.get("chargingCurrentLimitA")
+        return parse_float(value) if value is not None else None
+
+    @property
+    def charging_current_limit_mode(self):
+        return self._vehicle.state.get("chargingCurrentLimitMode")
+
+    @property
+    def charging_plug_auto_unlock(self):
+        value = self._vehicle.state.get("chargingPlugAutoUnlock")
+        if value == "on":
+            return "enabled"
+        if value == "off":
+            return "disabled"
+        return None
+
+    @property
+    def vehicle_reported_online(self):
+        value = self._vehicle.state.get("vehicleReportedOnline")
+        if value is True:
+            return "online"
+        if value is False:
+            return "offline"
+        return None
+
+    @property
+    def vehicle_reported_active(self):
+        value = self._vehicle.state.get("vehicleReportedActive")
+        if value is True:
+            return "active"
+        if value is False:
+            return "inactive"
+        return None
+
+    @property
     def max_charge_current(self):
         """Return max charge current"""
         if self.max_charge_current_supported:
@@ -2221,6 +2316,22 @@ class AudiConnectVehicle:
         return self._vehicle.state.get("preferredChargingTimeEnabled")
 
     @property
+    def climatisation_timers(self):
+        return self._vehicle.state.get("climatisationTimers")
+
+    @property
+    def climatisation_timer_count(self):
+        return self._vehicle.state.get("climatisationTimerCount")
+
+    @property
+    def climatisation_timer_enabled_count(self):
+        return self._vehicle.state.get("climatisationTimerEnabledCount")
+
+    @property
+    def next_climatisation_timer_local(self):
+        return self._vehicle.state.get("nextClimatisationTimerLocal")
+
+    @property
     def charging_timers(self):
         """Return the departure/charging timers, for the attribute payload."""
         return self._vehicle.state.get("chargingTimers")
@@ -2436,12 +2547,31 @@ class AudiConnectVehicle:
 
     @property
     def park_time(self):
-        if self.park_time_supported:
-            return self._vehicle.state.get("vehicleParkingClock")
+        """Legacy true parking clock or a labeled last parked-position capture.
+
+        CARIAD parkingposition supplies carCapturedTimestamp. It is the time
+        Audi captured the *parked GPS position*, not a verified parking-start
+        or engine-off event. Never claim a more precise meaning.
+        """
+        legacy = self._vehicle.state.get("vehicleParkingClock")
+        if legacy is not None:
+            return legacy
+        position = self._vehicle.state.get("position") or {}
+        if isinstance(position, dict):
+            return position.get("parktime") or position.get("timestamp")
+        return None
+
+    @property
+    def park_time_source(self):
+        if self._vehicle.state.get("vehicleParkingClock") is not None:
+            return "vehicle_parking_clock"
+        if self.park_time is not None:
+            return "last_parked_position_capture_estimate"
+        return "unavailable"
 
     @property
     def park_time_supported(self):
-        return self._vehicle.state.get("vehicleParkingClock") is not None
+        return self.park_time is not None
 
     @property
     def remaining_climatisation_time(self):

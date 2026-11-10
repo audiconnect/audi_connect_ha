@@ -212,6 +212,32 @@ def test_turn_on_uses_the_live_start_path_and_sends_only_celsius():
     assert coordinator.refreshed == 1
 
 
+def test_optional_auth0_quick_start_uses_vehicle_stored_settings():
+    from types import SimpleNamespace as NS
+
+    connection = RecordingConnection()
+    connection._audi_service = NS(uses_auth0=True)
+    coordinator, entity = build("off", connection)
+    coordinator.config_entry = NS(
+        options={"climate_quick_start": True}, data={"api_level": 0}
+    )
+    asyncio.run(entity.async_turn_on())
+    assert connection.calls == [("start_climate_control", (VIN,), {"temp_c": None})]
+
+
+def test_explicit_temp_change_is_not_ignored_in_quick_start_mode():
+    from types import SimpleNamespace as NS
+
+    connection = RecordingConnection()
+    connection._audi_service = NS(uses_auth0=True)
+    coordinator, entity = build("heating", connection)
+    coordinator.config_entry = NS(
+        options={"climate_quick_start": True}, data={"api_level": 0}
+    )
+    asyncio.run(entity.async_set_temperature(**{ATTR_TEMPERATURE: 23.0}))
+    assert connection.calls == [("start_climate_control", (VIN,), {"temp_c": 23.0})]
+
+
 def test_turn_off_uses_the_stop_action_which_is_still_live():
     connection = RecordingConnection()
     _, entity = build("heating", connection)

@@ -17,6 +17,7 @@ from .audi_connect_account import (
     AudiConnectObserver,
 )
 from .audi_models import VehicleData
+from .vehicle_controls import engine_start_stop_supported
 from .const import (
     CONF_ACTION,
     CONF_API_LEVEL,
@@ -229,13 +230,20 @@ class AudiAccount(AudiConnectObserver):
         action = service.data.get(CONF_ACTION).lower()
 
         if action == "lock":
-            await self.connection.set_vehicle_lock(vin, True)
+            result = await self.connection.set_vehicle_lock(vin, True)
+            self._raise_on_failed_command(result, action)
         elif action == "unlock":
-            await self.connection.set_vehicle_lock(vin, False)
+            result = await self.connection.set_vehicle_lock(vin, False)
+            self._raise_on_failed_command(result, action)
         elif action == "start_climatisation":
-            await self.connection.set_vehicle_climatisation(vin, True)
+            # Existing HA scripts/automations still call this action; route
+            # them to the supported start with car-stored settings instead
+            # of the permanently disabled legacy start command.
+            result = await self.connection.start_climate_control(vin)
+            self._raise_on_failed_command(result, action)
         elif action == "stop_climatisation":
-            await self.connection.set_vehicle_climatisation(vin, False)
+            result = await self.connection.set_vehicle_climatisation(vin, False)
+            self._raise_on_failed_command(result, action)
         elif action == "start_charger":
             await self._charger_action(vin, action, True, False)
         elif action == "start_timed_charger":
@@ -255,7 +263,16 @@ class AudiAccount(AudiConnectObserver):
         elif action == "stop_window_heating":
             await self.connection.set_vehicle_window_heating(vin, False)
         else:
-            _LOGGER.error("Unknown vehicle action requested: %s", action)
+            raise HomeAssistantError(f"Unknown Audi vehicle action: {action}")
+
+    @staticmethod
+    def _raise_on_failed_command(result: Any, action: str) -> None:
+        """Do not return HA service success when the connection returned False."""
+        if result is False:
+            raise HomeAssistantError(
+                f"Audi Connect {action.replace('_', ' ')} failed. "
+                "Inspect the integration log for the underlying API error."
+            )
 
     async def _charger_action(
         self, vin: str, action: str, start: bool, timer: bool
@@ -278,7 +295,7 @@ class AudiAccount(AudiConnectObserver):
         # Pass the fields through as supplied, without substituting defaults, so
         # the service layer can tell "the caller wants everything left alone"
         # apart from "the caller explicitly asked for all of it off".
-        await self.connection.start_climate_control(
+        result = await self.connection.start_climate_control(
             vin.lower(),
             service.data.get(CONF_CLIMATE_TEMP_F),
             service.data.get(CONF_CLIMATE_TEMP_C),
@@ -290,6 +307,7 @@ class AudiAccount(AudiConnectObserver):
             service.data.get(CONF_CLIMATE_AT_UNLOCK),
             service.data.get(CONF_CLIMATE_MODE),
         )
+        self._raise_on_failed_command(result, "start_climate_control")
 
     async def start_auxiliary_heating(self, vin: str, service: ServiceCall) -> None:
         """Start auxiliary heating for a vehicle by VIN."""
@@ -314,25 +332,47 @@ class AudiAccount(AudiConnectObserver):
 
     async def set_charge_mode(self, vin: str, service: ServiceCall) -> None:
         """Set which mode the car charges in, without starting or stopping one."""
-        await self.connection.set_charge_mode(
+        result = await self.connection.set_charge_mode(
             vin.lower(),
             service.data.get(CONF_CHARGE_MODE),
         )
+        self._raise_on_failed_command(result, "set_charge_mode")
 
     async def set_target_soc(self, vin: str, service: ServiceCall) -> None:
         """Set target state of charge for a vehicle by VIN."""
-        await self.connection.set_target_state_of_charge(
+        result = await self.connection.set_target_state_of_charge(
             vin.lower(),
             service.data.get(CONF_TARGET_SOC),
         )
+        self._raise_on_failed_command(result, "set_target_soc")
+
+    def _require_remote_engine_support(self, vin: str) -> None:
+        """Check direct-service calls as well as buttons; never infer capability."""
+        for config_vehicle in self.config_vehicles:
+            vehicle = config_vehicle.vehicle
+            if (
+                vehicle is not None
+                and vehicle.vin.lower() == vin.lower()
+                and engine_start_stop_supported(vehicle)
+            ):
+                return
+        raise HomeAssistantError(
+            "Remote engine start/stop is not verified for this vehicle. "
+            "Only a vehicle-reported remote-start capability can enable it; "
+            "do not substitute this for electric cabin preconditioning."
+        )
 
     async def start_engine(self, vin: str) -> None:
-        """Start engine for a vehicle by VIN."""
-        await self.connection.start_engine(vin.lower())
+        """Start only when the vehicle explicitly reports remote-start support."""
+        self._require_remote_engine_support(vin)
+        if not await self.connection.start_engine(vin.lower()):
+            raise HomeAssistantError("Audi Connect could not start the engine.")
 
     async def stop_engine(self, vin: str) -> None:
-        """Stop engine for a vehicle by VIN."""
-        await self.connection.stop_engine(vin.lower())
+        """Stop only when the vehicle explicitly reports remote-start support."""
+        self._require_remote_engine_support(vin)
+        if not await self.connection.stop_engine(vin.lower()):
+            raise HomeAssistantError("Audi Connect could not stop the engine.")
 
     async def handle_notification(self, vin: str, action: str) -> None:
         if self.config_entry.options.get(CONF_REFRESH_AFTER_ACTION, False):

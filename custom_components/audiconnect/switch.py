@@ -17,7 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
+from .audi_entity import AudiEntity, entity_unique_id, is_entity_supported, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 
@@ -121,7 +121,90 @@ async def async_setup_entry(
             description.attr_key,
         )
     ]
+    # One stateful ON/OFF control for the two physically verified Q8 climate
+    # commands. Existing climate and button unique IDs are left untouched.
+    for config_vehicle in runtime_data.account.config_vehicles:
+        vehicle = config_vehicle.vehicle
+        service = getattr(vehicle, "_audi_service", None)
+        if (
+            getattr(service, "uses_auth0", False)
+            and is_entity_supported(vehicle, "climatisation_state", "climatisation")
+            and should_create_entity(
+                hass, "switch", "climate_quick_control",
+                vehicle, "climatisation_state",
+            )
+        ):
+            entities.append(AudiClimateQuickSwitch(runtime_data.coordinator, vehicle))
     async_add_entities(entities)
+
+
+class AudiClimateQuickSwitch(AudiEntity, SwitchEntity):
+    """A native switch around the Q8's proven bodyless climate start/stop.
+
+    Do not present an HTTP 200 as a physical state: the source-of-truth is
+    the vehicle's actual climatisationState, never a speculative toggle.
+    Existing HA climate entity keeps temperature/mode controls.
+    """
+
+    _attr_name = "Climatisation ON/OFF"
+    _attr_icon = "mdi:car-air-conditioner"
+    _backing_attr = "climatisation_state"
+
+    def __init__(
+        self, coordinator: AudiDataUpdateCoordinator, vehicle: Any
+    ) -> None:
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "switch", "climate_quick_control"
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        reported = getattr(self._vehicle, "climatisation_state", None)
+        if not isinstance(reported, str):
+            return None
+        state = reported.strip().lower()
+        if state in {"invalid", "unsupported", "error", ""}:
+            return None
+        return state not in {"off", "inactive", "stopped"}
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.is_on is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "vehicle_climatisation_state": getattr(
+                self._vehicle, "climatisation_state", None
+            ),
+            "source": "Audi car reported state",
+            "start_mode": "Use stored vehicle climate settings",
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        if self.is_on is True:
+            return
+        # Exactly the same bodyless start as the already proven HA button.
+        if not await self.coordinator.account.connection.start_climate_control(
+            self._vehicle.vin
+        ):
+            raise HomeAssistantError(
+                "Audi climate start failed; check the integration log"
+            )
+        # The connection already schedules the post-command coordinator refresh.
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        if self.is_on is False:
+            return
+        # Exactly the same stop route as the already proven HA button.
+        if not await self.coordinator.account.connection.set_vehicle_climatisation(
+            self._vehicle.vin, False
+        ):
+            raise HomeAssistantError(
+                "Audi climate stop failed; check the integration log"
+            )
+        # No duplicate cloud GET: the account wrapper notifies the coordinator.
 
 
 class AudiSwitch(AudiEntity, SwitchEntity):
@@ -188,4 +271,4 @@ class AudiSwitch(AudiEntity, SwitchEntity):
         await self._run(self.entity_description.turn_off_fn, False)
 
 
-__all__ = ["AudiSwitch", "async_setup_entry"]
+__all__ = ["AudiSwitch", "AudiClimateQuickSwitch", "async_setup_entry"]

@@ -1,6 +1,63 @@
 ---
 # Describes the format for available services for audiconnect
 
+probe_api_paths:
+  name: Probe known read-only Audi API paths
+  description: >
+    On-demand, rate-limited validation of eight known CARIAD GET endpoints for
+    a single vehicle. No remote control actions. Results appear in the next
+    Home Assistant Download diagnostics export. Only run when investigating
+    missing vehicle data. Extended mode adds four experimental GET-only checks,
+    including climate timers, measurements, inspection and trip statistics.
+    Re-running with a different mode within 15 minutes is rejected.
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: audiconnect
+    extended:
+      selector:
+        boolean:
+
+set_local_dealer:
+  name: Set local dealer and service information
+  description: >-
+    Optional details kept locally in Home Assistant. No Audi API requests.
+    Fields not supplied keep their previous values. Empty text removes a field.
+    Clear removes the whole local record for this vehicle.
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: audiconnect
+    dealer_name:
+      selector:
+        text:
+    dealer_city:
+      selector:
+        text:
+    dealer_address:
+      selector:
+        text:
+    dealer_phone:
+      selector:
+        text:
+    dealer_website:
+      selector:
+        text:
+          type: url
+    next_service_date:
+      selector:
+        date:
+    warranty_expiry:
+      selector:
+        date:
+    clear:
+      selector:
+        boolean:
+
 refresh_vehicle_data:
   fields:
     device_id:

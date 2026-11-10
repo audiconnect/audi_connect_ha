@@ -13,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import AudiRuntimeData
 from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
+from .freshness import vehicle_age_minutes, vehicle_freshness
 
 _POSITION_ATTR_KEY = "position"
 
@@ -59,7 +60,8 @@ class AudiDeviceTracker(AudiEntity, TrackerEntity):
 
     def _position(self) -> dict[str, Any]:
         """Return the position dict from the vehicle, or empty dict."""
-        return getattr(self._vehicle, _POSITION_ATTR_KEY, None) or {}
+        value = getattr(self._vehicle, _POSITION_ATTR_KEY, None)
+        return value if isinstance(value, dict) else {}
 
     @property
     def latitude(self) -> float | None:
@@ -85,7 +87,15 @@ class AudiDeviceTracker(AudiEntity, TrackerEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        position = self._position()
+        captured = position.get("timestamp")
         attrs = {
+            "position_source": "Audi last-known parked location, not live driving GPS",
+            "position_captured_at": (
+                captured.isoformat() if hasattr(captured, "isoformat") else None
+            ),
+            "position_age_minutes": vehicle_age_minutes(captured),
+            "position_freshness": vehicle_freshness(captured),
             "model": f"{self._vehicle.model or 'Unknown'}/{self._vehicle.title}",
             "model_year": getattr(self._vehicle, "model_year", None),
             "model_family": getattr(self._vehicle, "model_family", None),

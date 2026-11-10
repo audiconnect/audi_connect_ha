@@ -84,15 +84,32 @@ class AudiLock(AudiEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
-        if not await connection.set_vehicle_lock(self._vehicle.vin, True):
+        # The Lock platform itself performs exactly one post-command refresh.
+        # Suppress the legacy inner notify() to avoid duplicate cloud polls
+        # and excessive rate-limit consumption on every lock attempt.
+        if not await connection.set_vehicle_lock(
+            self._vehicle.vin, True, refresh=False
+        ):
             raise HomeAssistantError(
                 "Failed to lock the vehicle; see the log for details"
             )
         await self.coordinator.async_request_refresh()
+        # An HTTP 200/202 alone does NOT mean the car locked. In field tests
+        # the gateway accepted LOCK while the car physically stayed unlocked.
+        # Use the refresh already performed above; do not add API calls or
+        # silently retry a security-sensitive mutation (rate-limit 429).
+        if self.is_locked is not True:
+            raise HomeAssistantError(
+                "Audi accepted the lock request but the refreshed vehicle "
+                "state has not confirmed locking. Verify the car physically "
+                "and in myAudi; do not repeatedly send lock commands."
+            )
 
     async def async_unlock(self, **kwargs: Any) -> None:
         connection = self.coordinator.account.connection
-        if not await connection.set_vehicle_lock(self._vehicle.vin, False):
+        if not await connection.set_vehicle_lock(
+            self._vehicle.vin, False, refresh=False
+        ):
             raise HomeAssistantError(
                 "Failed to unlock the vehicle; see the log for details"
             )

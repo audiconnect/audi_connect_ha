@@ -70,13 +70,44 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Scaninterval"
+          "scan_interval": "Scaninterval",
+          "edit_local_dealer": "Dealer en onderhoudsgegevens bewerken",
+          "experimental_commands": "Experimentele voertuigbediening inschakelen"
         },
         "title": "Audi Connect-opties",
         "data_description": {
-          "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden."
+          "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden.",
+          "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
+          "experimental_commands": "Toont optionele, door de gebruiker te bedienen CARIAD-functies zoals laden, ruitverwarming en wagen wekken. Standaard uit. Verifieer acties fysiek; API HTTP 200 is geen bewijs van uitvoering."
+        }
+      },
+      "dealer_vehicle": {
+        "title": "Kies het voertuig",
+        "data": {
+          "vehicle": "Audi-voertuig"
+        }
+      },
+      "dealer": {
+        "title": "Dealer en onderhoud (lokaal)",
+        "description": "De gegevens blijven lokaal in Home Assistant. Audi levert via deze functie geen automatische dealerinformatie.",
+        "data": {
+          "dealer_name": "Dealernaam",
+          "dealer_city": "Gemeente",
+          "dealer_address": "Adres",
+          "dealer_phone": "Telefoon",
+          "dealer_website": "Website",
+          "next_service_date": "Volgende afspraak (datum)",
+          "warranty_expiry": "Einde garantie",
+          "clear": "Gegevens van deze wagen verwijderen"
         }
       }
+    },
+    "error": {
+      "invalid_dealer": "Controleer datum, website en lengte van de velden.",
+      "invalid_vehicle": "Selecteer een geldig voertuig."
+    },
+    "abort": {
+      "no_vehicle_available": "Er is nog geen Audi-voertuig geladen."
     }
   }
 }
