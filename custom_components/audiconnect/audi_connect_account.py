@@ -84,7 +84,9 @@ class AudiConnectAccount:
         self._readonly_probe_attempted: dict[str, float] = {}
         self._readonly_probe_lock = asyncio.Lock()
 
-    async def probe_read_only_api(self, vin: str, *, extended: bool = False) -> dict[str, Any]:
+    async def probe_read_only_api(
+        self, vin: str, *, extended: bool = False
+    ) -> dict[str, Any]:
         """Explicit, rate-limited diagnostic GET probes; never a vehicle action."""
         vin_key = vin.lower()
         if not self._loggedin:
@@ -100,7 +102,9 @@ class AudiConnectAccount:
                 expected_mode = "extended" if extended else "core"
                 if report is not None and report.get("mode") == expected_mode:
                     return report
-                raise RuntimeError("API diagnostic probe cooldown is active; retry later")
+                raise RuntimeError(
+                    "API diagnostic probe cooldown is active; retry later"
+                )
             # Record before dispatch so repeated failed scans cannot hammer Audi.
             self._readonly_probe_attempted[vin_key] = now
             report = await self._audi_service.probe_known_read_only_paths(
@@ -388,7 +392,8 @@ class AudiConnectAccount:
 
             _LOGGER.debug(
                 "Audi %s request acknowledged by gateway; physical door state "
-                "awaiting verification", "lock" if lock else "unlock",
+                "awaiting verification",
+                "lock" if lock else "unlock",
             )
 
             return True
@@ -396,7 +401,8 @@ class AudiConnectAccount:
         except Exception as exception:
             log_exception(
                 exception,
-                "Unable to %s vehicle %s" % (
+                "Unable to %s vehicle %s"
+                % (
                     "lock" if lock else "unlock",
                     "*" * max(0, len(vin) - 4) + vin[-4:],
                 ),
@@ -407,9 +413,7 @@ class AudiConnectAccount:
                 try:
                     await self.notify(vin, ACTION_LOCK)
                 except Exception:
-                    _LOGGER.warning(
-                        "Cloud refresh after Audi access request failed"
-                    )
+                    _LOGGER.warning("Cloud refresh after Audi access request failed")
 
     async def set_location_charge_target(self, vin: str, profile_id, target_soc: int):
         """Set a location charging profile's target SoC (the governing value)."""
@@ -976,8 +980,8 @@ class AudiConnectVehicle:
             # vehicle to the 1970 sentinel or claim a fresh car reading.
             prior = self._vehicle.state.get("last_update_time")
             last_observed = (
-                prior if isinstance(prior, datetime) and prior.tzinfo
-                and prior.year >= 2020
+                prior
+                if isinstance(prior, datetime) and prior.tzinfo and prior.year >= 2020
                 else datetime(1970, 1, 1, tzinfo=UTC)
             )
             for field in status.data_fields:

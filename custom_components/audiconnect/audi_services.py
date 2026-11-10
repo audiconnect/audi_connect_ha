@@ -364,7 +364,9 @@ class AudiService:
             f"{await self._get_home_region(vin.upper())}/fs-car/bs/rs/v1/{self._type}/{self._country}/vehicles/{vin.upper()}/status"
         )
 
-    async def probe_known_read_only_paths(self, vin: str, *, extended: bool = False) -> dict[str, Any]:
+    async def probe_known_read_only_paths(
+        self, vin: str, *, extended: bool = False
+    ) -> dict[str, Any]:
         """Use current CARIAD credentials for opt-in diagnostic GET probes.
 
         Does not create/refresh an auth session or send an action.
@@ -405,7 +407,8 @@ class AudiService:
         _LOGGER.debug(
             "Vehicle selective-status received (%d jobs; capabilities %s; "
             "payload redacted)",
-            len(jobs), "known" if snapshot is not None else "unknown",
+            len(jobs),
+            "known" if snapshot is not None else "unknown",
         )
         return VehicleDataResponse(data)
 
@@ -733,7 +736,9 @@ class AudiService:
         """
         if not self._spin:
             raise ValueError("An Audi S-PIN is required for remote door control")
-        if not self._bearer_token_json or not self._bearer_token_json.get("access_token"):
+        if not self._bearer_token_json or not self._bearer_token_json.get(
+            "access_token"
+        ):
             raise AudiAuthError("Audi Auth0 access token is unavailable")
         action = "lock" if lock else "unlock"
         headers = {
@@ -755,7 +760,9 @@ class AudiService:
             if err.status != 204:
                 raise
             reply = None
-        request_id = get_attr(reply, "data.requestID") if isinstance(reply, dict) else None
+        request_id = (
+            get_attr(reply, "data.requestID") if isinstance(reply, dict) else None
+        )
         if request_id:
             await self._confirm_vehicle_request(
                 vin, action, request_id, noun="Door lock"
@@ -1112,9 +1119,11 @@ class AudiService:
         unknown car preferences with a partial request or guessed defaults.
         """
         self._api.use_token(self._bearer_token_json)
-        response = await self._api.get(self.__get_cariad_url_for_vin(
-            vin, "selectivestatus?jobs={jobs}", jobs="charging"
-        ))
+        response = await self._api.get(
+            self.__get_cariad_url_for_vin(
+                vin, "selectivestatus?jobs={jobs}", jobs="charging"
+            )
+        )
         settings = (response or {}).get("charging", {}).get("chargingSettings", {})
         value = settings.get("value") if isinstance(settings, dict) else None
         if not isinstance(value, dict) or not value:
@@ -1139,10 +1148,14 @@ class AudiService:
             # Only copy known charging setting keys; never replay arbitrary
             # fields or the source timestamp in a write payload.
             data = {
-                key: current[key] for key in (
-                    "maxChargeCurrentAC_A", "maxChargeCurrentAC",
-                    "autoUnlockPlugWhenChargedAC", "targetSOC_pct",
-                ) if key in current and current[key] is not None
+                key: current[key]
+                for key in (
+                    "maxChargeCurrentAC_A",
+                    "maxChargeCurrentAC",
+                    "autoUnlockPlugWhenChargedAC",
+                    "targetSOC_pct",
+                )
+                if key in current and current[key] is not None
             }
             data["targetSOC_pct"] = target_soc
 
@@ -1257,7 +1270,10 @@ class AudiService:
                 request_id = get_attr(res, "data.requestID")
                 if request_id:
                     await self._confirm_vehicle_request(
-                        vin, "stop", request_id, noun="Climatisation",
+                        vin,
+                        "stop",
+                        request_id,
+                        noun="Climatisation",
                         attempts=CLIMATISATION_CONFIRM_ATTEMPTS,
                         sleep=CLIMATISATION_CONFIRM_SLEEP,
                     )
@@ -1500,8 +1516,10 @@ class AudiService:
         }
         try:
             await self._api.request(
-                "POST", self.__get_cariad_url_for_vin(vin, "vehiclewakeuptrigger"),
-                headers=headers, data="{}",
+                "POST",
+                self.__get_cariad_url_for_vin(vin, "vehiclewakeuptrigger"),
+                headers=headers,
+                data="{}",
             )
         except ClientResponseError as err:
             if err.status != 204:
@@ -1518,8 +1536,10 @@ class AudiService:
             suffix = "windowheating/start" if start else "windowheating/stop"
             try:
                 await self._api.request(
-                    "POST", self.__get_cariad_url_for_vin(vin, suffix),
-                    headers=headers, data="{}",
+                    "POST",
+                    self.__get_cariad_url_for_vin(vin, suffix),
+                    headers=headers,
+                    data="{}",
                 )
             except ClientResponseError as err:
                 if err.status != 204:

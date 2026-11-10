@@ -1,4 +1,5 @@
 """Privacy regression test for the native diagnostics export."""
+
 import asyncio
 import importlib.util
 import sys
@@ -47,7 +48,8 @@ class TestSnapshot(TestCase):
         catalog = _module("test_audi_package.capability_catalog")
         catalog.snapshot_capabilities = lambda vehicle: {
             "source": "vehicle_poll_not_browser_session",
-            "groups": {}, "command_authorization_confirmed": False,
+            "groups": {},
+            "command_authorization_confirmed": False,
         }
         freshness = _module("test_audi_package.freshness")
         freshness.vehicle_age_minutes = lambda value: None
@@ -71,7 +73,10 @@ class TestSnapshot(TestCase):
             with patch.dict(sys.modules, {spec.name: diagnostics}):
                 spec.loader.exec_module(diagnostics)
                 raw_car = NS(
-                    state={"stateOfCharge": 60, "position": {"latitude": 50.12345, "longitude": 4.5678}},
+                    state={
+                        "stateOfCharge": 60,
+                        "position": {"latitude": 50.12345, "longitude": 4.5678},
+                    },
                     fields={"FOO": "PERSONAL"},
                 )
                 car = NS(
@@ -85,12 +90,20 @@ class TestSnapshot(TestCase):
                     support_climater=False,
                 )
                 api = NS(
-                    diagnostic_events=[{"method": "POST", "route": "legacy_climatisation", "http_status": 401}],
+                    diagnostic_events=[
+                        {
+                            "method": "POST",
+                            "route": "legacy_climatisation",
+                            "http_status": 401,
+                        }
+                    ],
                     vcf_remaining_calls=10,
                     vcf_remaining_calls_last_observed=None,
                 )
                 connection = NS(
-                    _loggedin=True, _audi_service=NS(uses_auth0=True, _api=api), vehicles=[car]
+                    _loggedin=True,
+                    _audi_service=NS(uses_auth0=True, _api=api),
+                    vehicles=[car],
                 )
                 coordinator = NS(
                     last_update_success=True,
@@ -98,13 +111,22 @@ class TestSnapshot(TestCase):
                     last_exception=ValueError("VIN EXAMPLEVIN0000001 token SECRET"),
                 )
                 entry = NS(
-                    data={"region": "DE", "api_level": 0, "refresh_token": "SECRET", "username": "person@example.test"},
+                    data={
+                        "region": "DE",
+                        "api_level": 0,
+                        "refresh_token": "SECRET",
+                        "username": "person@example.test",
+                    },
                     options={},
                     entry_id="private-entry-id",
-                    runtime_data=NS(account=NS(connection=connection), coordinator=coordinator),
+                    runtime_data=NS(
+                        account=NS(connection=connection), coordinator=coordinator
+                    ),
                     state="ConfigEntryState.LOADED",
                 )
-                result = asyncio.run(diagnostics.async_get_config_entry_diagnostics(NS(), entry))
+                result = asyncio.run(
+                    diagnostics.async_get_config_entry_diagnostics(NS(), entry)
+                )
         rendered = repr(result)
         for secret in (
             "EXAMPLEVIN0000001",

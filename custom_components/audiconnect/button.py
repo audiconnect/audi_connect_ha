@@ -76,7 +76,9 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         icon="mdi:ev-station",
         experimental=True,
         supported_fn=lambda v: _modern_capable(v, "charging"),
-        press_fn=lambda account, vin: account.connection.set_battery_charger(vin, True, False),
+        press_fn=lambda account, vin: account.connection.set_battery_charger(
+            vin, True, False
+        ),
     ),
     AudiButtonEntityDescription(
         key="stop_charging_modern",
@@ -84,7 +86,9 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         icon="mdi:ev-station",
         experimental=True,
         supported_fn=lambda v: _modern_capable(v, "charging"),
-        press_fn=lambda account, vin: account.connection.set_battery_charger(vin, False, False),
+        press_fn=lambda account, vin: account.connection.set_battery_charger(
+            vin, False, False
+        ),
     ),
     AudiButtonEntityDescription(
         key="start_window_heating_modern",
@@ -92,7 +96,9 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         icon="mdi:car-defrost-rear",
         experimental=True,
         supported_fn=lambda v: _modern_capable(v, "climatisation"),
-        press_fn=lambda account, vin: account.connection.set_vehicle_window_heating(vin, True),
+        press_fn=lambda account, vin: account.connection.set_vehicle_window_heating(
+            vin, True
+        ),
     ),
     AudiButtonEntityDescription(
         key="stop_window_heating_modern",
@@ -100,7 +106,9 @@ BUTTON_DESCRIPTIONS: tuple[AudiButtonEntityDescription, ...] = (
         icon="mdi:car-defrost-rear",
         experimental=True,
         supported_fn=lambda v: _modern_capable(v, "climatisation"),
-        press_fn=lambda account, vin: account.connection.set_vehicle_window_heating(vin, False),
+        press_fn=lambda account, vin: account.connection.set_vehicle_window_heating(
+            vin, False
+        ),
     ),
     AudiButtonEntityDescription(
         key="wake_vehicle_modern",
@@ -137,9 +145,10 @@ async def async_setup_entry(
         AudiButton(runtime_data.coordinator, description, vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
         for description in BUTTON_DESCRIPTIONS
-        if (not description.experimental or config_entry.options.get(
-            "experimental_commands", False
-        ))
+        if (
+            not description.experimental
+            or config_entry.options.get("experimental_commands", False)
+        )
         and description.supported_fn(vehicle := config_vehicle.vehicle)
     ]
     async_add_entities(entities)

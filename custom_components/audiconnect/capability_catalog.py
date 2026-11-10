@@ -3,6 +3,7 @@
 The presence of a capability is not proof that a remote command is authorized
 or functional. Raw myAudi HAR data is never imported or persisted.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -10,12 +11,18 @@ from typing import Any
 CAPABILITY_GROUPS: dict[str, tuple[str, ...]] = {
     "charging": ("charging", "chargingTimers", "chargingProfiles"),
     "climate": ("climatisation", "climatisationTimers", "auxiliaryHeating"),
-    "vehicle_status": ("measurements", "fuelStatus", "vehicleHealthInspection",
-                       "vehicleHealthWarnings", "oilLevelStatus"),
+    "vehicle_status": (
+        "measurements",
+        "fuelStatus",
+        "vehicleHealthInspection",
+        "vehicleHealthWarnings",
+        "oilLevelStatus",
+    ),
     "mobility": ("tripStatistics", "parkingPosition", "b2bVDATrip"),
     "service": ("dealerAppointment", "onlineCarCare", "onlineLogBook"),
     "remote": ("access", "honkAndFlash", "vehicleWakeUp", "vehicleWakeUpTrigger"),
 }
+
 
 def snapshot_capabilities(vehicle: Any) -> dict[str, Any]:
     """Return only predeclared identifiers and a conservative tri-state verdict."""
@@ -36,7 +43,9 @@ def snapshot_capabilities(vehicle: Any) -> dict[str, Any]:
     count = getattr(vehicle, "capabilities", None)
     return {
         "source": "vehicle_poll_not_browser_session",
-        "advertised_capability_count": len(count) if isinstance(count, (set, frozenset, list, tuple)) else None,
+        "advertised_capability_count": len(count)
+        if isinstance(count, (set, frozenset, list, tuple))
+        else None,
         "groups": groups,
         "command_authorization_confirmed": False,
     }

@@ -15,10 +15,10 @@ def classify_route(url: str) -> str:
     host = (parsed.hostname or "").lower()
     # Token exchanges are POST requests but not vehicle actions.
     # Match only known Audi/VW identity domains and fixed token paths.
-    identity_hosts = (
-        host in {"group.identity.vwgroup.io", "identity.vwgroup.io"}
-        or host.endswith(".bff.cariad.digital")
-    )
+    identity_hosts = host in {
+        "group.identity.vwgroup.io",
+        "identity.vwgroup.io",
+    } or host.endswith(".bff.cariad.digital")
     if identity_hosts and (
         path.endswith("/oauth/token")
         or path.endswith("/oidc/v1/token")
@@ -70,9 +70,12 @@ def build_http_event(method: str, url: str, status: int) -> dict[str, object] | 
         "route": route,
         "http_status": int(status),
         "outcome": (
-            "http_rejected" if status >= 400 else
-            "authentication_http_success" if route == "authentication" else
-            "http_accepted_not_vehicle_confirmed" if method in _MUTATION_METHODS else
-            "http_response"
+            "http_rejected"
+            if status >= 400
+            else "authentication_http_success"
+            if route == "authentication"
+            else "http_accepted_not_vehicle_confirmed"
+            if method in _MUTATION_METHODS
+            else "http_response"
         ),
     }

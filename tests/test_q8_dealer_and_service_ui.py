@@ -1,13 +1,16 @@
 """Dealer should exist as a visible HA entity before manual configuration."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace as NS
 
 from custom_components.audiconnect.local_extensions import (
-    get_local_dealer, update_local_dealer_options,
+    get_local_dealer,
+    update_local_dealer_options,
 )
 from custom_components.audiconnect.sensor import (
-    AudiLocalDealerSensor, AudiServiceOverviewSensor,
+    AudiLocalDealerSensor,
+    AudiServiceOverviewSensor,
 )
 
 
@@ -17,9 +20,14 @@ class Coordinator:
 
 def make():
     car = NS(
-        vin="TESTVIN00000000001", title="Audi Q8", model="Q8", model_year="2023",
-        service_inspection_time=90, service_inspection_distance=12000,
-        oil_change_time=60, oil_change_distance=7000,
+        vin="TESTVIN00000000001",
+        title="Audi Q8",
+        model="Q8",
+        model_year="2023",
+        service_inspection_time=90,
+        service_inspection_distance=12000,
+        oil_change_time=60,
+        oil_change_distance=7000,
     )
     entry = NS(options={"scan_interval": 15})
     return car, entry
@@ -39,11 +47,13 @@ def test_dealer_options_updates_without_losing_vehicle_or_polling_settings():
     car, entry = make()
     dealer = AudiLocalDealerSensor(Coordinator(), car, entry)
     entry.options = update_local_dealer_options(
-        entry.options, car.vin, {
+        entry.options,
+        car.vin,
+        {
             "dealer_name": "Example dealer",
             "dealer_city": "Brussels",
             "next_service_date": "2027-01-20",
-        }
+        },
     )
     assert entry.options["scan_interval"] == 15
     assert dealer.native_value == "Example dealer"
@@ -78,6 +88,7 @@ def test_service_overview_distinguishes_car_inspection_and_local_booking():
 def test_options_flow_translations_have_manual_dealer_steps():
     from pathlib import Path
     import json
+
     root = Path(__file__).resolve().parents[1] / "custom_components/audiconnect"
     for name in ("strings.json", "translations/en.json", "translations/nl.json"):
         data = json.loads((root / name).read_text())

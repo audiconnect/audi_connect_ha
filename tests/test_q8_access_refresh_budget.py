@@ -1,14 +1,18 @@
 """No double polling when the HA lock entity already owns the readback."""
+
 import asyncio
-from types import SimpleNamespace as NS
 
 from custom_components.audiconnect.audi_connect_account import AudiConnectAccount
-from custom_components.audiconnect.diagnostic_events import classify_route, build_http_event
+from custom_components.audiconnect.diagnostic_events import (
+    classify_route,
+    build_http_event,
+)
 
 
 class Service:
     def __init__(self):
         self.calls = []
+
     async def set_vehicle_lock(self, vin, lock):
         self.calls.append((vin, lock))
 
@@ -19,8 +23,10 @@ def test_connection_suppresses_inner_notify_when_platform_will_refresh_once():
     service = Service()
     account._audi_service = service
     notices = []
+
     async def fake_notify(vin, action):
         notices.append(action)
+
     account.notify = fake_notify
 
     result = asyncio.run(account.set_vehicle_lock("EXAMPLEVIN", True, refresh=False))

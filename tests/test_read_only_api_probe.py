@@ -54,9 +54,7 @@ def test_all_get_no_mutations_and_no_secrets():
 
 def test_extended_mode_adds_five_get_only_experimental_probes():
     api = FakeApi()
-    result = asyncio.run(
-        run_read_only_probes(api, SECRET, _url_for, extended=True)
-    )
+    result = asyncio.run(run_read_only_probes(api, SECRET, _url_for, extended=True))
     assert result["attempted"] == MAX_EXTENDED_PROBES == 13
     assert len(EXTENDED_READ_ONLY_PROBES) == 5
     assert result["mode"] == "extended"
@@ -91,13 +89,19 @@ def test_http_404_is_not_called_incapable():
 
 
 def test_job_error_inside_http_200_is_not_usable():
-    assert classify_payload(
-        {"charging": {"chargingStatus": {"error": {"status": 404}}}}, "charging"
-    ) == "job_returned_error"
+    assert (
+        classify_payload(
+            {"charging": {"chargingStatus": {"error": {"status": 404}}}}, "charging"
+        )
+        == "job_returned_error"
+    )
 
 
 def test_missing_job_does_not_become_false_positive():
-    assert classify_payload({"otherJob": {"value": 12}}, "charging") == "job_missing_from_response"
+    assert (
+        classify_payload({"otherJob": {"value": 12}}, "charging")
+        == "job_missing_from_response"
+    )
 
 
 def test_unavailable_access_token_is_rejected():

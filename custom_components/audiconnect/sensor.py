@@ -133,7 +133,8 @@ def _park_time_attrs(vehicle: Any) -> dict[str, Any]:
         "meaning": (
             "Time Audi reported the last parked location; not verified time parked"
             if source == "last_parked_position_capture_estimate"
-            else "Vehicle parking clock" if source == "vehicle_parking_clock"
+            else "Vehicle parking clock"
+            if source == "vehicle_parking_clock"
             else "No parking timestamp reported"
         ),
     }
@@ -585,11 +586,13 @@ async def async_setup_entry(
         vehicle = config_vehicle.vehicle
         # Always expose freshness on the device, even if current Audi data is
         # stale or unavailable. Existing Last Update keeps its unique ID.
-        entities.extend((
-            AudiVehicleFreshnessSensor(runtime_data.coordinator, vehicle),
-            AudiVehicleAgeSensor(runtime_data.coordinator, vehicle),
-            AudiCloudLastPollSensor(runtime_data.coordinator, vehicle),
-        ))
+        entities.extend(
+            (
+                AudiVehicleFreshnessSensor(runtime_data.coordinator, vehicle),
+                AudiVehicleAgeSensor(runtime_data.coordinator, vehicle),
+                AudiCloudLastPollSensor(runtime_data.coordinator, vehicle),
+            )
+        )
         # Add the local dealer sensor even before the user configures it.
         # Hiding it until data exists made this feature effectively invisible.
         entities.append(
@@ -687,7 +690,9 @@ class AudiVehicleFreshnessSensor(_AudiClockAwareSensor):
 
     def __init__(self, coordinator: AudiDataUpdateCoordinator, vehicle: Any) -> None:
         super().__init__(coordinator, vehicle)
-        self._attr_unique_id = entity_unique_id(vehicle, "sensor", "vehicle_data_freshness")
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "sensor", "vehicle_data_freshness"
+        )
 
     @property
     def available(self) -> bool:
@@ -769,7 +774,9 @@ class AudiCloudLastPollSensor(AudiEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         attempt = getattr(self.coordinator, "last_cloud_poll_attempt", None)
         return {
-            "last_attempt": attempt.isoformat() if isinstance(attempt, datetime) else None,
+            "last_attempt": attempt.isoformat()
+            if isinstance(attempt, datetime)
+            else None,
             "last_poll_succeeded": bool(
                 getattr(self.coordinator, "last_update_success", False)
             ),
@@ -839,7 +846,8 @@ class AudiServiceOverviewSensor(AudiEntity, SensorEntity):
         inspection = getattr(self._vehicle, "service_inspection_time", None)
         oil = getattr(self._vehicle, "oil_change_time", None)
         numbers = [
-            value for value in (inspection, oil)
+            value
+            for value in (inspection, oil)
             if isinstance(value, (float, int)) and not isinstance(value, bool)
         ]
         if any(value <= 0 for value in numbers):
@@ -855,8 +863,12 @@ class AudiServiceOverviewSensor(AudiEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         data = get_local_dealer(self._entry.options, self._vehicle.vin)
         return {
-            "inspection_due_days": getattr(self._vehicle, "service_inspection_time", None),
-            "inspection_due_km": getattr(self._vehicle, "service_inspection_distance", None),
+            "inspection_due_days": getattr(
+                self._vehicle, "service_inspection_time", None
+            ),
+            "inspection_due_km": getattr(
+                self._vehicle, "service_inspection_distance", None
+            ),
             "oil_service_due_days": getattr(self._vehicle, "oil_change_time", None),
             "oil_service_due_km": getattr(self._vehicle, "oil_change_distance", None),
             "next_appointment_local": data.get("next_service_date"),

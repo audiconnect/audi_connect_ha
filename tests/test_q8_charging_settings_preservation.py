@@ -1,4 +1,5 @@
 """Auth0 charging settings are read-modify-write, never blind replacement."""
+
 from __future__ import annotations
 
 import asyncio
@@ -16,11 +17,14 @@ class API:
         self.charging = charging
         self.urls = []
         self.writes = []
+
     def use_token(self, token):
         pass
+
     async def get(self, url):
         self.urls.append(url)
         return {"charging": {"chargingSettings": {"value": self.charging}}}
+
     async def request(self, method, url, headers=None, data=None, **kwargs):
         self.writes.append((method, url, json.loads(data)))
         return {"data": {}}
@@ -35,13 +39,15 @@ def service(settings, auth0=True):
 
 
 def test_soc_change_preserves_other_charging_settings():
-    svc, api = service({
-        "carCapturedTimestamp": "2026-11-10T12:00:00Z",
-        "maxChargeCurrentAC_A": 12,
-        "autoUnlockPlugWhenChargedAC": "on",
-        "targetSOC_pct": 70,
-        "someNewUndocumentedKey": "DO_NOT_FORWARD",
-    })
+    svc, api = service(
+        {
+            "carCapturedTimestamp": "2026-11-10T12:00:00Z",
+            "maxChargeCurrentAC_A": 12,
+            "autoUnlockPlugWhenChargedAC": "on",
+            "targetSOC_pct": 70,
+            "someNewUndocumentedKey": "DO_NOT_FORWARD",
+        }
+    )
     asyncio.run(svc.set_target_state_of_charge(VIN, 80))
     assert len(api.urls) == 1
     assert "jobs=charging" in api.urls[0]

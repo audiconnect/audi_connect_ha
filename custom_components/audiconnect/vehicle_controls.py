@@ -7,9 +7,9 @@ from typing import Any
 # Explicit vehicle-reported permission required. A fuel type or S-PIN alone
 # does not prove this remote action is supported.
 REMOTE_ENGINE_CAPABILITY = "remoteEngineStart"
-_NON_REMOTE_ENGINE_TYPES = frozenset({
-    "electric", "hybrid", "phev", "plug-in hybrid", "plug_in_hybrid"
-})
+_NON_REMOTE_ENGINE_TYPES = frozenset(
+    {"electric", "hybrid", "phev", "plug-in hybrid", "plug_in_hybrid"}
+)
 
 
 def engine_start_stop_supported(vehicle: Any) -> bool:
@@ -27,14 +27,19 @@ def engine_start_stop_supported(vehicle: Any) -> bool:
     ]
     if any(
         isinstance(term, str)
-        and (term.strip().lower().startswith("q8") or
-             term.strip().lower().startswith("audi q8"))
+        and (
+            term.strip().lower().startswith("q8")
+            or term.strip().lower().startswith("audi q8")
+        )
         for term in model_terms
     ):
         return False
 
     car_type = getattr(vehicle, "car_type", None)
-    if isinstance(car_type, str) and car_type.strip().lower() in _NON_REMOTE_ENGINE_TYPES:
+    if (
+        isinstance(car_type, str)
+        and car_type.strip().lower() in _NON_REMOTE_ENGINE_TYPES
+    ):
         return False
 
     check = getattr(vehicle, "has_capability", None)

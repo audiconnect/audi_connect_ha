@@ -161,9 +161,7 @@ class AudiEntity(CoordinatorEntity[AudiDataUpdateCoordinator]):
         if model_info.startswith("Audi "):
             model_info = model_info[5:]
         model_year = getattr(self._vehicle, "model_year", "") or ""
-        display_model = (
-            f"{model_info} ({model_year})" if model_year else model_info
-        )
+        display_model = f"{model_info} ({model_year})" if model_year else model_info
         return DeviceInfo(
             identifiers={(DOMAIN, self._vehicle.vin.lower())},
             manufacturer="Audi",

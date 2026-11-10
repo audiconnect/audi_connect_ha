@@ -4,6 +4,7 @@ Cloud API success and vehicle telemetry age are independent signals.
 The Audi timestamp is the newest reported vehicle reading, not evidence
 that every vehicle field was updated at the same time.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -12,7 +13,9 @@ FRESH_MAX_AGE_MINUTES = 30
 DELAYED_MAX_AGE_MINUTES = 120
 
 
-def usable_vehicle_timestamp(value: object, now: datetime | None = None) -> datetime | None:
+def usable_vehicle_timestamp(
+    value: object, now: datetime | None = None
+) -> datetime | None:
     """Reject missing, naive, ancient sentinel and implausible future times."""
     if not isinstance(value, datetime) or value.tzinfo is None:
         return None

@@ -7,7 +7,8 @@ Only status/classification is retained; the raw response is immediately discarde
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from aiohttp import ClientResponseError
 
@@ -30,10 +31,22 @@ READ_ONLY_PROBES: tuple[tuple[str, str, str | None], ...] = (
 # New candidates are explicitly experimental: the HAR advertises the feature,
 # not a working CARIAD job. These are optional GETs only.
 EXTENDED_READ_ONLY_PROBES: tuple[tuple[str, str, str | None], ...] = (
-    ("climatisation_timers", "selectivestatus?jobs=climatisationTimers", "climatisationTimers"),
+    (
+        "climatisation_timers",
+        "selectivestatus?jobs=climatisationTimers",
+        "climatisationTimers",
+    ),
     ("measurements", "selectivestatus?jobs=measurements", "measurements"),
-    ("vehicle_health_inspection", "selectivestatus?jobs=vehicleHealthInspection", "vehicleHealthInspection"),
-    ("trip_statistics_experimental", "selectivestatus?jobs=tripStatistics", "tripStatistics"),
+    (
+        "vehicle_health_inspection",
+        "selectivestatus?jobs=vehicleHealthInspection",
+        "vehicleHealthInspection",
+    ),
+    (
+        "trip_statistics_experimental",
+        "selectivestatus?jobs=tripStatistics",
+        "tripStatistics",
+    ),
     ("auxiliary_heating", "selectivestatus?jobs=auxiliaryHeating", "auxiliaryHeating"),
 )
 MAX_PROBES = 8
@@ -92,29 +105,35 @@ def classify_http_status(status: int) -> str:
 
 
 async def run_read_only_probes(
-    api: Any, access_token: str, url_for_suffix: Callable[[str], str],
-    *, extended: bool = False,
+    api: Any,
+    access_token: str,
+    url_for_suffix: Callable[[str], str],
+    *,
+    extended: bool = False,
 ) -> dict[str, Any]:
     """Run a strictly fixed set of GETs on explicit user request only."""
     if not access_token:
         raise ValueError("Missing active Audi access token")
     paths = READ_ONLY_PROBES[:MAX_PROBES]
     if extended:
-        paths += EXTENDED_READ_ONLY_PROBES[:MAX_EXTENDED_PROBES - MAX_PROBES]
+        paths += EXTENDED_READ_ONLY_PROBES[: MAX_EXTENDED_PROBES - MAX_PROBES]
     minimum_budget = (
-        MIN_EXTENDED_RATE_LIMIT_REMAINING if extended
-        else MIN_RATE_LIMIT_REMAINING
+        MIN_EXTENDED_RATE_LIMIT_REMAINING if extended else MIN_RATE_LIMIT_REMAINING
     )
     outcomes: list[dict[str, Any]] = []
     stop_reason: str | None = None
     for name, suffix, job in paths:
         if stop_reason:
-            outcomes.append({"probe": name, "outcome": "skipped", "reason": stop_reason})
+            outcomes.append(
+                {"probe": name, "outcome": "skipped", "reason": stop_reason}
+            )
             continue
         remaining = getattr(api, "vcf_remaining_calls", None)
         if remaining is not None and remaining < minimum_budget:
             stop_reason = "low_rate_limit_budget"
-            outcomes.append({"probe": name, "outcome": "skipped", "reason": stop_reason})
+            outcomes.append(
+                {"probe": name, "outcome": "skipped", "reason": stop_reason}
+            )
             continue
         try:
             # Reuse AudiAPI.get so headers and active token handling are
@@ -124,9 +143,9 @@ async def run_read_only_probes(
             outcomes.append({"probe": name, "outcome": outcome, "http_status": "2xx"})
         except ClientResponseError as exc:
             outcome = classify_http_status(exc.status)
-            outcomes.append({
-                "probe": name, "outcome": outcome, "http_status": int(exc.status)
-            })
+            outcomes.append(
+                {"probe": name, "outcome": outcome, "http_status": int(exc.status)}
+            )
             if exc.status in (401, 429):
                 stop_reason = outcome
         except TimeoutError:

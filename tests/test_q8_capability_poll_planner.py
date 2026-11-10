@@ -1,4 +1,5 @@
 """Audi capability-driven polling never removes known features on a thin poll."""
+
 from __future__ import annotations
 
 import asyncio
@@ -13,9 +14,13 @@ from custom_components.audiconnect.audi_services import AudiService
 
 
 def caps(*items):
-    return {"userCapabilities": {"capabilitiesStatus": {"value": [
-        {"id": name, "status": status} for name, status in items
-    ]}}}
+    return {
+        "userCapabilities": {
+            "capabilitiesStatus": {
+                "value": [{"id": name, "status": status} for name, status in items]
+            }
+        }
+    }
 
 
 def test_first_poll_is_full_and_keeps_known_jobs():
@@ -32,16 +37,23 @@ def test_unknown_capabilities_are_not_treated_as_unsupported():
 
 
 def test_explicit_disabled_and_missing_jobs_are_skipped():
-    reported, impaired = capability_snapshot(caps(
-        ("charging", []), ("climatisation", []),
-        ("climatisationTimers", []),
-        ("access", []), ("chargingProfiles", [4001]),
-        ("unknownBrandJob", []),
-    ))
+    reported, impaired = capability_snapshot(
+        caps(
+            ("charging", []),
+            ("climatisation", []),
+            ("climatisationTimers", []),
+            ("access", []),
+            ("chargingProfiles", [4001]),
+            ("unknownBrandJob", []),
+        )
+    )
     jobs = select_jobs(reported, impaired)
     assert jobs == (
-        "access", "charging", "climatisation",
-        "climatisationTimers", "userCapabilities"
+        "access",
+        "charging",
+        "climatisation",
+        "climatisationTimers",
+        "userCapabilities",
     )
     assert "unknownBrandJob" not in jobs
 
@@ -50,8 +62,12 @@ class API:
     def __init__(self):
         self.urls = []
         self.payloads = [
-            caps(("access", []), ("charging", []),
-                 ("climatisation", []), ("climatisationTimers", [])),
+            caps(
+                ("access", []),
+                ("charging", []),
+                ("climatisation", []),
+                ("climatisationTimers", []),
+            ),
             {},  # A later thin response cannot erase known capabilities.
         ]
 
@@ -73,7 +89,12 @@ def test_live_service_reuses_capabilities_without_any_extra_get():
     initial = parse_qs(urlsplit(api.urls[0]).query)["jobs"][0].split(",")
     later = parse_qs(urlsplit(api.urls[1]).query)["jobs"][0].split(",")
     assert tuple(initial) == BASE_SELECTIVE_JOBS
-    assert later == ["access", "charging", "climatisation",
-                     "climatisationTimers", "userCapabilities"]
+    assert later == [
+        "access",
+        "charging",
+        "climatisation",
+        "climatisationTimers",
+        "userCapabilities",
+    ]
     assert "chargingProfiles" not in later
     assert len(service._cariad_capabilities) == 1

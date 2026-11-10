@@ -1,7 +1,7 @@
 """One bad CARIAD job cannot erase usable Q8 data or reset last update."""
+
 import asyncio
 import copy
-from datetime import UTC, datetime
 
 from custom_components.audiconnect.audi_connect_account import AudiConnectVehicle
 from custom_components.audiconnect.audi_models import VehicleDataResponse
@@ -35,9 +35,9 @@ def test_partial_job_error_preserves_good_readings_and_last_real_timestamp():
 
     service.payload = {
         "charging": {"chargingStatus": {"error": {"message": "gateway"}}},
-        "userCapabilities": {"capabilitiesStatus": {
-            "value": [{"id": "charging", "status": []}]
-        }},
+        "userCapabilities": {
+            "capabilitiesStatus": {"value": [{"id": "charging", "status": []}]}
+        },
     }
     asyncio.run(car.update_vehicle_statusreport())
     assert car._vehicle.fields == old_fields

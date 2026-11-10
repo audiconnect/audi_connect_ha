@@ -1,9 +1,9 @@
 """Q8: Auth0 door commands use CARIAD and do not silently fall back to legacy RLU."""
+
 from __future__ import annotations
 
 import asyncio
 import json
-from types import SimpleNamespace
 
 import pytest
 from aiohttp import ClientResponseError
@@ -58,7 +58,9 @@ def test_auth0_missing_spin_fails_closed():
 
 
 def test_auth0_does_not_fallback_to_legacy_on_rejection():
-    api = RecordingApi(failure=ClientResponseError(None, (), status=403, message="Forbidden"))
+    api = RecordingApi(
+        failure=ClientResponseError(None, (), status=403, message="Forbidden")
+    )
     svc, _ = make_service(api=api)
     with pytest.raises(ClientResponseError):
         asyncio.run(svc.set_vehicle_lock(VIN, False))
@@ -67,7 +69,9 @@ def test_auth0_does_not_fallback_to_legacy_on_rejection():
 
 
 def test_auth0_accepts_no_content_ack_without_false_success_confirmation():
-    api = RecordingApi(failure=ClientResponseError(None, (), status=204, message="No Content"))
+    api = RecordingApi(
+        failure=ClientResponseError(None, (), status=204, message="No Content")
+    )
     svc, _ = make_service(api=api)
     asyncio.run(svc.set_vehicle_lock(VIN, True))
     assert len(api.calls) == 1

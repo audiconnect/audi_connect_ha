@@ -4,6 +4,7 @@ Only use the capabilities that Audi itself reported. An absent list means
 UNKNOWN, not an unsupported car: preserve the legacy full query.
 No extra network requests are made and order is deterministic.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -78,6 +79,7 @@ def select_jobs(
         return BASE_SELECTIVE_JOBS
     ignored = impaired or frozenset()
     return tuple(
-        job for job in BASE_SELECTIVE_JOBS
+        job
+        for job in BASE_SELECTIVE_JOBS
         if job == "userCapabilities" or (job in capabilities and job not in ignored)
     )

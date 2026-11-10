@@ -1,4 +1,5 @@
 """Q8: modern Auth0 climate controls send the intended BFF requests."""
+
 from __future__ import annotations
 import asyncio
 import pytest
@@ -19,7 +20,9 @@ class FakeApi:
     async def request(self, method, url, headers=None, data=None, **kwargs):
         self.calls.append((method, url, data))
         if self.status != 200:
-            raise ClientResponseError(None, (), status=self.status, message="Test status")
+            raise ClientResponseError(
+                None, (), status=self.status, message="Test status"
+            )
         return {"data": {}}
 
 
@@ -35,7 +38,11 @@ def test_bodyless_start_uses_modern_cariad_api_even_at_saved_level_zero():
     service, api = make_svc()
     asyncio.run(service.start_climate_control(VIN))
     assert api.calls == [
-        ("POST", f"https://emea.bff.cariad.digital/vehicle/v1/vehicles/{VIN}/climatisation/start", None)
+        (
+            "POST",
+            f"https://emea.bff.cariad.digital/vehicle/v1/vehicles/{VIN}/climatisation/start",
+            None,
+        )
     ]
 
 
@@ -43,7 +50,11 @@ def test_stop_uses_modern_cariad_api():
     service, api = make_svc()
     asyncio.run(service.set_climatisation(VIN, False))
     assert api.calls == [
-        ("POST", f"https://emea.bff.cariad.digital/vehicle/v1/vehicles/{VIN}/climatisation/stop", None)
+        (
+            "POST",
+            f"https://emea.bff.cariad.digital/vehicle/v1/vehicles/{VIN}/climatisation/stop",
+            None,
+        )
     ]
 
 

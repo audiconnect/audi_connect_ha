@@ -17,7 +17,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
-from .audi_entity import AudiEntity, entity_unique_id, is_entity_supported, should_create_entity
+from .audi_entity import (
+    AudiEntity,
+    entity_unique_id,
+    is_entity_supported,
+    should_create_entity,
+)
 from .coordinator import AudiDataUpdateCoordinator
 
 
@@ -130,8 +135,11 @@ async def async_setup_entry(
             getattr(service, "uses_auth0", False)
             and is_entity_supported(vehicle, "climatisation_state", "climatisation")
             and should_create_entity(
-                hass, "switch", "climate_quick_control",
-                vehicle, "climatisation_state",
+                hass,
+                "switch",
+                "climate_quick_control",
+                vehicle,
+                "climatisation_state",
             )
         ):
             entities.append(AudiClimateQuickSwitch(runtime_data.coordinator, vehicle))
@@ -150,9 +158,7 @@ class AudiClimateQuickSwitch(AudiEntity, SwitchEntity):
     _attr_icon = "mdi:car-air-conditioner"
     _backing_attr = "climatisation_state"
 
-    def __init__(
-        self, coordinator: AudiDataUpdateCoordinator, vehicle: Any
-    ) -> None:
+    def __init__(self, coordinator: AudiDataUpdateCoordinator, vehicle: Any) -> None:
         super().__init__(coordinator, vehicle)
         self._attr_unique_id = entity_unique_id(
             vehicle, "switch", "climate_quick_control"

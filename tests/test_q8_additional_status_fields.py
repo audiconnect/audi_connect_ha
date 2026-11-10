@@ -1,4 +1,5 @@
 """CARIAD-only fields from the standalone Audi connector become HA values."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace as NS
@@ -14,15 +15,21 @@ def parsed(data):
 
 def test_modern_charging_settings_and_readiness():
     data = {
-        "charging": {"chargingSettings": {"value": {
-            "carCapturedTimestamp": "2026-11-10T15:00:00Z",
-            "maxChargeCurrentAC_A": 12,
-            "maxChargeCurrentAC": "reduced",
-            "autoUnlockPlugWhenChargedAC": "on",
-        }}},
-        "readiness": {"readinessStatus": {"value": {
-            "connectionState": {"isOnline": True, "isActive": False}
-        }}},
+        "charging": {
+            "chargingSettings": {
+                "value": {
+                    "carCapturedTimestamp": "2026-11-10T15:00:00Z",
+                    "maxChargeCurrentAC_A": 12,
+                    "maxChargeCurrentAC": "reduced",
+                    "autoUnlockPlugWhenChargedAC": "on",
+                }
+            }
+        },
+        "readiness": {
+            "readinessStatus": {
+                "value": {"connectionState": {"isOnline": True, "isActive": False}}
+            }
+        },
     }
     s = parsed(data)
     assert s["chargingCurrentLimitA"] == 12
@@ -40,16 +47,26 @@ def test_modern_charging_settings_and_readiness():
     assert car.vehicle_reported_active == "inactive"
     keys = {d.key for d in SENSOR_DESCRIPTIONS}
     assert {
-        "charging_current_limit_a", "charging_current_limit_mode",
-        "charging_plug_auto_unlock", "vehicle_reported_online",
+        "charging_current_limit_a",
+        "charging_current_limit_mode",
+        "charging_plug_auto_unlock",
+        "vehicle_reported_online",
         "vehicle_reported_active",
     } <= keys
 
 
 def test_unknown_values_are_not_assumed_false():
-    s = parsed({"readiness": {"readinessStatus": {"value": {
-        "connectionState": {"isOnline": None, "isActive": "unknown"}
-    }}}})
+    s = parsed(
+        {
+            "readiness": {
+                "readinessStatus": {
+                    "value": {
+                        "connectionState": {"isOnline": None, "isActive": "unknown"}
+                    }
+                }
+            }
+        }
+    )
     assert "vehicleReportedOnline" not in s
     assert "vehicleReportedActive" not in s
     car = AudiConnectVehicle(None, NS(vin="FAKEVIN", state={}, fields={}))

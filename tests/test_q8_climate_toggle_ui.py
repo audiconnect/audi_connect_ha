@@ -1,4 +1,5 @@
 """One native Q8 climate toggle maps to both proven remote actions."""
+
 from __future__ import annotations
 
 import asyncio
@@ -39,8 +40,11 @@ class Coordinator:
 
 def vehicle(state="off"):
     return NS(
-        vin="SYNTHETICVIN000001", title="Q8", model="Q8",
-        model_year="2025", climatisation_state=state
+        vin="SYNTHETICVIN000001",
+        title="Q8",
+        model="Q8",
+        model_year="2025",
+        climatisation_state=state,
     )
 
 
@@ -87,7 +91,9 @@ def test_repeated_on_or_off_does_not_send_duplicate_commands():
     assert conn.calls == []
 
 
-@pytest.mark.parametrize("method,state", [("async_turn_on", "off"), ("async_turn_off", "heating")])
+@pytest.mark.parametrize(
+    "method,state", [("async_turn_on", "off"), ("async_turn_off", "heating")]
+)
 def test_failure_is_explicit_and_never_optimistic(method, state):
     conn = Connection(outcome=False)
     toggle = AudiClimateQuickSwitch(Coordinator(conn), vehicle(state))

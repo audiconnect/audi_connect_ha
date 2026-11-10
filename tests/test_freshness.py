@@ -1,4 +1,5 @@
 """Vehicle telemetry freshness and cloud poll signals are not interchangeable."""
+
 from __future__ import annotations
 
 import asyncio
@@ -57,7 +58,9 @@ def test_new_freshness_entities_use_stable_separate_unique_ids():
     assert freshness.extra_state_attributes["last_cloud_poll_succeeded"] is True
     assert freshness.extra_state_attributes["vehicle_age_minutes"] >= 179
     assert len({freshness.unique_id, age.unique_id, cloud.unique_id}) == 3
-    assert all("sensor_" in x for x in (freshness.unique_id, age.unique_id, cloud.unique_id))
+    assert all(
+        "sensor_" in x for x in (freshness.unique_id, age.unique_id, cloud.unique_id)
+    )
 
 
 def test_successful_cloud_poll_does_not_change_aged_vehicle_timestamp():

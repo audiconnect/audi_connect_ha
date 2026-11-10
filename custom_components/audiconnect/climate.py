@@ -173,11 +173,12 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         data = getattr(entry, "data", {}) if entry is not None else {}
         quick_start = bool(options.get("climate_quick_start", False))
         service = getattr(connection, "_audi_service", None)
-        modern_api = bool(getattr(service, "uses_auth0", False)) or data.get(
-            "api_level", 0
-        ) == 1
+        modern_api = (
+            bool(getattr(service, "uses_auth0", False)) or data.get("api_level", 0) == 1
+        )
         temperature = (
-            None if quick_start and modern_api and not force_temperature
+            None
+            if quick_start and modern_api and not force_temperature
             else self.native_target_temperature
         )
         if not await connection.start_climate_control(

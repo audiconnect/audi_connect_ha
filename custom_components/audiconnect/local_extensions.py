@@ -2,6 +2,7 @@
 
 No Audi API calls, no HAR credentials; values are HA config entry options.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -10,9 +11,15 @@ from urllib.parse import urlsplit
 
 CONF_LOCAL_DEALERS = "local_dealers"
 DEALER_FIELDS = (
-    "dealer_name", "dealer_city", "dealer_address", "dealer_phone",
-    "dealer_website", "next_service_date", "warranty_expiry",
+    "dealer_name",
+    "dealer_city",
+    "dealer_address",
+    "dealer_phone",
+    "dealer_website",
+    "next_service_date",
+    "warranty_expiry",
 )
+
 
 def get_local_dealer(options: dict[str, Any], vin: str) -> dict[str, str]:
     """Retrieve manual data. VIN remains private, never exported in diagnostics."""
@@ -22,11 +29,19 @@ def get_local_dealer(options: dict[str, Any], vin: str) -> dict[str, str]:
     record = dealers.get(vin.lower(), {})
     if not isinstance(record, dict):
         return {}
-    return {k: v for k, v in record.items()
-            if k in DEALER_FIELDS and isinstance(v, str) and v}
+    return {
+        k: v
+        for k, v in record.items()
+        if k in DEALER_FIELDS and isinstance(v, str) and v
+    }
+
 
 def update_local_dealer_options(
-    options: dict[str, Any], vin: str, updates: dict[str, Any], *, clear: bool = False,
+    options: dict[str, Any],
+    vin: str,
+    updates: dict[str, Any],
+    *,
+    clear: bool = False,
 ) -> dict[str, Any]:
     """Validate a partial update without affecting other vehicle settings."""
     if not isinstance(vin, str) or not vin.strip():
@@ -53,8 +68,12 @@ def update_local_dealer_options(
                     raise ValueError("Use YYYY-MM-DD") from exc
             if field == "dealer_website" and value:
                 url = urlsplit(value)
-                if (url.scheme not in ("https", "http") or not url.hostname
-                    or url.username is not None or url.password is not None):
+                if (
+                    url.scheme not in ("https", "http")
+                    or not url.hostname
+                    or url.username is not None
+                    or url.password is not None
+                ):
                     raise ValueError("Dealer URL must be http(s) with no credentials")
             if value:
                 record[field] = value

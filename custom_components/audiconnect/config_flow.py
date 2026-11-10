@@ -29,7 +29,11 @@ from homeassistant.helpers.selector import (
 
 from .audi_connect_account import AudiConnectAccount
 from .audi_services import AudiAuthError, AudiTokenRefreshError
-from .local_extensions import DEALER_FIELDS, get_local_dealer, update_local_dealer_options
+from .local_extensions import (
+    DEALER_FIELDS,
+    get_local_dealer,
+    update_local_dealer_options,
+)
 from .const import (
     API_LEVELS,
     AUTH0_REDIRECT_URI,
@@ -491,12 +495,18 @@ class OptionsFlowHandler(OptionsFlow):
         """Vehicles already loaded in this account; no extra Audi API request."""
         runtime = getattr(self.config_entry, "runtime_data", None)
         items: list[tuple[str, str]] = []
-        for config_vehicle in getattr(getattr(runtime, "account", None), "config_vehicles", []):
+        for config_vehicle in getattr(
+            getattr(runtime, "account", None), "config_vehicles", []
+        ):
             vehicle = getattr(config_vehicle, "vehicle", None)
             vin = getattr(vehicle, "vin", None)
             if not isinstance(vin, str) or not vin:
                 continue
-            name = getattr(vehicle, "title", None) or getattr(vehicle, "model", None) or "Audi"
+            name = (
+                getattr(vehicle, "title", None)
+                or getattr(vehicle, "model", None)
+                or "Audi"
+            )
             items.append((vin, f"{name} (…{vin[-4:]})"))
         return items
 
@@ -514,20 +524,28 @@ class OptionsFlowHandler(OptionsFlow):
             if vin not in {key for key, _ in vehicles}:
                 return self.async_show_form(
                     step_id="dealer_vehicle",
-                    data_schema=vol.Schema({vol.Required("vehicle"): vol.In(dict(vehicles))}),
+                    data_schema=vol.Schema(
+                        {vol.Required("vehicle"): vol.In(dict(vehicles))}
+                    ),
                     errors={"base": "invalid_vehicle"},
                 )
             self._dealer_vin = vin
             return await self.async_step_dealer()
         return self.async_show_form(
             step_id="dealer_vehicle",
-            data_schema=vol.Schema({
-                vol.Required("vehicle", default=vehicles[0][0]):
-                    SelectSelector(SelectSelectorConfig(
-                        options=[{"value": vin, "label": label} for vin, label in vehicles],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )),
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("vehicle", default=vehicles[0][0]): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                {"value": vin, "label": label}
+                                for vin, label in vehicles
+                            ],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+            ),
         )
 
     async def async_step_dealer(
@@ -539,7 +557,9 @@ class OptionsFlowHandler(OptionsFlow):
         pending = self._pending_options or dict(self.config_entry.options)
         errors: dict[str, str] = {}
         if user_input is not None:
-            updates = {key: user_input[key] for key in DEALER_FIELDS if key in user_input}
+            updates = {
+                key: user_input[key] for key in DEALER_FIELDS if key in user_input
+            }
             try:
                 options = update_local_dealer_options(
                     pending, vin, updates, clear=bool(user_input.get("clear", False))
@@ -549,16 +569,22 @@ class OptionsFlowHandler(OptionsFlow):
             else:
                 return self.async_create_entry(title="", data=options)
         existing = get_local_dealer(pending, vin)
-        data_schema = vol.Schema({
-            **{
-                vol.Optional(key, default=(
-                    user_input.get(key, existing.get(key, "")) if user_input is not None
-                    else existing.get(key, "")
-                )): TextSelector()
-                for key in DEALER_FIELDS
-            },
-            vol.Optional("clear", default=False): bool,
-        })
+        data_schema = vol.Schema(
+            {
+                **{
+                    vol.Optional(
+                        key,
+                        default=(
+                            user_input.get(key, existing.get(key, ""))
+                            if user_input is not None
+                            else existing.get(key, "")
+                        ),
+                    ): TextSelector()
+                    for key in DEALER_FIELDS
+                },
+                vol.Optional("clear", default=False): bool,
+            }
+        )
         return self.async_show_form(
             step_id="dealer", data_schema=data_schema, errors=errors
         )
@@ -591,11 +617,15 @@ class OptionsFlowHandler(OptionsFlow):
                     ): bool,
                     vol.Required(
                         "climate_quick_start",
-                        default=self.config_entry.options.get("climate_quick_start", False),
+                        default=self.config_entry.options.get(
+                            "climate_quick_start", False
+                        ),
                     ): bool,
                     vol.Required(
                         "experimental_commands",
-                        default=self.config_entry.options.get("experimental_commands", False),
+                        default=self.config_entry.options.get(
+                            "experimental_commands", False
+                        ),
                     ): bool,
                     vol.Required(
                         CONF_REFRESH_AFTER_ACTION,

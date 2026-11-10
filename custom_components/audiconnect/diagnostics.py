@@ -90,17 +90,19 @@ def _vehicle_snapshot(vehicle: Any, index: int, uses_auth0: bool) -> dict[str, A
         "vehicle_field_count": len(fields),
         "model_metadata_source": (
             getattr(vehicle, "model_source", "unavailable")
-            if getattr(vehicle, "model_source", "unavailable") in {
-                "audi_long_name", "audi_short_name", "nickname_fallback", "unavailable"
-            } else "unavailable"
+            if getattr(vehicle, "model_source", "unavailable")
+            in {"audi_long_name", "audi_short_name", "nickname_fallback", "unavailable"}
+            else "unavailable"
         ),
         "park_time_source": (
             getattr(vehicle, "park_time_source", "unavailable")
-            if getattr(vehicle, "park_time_source", "unavailable") in {
+            if getattr(vehicle, "park_time_source", "unavailable")
+            in {
                 "vehicle_parking_clock",
                 "last_parked_position_capture_estimate",
                 "unavailable",
-            } else "unavailable"
+            }
+            else "unavailable"
         ),
         "capability_inventory": snapshot_capabilities(vehicle),
         "vehicle_data_age_minutes": vehicle_age_minutes(
@@ -166,9 +168,7 @@ async def async_get_config_entry_diagnostics(
             getattr(connection, "_loggedin", False)
         ),
         "uses_auth0": uses_auth0,
-        "last_update_success": bool(
-            getattr(coordinator, "last_update_success", False)
-        ),
+        "last_update_success": bool(getattr(coordinator, "last_update_success", False)),
         "last_successful_refresh": _iso(
             getattr(coordinator, "last_cloud_poll_success", None)
         ),
@@ -180,9 +180,7 @@ async def async_get_config_entry_diagnostics(
             if getattr(coordinator, "last_exception", None)
             else None
         ),
-        "rate_limit_remaining_last_observed": getattr(
-            api, "vcf_remaining_calls", None
-        ),
+        "rate_limit_remaining_last_observed": getattr(api, "vcf_remaining_calls", None),
         "rate_limit_observed_at": _iso(
             getattr(api, "vcf_remaining_calls_last_observed", None)
         ),
@@ -197,15 +195,14 @@ async def async_get_config_entry_diagnostics(
             }
             for idx, vehicle in enumerate(vehicles[:10], 1)
         ],
-        "recent_http_observations": list(
-            getattr(api, "diagnostic_events", [])
-        )[-40:],
+        "recent_http_observations": list(getattr(api, "diagnostic_events", []))[-40:],
         "read_only_api_probes": [
             {"vehicle_slot": index, "report": report}
             for index, vehicle in enumerate(vehicles[:10], 1)
-            if (
-                report := connection.get_read_only_probe_report(vehicle.vin)
-            ) is not None
-        ] if hasattr(connection, "get_read_only_probe_report") else [],
+            if (report := connection.get_read_only_probe_report(vehicle.vin))
+            is not None
+        ]
+        if hasattr(connection, "get_read_only_probe_report")
+        else [],
     }
     return result

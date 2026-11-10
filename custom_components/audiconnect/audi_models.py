@@ -384,10 +384,13 @@ class VehicleDataResponse:
                 ("vehicleReportedActive", "isActive"),
             ):
                 if isinstance(connection.get(source), bool):
-                    self.states.append({
-                        "name": name, "value": connection[source],
-                        "measure_time": None,
-                    })
+                    self.states.append(
+                        {
+                            "name": name,
+                            "value": connection[source],
+                            "measure_time": None,
+                        }
+                    )
 
         self._parseChargingProfiles(data)
         self._parseChargingTimers(data)
@@ -610,8 +613,7 @@ class VehicleDataResponse:
                 days = recurring.get("repetitionDays")
                 if isinstance(days, list):
                     record["repetitionDays"] = [
-                        day for day in days[:7]
-                        if isinstance(day, (str, int))
+                        day for day in days[:7] if isinstance(day, (str, int))
                     ]
             entries.append(record)
 
@@ -623,7 +625,8 @@ class VehicleDataResponse:
             ts,
         )
         enabled_starts = sorted(
-            item["startDateTimeLocal"] for item in entries
+            item["startDateTimeLocal"]
+            for item in entries
             if item.get("enabled") is True and "startDateTimeLocal" in item
         )
         if enabled_starts:
@@ -986,6 +989,7 @@ class Vehicle:
 
     def __str__(self) -> str:
         return str(self.__dict__)
+
 
 class VehiclesResponse:
     def __init__(self) -> None:

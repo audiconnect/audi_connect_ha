@@ -1,4 +1,5 @@
 """Q8 Auth0 model metadata: do not show Unknown () when shortName exists."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace as NS
@@ -36,7 +37,12 @@ def test_model_fallbacks(long_name, short_name, nickname, expected, source):
     assert v.model_source == source
     assert v.model_year == "2025"
     assert v.title
-    assert _model_attrs(NS(model_source=v.model_source, model_year=v.model_year))["model_source"] == source
+    assert (
+        _model_attrs(NS(model_source=v.model_source, model_year=v.model_year))[
+            "model_source"
+        ]
+        == source
+    )
 
 
 def test_auth0_missing_media_and_core_does_not_crash():
@@ -49,10 +55,17 @@ def test_auth0_missing_media_and_core_does_not_crash():
 
 def test_vehicle_list_enrichment_missing_does_not_drop_car():
     result = VehiclesResponse()
-    result.parse({"userVehicles": [
-        {"vin": "NOT_A_REAL_VIN", "vehicle": {"media": None, "core": None},
-         "nickname": "Q8 PHEV"}
-    ]})
+    result.parse(
+        {
+            "userVehicles": [
+                {
+                    "vin": "NOT_A_REAL_VIN",
+                    "vehicle": {"media": None, "core": None},
+                    "nickname": "Q8 PHEV",
+                }
+            ]
+        }
+    )
     assert len(result.vehicles) == 1
     assert result.vehicles[0].model == "Q8 PHEV"
     assert result.vehicles[0].model_source == "nickname_fallback"
@@ -61,11 +74,11 @@ def test_vehicle_list_enrichment_missing_does_not_drop_car():
 def test_device_model_does_not_have_empty_year_parentheses():
     class _Coordinator:
         last_update_success = True
+
         def async_add_listener(self, *args, **kwargs):
             return lambda: None
 
-    car = NS(vin="NOT_A_REAL_VIN", model="", model_year="",
-             title="Q8 PHEV")
+    car = NS(vin="NOT_A_REAL_VIN", model="", model_year="", title="Q8 PHEV")
     obj = AudiEntity(_Coordinator(), car)
     info = obj.device_info
     assert info["model"] == "Q8 PHEV"
@@ -75,6 +88,7 @@ def test_device_model_does_not_have_empty_year_parentheses():
 
 def test_parking_clock_takes_priority_over_position_capture():
     from datetime import UTC, datetime
+
     legacy = datetime(2026, 11, 10, 11, tzinfo=UTC)
     observed = datetime(2026, 11, 10, 12, tzinfo=UTC)
     car = NS(vin="NOT_A_REAL_VIN", state={})
@@ -90,6 +104,7 @@ def test_parking_clock_takes_priority_over_position_capture():
 
 def test_modern_parking_time_is_labeled_estimate_not_engine_off():
     from datetime import UTC, datetime
+
     captured = datetime(2026, 11, 10, 12, tzinfo=UTC)
     car = NS(vin="NOT_A_REAL_VIN", state={})
     wrapped = AudiConnectVehicle(None, car)

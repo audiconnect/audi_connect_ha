@@ -1,4 +1,5 @@
 """Physical lock confirmation must not be fabricated from HTTP 200."""
+
 from __future__ import annotations
 
 import asyncio
@@ -40,8 +41,7 @@ class Coordinator:
 
 
 def test_lock_action_reports_unconfirmed_when_cloud_ack_did_not_lock_car():
-    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="unlocked",
-             doors_trunk_status=None)
+    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="unlocked", doors_trunk_status=None)
     coord = Coordinator(car, refreshed_status="unlocked")
     entity = AudiLock(coord, car)
     with pytest.raises(HomeAssistantError, match="not confirmed"):
@@ -51,8 +51,7 @@ def test_lock_action_reports_unconfirmed_when_cloud_ack_did_not_lock_car():
 
 
 def test_lock_action_succeeds_when_refreshed_car_confirms_locked():
-    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="unlocked",
-             doors_trunk_status=None)
+    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="unlocked", doors_trunk_status=None)
     coord = Coordinator(car, refreshed_status="locked")
     asyncio.run(AudiLock(coord, car).async_lock())
     assert coord.account.connection.calls == [("NOT_A_REAL_VIN", True)]
@@ -68,8 +67,7 @@ def test_lock_action_reports_no_state_as_unconfirmed():
 
 
 def test_lock_api_failure_does_not_refresh_or_report_success():
-    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="unlocked",
-             doors_trunk_status=None)
+    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="unlocked", doors_trunk_status=None)
     coord = Coordinator(car, accepted=False)
     with pytest.raises(HomeAssistantError, match="Failed to lock"):
         asyncio.run(AudiLock(coord, car).async_lock())
@@ -77,8 +75,7 @@ def test_lock_api_failure_does_not_refresh_or_report_success():
 
 
 def test_unlock_success_path_unchanged():
-    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="locked",
-             doors_trunk_status=None)
+    car = NS(vin="NOT_A_REAL_VIN", door_lock_status="locked", doors_trunk_status=None)
     coord = Coordinator(car, refreshed_status="unlocked")
     asyncio.run(AudiLock(coord, car).async_unlock())
     assert coord.account.connection.calls == [("NOT_A_REAL_VIN", False)]
