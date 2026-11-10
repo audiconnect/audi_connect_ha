@@ -95,6 +95,31 @@ Each vehicle's device page exposes its actions directly, so the common ones no l
 | `Charge mode`                  | Select  | `set_charge_mode`                                     |
 | `Refresh vehicle data`         | Button  | `refresh_vehicle_data`                                |
 
+### Feature status and API compatibility
+
+Audi vehicles and regions do not all expose the same features. The integration
+distinguishes between an Audi API request being accepted and the vehicle
+actually performing an action. Check the vehicle and its subsequent reported
+state before relying on remote commands in automations.
+
+| Status | Control or capability | Notes |
+| --- | --- | --- |
+| Standard, capability-dependent | Door lock/unlock and flash lights | Require the corresponding vehicle permission; verify the actual vehicle state |
+| Standard on supported Auth0 vehicles | **Climatisation ON/OFF** switch | Uses the climate settings already stored in the car and reads the car's reported state; does not replace the climate temperature entity |
+| Legacy / model-dependent | **Preheater** and the original **Climatisation** climate entity | Retained for compatibility; older routes may be unavailable or rejected on newer Auth0-backed accounts |
+| Experimental, opt-in | Charging start/stop, window heating start/stop, manual vehicle wake | Disabled by default; enable *experimental vehicle controls* under Configure, where a reported capability permits the action |
+| Model-dependent | Charge mode and target SOC changes | Audi may accept an HTTP request while rejecting or not applying the setting |
+
+*Legacy* describes an older interface; it does not announce removal.
+The integration keeps existing unique IDs and service calls where possible.
+Availability and feature support must be checked per vehicle, not inferred from
+one successful command or a capability list alone. A partial cloud response
+may leave an entity **unavailable** instead of removing it.
+
+Optional local dealer/service details, where configured, are kept in Home
+Assistant options; they are **not** retrieved from Audi's cloud and must not be
+confused with manufacturer-provided service data.
+
 ### Charge targets
 
 There are three kinds, because the car has three places to put the number:
@@ -109,7 +134,7 @@ The service actions below still work and remain the way to reach the parameteris
 
 ### Starting and stopping a charge
 
-Neither is exposed, because neither could be shown to work.
+Neither is exposed by default, because neither has been consistently verified. Optional experimental start/stop charging controls are available only with an explicit opt-in and a reported vehicle capability; they may still be rejected or have no physical effect.
 
 Stopping is accepted by the API and confirmed by the car, and the charge continues. Sent twice from a settled state on a live vehicle, which carried on drawing 6.5 kW both times.
 
