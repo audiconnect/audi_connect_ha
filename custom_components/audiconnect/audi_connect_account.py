@@ -399,14 +399,9 @@ class AudiConnectAccount:
             return True
 
         except Exception as exception:
-            log_exception(
-                exception,
-                "Unable to %s vehicle %s"
-                % (
-                    "lock" if lock else "unlock",
-                    "*" * max(0, len(vin) - 4) + vin[-4:],
-                ),
-            )
+            action = "lock" if lock else "unlock"
+            masked_vin = "*" * max(0, len(vin) - 4) + vin[-4:]
+            log_exception(exception, f"Unable to {action} vehicle {masked_vin}")
             return False
         finally:
             if refresh:
