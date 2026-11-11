@@ -142,6 +142,21 @@ API generation and verified model-specific behavior, without assuming that a
 model name grants permission or that a missing capability is definitive proof
 of absence.
 
+**Experimental wake / sleeping vehicle:** The explicit `Wake vehicle` action
+uses the Auth0/CARIAD `vehiclewakeuptrigger` route; a HTTP 2xx/204 acknowledgement
+is **not proof** that the physical vehicle woke. Initial Q8 observations suggest
+that a wake request may help recover delayed sleeping-vehicle and charging-status
+readings, but this has not been validated as a general fix. Waking a parked
+vehicle can also consume energy from its 12V and/or traction battery.
+Therefore automatic polling must **never** wake the vehicle on each cycle,
+and the current integration does not do so. Future work should separate
+passive cloud refresh from active vehicle wake, use explicit user intent or
+verified charging/session transitions as candidate triggers, apply per-vehicle
+cooldowns and request/energy budgets, and confirm freshness after a bounded
+delayed readback before presenting wake or charging status as current.
+This work remains experimental pending measurements of status improvement,
+actual wake response, and parked-vehicle battery impact.
+
 Optional local dealer/service details, where configured, are kept in Home
 Assistant options; they are **not** retrieved from Audi's cloud and must not be
 confused with manufacturer-provided service data.
