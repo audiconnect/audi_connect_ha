@@ -1167,16 +1167,23 @@ class AudiService:
         data = {"targetSOC_pct": target_soc}
         if self._uses_auth0:
             current = await self.get_charging_settings_raw(vin)
-            # Only copy known charging setting keys; never replay arbitrary
-            # fields or the source timestamp in a write payload.
+            # A CARIAD PUT may replace the complete object. Unknown vehicle
+            # settings must not be silently dropped or replayed blindly.
+            writable = frozenset((
+                "maxChargeCurrentAC_A",
+                "maxChargeCurrentAC",
+                "autoUnlockPlugWhenChargedAC",
+                "targetSOC_pct",
+            ))
+            metadata = frozenset({"carCapturedTimestamp"})
+            if set(current) - writable - metadata:
+                raise ValueError(
+                    "Audi reported unrecognized charging settings; refusing "
+                    "a potentially destructive full-replacement PUT"
+                )
             data = {
                 key: current[key]
-                for key in (
-                    "maxChargeCurrentAC_A",
-                    "maxChargeCurrentAC",
-                    "autoUnlockPlugWhenChargedAC",
-                    "targetSOC_pct",
-                )
+                for key in writable
                 if key in current and current[key] is not None
             }
             data["targetSOC_pct"] = target_soc

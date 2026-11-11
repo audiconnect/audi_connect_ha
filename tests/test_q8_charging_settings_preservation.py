@@ -45,7 +45,6 @@ def test_soc_change_preserves_other_charging_settings():
             "maxChargeCurrentAC_A": 12,
             "autoUnlockPlugWhenChargedAC": "on",
             "targetSOC_pct": 70,
-            "someNewUndocumentedKey": "DO_NOT_FORWARD",
         }
     )
     asyncio.run(svc.set_target_state_of_charge(VIN, 80))
@@ -81,3 +80,33 @@ def test_legacy_path_unchanged_without_an_extra_get():
     asyncio.run(svc.set_target_state_of_charge(VIN, 80))
     assert not api.urls
     assert api.writes[0][2] == {"targetSOC_pct": 80}
+
+
+
+def test_unknown_vehicle_specific_charge_setting_fails_closed_before_put():
+    svc, api = service({
+        "carCapturedTimestamp": "2026-11-10T12:00:00Z",
+        "targetSOC_pct": 70,
+        "vehicleSpecificChargePreference": {"enabled": True},
+    })
+    with pytest.raises(ValueError, match="potentially destructive"):
+        asyncio.run(svc.set_target_state_of_charge(VIN, 80))
+    assert len(api.urls) == 1
+    assert api.writes == []
+
+
+def test_verified_charge_setting_fields_are_all_preserved():
+    svc, api = service({
+        "targetSOC_pct": 70,
+        "maxChargeCurrentAC_A": 12,
+        "maxChargeCurrentAC": "reduced",
+        "autoUnlockPlugWhenChargedAC": "off",
+        "carCapturedTimestamp": "2026-11-10T12:00:00Z",
+    })
+    asyncio.run(svc.set_target_state_of_charge(VIN, 85))
+    assert api.writes[0][2] == {
+        "targetSOC_pct": 85,
+        "maxChargeCurrentAC_A": 12,
+        "maxChargeCurrentAC": "reduced",
+        "autoUnlockPlugWhenChargedAC": "off",
+    }

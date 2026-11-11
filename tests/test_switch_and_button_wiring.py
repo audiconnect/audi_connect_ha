@@ -90,8 +90,13 @@ def test_button_callables_are_awaitable(description):
 
 
 class _Vehicle:
-    def __init__(self, spin=None, car_type=None, caps=None, model=None, impaired=()):
-        self._audi_service = type("Svc", (), {"_spin": spin})()
+    def __init__(
+        self, spin=None, car_type=None, caps=None, model=None, impaired=(),
+        auth0=True,
+    ):
+        self._audi_service = type(
+            "Svc", (), {"_spin": spin, "_uses_auth0": auth0}
+        )()
         if car_type is not None:
             self.car_type = car_type
         self.model = model
@@ -128,6 +133,21 @@ def test_a_combustion_car_needs_explicit_remote_engine_capability():
 def test_an_unknown_car_type_cannot_authorize_remote_engine(car_type):
     """A combustion engine and configured PIN do not imply a remote start."""
     assert _engine_buttons(_Vehicle(spin="1234", car_type=car_type)) == []
+
+
+def test_legacy_engine_buttons_survive_absent_capability_list():
+    car = _Vehicle(spin="1234", car_type="gasoline", caps=None, auth0=False)
+    assert _engine_buttons(car) == ["start_engine", "stop_engine"]
+
+
+def test_legacy_explicit_denial_still_blocks_engine():
+    car = _Vehicle(spin="1234", car_type="gasoline", caps={"charging"}, auth0=False)
+    assert _engine_buttons(car) == []
+
+
+def test_auth0_missing_engine_capability_does_not_enable_engine():
+    car = _Vehicle(spin="1234", car_type="gasoline", caps=None, auth0=True)
+    assert _engine_buttons(car) == []
 
 
 def test_q8_hybrid_does_not_offer_remote_engine_even_with_capability():

@@ -42,9 +42,21 @@ def engine_start_stop_supported(vehicle: Any) -> bool:
     ):
         return False
 
-    check = getattr(vehicle, "has_capability", None)
-    if not callable(check) or check(REMOTE_ENGINE_CAPABILITY) is not True:
-        return False
-
     impaired = getattr(vehicle, "impaired_capabilities", frozenset())
-    return REMOTE_ENGINE_CAPABILITY not in (impaired or frozenset())
+    if REMOTE_ENGINE_CAPABILITY in (impaired or frozenset()):
+        return False
+    check = getattr(vehicle, "has_capability", None)
+    reported = check(REMOTE_ENGINE_CAPABILITY) if callable(check) else None
+    if reported is True:
+        return True
+    if reported is False:
+        # A reported denial is not permission, even on legacy vehicles.
+        return False
+    # Older, non-Auth0 vehicles did not necessarily publish userCapabilities.
+    # Retain legacy engine-button eligibility when the capability is unknown,
+    # but never extend that fallback to newer Auth0 sessions.
+    service = getattr(vehicle, "_audi_service", None)
+    uses_auth0 = getattr(service, "uses_auth0", None)
+    if uses_auth0 is None:
+        uses_auth0 = getattr(service, "_uses_auth0", None)
+    return uses_auth0 is False

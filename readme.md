@@ -116,6 +116,32 @@ Availability and feature support must be checked per vehicle, not inferred from
 one successful command or a capability list alone. A partial cloud response
 may leave an entity **unavailable** instead of removing it.
 
+**Lock/unlock:** Both directions now use one post-command refresh and
+expose a `last_command_status` attribute: `request_failed`,
+`accepted_unconfirmed`, `confirmed_by_readback`, or
+`already_reported_in_requested_state`. An Audi gateway acknowledgement or
+a delayed cloud state is not a confirmed physical door action, and neither
+direction issues a blind retry.
+
+**Remote engine:** Older non-Auth0 combustion vehicles without a capability
+inventory retain the previous engine-button fallback. Explicit capability
+denial, impaired support, known hybrid/electric types, and Q8 model vetoes
+still apply. Auth0 vehicles require an explicitly reported permission.
+
+**Charging settings:** On Auth0 vehicles a global target-SOC update refuses
+to submit a potentially destructive `charging/settings` PUT if Audi returns
+unknown settings. Known writable settings are preserved; timestamp metadata
+is excluded. Additional writable keys require vehicle-specific evidence.
+
+**Q8 climate:** On the tested Audi Q8 PHEV, climate ON/OFF works through the
+separate modern Auth0/CARIAD command path using the car's stored settings.
+Passing a temperature to the legacy climate interface has not worked on that
+vehicle. This does not establish support across other Audi types or regions.
+A future capability model should combine reported features with vehicle type,
+API generation and verified model-specific behavior, without assuming that a
+model name grants permission or that a missing capability is definitive proof
+of absence.
+
 Optional local dealer/service details, where configured, are kept in Home
 Assistant options; they are **not** retrieved from Audi's cloud and must not be
 confused with manufacturer-provided service data.
