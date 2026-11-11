@@ -4,17 +4,17 @@
 
 ## 1. Token boundaries are not interchangeable
 
-| Source | Auth family | Key limitation |
-| --- | --- | --- |
-| Audi Connect v2.5.2 | Interactive Audi Auth0 / PKCE in affected regions | Used for modern CARIAD status, but legacy MBB trip readers are deliberately disabled |
-| Historic Audi MBB | Old IDK/MBB bearer, market/region and often `X-Client-ID` | A current Auth0 bearer is not automatically accepted |
-| Audi GraphQL/AZS | IDK→AZS exchange through CARIAD login service | Reported EU Auth0 `client does not have access to the IDP for token exchange` |
-| VW EU CARIAD BFF | VW identity with service-specific entitlement | Shared hostname is not proof the Audi bearer is authorized for every resource |
-| Škoda MyŠkoda | Škoda ID and app gateway | Distinct from official Škoda Public API key and from Audi |
-| Škoda Public API | User-authorized API key | Vendor-specific entitlement; not a VW/Audi key |
-| CUPRA/SEAT OLA | Brand IDK and OLA-specific app headers/device rules | 2026 attestation/header enforcement leads to 403 even with otherwise valid login |
-| Porsche | Porsche OAuth / audience | Separate app endpoint and command-key semantics |
-| VW Group EU Data Act | Consented identity + authorized portal request | **Read-only delayed ZIP data**, no remote actions |
+| Source               | Auth family                                               | Key limitation                                                                       |
+| -------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Audi Connect v2.5.2  | Interactive Audi Auth0 / PKCE in affected regions         | Used for modern CARIAD status, but legacy MBB trip readers are deliberately disabled |
+| Historic Audi MBB    | Old IDK/MBB bearer, market/region and often `X-Client-ID` | A current Auth0 bearer is not automatically accepted                                 |
+| Audi GraphQL/AZS     | IDK→AZS exchange through CARIAD login service             | Reported EU Auth0 `client does not have access to the IDP for token exchange`        |
+| VW EU CARIAD BFF     | VW identity with service-specific entitlement             | Shared hostname is not proof the Audi bearer is authorized for every resource        |
+| Škoda MyŠkoda        | Škoda ID and app gateway                                  | Distinct from official Škoda Public API key and from Audi                            |
+| Škoda Public API     | User-authorized API key                                   | Vendor-specific entitlement; not a VW/Audi key                                       |
+| CUPRA/SEAT OLA       | Brand IDK and OLA-specific app headers/device rules       | 2026 attestation/header enforcement leads to 403 even with otherwise valid login     |
+| Porsche              | Porsche OAuth / audience                                  | Separate app endpoint and command-key semantics                                      |
+| VW Group EU Data Act | Consented identity + authorized portal request            | **Read-only delayed ZIP data**, no remote actions                                    |
 
 **Policy:** Never guess scopes, cross-use refresh tokens, impersonate a mobile device, circumvent device attestation or store tokens in unredacted fixtures.
 
@@ -34,18 +34,18 @@ Use explicit capability↔job mapping and **never assume** that a reported subsc
 
 ## 3. HTTP response contract
 
-| Status/result | Meaning | Required behavior |
-| --- | --- | --- |
-| **200** | Payload returned | Validate individual fields/timestamps |
-| **202** | Action accepted / asynchronous | Pending until status/readback confirms effect |
-| **204** | No content | Not "car moving", not zero, not necessarily unsupported |
-| **207** | Partial multi-status | Process valid jobs; surface errors for failed jobs individually |
-| **401** | Credential/authorization invalid or expired | Bounded refresh/re-authentication; no endless token refresh |
-| **403** | Permission/app entitlement/attestation/brand restrictions | Do not interpret as absence of physical feature; explicit diagnostics and cooldown |
-| **404** | Endpoint not served, unsupported or temporarily unavailable | Per-route/VIN cooldown; not permanently unsupported after one response |
-| **429** | Rate limited | Honor Retry-After and backoff; protect account/vehicle |
-| **5xx** | Gateway/back-end fault | Bounded retry, exponential backoff and preserve last known observation |
-| **JSON schema drift** | Wrong/missing/moved/typed fields | Do not silently convert to zero; record sanitized parse issue |
+| Status/result         | Meaning                                                     | Required behavior                                                                  |
+| --------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **200**               | Payload returned                                            | Validate individual fields/timestamps                                              |
+| **202**               | Action accepted / asynchronous                              | Pending until status/readback confirms effect                                      |
+| **204**               | No content                                                  | Not "car moving", not zero, not necessarily unsupported                            |
+| **207**               | Partial multi-status                                        | Process valid jobs; surface errors for failed jobs individually                    |
+| **401**               | Credential/authorization invalid or expired                 | Bounded refresh/re-authentication; no endless token refresh                        |
+| **403**               | Permission/app entitlement/attestation/brand restrictions   | Do not interpret as absence of physical feature; explicit diagnostics and cooldown |
+| **404**               | Endpoint not served, unsupported or temporarily unavailable | Per-route/VIN cooldown; not permanently unsupported after one response             |
+| **429**               | Rate limited                                                | Honor Retry-After and backoff; protect account/vehicle                             |
+| **5xx**               | Gateway/back-end fault                                      | Bounded retry, exponential backoff and preserve last known observation             |
+| **JSON schema drift** | Wrong/missing/moved/typed fields                            | Do not silently convert to zero; record sanitized parse issue                      |
 
 Audi Connect v2.5.2 `audi_api.py` already accepts **207** as a successful HTTP status. Focus on **per-job completeness**, not just adding 207 to a success list.
 

@@ -14,13 +14,13 @@ class VehicleObservation:
     field: str
     value: object | None
     unit: str | None
-    source: str                      # audi_bff | legacy_mbb | data_act
-    observed_at: datetime | None     # on-vehicle/provider captured time
-    delivered_at: datetime | None    # API response or ZIP timestamp, if known
-    fetched_at: datetime             # integration poll time
-    status: str                      # valid | missing | stale | invalid | error
-    supported: bool | None           # True | False | Unknown
-    source_detail: str | None = None # endpoint + job, sanitized
+    source: str  # audi_bff | legacy_mbb | data_act
+    observed_at: datetime | None  # on-vehicle/provider captured time
+    delivered_at: datetime | None  # API response or ZIP timestamp, if known
+    fetched_at: datetime  # integration poll time
+    status: str  # valid | missing | stale | invalid | error
+    supported: bool | None  # True | False | Unknown
+    source_detail: str | None = None  # endpoint + job, sanitized
 ```
 
 These exact class/field names are a design suggestion; preserve existing public HA entity IDs.
@@ -38,29 +38,29 @@ If the car timestamp is absent, show **unknown observation age** rather than `fr
 
 ## Proposed state model
 
-| State | Meaning | HA representation |
-| --- | --- | --- |
-| **Current observation** | Captured recently by the vehicle under a documented field-specific criterion | Normal numeric/state value + last captured timestamp |
-| **Last known / stale** | Value is valid historical information but old | Preserve value when semantically safe, expose captured timestamp, freshness and source; never call it live |
-| **No observation yet** | No valid value ever received | `unknown` / entity unavailable as appropriate, not 0 |
-| **Not supported** | Firm evidence that the car lacks this feature | Capability-based entity visibility; avoid oscillation |
-| **Cloud temporarily unavailable** | Requests failing but cached last reading exists | Keep last-known history and record upstream failure; distinguish stale from unsupported |
-| **Command pending / unconfirmed** | API accepted a remote action but no vehicle readback yet | Expose unconfirmed status, not "success" |
-| **Portal empty delivery** | A new 15-minute ZIP arrived with no data | Track delivery event without updating any vehicle observation |
+| State                             | Meaning                                                                      | HA representation                                                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Current observation**           | Captured recently by the vehicle under a documented field-specific criterion | Normal numeric/state value + last captured timestamp                                                       |
+| **Last known / stale**            | Value is valid historical information but old                                | Preserve value when semantically safe, expose captured timestamp, freshness and source; never call it live |
+| **No observation yet**            | No valid value ever received                                                 | `unknown` / entity unavailable as appropriate, not 0                                                       |
+| **Not supported**                 | Firm evidence that the car lacks this feature                                | Capability-based entity visibility; avoid oscillation                                                      |
+| **Cloud temporarily unavailable** | Requests failing but cached last reading exists                              | Keep last-known history and record upstream failure; distinguish stale from unsupported                    |
+| **Command pending / unconfirmed** | API accepted a remote action but no vehicle readback yet                     | Expose unconfirmed status, not "success"                                                                   |
+| **Portal empty delivery**         | A new 15-minute ZIP arrived with no data                                     | Track delivery event without updating any vehicle observation                                              |
 
 **Caution:** Home Assistant state availability is entity- and feature-dependent. A safety-sensitive lock or charging-status control may need `unavailable`/uncertain even if a last-known value exists, while mileage or a trip aggregate can retain its historical value. Do not use one indiscriminate stale policy.
 
 ## Different semantic freshness expectations
 
-| Type | If car is parked for 2 days | Recommended behavior |
-| --- | --- | --- |
-| Odometer | Last value is still informative but not a guaranteed current reading | Show last-known, time and age |
-| Trip record | Historical event is inherently timestamped | Keep history; do not fabricate new trip |
-| Fuel/battery SoC | Last-known SoC may be useful, but could have changed off-platform | Label stale and prevent unsafe automations |
-| Lock/door/window | Old status **must not be claimed as current security status** | Unknown/uncertain for safety decisions; show last-known separately |
-| Charging power/state | Old power reading must not be represented as charging now | Current state unknown; optionally preserve last measured power in diagnostics |
-| Parking position | Last reported coordinates are not a live vehicle location | Last known parking position + timestamp, never assume "vehicle moving" from HTTP 204 |
-| Data Act ZIP arrival time | Fresh ZIP may contain stale values | Never update observed_at using ZIP time |
+| Type                      | If car is parked for 2 days                                          | Recommended behavior                                                                 |
+| ------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Odometer                  | Last value is still informative but not a guaranteed current reading | Show last-known, time and age                                                        |
+| Trip record               | Historical event is inherently timestamped                           | Keep history; do not fabricate new trip                                              |
+| Fuel/battery SoC          | Last-known SoC may be useful, but could have changed off-platform    | Label stale and prevent unsafe automations                                           |
+| Lock/door/window          | Old status **must not be claimed as current security status**        | Unknown/uncertain for safety decisions; show last-known separately                   |
+| Charging power/state      | Old power reading must not be represented as charging now            | Current state unknown; optionally preserve last measured power in diagnostics        |
+| Parking position          | Last reported coordinates are not a live vehicle location            | Last known parking position + timestamp, never assume "vehicle moving" from HTTP 204 |
+| Data Act ZIP arrival time | Fresh ZIP may contain stale values                                   | Never update observed_at using ZIP time                                              |
 
 ### Suggested configurable policies, **not OEM guarantees**
 
@@ -76,7 +76,7 @@ Do **not** equate sleep state with permanent unsupported feature. Never wake the
 
 ## Merge algorithm for multiple authorized sources
 
-1. Match by **semantic field** and normalized unit, e.g., `fuel_percent` vs `battery_12v_percent` are *not* equivalent.
+1. Match by **semantic field** and normalized unit, e.g., `fuel_percent` vs `battery_12v_percent` are _not_ equivalent.
 2. Use the timestamp on the individual source reading, not dataset/response receipt time.
 3. Disallow overwriting a newer observation with an older one.
 4. Distinguish better quality/semantics: `shortterm_aggregate` is not a `last_trip` event.

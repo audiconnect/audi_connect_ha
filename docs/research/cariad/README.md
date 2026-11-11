@@ -24,16 +24,16 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 
 ## Reading order
 
-| Order | Document | Questions it answers |
-| --- | --- | --- |
-| 1 | [Architecture, vision and API evolution](01-ARCHITECTURE-EVOLUTION.md) | How do VW Group APIs fit together and how did the platform change? |
-| 2 | [Cross-brand endpoint and data-contract atlas](02-CROSS-BRAND-API-ATLAS.md) | Which API families actually overlap, and where are the gaps for Audi? |
-| 3 | [EU Data Act: read-only, delayed data](03-EU-DATA-ACT.md) | What do the portal and ZIP exports provide—and what do they not? |
-| 4 | [Parked-car latency and freshness](04-FRESHNESS-AND-AVAILABILITY.md) | How should hours/days of stale readings be represented without lying? |
-| 5 | [Authentication, capabilities, resilience](05-AUTH-CAPABILITIES-RELIABILITY.md) | Which token works where? Why is a capability not an authorization? |
-| 6 | [Engineering work packages and release gates](06-ENGINEERING-PLAYBOOK.md) | Exactly where should the engineer work, test and stop? |
-| 7 | [Sources and evidence ledger](07-SOURCES-AND-EVIDENCE.md) | Which findings have code, official docs, reports, or only a hypothesis behind them? |
-| 8 | [Adaptive target architecture and experimental delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) | How do multiple auth/API generations, vehicle/capability discovery, NFRs and early community releases fit together? |
+| Order | Document                                                                                                      | Questions it answers                                                                                                |
+| ----- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1     | [Architecture, vision and API evolution](01-ARCHITECTURE-EVOLUTION.md)                                        | How do VW Group APIs fit together and how did the platform change?                                                  |
+| 2     | [Cross-brand endpoint and data-contract atlas](02-CROSS-BRAND-API-ATLAS.md)                                   | Which API families actually overlap, and where are the gaps for Audi?                                               |
+| 3     | [EU Data Act: read-only, delayed data](03-EU-DATA-ACT.md)                                                     | What do the portal and ZIP exports provide—and what do they not?                                                    |
+| 4     | [Parked-car latency and freshness](04-FRESHNESS-AND-AVAILABILITY.md)                                          | How should hours/days of stale readings be represented without lying?                                               |
+| 5     | [Authentication, capabilities, resilience](05-AUTH-CAPABILITIES-RELIABILITY.md)                               | Which token works where? Why is a capability not an authorization?                                                  |
+| 6     | [Engineering work packages and release gates](06-ENGINEERING-PLAYBOOK.md)                                     | Exactly where should the engineer work, test and stop?                                                              |
+| 7     | [Sources and evidence ledger](07-SOURCES-AND-EVIDENCE.md)                                                     | Which findings have code, official docs, reports, or only a hypothesis behind them?                                 |
+| 8     | [Adaptive target architecture and experimental delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) | How do multiple auth/API generations, vehicle/capability discovery, NFRs and early community releases fit together? |
 
 ## Evidence labels
 
@@ -52,16 +52,16 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 
 ## One-page current status
 
-| Subject | Outcome |
-| --- | --- |
-| Core Audi trip data on Auth0 | **Broken by design gate:** `support_trip_data = not uses_auth0` in v2.5.2, while the reader still calls legacy MBB |
-| Modern VW EU trip service | CARIAD BFF `/vehicle/v1/trips/{vin}/{type}/last` documented by multiple clients and a VW HTTP 200 report; **Audi Auth0 unverified** |
-| Separate `tripstatistics` API | Exists in code; widely reported HTTP 404 after provider changes; do not hammer |
-| CUPRA trip family | OLA `/driving-data/SHORT` + `/driving-data/CYCLIC`, not the earlier incorrect OLA `/trips` guess |
-| Škoda trip family | `/api/v1/trip-statistics/{vin}` and `/single-trips`; own gateway/authorization |
-| Charging history | Shared `prod.emea.mobile.charging.cariad.digital` among Škoda and CUPRA; Audi access unknown |
-| VW/Audi media | Separate VW CARIAD `/media/v2/vehicle-images/{vin}` is a candidate for Audi images; **unverified** |
-| Data Act | Consented, read-only and delayed; continuous 15-minute delivery can contain zero new measurements for **hours/days**, or remain empty due to upstream faults |
-| Vehicle parked | An Audi's last OEM observation may be **hours or days old**, independently of how often HA polls |
+| Subject                       | Outcome                                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Core Audi trip data on Auth0  | **Broken by design gate:** `support_trip_data = not uses_auth0` in v2.5.2, while the reader still calls legacy MBB                                           |
+| Modern VW EU trip service     | CARIAD BFF `/vehicle/v1/trips/{vin}/{type}/last` documented by multiple clients and a VW HTTP 200 report; **Audi Auth0 unverified**                          |
+| Separate `tripstatistics` API | Exists in code; widely reported HTTP 404 after provider changes; do not hammer                                                                               |
+| CUPRA trip family             | OLA `/driving-data/SHORT` + `/driving-data/CYCLIC`, not the earlier incorrect OLA `/trips` guess                                                             |
+| Škoda trip family             | `/api/v1/trip-statistics/{vin}` and `/single-trips`; own gateway/authorization                                                                               |
+| Charging history              | Shared `prod.emea.mobile.charging.cariad.digital` among Škoda and CUPRA; Audi access unknown                                                                 |
+| VW/Audi media                 | Separate VW CARIAD `/media/v2/vehicle-images/{vin}` is a candidate for Audi images; **unverified**                                                           |
+| Data Act                      | Consented, read-only and delayed; continuous 15-minute delivery can contain zero new measurements for **hours/days**, or remain empty due to upstream faults |
+| Vehicle parked                | An Audi's last OEM observation may be **hours or days old**, independently of how often HA polls                                                             |
 
 **Start coding only after reading [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) and [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**

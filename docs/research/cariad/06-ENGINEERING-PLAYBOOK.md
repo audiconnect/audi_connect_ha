@@ -38,17 +38,17 @@ Candidate sequence (**source-derived path, live Audi success not proven**):
   - EU Data Act aggregates with timestamped fields; **not** individual trip records.
 - Normalize mileage, start/end distance, elapsed/travel time, speed, fuel (L/100km), electric (kWh/100km), recuperation, zero-emissions distance.
 - Distinguish **short-term last trip**, **long-term/cumulative**, **since-refuel cyclic** and **manual reset**; do not equate different concepts just to fill a sensor.
-- Restore existing four trip entity IDs, maintaining their *meaning*; if a provider cannot supply "user reset", leave it unknown rather than mislabel `longterm/last`.
+- Restore existing four trip entity IDs, maintaining their _meaning_; if a provider cannot supply "user reset", leave it unknown rather than mislabel `longterm/last`.
 
 ## Phase 3 — Cross-brand expansion hypotheses, not features yet
 
-| Candidate | Where found | Preconditions for an Audi implementation |
-| --- | --- | --- |
-| Charging statistics/session power curve | Škoda + CUPRA central charging CARIAD host | Identify Audi auth audience/entitlement, correct request method/body, actual Audi 200 |
-| Media `/media/v2/vehicle-images` | VW EU BFF client | Audi Auth0 authorization, response/images right to use |
-| Tyre pressure, oil, low-voltage battery, HV temperatures | CARIAD selective-status jobs and Data Act field universe | Actual Q8 field presence, correct units, no stale value as live |
-| Warning lamps, inspection, charging profiles | Škoda/OLA models + Audi existing status jobs | Per-feature capability and field mapping without duplication |
-| Vehicle-specific controls | Audi/CARIAD BFF, Homey, PR #915 | Existing implementation overlap, permission, physical testing and command confirmation |
+| Candidate                                                | Where found                                              | Preconditions for an Audi implementation                                               |
+| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Charging statistics/session power curve                  | Škoda + CUPRA central charging CARIAD host               | Identify Audi auth audience/entitlement, correct request method/body, actual Audi 200  |
+| Media `/media/v2/vehicle-images`                         | VW EU BFF client                                         | Audi Auth0 authorization, response/images right to use                                 |
+| Tyre pressure, oil, low-voltage battery, HV temperatures | CARIAD selective-status jobs and Data Act field universe | Actual Q8 field presence, correct units, no stale value as live                        |
+| Warning lamps, inspection, charging profiles             | Škoda/OLA models + Audi existing status jobs             | Per-feature capability and field mapping without duplication                           |
+| Vehicle-specific controls                                | Audi/CARIAD BFF, Homey, PR #915                          | Existing implementation overlap, permission, physical testing and command confirmation |
 
 Do not open an "everything" PR mixing auth, media, history and command changes. One verified behavior per focused change.
 
@@ -67,26 +67,26 @@ The fork already exposes the `experimental_commands` option for selected remote 
 
 ## Acceptance matrix
 
-| Test | Required pass |
-| --- | --- |
-| Legacy data `averageFuelConsumption=81` | Parsed as **8.1 L/100km** |
-| CARIAD data `averageFuelConsumption=8.1` | Remains **8.1 L/100km** |
-| Valid zero fuel consumption | Preserved as **0**, never treated as missing via `a or b` |
-| No trip entries | No crash, no fake zero trip, stable entities |
-| Actual last trip vs short-term aggregate | No semantic substitution |
-| `support_trip_data` under Auth0 | Capability based on verified provider, not auth gate alone |
-| Known entity IDs | Unchanged |
-| 207 partial jobs | Valid jobs update, missing/errored jobs remain separate |
-| One 404 on trip/parking | Bounded retry/cooldown, not permanent disable |
-| 403/401/429/502 | Authorization/backoff/diagnostics without request storm |
-| 72-hour parked vehicle, same captured timestamp | **Stale/last-known**, not fresh |
-| ZIP every 15 min, no content for 72 hours | No new vehicle observations or "connected" false-success |
-| Old ZIP vs newer BFF | Older observation never overwrites newer equivalent field |
-| Lock/charging state older than safety threshold | Not shown as current security/charging state |
-| Manual command accepted but no car readback | **Unconfirmed**, not successful |
-| OAuth token, S-PIN, VIN, GPS in diagnostics | Redacted |
-| HA startup / restart / upgrade | Existing entry survives; no duplicate device/entity |
-| Test suite and HA quality checks | Existing plus new tests green |
+| Test                                            | Required pass                                              |
+| ----------------------------------------------- | ---------------------------------------------------------- |
+| Legacy data `averageFuelConsumption=81`         | Parsed as **8.1 L/100km**                                  |
+| CARIAD data `averageFuelConsumption=8.1`        | Remains **8.1 L/100km**                                    |
+| Valid zero fuel consumption                     | Preserved as **0**, never treated as missing via `a or b`  |
+| No trip entries                                 | No crash, no fake zero trip, stable entities               |
+| Actual last trip vs short-term aggregate        | No semantic substitution                                   |
+| `support_trip_data` under Auth0                 | Capability based on verified provider, not auth gate alone |
+| Known entity IDs                                | Unchanged                                                  |
+| 207 partial jobs                                | Valid jobs update, missing/errored jobs remain separate    |
+| One 404 on trip/parking                         | Bounded retry/cooldown, not permanent disable              |
+| 403/401/429/502                                 | Authorization/backoff/diagnostics without request storm    |
+| 72-hour parked vehicle, same captured timestamp | **Stale/last-known**, not fresh                            |
+| ZIP every 15 min, no content for 72 hours       | No new vehicle observations or "connected" false-success   |
+| Old ZIP vs newer BFF                            | Older observation never overwrites newer equivalent field  |
+| Lock/charging state older than safety threshold | Not shown as current security/charging state               |
+| Manual command accepted but no car readback     | **Unconfirmed**, not successful                            |
+| OAuth token, S-PIN, VIN, GPS in diagnostics     | Redacted                                                   |
+| HA startup / restart / upgrade                  | Existing entry survives; no duplicate device/entity        |
+| Test suite and HA quality checks                | Existing plus new tests green                              |
 
 ## Findings and evidence template
 
@@ -100,7 +100,7 @@ path_template: /vehicle/v1/trips/{vin}/shortterm/last
 vehicle_platform: unknown
 market: BE
 auth_family: audi_auth0
-evidence: CODE                  # OFFICIAL | CODE | REPORT | HYPOTHESIS
+evidence: CODE # OFFICIAL | CODE | REPORT | HYPOTHESIS
 audi_q8_live_verified: false
 http_status: null
 response_keys: []
@@ -115,6 +115,6 @@ Any response captured for tests must use a sanitized fixture that cannot reveal 
 
 ## Engineering task
 
-> **Task for the Engineer:** Take ownership of the base Audi Connect integration. Read the research index and architecture chapters under `docs/research/cariad/`, including Chapter 08, before editing code.  Compare all proposed changes against upstream PR #915 and the fork's fix branches before writing code. First establish Q8 Auth0 read access to modern CARIAD trip data with explicit low-frequency GET probes. Next restore the existing trip entities with distinct source parsers and rigorous units/semantics. Treat VW Group EU Data Act as optional, delayed, read-only supplemental observations. Never confuse a successful poll or 15-minute ZIP delivery with a fresh parked-car measurement. Record proof, tests and unsupported cases. Avoid token leakage, remote command probing, false success and entity churn.
+> **Task for the Engineer:** Take ownership of the base Audi Connect integration. Read the research index and architecture chapters under `docs/research/cariad/`, including Chapter 08, before editing code. Compare all proposed changes against upstream PR #915 and the fork's fix branches before writing code. First establish Q8 Auth0 read access to modern CARIAD trip data with explicit low-frequency GET probes. Next restore the existing trip entities with distinct source parsers and rigorous units/semantics. Treat VW Group EU Data Act as optional, delayed, read-only supplemental observations. Never confuse a successful poll or 15-minute ZIP delivery with a fresh parked-car measurement. Record proof, tests and unsupported cases. Avoid token leakage, remote command probing, false success and entity churn.
 
 See [07 — Sources](07-SOURCES-AND-EVIDENCE.md).

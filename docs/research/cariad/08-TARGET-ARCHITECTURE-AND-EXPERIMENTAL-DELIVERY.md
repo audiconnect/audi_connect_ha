@@ -1,7 +1,7 @@
 # 08 — Target Architecture: Adaptive Audi Connect Across VW Group API Generations
 
-**Status:** Proposed strategic architecture and delivery policy — not an implemented feature and not a confirmed Volkswagen Group roadmap.  
-**Date:** 2026-11-11 · **Scope:** The base Audi Connect Home Assistant integration, with an Audi-first user experience and reusable VW Group API knowledge.  
+**Status:** Proposed strategic architecture and delivery policy — not an implemented feature and not a confirmed Volkswagen Group roadmap.
+**Date:** 2026-11-11 · **Scope:** The base Audi Connect Home Assistant integration, with an Audi-first user experience and reusable VW Group API knowledge.
 **Read alongside:** [01 — Architecture and evolution](01-ARCHITECTURE-EVOLUTION.md), [05 — Authentication and capability contracts](05-AUTH-CAPABILITIES-RELIABILITY.md), [06 — Engineering playbook](06-ENGINEERING-PLAYBOOK.md).
 
 ## 1. Strategic vision
@@ -72,16 +72,16 @@ Home Assistant config entry (Audi account + region/market)
 
 Treat authentication as a **registry of independently authorized strategies**, not a global boolean `uses_auth0`.
 
-| Strategy | Reason to retain/support | Non-negotiable boundary |
-| --- | --- | --- |
-| Audi Auth0 + PKCE | Currently necessary for affected EU/CA login flows | Interactive authorization; respect issuer/audience and token scope |
-| Existing authorized legacy IDK/MBB credentials | Legacy vehicles/features may still legitimately serve old paths | Never treat Auth0 token as equivalent; don't bypass deprecated/rejected login or device-attestation protection |
-| Supported device authorization grant | May be offered by a supported Audi account flow | No background authorization without user participation |
-| Auth0/IDK → approved service-specific exchange | Additional host such as Audi AZS/media may legitimately require a different token | A 403 is a real boundary; do not force exchange or replay across services |
-| VW Group EU Data Act consent/session | Independent read-only information channel | Explicit opt-in; separate credentials/storage and timestamps, no vehicle controls |
-| Future official Audi API | Future-proof extension point, not a present commitment | Register only on published/documented or user-authorized access |
+| Strategy                                       | Reason to retain/support                                                          | Non-negotiable boundary                                                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Audi Auth0 + PKCE                              | Currently necessary for affected EU/CA login flows                                | Interactive authorization; respect issuer/audience and token scope                                             |
+| Existing authorized legacy IDK/MBB credentials | Legacy vehicles/features may still legitimately serve old paths                   | Never treat Auth0 token as equivalent; don't bypass deprecated/rejected login or device-attestation protection |
+| Supported device authorization grant           | May be offered by a supported Audi account flow                                   | No background authorization without user participation                                                         |
+| Auth0/IDK → approved service-specific exchange | Additional host such as Audi AZS/media may legitimately require a different token | A 403 is a real boundary; do not force exchange or replay across services                                      |
+| VW Group EU Data Act consent/session           | Independent read-only information channel                                         | Explicit opt-in; separate credentials/storage and timestamps, no vehicle controls                              |
+| Future official Audi API                       | Future-proof extension point, not a present commitment                            | Register only on published/documented or user-authorized access                                                |
 
-**Proposed resolution process:** discover available *documented* sign-in modes for the account/market; prefer an already authorized working session; offer a clear HA repair/reauth flow when interactive authorization is needed. A single Audi account may use more than one authorized provider session if a feature genuinely requires it. Do not prompt users to try protocols at random.
+**Proposed resolution process:** discover available _documented_ sign-in modes for the account/market; prefer an already authorized working session; offer a clear HA repair/reauth flow when interactive authorization is needed. A single Audi account may use more than one authorized provider session if a feature genuinely requires it. Do not prompt users to try protocols at random.
 
 **Implementation principles:** per-provider credential vault and refresh lock, never silently overwrite one provider's refresh token with another's; distinguish auth failed from service forbidden; no unsafe downgrade to an obsolete password grant; no login storms. Diagnostics expose auth **type and status**, never secrets.
 
@@ -96,12 +96,12 @@ feature: trips.shortterm.last
 host_family: emea_cariad_bff
 method: GET
 path_template: /vehicle/v1/trips/{vin}/shortterm/last
-supported_auth: [authorized_audi_auth0]    # hypothesis until Audi live proof
+supported_auth: [authorized_audi_auth0] # hypothesis until Audi live proof
 market_constraints: unknown
 platform_constraints: unknown
 probe_mode: explicit_opt_in
 request_budget: bounded
-confidence: source_code_vw             # not audi_verified
+confidence: source_code_vw # not audi_verified
 error_policy:
   forbidden: stop_and_explain
   not_found: cooldown_then_revalidate
@@ -137,15 +137,15 @@ Vehicle identity and capabilities should be **derived from reported metadata and
 
 It must be possible to bind a single Audi to multiple **authorized** providers concurrently while keeping one HA device:
 
-| Feature | Possible preferred source | Permitted fallback | Caution |
-| --- | --- | --- | --- |
-| Current battery/charging state | Fresh Audi/CARIAD BFF | Another confirmed current Audi source | Never silently fall back to days-old Data Act |
-| Individual trip records | Modern CARIAD trip API if verified | Legacy MBB if separately authorized and semantically equivalent | Long-term aggregates and reset records are not identical |
-| Historical energy aggregates | Authenticated Audi trip history | EU Data Act, labeled aggregate/slow when present | Data Act may be missing or delayed for days |
-| Charging sessions | Verified Audi service | No speculative cross-brand calls | Shared Škoda/CUPRA charging host does not grant Audi access |
-| Vehicle image | Authorized Audi image service | Confirmed CARIAD media route | GraphQL AZS and Auth0 have different permissions |
-| Commands | Valid authorized Audi command adapter | No read-only portal fallback | Accepted ≠ confirmed |
-| Data Act observational enrichment | Consent-based EU Data Act feed | None | Independent delay and freshness policies |
+| Feature                           | Possible preferred source             | Permitted fallback                                              | Caution                                                     |
+| --------------------------------- | ------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------- |
+| Current battery/charging state    | Fresh Audi/CARIAD BFF                 | Another confirmed current Audi source                           | Never silently fall back to days-old Data Act               |
+| Individual trip records           | Modern CARIAD trip API if verified    | Legacy MBB if separately authorized and semantically equivalent | Long-term aggregates and reset records are not identical    |
+| Historical energy aggregates      | Authenticated Audi trip history       | EU Data Act, labeled aggregate/slow when present                | Data Act may be missing or delayed for days                 |
+| Charging sessions                 | Verified Audi service                 | No speculative cross-brand calls                                | Shared Škoda/CUPRA charging host does not grant Audi access |
+| Vehicle image                     | Authorized Audi image service         | Confirmed CARIAD media route                                    | GraphQL AZS and Auth0 have different permissions            |
+| Commands                          | Valid authorized Audi command adapter | No read-only portal fallback                                    | Accepted ≠ confirmed                                        |
+| Data Act observational enrichment | Consent-based EU Data Act feed        | None                                                            | Independent delay and freshness policies                    |
 
 **Selection** is per **feature and field**, not “new API always wins.” Prefer semantic equality, authorization and meaningful vehicle timestamps. Older readings must not overwrite newer readings even if they were downloaded last. Each entity should retain provenance, last successful value and observed-at time where useful.
 
@@ -153,20 +153,20 @@ It must be possible to bind a single Audi to multiple **authorized** providers c
 
 These are **proposed acceptance requirements** and configurable defaults to validate during engineering, not current commitments or VW Group SLAs.
 
-| NFR | Proposed target and measurable test |
-| --- | --- |
-| **Compatibility** | One existing Audi config entry and one HA device per VIN; preserve unique IDs, services, migrations and entity history across auth/API provider change; no mandatory reinstall/re-pair. |
-| **Availability / graceful degradation** | Partial 207/job failures never invalidate healthy fields; transient provider outage preserves last-known readings with stale metadata; unrelated controls/sensors continue. |
-| **Freshness / data integrity** | Record vehicle-observed, provider-delivered and HA-fetched times separately; a 72-hour parked-car reading remains stale regardless of successful 15-minute polls; no missing→zero and no out-of-order overwrite. |
-| **Performance / cloud load** | Coalesce duplicate requests; serialize refresh tokens and commands; minimum polling interval enforced; no vehicle wake for discovery; bounded per-route timeout and requests; rate-limit 429/Retry-After adherence. |
-| **Account safety** | One failed 401/403 does not cause a high-rate reauth/alternate-host scan; specific repair guidance, cooldown and a circuit-breaker on repeated failures. |
-| **Security/privacy** | Never log/store tokens, PIN, full VIN, location or raw trip history in diagnostics; separate credential audiences; avoid cross-brand unauthorized requests. |
-| **Correctness** | Source-specific payload parsers and units, support for zero/null/partial schemas, strict timestamp/UTC normalization, 204/207/404 handling and unconfirmed command outcomes. |
-| **Observability** | Sanitized per-account/vehicle/feature status: chosen provider, compatibility confidence, last successful check, last observed-at, freshness, route-category error and cooldown. |
-| **Maintainability** | Versioned provider contracts, small independent modules, fixture-backed tests, source/evidence register, provider-level unit/integration tests; no hard-coded VIN/model branching. |
-| **Testability** | Synthetic/redacted BEV/PHEV/ICE, legacy/modern auth and API fixtures; HA startup/upgrade/regression checks; bounded live owner-run cohort tests. |
-| **Scalability** | Multiple vehicles and providers per account with shared sessions/cache and bounded per-vehicle request budgets; no O(vehicles × guessed endpoints) background scan. |
-| **Accessibility / UX** | Normal setup does not ask for hidden API levels; experimental settings clearly disclose risks; unsupported vs unauthorized vs stale are comprehensible. |
+| NFR                                     | Proposed target and measurable test                                                                                                                                                                                 |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Compatibility**                       | One existing Audi config entry and one HA device per VIN; preserve unique IDs, services, migrations and entity history across auth/API provider change; no mandatory reinstall/re-pair.                             |
+| **Availability / graceful degradation** | Partial 207/job failures never invalidate healthy fields; transient provider outage preserves last-known readings with stale metadata; unrelated controls/sensors continue.                                         |
+| **Freshness / data integrity**          | Record vehicle-observed, provider-delivered and HA-fetched times separately; a 72-hour parked-car reading remains stale regardless of successful 15-minute polls; no missing→zero and no out-of-order overwrite.    |
+| **Performance / cloud load**            | Coalesce duplicate requests; serialize refresh tokens and commands; minimum polling interval enforced; no vehicle wake for discovery; bounded per-route timeout and requests; rate-limit 429/Retry-After adherence. |
+| **Account safety**                      | One failed 401/403 does not cause a high-rate reauth/alternate-host scan; specific repair guidance, cooldown and a circuit-breaker on repeated failures.                                                            |
+| **Security/privacy**                    | Never log/store tokens, PIN, full VIN, location or raw trip history in diagnostics; separate credential audiences; avoid cross-brand unauthorized requests.                                                         |
+| **Correctness**                         | Source-specific payload parsers and units, support for zero/null/partial schemas, strict timestamp/UTC normalization, 204/207/404 handling and unconfirmed command outcomes.                                        |
+| **Observability**                       | Sanitized per-account/vehicle/feature status: chosen provider, compatibility confidence, last successful check, last observed-at, freshness, route-category error and cooldown.                                     |
+| **Maintainability**                     | Versioned provider contracts, small independent modules, fixture-backed tests, source/evidence register, provider-level unit/integration tests; no hard-coded VIN/model branching.                                  |
+| **Testability**                         | Synthetic/redacted BEV/PHEV/ICE, legacy/modern auth and API fixtures; HA startup/upgrade/regression checks; bounded live owner-run cohort tests.                                                                    |
+| **Scalability**                         | Multiple vehicles and providers per account with shared sessions/cache and bounded per-vehicle request budgets; no O(vehicles × guessed endpoints) background scan.                                                 |
+| **Accessibility / UX**                  | Normal setup does not ask for hidden API levels; experimental settings clearly disclose risks; unsupported vs unauthorized vs stale are comprehensible.                                                             |
 
 Suggested quantitative engineering gates (tunable, **not observed OEM limits**): zero sensitive values in diagnostic fixtures; zero extra probe calls unless explicitly opted in; no repeated 403/404 loops; one vehicle per HA unique ID; 100% pass for core auth, entity-stability, unit-conversion and command-confirmation regressions; test 15-minute, 3-hour, 24-hour and 72-hour data ages. Avoid inventing universal “fresh within five minutes” SLAs: parked OEM telemetry cannot meet that promise.
 
@@ -212,15 +212,15 @@ A feature may be **shipped experimental with no Audi Q8 live proof** only when i
 
 ### Promotion gates
 
-| Dimension | Experimental | Stable |
-| --- | --- | --- |
-| Authorization | Explicit supported auth and user opt-in; no forbidden workaround | Tested and documented for supported account types |
-| Vehicle coverage | Narrow/test cohort and declared unknowns | Repeatable matrix for the declared supported models/generations |
-| API contract | Fixture, schema validation, bounded failure handling | Real-world evidence plus schema drift/recovery tests |
-| Data freshness | Explicit provenance/age, unknown possible | Verified source and quality for feature semantics |
-| Commands | Fail-closed, explicit action, stronger pilot proof | Acceptance/readback confirmed or explicit unconfirmed state |
-| HA compatibility | Feature disabled by default, no ID breakage | Entity registry stable, upgrades and reauth tested |
-| Release QA | Unit/CI/HA baseline green | Broad tests and declared regression gate green |
+| Dimension        | Experimental                                                     | Stable                                                          |
+| ---------------- | ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| Authorization    | Explicit supported auth and user opt-in; no forbidden workaround | Tested and documented for supported account types               |
+| Vehicle coverage | Narrow/test cohort and declared unknowns                         | Repeatable matrix for the declared supported models/generations |
+| API contract     | Fixture, schema validation, bounded failure handling             | Real-world evidence plus schema drift/recovery tests            |
+| Data freshness   | Explicit provenance/age, unknown possible                        | Verified source and quality for feature semantics               |
+| Commands         | Fail-closed, explicit action, stronger pilot proof               | Acceptance/readback confirmed or explicit unconfirmed state     |
+| HA compatibility | Feature disabled by default, no ID breakage                      | Entity registry stable, upgrades and reauth tested              |
+| Release QA       | Unit/CI/HA baseline green                                        | Broad tests and declared regression gate green                  |
 
 ## 9. Concrete engineering epics
 
@@ -236,15 +236,15 @@ A feature may be **shipped experimental with no Audi Q8 live proof** only when i
 
 ## 10. Architecture decisions to record
 
-| ADR | Proposed decision |
-| --- | --- |
+| ADR     | Proposed decision                                                                                                                                              |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ADR-001 | Product remains **Audi Connect**, not a full VW Group integration; reuse cross-brand domain contracts rather than pretending tokens/hosts are interchangeable. |
-| ADR-002 | Support **multiple independently authorized provider sessions** where a single Audi feature legitimately needs them. |
-| ADR-003 | Select provider **per feature/field and VIN**, not one global API/legacy toggle. |
-| ADR-004 | Detect and derive capabilities from authorized evidence; never require the normal end user to select API levels manually. |
-| ADR-005 | EU Data Act is **consent-based, read-only and potentially days delayed**, never a command/instant-status channel. |
-| ADR-006 | New features are **experimental by default** until proven; opt-in has strict privacy, authorization, request-budget and compatibility gates. |
-| ADR-007 | The existing `experimental_commands` contract remains backward compatible; never auto-enable experimental writes. |
-| ADR-008 | Preserve original Home Assistant entity IDs and semantics during backend or flag transitions. |
+| ADR-002 | Support **multiple independently authorized provider sessions** where a single Audi feature legitimately needs them.                                           |
+| ADR-003 | Select provider **per feature/field and VIN**, not one global API/legacy toggle.                                                                               |
+| ADR-004 | Detect and derive capabilities from authorized evidence; never require the normal end user to select API levels manually.                                      |
+| ADR-005 | EU Data Act is **consent-based, read-only and potentially days delayed**, never a command/instant-status channel.                                              |
+| ADR-006 | New features are **experimental by default** until proven; opt-in has strict privacy, authorization, request-budget and compatibility gates.                   |
+| ADR-007 | The existing `experimental_commands` contract remains backward compatible; never auto-enable experimental writes.                                              |
+| ADR-008 | Preserve original Home Assistant entity IDs and semantics during backend or flag transitions.                                                                  |
 
 **Boundary of evidence:** the architectural pressure toward VW Group normalization is a **strategic inference**, not a manufacturer promise. Everything in this document is a proposed solution design unless explicitly identified as inspected code or a sourced observation.

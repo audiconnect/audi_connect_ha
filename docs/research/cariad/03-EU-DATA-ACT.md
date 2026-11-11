@@ -71,12 +71,12 @@ The dictionary is a **possible field universe**, not evidence that the user's Au
 
 ## Delayed and failed feeds: four distinct cases
 
-| Scenario | Diagnosis | Integration behavior |
-| --- | --- | --- |
-| ZIP generated every 15 min, content shows old vehicle timestamps | **vehicle-observation staleness** | Retain last-known value; expose age; do not relabel as live |
-| New `_no_content_found.zip` every 15 min | No data **in this delivery**; may be sleeping vehicle **or portal backend fault** | Track empty deliveries and last non-empty file separately; no zero fill |
-| Auth/consent/vehicle relation rejected | Authorization or eligibility issue | Actionable diagnostic; no repetitive token storms |
-| Non-empty ZIP contains only some selected fields | Vehicle/platform/cluster/data entitlement variation | Only create supported fields; mark gaps unknown, not zero |
+| Scenario                                                         | Diagnosis                                                                         | Integration behavior                                                    |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ZIP generated every 15 min, content shows old vehicle timestamps | **vehicle-observation staleness**                                                 | Retain last-known value; expose age; do not relabel as live             |
+| New `_no_content_found.zip` every 15 min                         | No data **in this delivery**; may be sleeping vehicle **or portal backend fault** | Track empty deliveries and last non-empty file separately; no zero fill |
+| Auth/consent/vehicle relation rejected                           | Authorization or eligibility issue                                                | Actionable diagnostic; no repetitive token storms                       |
+| Non-empty ZIP contains only some selected fields                 | Vehicle/platform/cluster/data entitlement variation                               | Only create supported fields; mark gaps unknown, not zero               |
 
 **Do not assert that sleeping is the only explanation for empty ZIPs.** The Audi Q6 e-tron, S6, Q4 and A6 e-tron reports in [issue #1403](https://github.com/its-me-prash/vwgroup-connect-ha/issues/1403) describe prolonged entirely empty continuous feeds **even after driving or charging**, while the myAudi app shows fresh telemetry. An October 2026 community thread reports VW Group acknowledging a sporadic portal-side no-content fault. The data chain can fail **after** OEM ingestion.
 
