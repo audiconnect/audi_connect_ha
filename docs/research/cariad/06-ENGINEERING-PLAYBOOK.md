@@ -2,6 +2,8 @@
 
 ## Goal and branch policy
 
+The implementation should **incrementally converge** on [08 — Adaptive Target Architecture and Experimental Delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md). Prioritize an authorized auth-strategy registry, API compatibility profiles, vehicle identification and capability resolution, with source-specific fallbacks. Avoid a large rewrite before the first verified trip fix; extract these contracts as each adapter lands.
+
 Deliver genuinely working, regression-safe improvements to the base [Audi Connect HA](https://github.com/audiconnect/audi_connect_ha), starting with trip statistics on an Audi Q8 PHEV. **This branch is documentation-only.** Start engineering changes on a separate feature/fix branch, review against upstream PR #915, and open a focused PR after tests.
 
 ## Phase 0 — Establish the exact baseline
@@ -59,6 +61,10 @@ Do not open an "everything" PR mixing auth, media, history and command changes. 
 - Merge field by field using equivalent semantics + observed timestamp, never "last poll wins".
 - Add limited diagnostics: `last_nonempty_dataset`, `last_vehicle_observed_at`, `last_portal_delivery`, `last_successful_fetch`, source, age and empty-feed count.
 
+## Phase 5 — Experimental community delivery
+
+The fork already exposes the `experimental_commands` option for selected remote action buttons. Preserve its backward compatibility; introduce an opt-in read-only experimental feature umbrella without automatically enabling new writes. Ship safe, tested endpoint adapters in frequent pre-release or default-off feature-flagged builds, document vehicle/market/auth evidence and schema/error diagnostics, widen to community cohorts and promote once regression and live-compatibility gates pass. Always fail closed on unsupported/unauthorized commands. See [08 — Feature lifecycle and NFRs](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md#8-experimental-first-community-release-model).
+
 ## Acceptance matrix
 
 | Test | Required pass |
@@ -109,6 +115,6 @@ Any response captured for tests must use a sanitized fixture that cannot reveal 
 
 ## Engineering task
 
-> **Task for the Engineer:** Take ownership of the base Audi Connect integration. Read all seven documents under `docs/research/cariad/` in order. Compare all proposed changes against upstream PR #915 and the fork's fix branches before writing code. First establish Q8 Auth0 read access to modern CARIAD trip data with explicit low-frequency GET probes. Next restore the existing trip entities with distinct source parsers and rigorous units/semantics. Treat VW Group EU Data Act as optional, delayed, read-only supplemental observations. Never confuse a successful poll or 15-minute ZIP delivery with a fresh parked-car measurement. Record proof, tests and unsupported cases. Avoid token leakage, remote command probing, false success and entity churn.
+> **Task for the Engineer:** Take ownership of the base Audi Connect integration. Read the research index and architecture chapters under `docs/research/cariad/`, including Chapter 08, before editing code.  Compare all proposed changes against upstream PR #915 and the fork's fix branches before writing code. First establish Q8 Auth0 read access to modern CARIAD trip data with explicit low-frequency GET probes. Next restore the existing trip entities with distinct source parsers and rigorous units/semantics. Treat VW Group EU Data Act as optional, delayed, read-only supplemental observations. Never confuse a successful poll or 15-minute ZIP delivery with a fresh parked-car measurement. Record proof, tests and unsupported cases. Avoid token leakage, remote command probing, false success and entity churn.
 
 See [07 — Sources](07-SOURCES-AND-EVIDENCE.md).
