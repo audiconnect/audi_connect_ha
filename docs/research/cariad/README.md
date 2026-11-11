@@ -11,6 +11,9 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 ## Vision and principles
 
 - Keep one Audi Connect integration for Home Assistant; design small source-specific adapters rather than a competing framework.
+- Plan for likely long-term VW Group platform and cost-driven convergence **without claiming that the manufacturer has announced full API unification**. Preserve old and new APIs, vehicles, authentication variants and models through evidence-driven discovery.
+- Move toward automatic detection: supported authorization(s) → compatible API services → vehicle/platform → feature capabilities → stable entities. Multiple independent authorized providers may coexist for one car.
+- Release isolated, safe experimental features earlier behind opt-in flags, backed by test fixtures, diagnostics and community validation; retain stronger safeguards for remote commands.
 - Separate **vehicle telemetry**, **trip history**, **charging history**, **remote control** and **user-consented EU Data Act exports**.
 - Build on the existing entity registry and config entries: never delete/recreate the four historical trip entities to introduce a new backend.
 - Make **data provenance and freshness** first-class. For a parked Audi, a cloud observation can be **hours or days old**; polling or 15-minute EU Data Act ZIP delivery does not make it live.
@@ -30,6 +33,7 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 | 5 | [Authentication, capabilities, resilience](05-AUTH-CAPABILITIES-RELIABILITY.md) | Which token works where? Why is a capability not an authorization? |
 | 6 | [Engineering work packages and release gates](06-ENGINEERING-PLAYBOOK.md) | Exactly where should the engineer work, test and stop? |
 | 7 | [Sources and evidence ledger](07-SOURCES-AND-EVIDENCE.md) | Which findings have code, official docs, reports, or only a hypothesis behind them? |
+| 8 | [Adaptive target architecture and experimental delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) | How do multiple auth/API generations, vehicle/capability discovery, NFRs and early community releases fit together? |
 
 ## Evidence labels
 
@@ -60,4 +64,4 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 | Data Act | Consented, read-only and delayed; continuous 15-minute delivery can contain zero new measurements for **hours/days**, or remain empty due to upstream faults |
 | Vehicle parked | An Audi's last OEM observation may be **hours or days old**, independently of how often HA polls |
 
-**Start coding only after reading [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**
+**Start coding only after reading [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) and [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**
