@@ -91,12 +91,15 @@ def test_button_callables_are_awaitable(description):
 
 class _Vehicle:
     def __init__(
-        self, spin=None, car_type=None, caps=None, model=None, impaired=(),
+        self,
+        spin=None,
+        car_type=None,
+        caps=None,
+        model=None,
+        impaired=(),
         auth0=True,
     ):
-        self._audi_service = type(
-            "Svc", (), {"_spin": spin, "_uses_auth0": auth0}
-        )()
+        self._audi_service = type("Svc", (), {"_spin": spin, "_uses_auth0": auth0})()
         if car_type is not None:
             self.car_type = car_type
         self.model = model

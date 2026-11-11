@@ -25,7 +25,9 @@ class Connection:
 class Coordinator:
     last_update_success = True
 
-    def __init__(self, car, *, accepted=True, refreshed_status=None, refresh_fails=False):
+    def __init__(
+        self, car, *, accepted=True, refreshed_status=None, refresh_fails=False
+    ):
         self.car = car
         self.account = NS(connection=Connection(accepted=accepted))
         self.refreshed_status = refreshed_status
@@ -54,7 +56,9 @@ def test_delayed_state_is_accepted_unconfirmed(requested, start, after):
     asyncio.run(entity.async_lock() if requested else entity.async_unlock())
     assert coord.account.connection.calls == [("NOT_A_REAL_VIN", requested)]
     assert coord.refreshes == 1
-    assert entity.extra_state_attributes["last_command_status"] == "accepted_unconfirmed"
+    assert (
+        entity.extra_state_attributes["last_command_status"] == "accepted_unconfirmed"
+    )
 
 
 @pytest.mark.parametrize(
@@ -67,7 +71,9 @@ def test_both_directions_confirm_from_readback(requested, start, after):
     entity = AudiLock(coord, car)
     asyncio.run(entity.async_lock() if requested else entity.async_unlock())
     assert coord.refreshes == 1
-    assert entity.extra_state_attributes["last_command_status"] == "confirmed_by_readback"
+    assert (
+        entity.extra_state_attributes["last_command_status"] == "confirmed_by_readback"
+    )
 
 
 @pytest.mark.parametrize("requested", [True, False])
@@ -85,7 +91,9 @@ def test_missing_vehicle_state_is_unconfirmed():
     car = NS(vin="NOT_A_REAL_VIN", door_lock_status=None, doors_trunk_status=None)
     entity = AudiLock(Coordinator(car), car)
     asyncio.run(entity.async_lock())
-    assert entity.extra_state_attributes["last_command_status"] == "accepted_unconfirmed"
+    assert (
+        entity.extra_state_attributes["last_command_status"] == "accepted_unconfirmed"
+    )
 
 
 def test_refresh_failure_does_not_issue_duplicate_command():
@@ -95,7 +103,9 @@ def test_refresh_failure_does_not_issue_duplicate_command():
     asyncio.run(entity.async_lock())
     assert coord.refreshes == 1
     assert coord.account.connection.calls == [("NOT_A_REAL_VIN", True)]
-    assert entity.extra_state_attributes["last_command_status"] == "accepted_unconfirmed"
+    assert (
+        entity.extra_state_attributes["last_command_status"] == "accepted_unconfirmed"
+    )
 
 
 def test_already_matching_state_is_not_claimed_as_new_confirmation():

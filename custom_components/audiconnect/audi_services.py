@@ -1169,12 +1169,14 @@ class AudiService:
             current = await self.get_charging_settings_raw(vin)
             # A CARIAD PUT may replace the complete object. Unknown vehicle
             # settings must not be silently dropped or replayed blindly.
-            writable = frozenset((
-                "maxChargeCurrentAC_A",
-                "maxChargeCurrentAC",
-                "autoUnlockPlugWhenChargedAC",
-                "targetSOC_pct",
-            ))
+            writable = frozenset(
+                (
+                    "maxChargeCurrentAC_A",
+                    "maxChargeCurrentAC",
+                    "autoUnlockPlugWhenChargedAC",
+                    "targetSOC_pct",
+                )
+            )
             metadata = frozenset({"carCapturedTimestamp"})
             if set(current) - writable - metadata:
                 raise ValueError(
