@@ -62,3 +62,13 @@
 For every new claim record: source permalink, source revision/date, endpoint type, HTTP method, brand, market, platform, auth audience, sanitized status/payload keys, units, car capture time, confidence, and compatibility with Audi/MIT licensing.
 
 Avoid "all Volkswagen Group endpoints should work on Audi" narratives. The real shared asset is **domain knowledge**, while access is gated by **brand, identity, platform, consent, market and service contract**.
+
+## 6. Strategic architecture evidence versus inference
+
+**Verified current implementation:** The fork's [OptionsFlow on `main`](https://github.com/npinguin/audi_connect_ha/blob/main/custom_components/audiconnect/config_flow.py) exposes `experimental_commands`; [`button.py`](https://github.com/npinguin/audi_connect_ha/blob/main/custom_components/audiconnect/button.py) gates experimental charging, window-heating and vehicle-wakeup controls with that setting and observed capabilities. The [2.5.3b11 community release notes](https://github.com/npinguin/audi_connect_ha/blob/main/docs/COMMUNITY_TEST_RELEASE_2.5.3b11.md) confirm experimental controls are opt-in. The existing Audi account/service code has an Auth0-vs-legacy trip gate. These are **source facts**.
+
+**Strategic hypothesis, NOT vendor commitment:** VW Group may increasingly standardize API models, shared identity infrastructure, services and costs across brands. Shared CARIAD BFF conventions and a Škoda/CUPRA charging-statistics host are supporting clues; parallel proprietary OLA/MyŠkoda/Porsche/Audi identity and API systems are counterevidence to any claim of complete uniformity. No date, sequence or guarantee of unification is asserted.
+
+**Target design proposals, NOT current features:** independently authorized authentication registry; allowlisted API detection; vehicle-generation discovery; automatically derived per-feature capabilities; multi-provider coexistence; provenance/freshness contracts; opt-in `experimental_features` read-only umbrella while retaining separate `experimental_commands` behavior; accelerated community test release gates and the NFR matrix. See [08 — Target Architecture and Experimental Delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).
+
+**Validation still needed:** whether multiple independently authorized Audi sessions can coexist for an account and which historical services remain legitimately usable; which Audi Q8 APIs actually expose trips/charging/media; whether any proposed additional experimental controls satisfy physical command confirmation and cross-market regression gates.
