@@ -1,5 +1,7 @@
 # 05 — Authentication, Capabilities and Reliability Contracts
 
+**Target-state clarification:** replace a single global authentication-generation assumption with an authorized strategy registry and per-feature API compatibility. Derive vehicle capabilities from OEM metadata, subscription/role, endpoint evidence and data quality; do not ask ordinary users to select speculative API variants. See [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).
+
 ## 1. Token boundaries are not interchangeable
 
 | Source | Auth family | Key limitation |
@@ -74,4 +76,4 @@ Audi Connect v2.5.2 `audi_api.py` already accepts **207** as a successful HTTP s
 - [PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915) — overlapping command, capability and diagnostic work. Do not duplicate it.
 - [Issue #1060](https://github.com/robinostlund/homeassistant-volkswagencarnet/issues/1060) — example of working trip API response while HA mapping still fails.
 
-See [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).
+See [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md) and [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).
