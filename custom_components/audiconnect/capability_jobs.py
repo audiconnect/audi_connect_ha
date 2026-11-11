@@ -44,9 +44,7 @@ JOB_CAPABILITY_ALIASES: dict[str, frozenset[str]] = {
 }
 
 
-def observed_readable_jobs(
-    payload: Any, requested: tuple[str, ...]
-) -> frozenset[str]:
+def observed_readable_jobs(payload: Any, requested: tuple[str, ...]) -> frozenset[str]:
     """Track only a job that actually carried a non-empty, non-error value.
 
     Supports mixed HTTP 207-style payloads. Never retain response values,
@@ -131,7 +129,8 @@ def select_jobs(
     ignored = impaired or frozenset()
     confirmed = observed or frozenset()
     return tuple(
-        job for job in BASE_SELECTIVE_JOBS
+        job
+        for job in BASE_SELECTIVE_JOBS
         if (
             job == "userCapabilities"
             or job in confirmed

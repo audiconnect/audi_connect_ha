@@ -402,7 +402,8 @@ class AudiService:
         observed = self._cariad_observed_jobs.get(key, frozenset())
         jobs = (
             select_jobs(*known, observed=observed)
-            if known is not None else select_jobs()
+            if known is not None
+            else select_jobs()
         )
         self._api.use_token(self._bearer_token_json)
         data = await self._api.get(
@@ -427,7 +428,8 @@ class AudiService:
         _LOGGER.debug(
             "Vehicle selective-status received (%d jobs; capabilities %s; "
             "partial=%s; payload redacted)",
-            len(jobs), "known" if snapshot is not None else "unknown",
+            len(jobs),
+            "known" if snapshot is not None else "unknown",
             response.partial_response,
         )
         return response

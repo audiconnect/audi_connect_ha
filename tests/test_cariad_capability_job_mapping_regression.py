@@ -71,16 +71,12 @@ class _API:
                     ("chargingProfiles", [4001]),
                 ),
                 "oilLevel": {"oilLevelStatus": {"value": {"oilLevel": 87}}},
-                "measurements": {
-                    "odometerStatus": {"value": {"odometer": 12345}}
-                },
+                "measurements": {"odometerStatus": {"value": {"odometer": 12345}}},
                 "chargingProfiles": {"error": {"code": "UNAVAILABLE"}},
             },
             {
                 "oilLevel": {"oilLevelStatus": {"value": {"oilLevel": 86}}},
-                "userCapabilities": _caps(("oilLevelStatus", []))[
-                    "userCapabilities"
-                ],
+                "userCapabilities": _caps(("oilLevelStatus", []))["userCapabilities"],
             },
         ]
 
@@ -110,7 +106,8 @@ def test_real_service_preserves_successful_jobs_even_if_capabilities_omit_them()
     assert first.partial_response is True
     assert second.partial_response is True
     assert service._cariad_observed_jobs["SYNTHETICVIN000001"] >= {
-        "measurements", "oilLevel"
+        "measurements",
+        "oilLevel",
     }
 
 
@@ -124,11 +121,13 @@ def test_partial_207_status_merges_fields_instead_of_erasing_cached_values():
                 data_fields=[
                     NS(name="TANK_LEVEL_IN_PERCENTAGE", value=50, measure_time=None)
                 ],
-                states=[{
-                    "name": "chargingState",
-                    "value": "not_charging",
-                    "measure_time": None,
-                }],
+                states=[
+                    {
+                        "name": "chargingState",
+                        "value": "not_charging",
+                        "measure_time": None,
+                    }
+                ],
             )
 
     car = AudiConnectVehicle(Service(), NS(vin="SYNTHETICVIN000001"))
