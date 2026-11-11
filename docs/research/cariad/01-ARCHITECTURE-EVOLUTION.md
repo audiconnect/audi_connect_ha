@@ -1,5 +1,7 @@
 # 01 — Architecture, Vision and Evolution of VW Group Vehicle APIs
 
+**Strategic direction:** The current landscape is divergent, but long-term standardization of identity, services and data contracts across VW Group is an economically plausible **hypothesis**, not a confirmed product roadmap. Audi Connect should support both convergence and legacy coexistence. The complete proposed discovery pipeline, NFRs and experimental release model are in [08 — Target Architecture and Experimental Delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).
+
 ## 1. A service landscape, not one universal endpoint
 
 Volkswagen Group brands reuse underlying **identity, connectivity, domain services and data models**, but front them through different gateways and applications. The core mistake is to equate a similar JSON field name with a shared token audience or to replace the host while keeping the URL unchanged.
@@ -61,6 +63,8 @@ Shared domain: **charging history**. Shared host is seen across Škoda/CUPRA. Th
 
 ## 4. What an Audi Connect implementation should look like
 
+**Evolve the integration from globally selecting one authentication/API generation toward per-feature discovery:** authorized authentication strategy (possibly more than one) → permitted API gateway/service profile → vehicle identity and generation → effective capabilities → stable HA entities. Users should not have to guess API modes or manually test features. Explicit source/authorization/capability uncertainty remains visible; older vehicles must not lose valid access simply because newer Audi models move to a different service.
+
 ```text
 AudiConnectVehicle
  ├── AudiAuthProvider (Auth0/PKCE, refresh handling; no token leakage)
@@ -88,4 +92,4 @@ This is a **proposed responsibility split**, not a demand to introduce these exa
 - Do not create a second generic vehicle-management framework beneath Audi Connect.
 - Do not copy AGPL-3.0 implementation code into the MIT upstream project without a license review. Extract externally supported behavior and implement independently.
 
-Continue with the [Cross-Brand Atlas](02-CROSS-BRAND-API-ATLAS.md).
+Continue with the [Cross-Brand Atlas](02-CROSS-BRAND-API-ATLAS.md) and [Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).
