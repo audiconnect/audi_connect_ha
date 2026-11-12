@@ -1,5 +1,6 @@
 """V3 read-only value discovery preserves historical entity identity."""
 
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "audiconnect"
@@ -8,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "audiconnect"
 def test_v3_binary_sensor_platform_is_loaded_from_v3_and_not_v2():
     main = (ROOT / "__init__.py").read_text()
     code = (ROOT / "binary_sensor.py").read_text()
-    assert "loaded_platforms=list(PLATFORMS)" in main
+    assert "loaded_platforms=list(PLATFORMS)" in ast.unparse(ast.parse(main))
     assert "from .v3.ha_platforms import setup as v3_setup" in code
     assert "if isinstance(runtime_data.v3, V3Engine)" in code
     assert "V3ReadOnlyBinarySensor" in (ROOT / "v3" / "ha_platforms.py").read_text()

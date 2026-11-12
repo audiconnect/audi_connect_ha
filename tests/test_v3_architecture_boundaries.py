@@ -7,6 +7,7 @@ points are account bootstrap, runtime selection and HA platform forwarding.
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "custom_components/audiconnect"
@@ -45,7 +46,7 @@ def test_v3_runtime_owns_business_behavior_and_all_nine_platforms():
     auth = (ROOT / "v3/auth.py").read_text()
     actions = (ROOT / "v3/service_commands.py").read_text()
 
-    assert "loaded_platforms=list(PLATFORMS)" in bootstrap
+    assert "loaded_platforms=list(PLATFORMS)" in ast.unparse(ast.parse(bootstrap))
     assert "auth=V3Auth(hass, config_entry, shared_account=account)" in bootstrap
     assert "_async_register_services(hass)" in bootstrap
     for platform in PLATFORMS:

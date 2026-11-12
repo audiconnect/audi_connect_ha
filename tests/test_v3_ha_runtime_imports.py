@@ -6,6 +6,7 @@ this catches misspelled imports and unsupported runtime APIs before release.
 
 from __future__ import annotations
 
+import ast
 import importlib
 from pathlib import Path
 
@@ -46,7 +47,8 @@ def test_required_v3_platforms_forwarded_in_v3():
         Path(__file__).resolve().parents[1]
         / "custom_components/audiconnect/__init__.py"
     ).read_text()
-    assert "loaded_platforms=list(PLATFORMS)" in init
+    normalized = ast.unparse(ast.parse(init))
+    assert "loaded_platforms=list(PLATFORMS)" in normalized
     platforms = (
         Path(__file__).resolve().parents[1]
         / "custom_components/audiconnect/v3/ha_platforms.py"
@@ -65,5 +67,5 @@ def test_required_v3_platforms_forwarded_in_v3():
         assert f'platform == "{domain}"' in platforms or f'"{domain}"' in platforms
     assert "AudiDataUpdateCoordinator.from_entry" in init
     assert "coordinator = V3CleanCoordinator(hass, engine, config_entry)" in init
-    assert "account=account, coordinator=coordinator, v3=engine" in init
+    assert "account=account, coordinator=coordinator, v3=engine" in normalized
     assert "auth=V3Auth(hass, config_entry, shared_account=account)" in init
