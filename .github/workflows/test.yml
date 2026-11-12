@@ -40,3 +40,7 @@ jobs:
         run: pip install ruff==0.17.4
       - name: Ruff lint (complete concise report)
         run: ruff check --output-format concise .
+      - name: Run upstream pre-commit hooks
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
