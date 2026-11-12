@@ -2,6 +2,7 @@
 
 These are isolated tests. Physical Q8 command success is NOT inferred from them.
 """
+
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -9,7 +10,9 @@ from unittest.mock import AsyncMock
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.audiconnect.v3.service_commands import execute as _v3_service_command
+from custom_components.audiconnect.v3.service_commands import (
+    execute as _v3_service_command,
+)
 from custom_components.audiconnect.v3.auth import V3Auth
 
 
@@ -60,15 +63,15 @@ def test_v3_services_dispatch_only_to_approved_v3_engine_controls():
         ("start_preheater", "climate", "preheater_start"),
         ("stop_preheater", "climate", "preheater_stop"),
     ):
-        asyncio.run(_v3_service_command(engine, "TESTVIN", name, {"device_id": "device"}))
+        asyncio.run(
+            _v3_service_command(engine, "TESTVIN", name, {"device_id": "device"})
+        )
         engine.send_control.assert_awaited_with("TESTVIN", aspect, capability)
 
 
 def test_v3_unsupported_actions_fail_closed_and_do_not_invoke_v2():
     engine = SimpleNamespace(send_control=AsyncMock())
-    for name in (
-        "nonsense",
-    ):
+    for name in ("nonsense",):
         with pytest.raises(HomeAssistantError, match="not yet V3-verified"):
             asyncio.run(_v3_service_command(engine, "TESTVIN", name))
     engine.send_control.assert_not_awaited()
@@ -76,15 +79,22 @@ def test_v3_unsupported_actions_fail_closed_and_do_not_invoke_v2():
 
 def test_v3_parameterized_climate_start_never_discards_temperature():
     engine = SimpleNamespace(send_control=AsyncMock())
-    asyncio.run(_v3_service_command(
-        engine, "TESTVIN", "start_climatisation",
-        {"device_id": "dev", "temp_c": 22},
-    ))
+    asyncio.run(
+        _v3_service_command(
+            engine,
+            "TESTVIN",
+            "start_climatisation",
+            {"device_id": "dev", "temp_c": 22},
+        )
+    )
     engine.send_control.assert_awaited_once_with(
-        "TESTVIN", "start_with_settings", "climate", params={"temp_c": 22})
+        "TESTVIN", "start_with_settings", "climate", params={"temp_c": 22}
+    )
 
 
 def test_v3_command_rejection_is_surfaced_as_ha_error():
-    engine = SimpleNamespace(send_control=AsyncMock(side_effect=RuntimeError("not activated")))
+    engine = SimpleNamespace(
+        send_control=AsyncMock(side_effect=RuntimeError("not activated"))
+    )
     with pytest.raises(HomeAssistantError, match="not activated"):
         asyncio.run(_v3_service_command(engine, "TESTVIN", "lock"))

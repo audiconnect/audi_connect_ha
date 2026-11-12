@@ -834,7 +834,9 @@ class AudiService:
             "requestStatusResponse.status",
         )
 
-    async def set_battery_charger(self, vin: str, start: bool, timer: bool) -> bool | None:
+    async def set_battery_charger(
+        self, vin: str, start: bool, timer: bool
+    ) -> bool | None:
         """Start or stop charging.
 
         start=True, timer=True  -> select timer mode, so the car charges on its

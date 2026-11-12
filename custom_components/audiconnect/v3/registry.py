@@ -7,10 +7,11 @@ Model/region refinements are optional: generic operations always remain defined.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from string import Formatter
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 _ALLOWED_FIELDS = frozenset({"VIN", "COUNTRY", "TYPE", "JOBS"})
 _ALLOWED_SCOPE = frozenset({"auth", "region", "vehicle_type", "model_family"})
@@ -23,8 +24,9 @@ def read_json_path(payload: Any, path: str) -> Any:
         return None
     if path.startswith("/"):
         # RFC 6901: ~1 represents a slash, ~0 represents a tilde.
-        parts = [part.replace("~1", "/").replace("~0", "~")
-                 for part in path[1:].split("/")]
+        parts = [
+            part.replace("~1", "/").replace("~0", "~") for part in path[1:].split("/")
+        ]
     else:
         parts = path.split(".")
     node = payload
@@ -34,8 +36,10 @@ def read_json_path(payload: Any, path: str) -> Any:
                 return None
             node = node[part]
         elif isinstance(node, list):
-            if not part.isascii() or not part.isdigit() or (
-                len(part) > 1 and part[0] == "0"
+            if (
+                not part.isascii()
+                or not part.isdigit()
+                or (len(part) > 1 and part[0] == "0")
             ):
                 return None
             index = int(part)
@@ -95,9 +99,12 @@ class RouteEvidence:
             # Neither sleeping vehicles nor Audi cloud failures remove features.
             self.consecutive_not_found = 0
             self.last_result = (
-                "not_authorized" if http_status in (401, 403)
-                else "rate_limited" if http_status == 429
-                else "upstream_error" if http_status >= 500
+                "not_authorized"
+                if http_status in (401, 403)
+                else "rate_limited"
+                if http_status == 429
+                else "upstream_error"
+                if http_status >= 500
                 else "inconclusive"
             )
 
@@ -112,9 +119,8 @@ def _check_path(path: Any, extra_fields: frozenset[str] = frozenset()) -> None:
         raise RegistryError("Unsafe API path")
     allowed = _ALLOWED_FIELDS | extra_fields
     for _, field_name, format_spec, conversion in Formatter().parse(path):
-        if (
-            field_name is not None
-            and (field_name not in allowed or conversion or format_spec)
+        if field_name is not None and (
+            field_name not in allowed or conversion or format_spec
         ):
             raise RegistryError("Unknown or unsafe path template variable")
 
@@ -128,9 +134,10 @@ class CapabilityRegistry:
         self.families = raw.get("api_families")
         self.operations = raw.get("operations")
         self.capabilities = raw.get("capabilities")
-        if not all(isinstance(x, dict) for x in (
-            self.families, self.operations, self.capabilities
-        )):
+        if not all(
+            isinstance(x, dict)
+            for x in (self.families, self.operations, self.capabilities)
+        ):
             raise RegistryError("V3 catalog sections must be objects")
         if not self.capabilities or len(self.capabilities) > 30:
             raise RegistryError("Empty or excessive V3 capability catalog")
@@ -142,18 +149,25 @@ class CapabilityRegistry:
             if not isinstance(op, dict):
                 raise RegistryError("Malformed operation")
             family = self.families.get(op.get("family"))
-            if not isinstance(family, dict) or family.get("auth") not in ("auth0", "legacy"):
+            if not isinstance(family, dict) or family.get("auth") not in (
+                "auth0",
+                "legacy",
+            ):
                 raise RegistryError("Unknown API family or auth")
             if op.get("method") not in _ALLOWED_METHODS:
                 raise RegistryError("Method not supported by V3 pilot")
             variables = op.get("request_variables", {})
-            if not isinstance(variables, dict) or len(variables) > 12 or any(
-                not isinstance(name, str)
-                or not name.isidentifier()
-                or not name.isupper()
-                or name in _ALLOWED_FIELDS
-                or kind not in ("string", "integer", "number", "boolean")
-                for name, kind in variables.items()
+            if (
+                not isinstance(variables, dict)
+                or len(variables) > 12
+                or any(
+                    not isinstance(name, str)
+                    or not name.isidentifier()
+                    or not name.isupper()
+                    or name in _ALLOWED_FIELDS
+                    or kind not in ("string", "integer", "number", "boolean")
+                    for name, kind in variables.items()
+                )
             ):
                 raise RegistryError("Unrecognized or unsafe declared API variables")
             _check_path(op.get("path"), frozenset(variables))
@@ -172,7 +186,10 @@ class CapabilityRegistry:
                 if any(not isinstance(p, str) for p in op["response_paths"]):
                     raise RegistryError("Invalid response path")
         for capability, definition in self.capabilities.items():
-            if not isinstance(definition, dict) or set(definition) - {"status", "control"}:
+            if not isinstance(definition, dict) or set(definition) - {
+                "status",
+                "control",
+            }:
                 raise RegistryError("Capability must own optional status/control")
             if not definition:
                 raise RegistryError("Capability must have a supported aspect")
@@ -183,29 +200,41 @@ class CapabilityRegistry:
             ):
                 raise RegistryError("Invalid control definition")
             for aspect in ("status", *control):
-                node = definition.get("status") if aspect == "status" else control.get(aspect)
+                node = (
+                    definition.get("status")
+                    if aspect == "status"
+                    else control.get(aspect)
+                )
                 if node is None:
                     continue
                 refs = node.get("operations") if isinstance(node, dict) else None
-                if not isinstance(refs, list) or not refs or len(refs) != len(set(refs)):
+                if (
+                    not isinstance(refs, list)
+                    or not refs
+                    or len(refs) != len(set(refs))
+                ):
                     raise RegistryError("Missing or duplicate operation reference")
                 for ref in refs:
                     op = self.operations.get(ref)
                     if op is None or (op["method"] == "GET") != (aspect == "status"):
                         raise RegistryError("Invalid operation reference")
-    
+
     @classmethod
-    def from_json_file(cls, path: Path) -> "CapabilityRegistry":
+    def from_json_file(cls, path: Path) -> CapabilityRegistry:
         """File read must run in HA's executor, never on the event loop."""
         return cls(json.loads(path.read_text(encoding="utf-8")))
 
     def operations_for(self, capability: str, aspect: str) -> list[str]:
         definition = self.capabilities.get(capability)
-        if definition is None or (aspect not in ("status", "start", "stop") and
-                                   aspect not in (definition.get("control") or {})):
+        if definition is None or (
+            aspect not in ("status", "start", "stop")
+            and aspect not in (definition.get("control") or {})
+        ):
             raise RegistryError("Unknown capability or aspect")
-        node = definition.get("status") if aspect == "status" else (
-            (definition.get("control") or {}).get(aspect)
+        node = (
+            definition.get("status")
+            if aspect == "status"
+            else ((definition.get("control") or {}).get(aspect))
         )
         return list(node.get("operations", [])) if node else []
 
@@ -229,22 +258,38 @@ class CapabilityRegistry:
             scope = {**op.get("scope", {}), "auth": family["auth"]}
             # Legacy IDK sessions also carry a CARIAD bearer. Only exact
             # built-in historical routes opt in; custom routes never do.
-            if (context.auth == "legacy" and family["auth"] == "auth0"
-                    and context.legacy_cariad and op.get("legacy_compatible") is True
-                    and (not op.get("legacy_climate_level1") or context.legacy_api_level == 1)):
+            if (
+                context.auth == "legacy"
+                and family["auth"] == "auth0"
+                and context.legacy_cariad
+                and op.get("legacy_compatible") is True
+                and (
+                    not op.get("legacy_climate_level1") or context.legacy_api_level == 1
+                )
+            ):
                 scope["auth"] = "legacy"
-            if (context.auth == "legacy" and context.legacy_cariad and context.legacy_api_level == 1
-                    and op.get("legacy_climate_level0") is True):
-                excluded.append({"operation": ident, "reason": "legacy_climate_api_level"})
+            if (
+                context.auth == "legacy"
+                and context.legacy_cariad
+                and context.legacy_api_level == 1
+                and op.get("legacy_climate_level0") is True
+            ):
+                excluded.append(
+                    {"operation": ident, "reason": "legacy_climate_api_level"}
+                )
                 continue
             if op.get("implementation") == "not_implemented":
-                excluded.append({"operation": ident, "reason": "adapter_not_implemented"})
+                excluded.append(
+                    {"operation": ident, "reason": "adapter_not_implemented"}
+                )
             elif any(getattr(context, k, None) != v for k, v in scope.items()):
                 excluded.append({"operation": ident, "reason": "context_mismatch"})
-            elif aspect == "status" and evidence.get(
-                ident, RouteEvidence()
-            ).suspended(now):
-                excluded.append({"operation": ident, "reason": "temporarily_quarantined"})
+            elif aspect == "status" and evidence.get(ident, RouteEvidence()).suspended(
+                now
+            ):
+                excluded.append(
+                    {"operation": ident, "reason": "temporarily_quarantined"}
+                )
             else:
                 candidates.append(ident)
 
@@ -255,27 +300,36 @@ class CapabilityRegistry:
             if aspect == "status":
                 # Existing batch first: never schedule a second GET to learn.
                 passive = [
-                    ident for ident in candidates
+                    ident
+                    for ident in candidates
                     if self.operations[ident]["delivery"] == "existing_poll"
                 ]
                 if passive:
-                    chosen = min(passive, key=lambda ident: (
-                        -evidence.get(ident, RouteEvidence()).readable,
-                        self.operations[ident].get("priority", 100),
-                    ))
+                    chosen = min(
+                        passive,
+                        key=lambda ident: (
+                            -evidence.get(ident, RouteEvidence()).readable,
+                            self.operations[ident].get("priority", 100),
+                        ),
+                    )
             else:
                 # Choosing a command here never invokes it: the HA user still
                 # has to press ON/OFF. No automatic fallback or retries.
                 if candidates:
-                    chosen = min(candidates, key=lambda ident: self.operations[ident].get(
-                        "priority", 100
-                    ))
+                    chosen = min(
+                        candidates,
+                        key=lambda ident: self.operations[ident].get("priority", 100),
+                    )
 
         return {
             "operation": chosen,
-            "reason": "preferred" if preferred else (
-                "existing_poll" if aspect == "status" and chosen
-                else "manual_control_only" if chosen
+            "reason": "preferred"
+            if preferred
+            else (
+                "existing_poll"
+                if aspect == "status" and chosen
+                else "manual_control_only"
+                if chosen
                 else "no_applicable_route"
             ),
             "available_operations": candidates,

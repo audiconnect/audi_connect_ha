@@ -4,6 +4,7 @@ The only supported source is the reviewed CARIAD parkingposition GET. Never
 infer driving coordinates from the last parked sample. No position is recorded
 to V3 API evidence or diagnostic logs.
 """
+
 from __future__ import annotations
 
 import math
@@ -22,8 +23,12 @@ def parse_parked_position(payload: Any) -> dict[str, Any] | None:
         lat, lon = float(lat), float(lon)
     except (TypeError, ValueError):
         return None
-    if not (math.isfinite(lat) and math.isfinite(lon)
-            and -90 <= lat <= 90 and -180 <= lon <= 180):
+    if not (
+        math.isfinite(lat)
+        and math.isfinite(lon)
+        and -90 <= lat <= 90
+        and -180 <= lon <= 180
+    ):
         return None
     captured = item.get("carCapturedTimestamp")
     timestamp = None

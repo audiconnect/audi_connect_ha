@@ -1,11 +1,19 @@
 """Bounded, value-free operational findings; no extra API requests."""
+
 from datetime import UTC, datetime
 
 from .historical_catalog import V2_JOBS
 from .read_discovery import explicitly_unsupported
 
-HEALTH_STATES = ["initializing", "operational", "degraded", "rate_limited",
-                 "authentication_required", "cloud_unavailable", "error"]
+HEALTH_STATES = [
+    "initializing",
+    "operational",
+    "degraded",
+    "rate_limited",
+    "authentication_required",
+    "cloud_unavailable",
+    "error",
+]
 
 
 class IntegrationHealth:
@@ -19,15 +27,26 @@ class IntegrationHealth:
         rows = self.findings.setdefault(vehicle, {})
         previous = rows.get(key)
         now = datetime.now(UTC).isoformat()
-        row = {"code": code, "source": key, "http_status": http, "oem_error_code": oem,
-               "retryable": retry, "active": True,
-               "first_seen": previous["first_seen"] if previous else now,
-               "last_seen": now, "occurrences": previous["occurrences"] + 1 if previous else 1}
+        row = {
+            "code": code,
+            "source": key,
+            "http_status": http,
+            "oem_error_code": oem,
+            "retryable": retry,
+            "active": True,
+            "first_seen": previous["first_seen"] if previous else now,
+            "last_seen": now,
+            "occurrences": previous["occurrences"] + 1 if previous else 1,
+        }
         rows[key] = row
         if len(rows) > 32:
             rows.pop(next(iter(rows)))
         self.last[vehicle] = row
-        if previous is None or previous["code"] != code or previous["oem_error_code"] != oem:
+        if (
+            previous is None
+            or previous["code"] != code
+            or previous["oem_error_code"] != oem
+        ):
             self._history(vehicle, row)
 
     def _history(self, vehicle, row):
@@ -38,18 +57,29 @@ class IntegrationHealth:
     def _recover(self, vehicle, key):
         row = self.findings.get(vehicle, {}).pop(key, None)
         if row is not None:
-            recovered = {**row, "active": False, "recovered_at": datetime.now(UTC).isoformat()}
+            recovered = {
+                **row,
+                "active": False,
+                "recovered_at": datetime.now(UTC).isoformat(),
+            }
             self._history(vehicle, recovered)
             if self.last.get(vehicle) is row:
                 self.last[vehicle] = recovered
 
     def observe(self, vehicle, operation, method, response, operations):
         discovery = operation.startswith("cariad.discovery.")
-        jobs = operation.removeprefix("cariad.discovery.").split("_") if discovery else []
+        jobs = (
+            operation.removeprefix("cariad.discovery.").split("_") if discovery else []
+        )
         from .transport import IDENTITY_QUERIES
-        if (operation not in operations and operation not in IDENTITY_QUERIES
-                and operation not in ("cariad.discovery.full", "cariad.selectivestatus.batch")
-                and not (discovery and jobs and all(j in V2_JOBS for j in jobs))):
+
+        if (
+            operation not in operations
+            and operation not in IDENTITY_QUERIES
+            and operation
+            not in ("cariad.discovery.full", "cariad.selectivestatus.batch")
+            and not (discovery and jobs and all(j in V2_JOBS for j in jobs))
+        ):
             return
         if method != "GET" and operation != "graphql.inventory.vehicleList":
             return
@@ -63,7 +93,12 @@ class IntegrationHealth:
             return
         if operation == "graphql.inventory.vehicleList":
             if data.get("errors"):
-                self._record(vehicle, "graphql_inventory_errors", "graphql_partial_response", http=status)
+                self._record(
+                    vehicle,
+                    "graphql_inventory_errors",
+                    "graphql_partial_response",
+                    http=status,
+                )
             else:
                 self._recover(vehicle, "graphql_inventory_errors")
         for job in V2_JOBS:
@@ -74,13 +109,22 @@ class IntegrationHealth:
                 self._recover(vehicle, job)
                 continue
             candidates = [value, *[v for v in value.values() if isinstance(v, dict)]]
-            errors = [v["error"] for v in candidates if isinstance(v.get("error"), dict)]
+            errors = [
+                v["error"] for v in candidates if isinstance(v.get("error"), dict)
+            ]
             if errors:
                 error = errors[0]
                 code = error.get("code")
-                self._record(vehicle, job, "api_partial_response", http=status,
-                             oem=code if type(code) is int and 0 <= code <= 2147483647 else None,
-                             retry=error.get("retry") if type(error.get("retry")) is bool else None)
+                self._record(
+                    vehicle,
+                    job,
+                    "api_partial_response",
+                    http=status,
+                    oem=code if type(code) is int and 0 <= code <= 2147483647 else None,
+                    retry=error.get("retry")
+                    if type(error.get("retry")) is bool
+                    else None,
+                )
             elif any(v.get("value") not in (None, {}, []) for v in candidates):
                 self._recover(vehicle, job)
 
@@ -94,10 +138,17 @@ class IntegrationHealth:
         remaining = getattr(engine.transport, "remaining_calls", None)
         quota = getattr(engine.transport, "quota", None)
         retry_at = getattr(quota, "retry_at", None)
-        limited = ((remaining is not None and remaining <= getattr(quota, "reserve", 8))
-                   or (retry_at is not None and retry_at > datetime.now(UTC)))
+        limited = (
+            remaining is not None and remaining <= getattr(quota, "reserve", 8)
+        ) or (retry_at is not None and retry_at > datetime.now(UTC))
         poll = engine.last_cloud_poll_succeeded
-        identity = "last_known" if getattr(car, "identity_restored", False) else "observed" if car.model else "missing"
+        identity = (
+            "last_known"
+            if getattr(car, "identity_restored", False)
+            else "observed"
+            if car.model
+            else "missing"
+        )
         if self.poll_error == "authentication_required":
             state = self.poll_error
         elif limited:
@@ -113,11 +164,23 @@ class IntegrationHealth:
         else:
             state = "operational"
         last = self.last.get(key)
-        return {"status": state, "problem": state in ("degraded", "rate_limited",
-                "authentication_required", "cloud_unavailable", "error"),
-                "cloud_poll_succeeded": poll, "quota_remaining": remaining,
-                "identity_status": identity, "active_findings": findings,
-                "active_error_count": len(findings),
-                "last_error": dict(last) if last else None, "poll_error": self.poll_error,
-                "error_history": [dict(row) for row in self.history.get(key, [])],
-                "history_scope": "current_runtime"}
+        return {
+            "status": state,
+            "problem": state
+            in (
+                "degraded",
+                "rate_limited",
+                "authentication_required",
+                "cloud_unavailable",
+                "error",
+            ),
+            "cloud_poll_succeeded": poll,
+            "quota_remaining": remaining,
+            "identity_status": identity,
+            "active_findings": findings,
+            "active_error_count": len(findings),
+            "last_error": dict(last) if last else None,
+            "poll_error": self.poll_error,
+            "error_history": [dict(row) for row in self.history.get(key, [])],
+            "history_scope": "current_runtime",
+        }

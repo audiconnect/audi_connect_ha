@@ -614,8 +614,11 @@ class OptionsFlowHandler(OptionsFlow):
         engine = self._discovery_engine()
         if engine is None:
             return self.async_abort(reason="no_vehicle_available")
-        vehicles = [(car.vin, f"{car.name} (…{car.vin[-4:]})")
-                    for car in engine.vehicles.values() if car.inventory_present]
+        vehicles = [
+            (car.vin, f"{car.name} (…{car.vin[-4:]})")
+            for car in engine.vehicles.values()
+            if car.inventory_present
+        ]
         if not vehicles:
             return self.async_abort(reason="no_vehicle_available")
         if len(vehicles) == 1:
@@ -624,11 +627,14 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input and user_input.get("vehicle") in dict(vehicles):
             self._discovery_vin = user_input["vehicle"]
             return await self.async_step_discovery()
-        return self.async_show_form(step_id="discovery_vehicle", data_schema=vol.Schema({
-            vol.Required("vehicle"): vol.In(dict(vehicles))}))
+        return self.async_show_form(
+            step_id="discovery_vehicle",
+            data_schema=vol.Schema({vol.Required("vehicle"): vol.In(dict(vehicles))}),
+        )
 
     async def async_step_discovery(self, user_input=None):
         from .v3.read_discovery import user_test_candidates
+
         engine, car, profile = self._discovery_context()
         active = profile.discovery._active
         if active is not None:
@@ -638,33 +644,57 @@ class OptionsFlowHandler(OptionsFlow):
             return await self.async_step_discovery_recover()
         if self._discovery_skipped is None:
             self._discovery_skipped = set()
-        candidates = {key: value for key, value in user_test_candidates(engine, car, profile).items()
-                      if key not in self._discovery_skipped}
+        candidates = {
+            key: value
+            for key, value in user_test_candidates(engine, car, profile).items()
+            if key not in self._discovery_skipped
+        }
         if user_input is not None:
             choice = user_input.get("action")
             if choice == "finish":
-                return self.async_create_entry(title="", data=self._pending_options or dict(self.config_entry.options))
+                return self.async_create_entry(
+                    title="",
+                    data=self._pending_options or dict(self.config_entry.options),
+                )
             if choice == "refresh":
                 await engine.resume_read_discovery(car.vin)
                 return await self.async_step_discovery()
         if candidates:
-            self._discovery_action, self._discovery_candidate = next(iter(candidates.items()))
+            self._discovery_action, self._discovery_candidate = next(
+                iter(candidates.items())
+            )
             return await self.async_step_discovery_consent()
         progress = engine.discovery_progress(car, profile)
-        return self.async_show_form(step_id="discovery", data_schema=vol.Schema({
-            vol.Required("action", default="finish"): vol.In({
-                "finish": "Finish", "refresh": "Resume unresolved read discovery"})}),
-            description_placeholders={"vehicle": car.name,
+        return self.async_show_form(
+            step_id="discovery",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action", default="finish"): vol.In(
+                        {
+                            "finish": "Finish",
+                            "refresh": "Resume unresolved read discovery",
+                        }
+                    )
+                }
+            ),
+            description_placeholders={
+                "vehicle": car.name,
                 "read_state": str(progress["read_state"]).replace("_", " "),
                 "read": str(progress["read_assessment_percent"]),
-                "assessed": str(progress["read_assessed"]), "total": str(progress["read_total"]),
+                "assessed": str(progress["read_assessed"]),
+                "total": str(progress["read_total"]),
                 "verified": str(progress["controls_physically_verified"]),
-                "controls": str(progress["controls_catalog_applicable"])})
+                "controls": str(progress["controls_catalog_applicable"]),
+            },
+        )
 
     async def async_step_discovery_consent(self, user_input=None):
         from .v3.read_discovery import user_test_candidates
+
         engine, car, profile = self._discovery_context()
-        candidate = user_test_candidates(engine, car, profile).get(self._discovery_action)
+        candidate = user_test_candidates(engine, car, profile).get(
+            self._discovery_action
+        )
         if candidate is None or candidate != self._discovery_candidate:
             # Do not reuse a consent when discovery changed the actual route.
             self._discovery_candidate = None
@@ -674,7 +704,10 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             answer = user_input.get("accept")
             if answer == "finish":
-                return self.async_create_entry(title="", data=self._pending_options or dict(self.config_entry.options))
+                return self.async_create_entry(
+                    title="",
+                    data=self._pending_options or dict(self.config_entry.options),
+                )
             if answer is not True and answer != "yes":
                 if self._discovery_skipped is None:
                     self._discovery_skipped = set()
@@ -684,7 +717,13 @@ class OptionsFlowHandler(OptionsFlow):
             self._discovery_candidate = None  # Single-use explicit action approval.
             try:
                 result = await engine.approved_control_discovery(
-                    car.vin, action, operation, approval=group, capability=capability, guided=True)
+                    car.vin,
+                    action,
+                    operation,
+                    approval=group,
+                    capability=capability,
+                    guided=True,
+                )
             except (ValueError, RuntimeError, OSError, TimeoutError):
                 errors["base"] = "discovery_test_failed"
                 if profile.discovery._active is not None:
@@ -696,13 +735,24 @@ class OptionsFlowHandler(OptionsFlow):
                 self._discovery_sequence = result["sequence"]
                 return await self.async_step_discovery_review()
         progress = engine.discovery_progress(car, profile)
-        return self.async_show_form(step_id="discovery_consent",
-            data_schema=vol.Schema({vol.Required("accept", default="no"): vol.In({
-                "yes": "Yes", "no": "No / skip", "finish": "Finish"})}),
-            errors=errors, description_placeholders={"vehicle": car.name, "action": label,
+        return self.async_show_form(
+            step_id="discovery_consent",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("accept", default="no"): vol.In(
+                        {"yes": "Yes", "no": "No / skip", "finish": "Finish"}
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "vehicle": car.name,
+                "action": label,
                 "verified": str(progress["controls_physically_verified"]),
                 "controls": str(progress["controls_catalog_applicable"]),
-                "skipped": str(len(self._discovery_skipped or ()))})
+                "skipped": str(len(self._discovery_skipped or ())),
+            },
+        )
 
     async def async_step_discovery_review(self, user_input=None):
         engine, car, profile = self._discovery_context()
@@ -719,14 +769,32 @@ class OptionsFlowHandler(OptionsFlow):
                     errors["base"] = "discovery_test_failed"
                 else:
                     if outcome == "uncertain":
-                        return self.async_create_entry(title="", data=self._pending_options or dict(self.config_entry.options))
+                        return self.async_create_entry(
+                            title="",
+                            data=self._pending_options
+                            or dict(self.config_entry.options),
+                        )
                     return await self.async_step_discovery()
-        return self.async_show_form(step_id="discovery_review", data_schema=vol.Schema({
-            vol.Required("outcome", default="uncertain"): vol.In({
-                "worked": "OK", "failed": "Not OK",
-                "uncertain": "Not sure — retain pending review"})}), errors=errors,
-            description_placeholders={"vehicle": car.name, "action": active.action,
-                                      "transport": active.transport})
+        return self.async_show_form(
+            step_id="discovery_review",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("outcome", default="uncertain"): vol.In(
+                        {
+                            "worked": "OK",
+                            "failed": "Not OK",
+                            "uncertain": "Not sure — retain pending review",
+                        }
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "vehicle": car.name,
+                "action": active.action,
+                "transport": active.transport,
+            },
+        )
 
     async def async_step_discovery_recover(self, user_input=None):
         engine, car, profile = self._discovery_context()
@@ -737,10 +805,14 @@ class OptionsFlowHandler(OptionsFlow):
             if user_input.get("inspected"):
                 await engine.review_normal_command(car.vin, command.command_id)
                 return await self.async_step_discovery()
-            return self.async_create_entry(title="", data=self._pending_options or dict(self.config_entry.options))
-        return self.async_show_form(step_id="discovery_recover", data_schema=vol.Schema({
-            vol.Required("inspected", default=False): bool}),
-            description_placeholders={"vehicle": car.name, "action": command.action})
+            return self.async_create_entry(
+                title="", data=self._pending_options or dict(self.config_entry.options)
+            )
+        return self.async_show_form(
+            step_id="discovery_recover",
+            data_schema=vol.Schema({vol.Required("inspected", default=False): bool}),
+            description_placeholders={"vehicle": car.name, "action": command.action},
+        )
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -771,9 +843,7 @@ class OptionsFlowHandler(OptionsFlow):
                 ),
             )
             try:
-                user_input[CONF_SCAN_INTERVAL] = max(
-                    int(interval), MIN_UPDATE_INTERVAL
-                )
+                user_input[CONF_SCAN_INTERVAL] = max(int(interval), MIN_UPDATE_INTERVAL)
             except (TypeError, ValueError):
                 # Re-display an actionable form error instead of a silent
                 # failure while the modal stays on the previous runtime.
@@ -785,7 +855,11 @@ class OptionsFlowHandler(OptionsFlow):
             # OptionsFlow replaces all options; preserve per-vehicle metadata.
             if "local_dealers" in self.config_entry.options:
                 user_input["local_dealers"] = self.config_entry.options["local_dealers"]
-            if run_discovery and user_input["runtime_version"] == "v3_climate" and self._discovery_engine() is not None:
+            if (
+                run_discovery
+                and user_input["runtime_version"] == "v3_climate"
+                and self._discovery_engine() is not None
+            ):
                 self._pending_options = user_input
                 return await self.async_step_discovery_vehicle()
             if edit_dealer:
@@ -796,9 +870,7 @@ class OptionsFlowHandler(OptionsFlow):
         # V3 owns API routes and experimental actions in its development
         # dashboard, never inside this account configuration wizard.
         return self.async_show_form(
-            step_id="init", data_schema=self._options_schema(
-                self.config_entry.options
-            )
+            step_id="init", data_schema=self._options_schema(self.config_entry.options)
         )
 
     def _options_schema(self, values: dict[str, Any]) -> vol.Schema:
@@ -835,25 +907,33 @@ class OptionsFlowHandler(OptionsFlow):
         if values.get("runtime_version", "v2") == "v3_climate":
             schema[vol.Optional("edit_local_dealer", default=False)] = bool
             schema[vol.Optional("run_vehicle_discovery", default=False)] = bool
-            schema[vol.Required(
-                "v3_development_workbench",
-                default=self.config_entry.options.get(
-                    "v3_development_workbench", False
-                ),
-            )] = bool
+            schema[
+                vol.Required(
+                    "v3_development_workbench",
+                    default=self.config_entry.options.get(
+                        "v3_development_workbench", False
+                    ),
+                )
+            ] = bool
         else:
             # Preserve every historical V2 option and user metadata.
             # API route editing is reserved for the opt-in V3 Workbench.
-            schema.update({
-                vol.Required(
-                    CONF_REFRESH_AFTER_ACTION,
-                    default=self.config_entry.options.get(CONF_REFRESH_AFTER_ACTION, False),
-                ): bool,
-                vol.Required(
-                    CONF_UPDATE_SLEEP,
-                    default=self.config_entry.options.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP),
-                ): NumberSelector(NumberSelectorConfig(min=0, mode="box")),
-            })
+            schema.update(
+                {
+                    vol.Required(
+                        CONF_REFRESH_AFTER_ACTION,
+                        default=self.config_entry.options.get(
+                            CONF_REFRESH_AFTER_ACTION, False
+                        ),
+                    ): bool,
+                    vol.Required(
+                        CONF_UPDATE_SLEEP,
+                        default=self.config_entry.options.get(
+                            CONF_UPDATE_SLEEP, UPDATE_SLEEP
+                        ),
+                    ): NumberSelector(NumberSelectorConfig(min=0, mode="box")),
+                }
+            )
         return vol.Schema(schema)
 
 

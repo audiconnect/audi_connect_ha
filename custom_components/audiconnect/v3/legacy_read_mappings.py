@@ -3,6 +3,7 @@
 MBB may omit vehicle capture clocks. A successful GET proves that a field is
 readable, not that the car has recently refreshed it. Controls are excluded.
 """
+
 from __future__ import annotations
 
 ROUTES = {
@@ -13,10 +14,22 @@ ROUTES = {
     "timer": "/fs-car/bs/departuretimer/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/timer",
 }
 FIELDS: dict[str, tuple[str, str]] = {
-    "stateOfCharge": ("charger", "charger.status.batteryStatusData.stateOfCharge.content"),
-    "chargingState": ("charger", "charger.status.chargingStatusData.chargingState.content"),
-    "actualChargeRate": ("charger", "charger.status.chargingStatusData.actualChargeRate.content"),
-    "chargingPower": ("charger", "charger.status.chargingStatusData.chargingPower.content"),
+    "stateOfCharge": (
+        "charger",
+        "charger.status.batteryStatusData.stateOfCharge.content",
+    ),
+    "chargingState": (
+        "charger",
+        "charger.status.chargingStatusData.chargingState.content",
+    ),
+    "actualChargeRate": (
+        "charger",
+        "charger.status.chargingStatusData.actualChargeRate.content",
+    ),
+    "chargingPower": (
+        "charger",
+        "charger.status.chargingStatusData.chargingPower.content",
+    ),
     "chargeMode": ("charger", "charger.status.chargingStatusData.chargingMode.content"),
     "energy_flow": ("charger", "charger.status.chargingStatusData.energyFlow.content"),
     "max_charge_current": ("charger", "charger.settings.maxChargeCurrent.content"),
@@ -24,15 +37,42 @@ FIELDS: dict[str, tuple[str, str]] = {
     "plugLockState": ("charger", "charger.status.plugStatusData.plugLockState.content"),
     "externalPower": ("charger", "charger.status.plugStatusData.externalPower.content"),
     "plugledColor": ("charger", "charger.status.plugStatusData.plugledColor.content"),
-    "remainingChargingTime": ("charger", "charger.status.batteryStatusData.remainingChargingTime.content"),
-    "hybridRange": ("charger", "charger.status.cruisingRangeStatusData.hybridRange.content"),
-    "primaryEngineRange": ("charger", "charger.status.cruisingRangeStatusData.primaryEngineRange.content"),
-    "secondaryEngineRange": ("charger", "charger.status.cruisingRangeStatusData.secondaryEngineRange.content"),
-    "engineTypeFirstEngine": ("charger", "charger.status.cruisingRangeStatusData.engineTypeFirstEngine.content"),
-    "engineTypeSecondEngine": ("charger", "charger.status.cruisingRangeStatusData.engineTypeSecondEngine.content"),
-    "climatisationState": ("climater", "climater.status.climatisationStatusData.climatisationState.content"),
-    "remainingClimatisationTime": ("climater", "climater.status.climatisationStatusData.remainingClimatisationTime.content"),
-    "glass_surface_heating": ("climater", "climater.status.climatisationStatusData.climatisationElementStates.isMirrorHeatingActive.content"),
+    "remainingChargingTime": (
+        "charger",
+        "charger.status.batteryStatusData.remainingChargingTime.content",
+    ),
+    "hybridRange": (
+        "charger",
+        "charger.status.cruisingRangeStatusData.hybridRange.content",
+    ),
+    "primaryEngineRange": (
+        "charger",
+        "charger.status.cruisingRangeStatusData.primaryEngineRange.content",
+    ),
+    "secondaryEngineRange": (
+        "charger",
+        "charger.status.cruisingRangeStatusData.secondaryEngineRange.content",
+    ),
+    "engineTypeFirstEngine": (
+        "charger",
+        "charger.status.cruisingRangeStatusData.engineTypeFirstEngine.content",
+    ),
+    "engineTypeSecondEngine": (
+        "charger",
+        "charger.status.cruisingRangeStatusData.engineTypeSecondEngine.content",
+    ),
+    "climatisationState": (
+        "climater",
+        "climater.status.climatisationStatusData.climatisationState.content",
+    ),
+    "remainingClimatisationTime": (
+        "climater",
+        "climater.status.climatisationStatusData.remainingClimatisationTime.content",
+    ),
+    "glass_surface_heating": (
+        "climater",
+        "climater.status.climatisationStatusData.climatisationElementStates.isMirrorHeatingActive.content",
+    ),
 }
 
 
@@ -43,9 +83,13 @@ def variant_for(attribute: str) -> dict | None:
     name, mapping = item
     return {
         "id": "mbb." + name + ".readonly",
-        "family": "mbb", "method": "GET", "path": ROUTES[name],
-        "response_paths": [mapping], "kind": "legacy",
+        "family": "mbb",
+        "method": "GET",
+        "path": ROUTES[name],
+        "response_paths": [mapping],
+        "kind": "legacy",
     }
+
 
 # Historical MBB field IDs from the fixbranch, not a V2 import.
 FIELD_IDS = {
@@ -96,5 +140,5 @@ FIELD_IDS = {
     "0x0301030009": "SECONDARY_DRIVE",
     "0x0301030002": "STATE_OF_CHARGE",
     "0x0301020001": "TEMPERATURE_OUTSIDE",
-    "0x0202": "ACTIVE_INSTRUMENT_CLUSTER_WARNING"
+    "0x0202": "ACTIVE_INSTRUMENT_CLUSTER_WARNING",
 }

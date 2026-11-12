@@ -142,8 +142,10 @@ async def async_setup_entry(
 ) -> None:
     runtime_data: AudiRuntimeData = config_entry.runtime_data
     from .v3.engine import V3Engine
+
     if isinstance(runtime_data.v3, V3Engine):
         from .v3.ha_platforms import setup as v3_setup
+
         v3_setup("button", config_entry, async_add_entities)
         return
 
@@ -151,9 +153,7 @@ async def async_setup_entry(
         AudiButton(runtime_data.coordinator, description, vehicle)
         for config_vehicle in runtime_data.account.config_vehicles
         for description in BUTTON_DESCRIPTIONS
-        if (
-            not description.experimental
-        )
+        if (not description.experimental)
         and description.supported_fn(vehicle := config_vehicle.vehicle)
     ]
     async_add_entities(entities)

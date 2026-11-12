@@ -1,4 +1,5 @@
 """Refresh lifecycle is independent of the background poll and uses one journal."""
+
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace as NS
@@ -13,7 +14,10 @@ from custom_components.audiconnect.v3.engine import V3Engine
 from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
 from custom_components.audiconnect.v3.vehicle import V3Vehicle
 from custom_components.audiconnect.v3.transport import V3Response
-from custom_components.audiconnect.const import CONF_REFRESH_AFTER_ACTION, CONF_UPDATE_SLEEP
+from custom_components.audiconnect.const import (
+    CONF_REFRESH_AFTER_ACTION,
+    CONF_UPDATE_SLEEP,
+)
 
 VIN = "WAUZZZ4M0MD123456"
 ROOT = Path(__file__).resolve().parents[1] / "custom_components/audiconnect/v3"
@@ -25,18 +29,37 @@ def fixture(opt_in=False):
     vehicle.advertised_capabilities.update({"climatisation", "vehicleWakeUp"})
     events = []
     coordinator = NS(async_request_refresh=AsyncMock())
-    entry = NS(entry_id="test", options={CONF_UPDATE_SLEEP: 0, CONF_REFRESH_AFTER_ACTION: opt_in},
-               runtime_data=NS(coordinator=coordinator))
+    entry = NS(
+        entry_id="test",
+        options={CONF_UPDATE_SLEEP: 0, CONF_REFRESH_AFTER_ACTION: opt_in},
+        runtime_data=NS(coordinator=coordinator),
+    )
+
     async def request(family, method, path, **kwargs):
         if method == "POST":
             rid = "refresh-id" if path.endswith("vehiclewakeup") else "climate-id"
-            return V3Response(200, {"data":{"requestID":rid}}, datetime.now(UTC), 50)
-        return V3Response(200, {"data":[{"id":"climate-id","status":"successful"},
-                                        {"id":"refresh-id","status":"successful"}]}, datetime.now(UTC), 49)
+            return V3Response(200, {"data": {"requestID": rid}}, datetime.now(UTC), 50)
+        return V3Response(
+            200,
+            {
+                "data": [
+                    {"id": "climate-id", "status": "successful"},
+                    {"id": "refresh-id", "status": "successful"},
+                ]
+            },
+            datetime.now(UTC),
+            49,
+        )
+
     transport = NS(request=AsyncMock(side_effect=request), remaining_calls=50)
-    engine = V3Engine(NS(bus=NS(async_fire=lambda event, data: events.append((event,data)))),
-                      entry, registry, auth=NS(uses_auth0=True, service=NS()),
-                      transport=transport, storage=NS(async_save=AsyncMock()))
+    engine = V3Engine(
+        NS(bus=NS(async_fire=lambda event, data: events.append((event, data)))),
+        entry,
+        registry,
+        auth=NS(uses_auth0=True, service=NS()),
+        transport=transport,
+        storage=NS(async_save=AsyncMock()),
+    )
     engine.vehicles[VIN.lower()] = vehicle
     engine.profiles[VIN.lower()] = DevelopmentProfile(registry, vehicle.context)
     return engine, transport, coordinator, events
@@ -44,10 +67,14 @@ def fixture(opt_in=False):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("opt_in", [False, True])
-async def test_completed_climate_has_one_cloud_followup_and_optional_linked_wake(opt_in):
+async def test_completed_climate_has_one_cloud_followup_and_optional_linked_wake(
+    opt_in,
+):
     engine, transport, coordinator, events = fixture(opt_in)
     await engine.send_control(VIN, "start", "climate")
-    posts = [c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"]
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
     assert len(posts) == (2 if opt_in else 1)
     assert posts[0].endswith("climatisation/start")
     coordinator.async_request_refresh.assert_awaited_once()
@@ -56,7 +83,12 @@ async def test_completed_climate_has_one_cloud_followup_and_optional_linked_wake
         assert posts[1].endswith("vehiclewakeup")
         assert history[-1].parent_command_id == history[0].command_id
         assert history[-1].state == "backend_completed"
-        assert events == [("audiconnect_refresh_completed", {"vin": "*"*13 + VIN[-4:], "outcome": "backend_completed"})]
+        assert events == [
+            (
+                "audiconnect_refresh_completed",
+                {"vin": "*" * 13 + VIN[-4:], "outcome": "backend_completed"},
+            )
+        ]
     else:
         assert events == []
         assert len(history) == 1
@@ -82,11 +114,15 @@ async def test_refresh_is_not_repeated_and_uncertainty_never_creates_followup():
 async def test_unrelated_parent_cannot_bypass_cooldown_or_trigger_refresh():
     engine, transport, coordinator, events = fixture(True)
     p = engine.profiles[VIN.lower()]
-    parent = CommandRecord.begin("climate", "start", "cariad.climate.start.stored", time.time())
+    parent = CommandRecord.begin(
+        "climate", "start", "cariad.climate.start.stored", time.time()
+    )
     parent.state = "backend_completed"
     p.track_command(parent)
     with pytest.raises(RuntimeError, match="parent command"):
-        await engine.commands.send_control(VIN, "refresh", "remote", _follow_up_to="wrong")
+        await engine.commands.send_control(
+            VIN, "refresh", "remote", _follow_up_to="wrong"
+        )
     transport.request.assert_not_awaited()
 
 
@@ -97,7 +133,9 @@ async def test_accepted_wake_does_not_block_immediate_climate_action(wake_action
     original_request = transport.request.side_effect
 
     async def request(family, method, path, **kwargs):
-        if method == "POST" and path.endswith(("vehiclewakeup", "vehiclewakeuptrigger")):
+        if method == "POST" and path.endswith(
+            ("vehiclewakeup", "vehiclewakeuptrigger")
+        ):
             # Q8 b12 observed 204, no request ID or physical readback.
             return V3Response(204, {}, datetime.now(UTC), 50)
         return await original_request(family, method, path, **kwargs)
@@ -105,7 +143,9 @@ async def test_accepted_wake_does_not_block_immediate_climate_action(wake_action
     transport.request.side_effect = request
     await engine.send_control(VIN, wake_action, "remote")
     await engine.send_control(VIN, "start", "climate")
-    posts = [c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"]
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
     assert len(posts) == 2
     assert posts[0].endswith(("vehiclewakeup", "vehiclewakeuptrigger"))
     assert posts[1].endswith("climatisation/start")
@@ -118,7 +158,9 @@ async def test_linked_refresh_does_not_hide_real_command_cooldown_or_stop():
     with pytest.raises(RuntimeError, match="cooldown"):
         await engine.commands.send_control(VIN, "start", "climate")
     await engine.commands.send_control(VIN, "stop", "climate")
-    posts = [c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"]
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
     assert len(posts) == 3
     assert posts[-1].endswith("climatisation/stop")
 
@@ -129,7 +171,9 @@ async def test_wake_budget_and_uncertain_command_guard_remain_independent():
     await engine.send_control(VIN, "wake", "remote")
     with pytest.raises(RuntimeError, match="wake budget"):
         await engine.commands.send_control(VIN, "wake", "remote")
-    assert len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 1
+    assert (
+        len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 1
+    )
     wake = engine.profiles[VIN.lower()].last_command
     wake.state = "uncertain"
     wake.started_at -= 120
@@ -138,7 +182,9 @@ async def test_wake_budget_and_uncertain_command_guard_remain_independent():
         await engine.commands.send_control(VIN, "wake", "remote")
     await engine.commands.send_control(VIN, "start", "climate")
     assert wake.unresolved
-    assert len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 2
+    assert (
+        len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 2
+    )
 
 
 def test_wake_does_not_hide_previous_command_readback():
@@ -146,38 +192,65 @@ def test_wake_does_not_hide_previous_command_readback():
     car = engine.vehicles[VIN.lower()]
     profile = engine.profiles[VIN.lower()]
     from custom_components.audiconnect.v3.command_readback import configure_readback
-    start = CommandRecord.begin("climate", "start", "cariad.climate.start.stored", time.time() - 10)
+
+    start = CommandRecord.begin(
+        "climate", "start", "cariad.climate.start.stored", time.time() - 10
+    )
     start.state = "backend_completed"
     configure_readback(start, {})
     profile.track_command(start)
-    wake = CommandRecord.begin("remote", "refresh", "cariad.remote.refresh", time.time() - 5)
+    wake = CommandRecord.begin(
+        "remote", "refresh", "cariad.remote.refresh", time.time() - 5
+    )
     wake.state = "accepted_unconfirmed"
     profile.track_command(wake)
     now = datetime.now(UTC)
-    car.set_climate("heating", now.isoformat(), route="test", observed_at=now, http_status=200)
+    car.set_climate(
+        "heating", now.isoformat(), route="test", observed_at=now, http_status=200
+    )
     engine.commands.reconcile_commands()
     assert start.state == "verified"
     assert wake.state == "accepted_unconfirmed"
 
 
 def test_acknowledged_wake_survives_restart_without_blocking_climate():
-    from custom_components.audiconnect.v3.command_journal import restore_history, check_command_sequence
+    from custom_components.audiconnect.v3.command_journal import (
+        restore_history,
+        check_command_sequence,
+    )
+
     wake = CommandRecord.begin("remote", "wake", "cariad.remote.wake", 1000)
     wake.state = wake.backend_result = "accepted_unconfirmed"
     rows, latest = restore_history([wake.snapshot()])
     assert latest.state == "accepted_unconfirmed"
-    check_command_sequence(NS(last_command=latest, command_journal=rows), 1001,
-                           capability="climate", action="start")
+    check_command_sequence(
+        NS(last_command=latest, command_journal=rows),
+        1001,
+        capability="climate",
+        action="start",
+    )
     wake.backend_result = None  # interrupted before durable acknowledgement
     rows, latest = restore_history([wake.snapshot()])
     assert latest.unresolved
     with pytest.raises(RuntimeError, match="uncertain"):
-        check_command_sequence(NS(last_command=latest, command_journal=rows), 1020,
-                               capability="remote", action="wake")
-    check_command_sequence(NS(last_command=latest, command_journal=rows), 1030,
-                           capability="remote", action="wake")
-    check_command_sequence(NS(last_command=latest, command_journal=rows), 1020,
-                           capability="climate", action="start")
+        check_command_sequence(
+            NS(last_command=latest, command_journal=rows),
+            1020,
+            capability="remote",
+            action="wake",
+        )
+    check_command_sequence(
+        NS(last_command=latest, command_journal=rows),
+        1030,
+        capability="remote",
+        action="wake",
+    )
+    check_command_sequence(
+        NS(last_command=latest, command_journal=rows),
+        1020,
+        capability="climate",
+        action="start",
+    )
 
 
 @pytest.mark.asyncio
@@ -202,4 +275,6 @@ async def test_http_502_reports_error_and_allows_explicit_retry_after_cooldown()
     await engine.send_control(VIN, "start", "climate")
     assert failed.state == "uncertain"
     assert profile.last_command.state == "backend_completed"
-    assert len([c for c in transport.request.await_args_list if c.args[1]=="POST"]) == 2
+    assert (
+        len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 2
+    )

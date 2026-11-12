@@ -2,6 +2,7 @@
 
 Only synthetic Audi API responses are used. Never contact a real vehicle.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,14 +39,16 @@ class FakeTransport:
 
     async def discover_vehicles(self):
         self.calls.append(("inventory",))
-        return [{
-            "vin": VIN,
-            "nickname": "Test Audi",
-            "vehicle": {
-                "media": {"longName": "Audi Q8 TFSI e"},
-                "classification": {"driveTrain": "PHEV"},
-            },
-        }]
+        return [
+            {
+                "vin": VIN,
+                "nickname": "Test Audi",
+                "vehicle": {
+                    "media": {"longName": "Audi Q8 TFSI e"},
+                    "classification": {"driveTrain": "PHEV"},
+                },
+            }
+        ]
 
     async def request(self, family, method, path, **kwargs):
         self.calls.append((family, method, path, kwargs))
@@ -62,10 +65,11 @@ class FakeStore:
     async def async_load(self, catalog, contexts):
         self.loads += 1
         return {
-            vin: (restore_profile(catalog, context, self.records[vin],
-                                  cooldown_seconds=0)
-                  if vin in self.records else
-                  DevelopmentProfile(catalog, context, cooldown_seconds=0))
+            vin: (
+                restore_profile(catalog, context, self.records[vin], cooldown_seconds=0)
+                if vin in self.records
+                else DevelopmentProfile(catalog, context, cooldown_seconds=0)
+            )
             for vin, context in contexts.items()
         }
 
@@ -80,8 +84,12 @@ def engine_for(*response_list):
     transport = FakeTransport(response_list)
     storage = FakeStore()
     engine = V3Engine(
-        SimpleNamespace(), SimpleNamespace(entry_id="example"),
-        registry, auth=FakeAuth(), transport=transport, storage=storage,
+        SimpleNamespace(),
+        SimpleNamespace(entry_id="example"),
+        registry,
+        auth=FakeAuth(),
+        transport=transport,
+        storage=storage,
     )
     return engine, transport, storage
 
@@ -89,9 +97,7 @@ def engine_for(*response_list):
 def status(*, http=200, value="off", captured=True):
     payload = {
         "climatisation": {
-            "climatisationStatus": {
-                "value": {"climatisationState": value}
-            }
+            "climatisationStatus": {"value": {"climatisationState": value}}
         }
     }
     if captured:
@@ -140,9 +146,12 @@ async def test_rate_limit_is_inconclusive_and_no_auto_retry_post():
     engine, transport, _ = engine_for(status(http=429, value="invalid"))
     await engine.poll()
     assert transport.request_count == 1
-    assert engine.profiles[VIN.lower()].read_results[
-        "cariad.climate.status.batch"
-    ]["outcome"] == "inconclusive"
+    assert (
+        engine.profiles[VIN.lower()].read_results["cariad.climate.status.batch"][
+            "outcome"
+        ]
+        == "inconclusive"
+    )
     assert all(c[1] == "GET" for c in transport.calls if len(c) > 1)
 
 
@@ -154,9 +163,7 @@ async def test_start_test_requires_human_result_before_normal_control():
     )
     await engine.poll()
     assert not engine.control_enabled(VIN, "start")
-    attempt = await engine.test_action(
-        VIN, "start", "cariad.climate.start.stored"
-    )
+    attempt = await engine.test_action(VIN, "start", "cariad.climate.start.stored")
     assert attempt["transport"] == "accepted_unconfirmed"
     assert not engine.control_enabled(VIN, "start")
     assert transport.request_count == 2
@@ -172,9 +179,7 @@ async def test_unreviewed_vehicle_settings_control_never_substitutes_bodyless():
     engine, transport, _ = engine_for(status())
     await engine.poll()
     with pytest.raises(ValueError, match="not implemented"):
-        await engine.test_action(
-            VIN, "start", "cariad.climate.start.vehicle_settings"
-        )
+        await engine.test_action(VIN, "start", "cariad.climate.start.vehicle_settings")
     assert transport.request_count == 1
     assert engine.profiles[VIN.lower()].discovery._active is None
 
@@ -190,10 +195,14 @@ async def test_import_diagnostics_isolated_and_contains_no_vehicle_identity():
 
 
 def test_nickname_cannot_spoof_manufacturer_q8_context():
-    car = V3Vehicle.from_graphql({
-        "vin": VIN, "nickname": "Q8",
-        "vehicle": {"media": {"longName": "Audi A5"}},
-    }, "DE")
+    car = V3Vehicle.from_graphql(
+        {
+            "vin": VIN,
+            "nickname": "Q8",
+            "vehicle": {"media": {"longName": "Audi A5"}},
+        },
+        "DE",
+    )
     assert car.model_family == "a5"
     assert car.model_family != "q8"
     assert car.climate_supported is None
@@ -204,16 +213,30 @@ async def test_later_vehicle_restores_saved_candidate():
     engine, transport, store = engine_for(status())
     await engine.poll()
     late = "WAUZZZ4M0MD123457"
-    old = DevelopmentProfile(engine.registry, VehicleContext(
-        auth="auth0", region="DE", vehicle_type="phev", model_family="q8",
-    ), cooldown_seconds=0)
+    old = DevelopmentProfile(
+        engine.registry,
+        VehicleContext(
+            auth="auth0",
+            region="DE",
+            vehicle_type="phev",
+            model_family="q8",
+        ),
+        cooldown_seconds=0,
+    )
     old.save_candidate("climate", "start", "cariad.climate.start.stored")
     store.records[late.lower()] = old.snapshot()
+
     async def later():
-        return [{"vin": late, "vehicle": {
-            "media": {"longName": "Audi Q8 TFSI e"},
-            "classification": {"driveTrain": "PHEV"},
-        }}]
+        return [
+            {
+                "vin": late,
+                "vehicle": {
+                    "media": {"longName": "Audi Q8 TFSI e"},
+                    "classification": {"driveTrain": "PHEV"},
+                },
+            }
+        ]
+
     transport.discover_vehicles = later
     await engine.discover()
     assert engine.profiles[late.lower()].draft_selected["climate.start"] == (
@@ -228,23 +251,39 @@ async def test_missing_capture_does_not_schedule_manual_climate_candidates():
     assert len([c for c in transport.calls if len(c) > 1]) == 1
     assert "climate.status" not in engine.profiles[VIN.lower()].active
 
+
 @pytest.mark.asyncio
 async def test_historical_sensors_recovered_and_targeted_selection_affects_real_poll():
     """One source response -> two attributes; selected alternate GET -> real poll."""
     stamp = datetime.now(UTC).isoformat()
+
     def snapshot(*, climate=True, charging=True):
         payload = {}
         if climate:
-            payload["climatisation"] = {"climatisationStatus": {"value": {
-                "climatisationState": "off", "carCapturedTimestamp": stamp}}}
+            payload["climatisation"] = {
+                "climatisationStatus": {
+                    "value": {
+                        "climatisationState": "off",
+                        "carCapturedTimestamp": stamp,
+                    }
+                }
+            }
         if charging:
-            payload["charging"] = {"batteryStatus": {"value": {
-                "currentSOC_pct": 61, "carCapturedTimestamp": stamp}},
-                "chargingStatus": {"value": {
-                    "chargingState": "charging", "carCapturedTimestamp": stamp}}}
+            payload["charging"] = {
+                "batteryStatus": {
+                    "value": {"currentSOC_pct": 61, "carCapturedTimestamp": stamp}
+                },
+                "chargingStatus": {
+                    "value": {
+                        "chargingState": "charging",
+                        "carCapturedTimestamp": stamp,
+                    }
+                },
+            }
         return V3Response(200, payload, datetime.now(UTC), 99)
+
     engine, transport, store = engine_for(
-        snapshot(),       # first shared V3 batch
+        snapshot(),  # first shared V3 batch
         snapshot(climate=False),  # explicitly requested targeted charging test
         snapshot(charging=False),  # subsequent normal batch (climate only)
         snapshot(climate=False),  # selected targeted charging GET
@@ -261,9 +300,15 @@ async def test_historical_sensors_recovered_and_targeted_selection_affects_real_
     )
     assert result["result"] == "verified"
     assert profile.attribute_routes["stateOfCharge"] == "cariad.selectivestatus.batch"
-    await engine.save_attribute_candidate(VIN, "stateOfCharge", "cariad.selectivestatus.targeted")
-    await engine.activate_attribute_route(VIN, "stateOfCharge", "cariad.selectivestatus.targeted")
-    assert profile.attribute_routes["stateOfCharge"] == "cariad.selectivestatus.targeted"
+    await engine.save_attribute_candidate(
+        VIN, "stateOfCharge", "cariad.selectivestatus.targeted"
+    )
+    await engine.activate_attribute_route(
+        VIN, "stateOfCharge", "cariad.selectivestatus.targeted"
+    )
+    assert (
+        profile.attribute_routes["stateOfCharge"] == "cariad.selectivestatus.targeted"
+    )
     await engine.poll()
     requests = [call for call in transport.calls if len(call) > 1]
     assert len(requests) == 4
@@ -296,10 +341,20 @@ async def test_manual_batch_probe_includes_requested_job_even_if_unobserved():
 async def test_failed_http_probe_does_not_mutate_attribute_state_or_ability():
     engine, transport, _ = engine_for(
         status(),
-        V3Response(403, {"charging": {"batteryStatus": {"value": {
-            "currentSOC_pct": 88,
-            "carCapturedTimestamp": datetime.now(UTC).isoformat(),
-        }}}}, datetime.now(UTC)),
+        V3Response(
+            403,
+            {
+                "charging": {
+                    "batteryStatus": {
+                        "value": {
+                            "currentSOC_pct": 88,
+                            "carCapturedTimestamp": datetime.now(UTC).isoformat(),
+                        }
+                    }
+                }
+            },
+            datetime.now(UTC),
+        ),
     )
     await engine.poll()
     result = await engine.test_attribute_route(
@@ -312,13 +367,18 @@ async def test_failed_http_probe_does_not_mutate_attribute_state_or_ability():
             VIN, "stateOfCharge", "cariad.selectivestatus.targeted"
         )
 
+
 @pytest.mark.asyncio
 async def test_local_response_detail_isolated_from_storage_diagnostics_and_vehicle_scope():
     engine, transport, store = engine_for()
     await engine.discover()
     profile = engine.profiles[VIN.lower()]
-    payload = {"status": "accepted", "securityToken": "secret-value",
-               "settings": {"targetTemperature_C": 15.5}, "vin": VIN}
+    payload = {
+        "status": "accepted",
+        "securityToken": "secret-value",
+        "settings": {"targetTemperature_C": 15.5},
+        "vin": VIN,
+    }
     response = V3Response(202, payload, datetime.now(UTC))
     engine._api_record(profile, "test.command", "cariad", "POST", response, VIN)
     detail = engine.engineering_response_for(VIN, "test.command")
@@ -327,21 +387,27 @@ async def test_local_response_detail_isolated_from_storage_diagnostics_and_vehic
     assert detail["payload"]["settings"]["targetTemperature_C"] == 15.5
     assert detail["payload"]["vin"] == "{VIN}"
     assert "engineering_responses" not in profile.snapshot()
+
     def contains_private_number(value):
         if isinstance(value, dict):
             return any(contains_private_number(item) for item in value.values())
         if isinstance(value, list):
             return any(contains_private_number(item) for item in value)
         return type(value) in (int, float) and value == 15.5
+
     for evidence in (profile.snapshot(), engine.api_results_for(VIN)):
         assert "targetTemperature_C" not in json.dumps(evidence)
         assert not contains_private_number(evidence)
-    assert profile.api_observations["test.command"]["preview"] == "[control response withheld: security]"
+    assert (
+        profile.api_observations["test.command"]["preview"]
+        == "[control response withheld: security]"
+    )
     with pytest.raises(ValueError):
         engine.engineering_response_for("WAUZZZ4M0MD999999", "test.command")
     assert len(transport.calls) == 1
     engine._api_record(profile, "test.command", "cariad", "POST", None, VIN)
     assert not engine.engineering_response_for(VIN, "test.command")["available"]
+
 
 @pytest.mark.asyncio
 async def test_engineering_and_restricted_evidence_mask_echoed_configured_secret():
@@ -349,13 +415,26 @@ async def test_engineering_and_restricted_evidence_mask_echoed_configured_secret
     engine.entry.data = {"password": "private-password-value"}
     await engine.discover()
     profile = engine.profiles[VIN.lower()]
-    engine._api_record(profile, "test.read", "cariad", "GET",
-                       V3Response(200, {"message": "error private-password-value",
-                                        "capability": "charging"}, datetime.now(UTC)), VIN)
-    assert engine.engineering_response_for(VIN, "test.read")["payload"]["message"] == "error {SECRET}"
+    engine._api_record(
+        profile,
+        "test.read",
+        "cariad",
+        "GET",
+        V3Response(
+            200,
+            {"message": "error private-password-value", "capability": "charging"},
+            datetime.now(UTC),
+        ),
+        VIN,
+    )
+    assert (
+        engine.engineering_response_for(VIN, "test.read")["payload"]["message"]
+        == "error {SECRET}"
+    )
     assert "private-password-value" not in json.dumps(profile.snapshot())
     assert "private-password-value" not in json.dumps(engine.api_results_for(VIN))
     assert "charging" in json.dumps(engine.api_results_for(VIN))
+
 
 @pytest.mark.asyncio
 async def test_engineering_execution_history_pairs_actual_request_and_response():
@@ -363,12 +442,26 @@ async def test_engineering_execution_history_pairs_actual_request_and_response()
     await engine.discover()
     profile = engine.profiles[VIN.lower()]
     from datetime import timedelta
+
     now = datetime.now(UTC)
     for i in range(2):
-        engine._api_record(profile, "test.command", "cariad", "POST",
-                           V3Response(202, {"value": i}, now+timedelta(seconds=i),
-                                      request={"method": "POST", "url": "/vehicles/"+VIN,
-                                               "body": {"spin": "1234", "target": i}}), VIN)
+        engine._api_record(
+            profile,
+            "test.command",
+            "cariad",
+            "POST",
+            V3Response(
+                202,
+                {"value": i},
+                now + timedelta(seconds=i),
+                request={
+                    "method": "POST",
+                    "url": "/vehicles/" + VIN,
+                    "body": {"spin": "1234", "target": i},
+                },
+            ),
+            VIN,
+        )
     rows = engine.engineering_history_for(VIN)
     assert [row["payload"]["value"] for row in rows] == [1, 0]
     assert rows[0]["request"]["payload"]["body"] == {"spin": "{SPIN}", "target": 1}
@@ -381,25 +474,54 @@ async def test_diagnostics_cover_all_product_capabilities_without_private_route_
     engine, _, _ = engine_for(status())
     await engine.poll()
     profile = engine.profiles[VIN.lower()]
-    from custom_components.audiconnect.v3.api_observations import record_for, save_record
-    for operation in ("cariad.discovery.full", "cariad.discovery.batterySupport", "private_custom_route"):
-        save_record(profile, operation, record_for(family="cariad",method="GET",
-                    http_status=207,payload={},vin=VIN))
-    snapshot=engine.diagnostics()["vehicles"][0]
-    evidence=snapshot["capability_evidence"]
-    assert {row["capability"] for row in evidence["capabilities"]} >= set(engine.registry.capabilities)
+    from custom_components.audiconnect.v3.api_observations import (
+        record_for,
+        save_record,
+    )
+
+    for operation in (
+        "cariad.discovery.full",
+        "cariad.discovery.batterySupport",
+        "private_custom_route",
+    ):
+        save_record(
+            profile,
+            operation,
+            record_for(
+                family="cariad", method="GET", http_status=207, payload={}, vin=VIN
+            ),
+        )
+    snapshot = engine.diagnostics()["vehicles"][0]
+    evidence = snapshot["capability_evidence"]
+    assert {row["capability"] for row in evidence["capabilities"]} >= set(
+        engine.registry.capabilities
+    )
     from custom_components.audiconnect.v3.transport import IDENTITY_OPERATIONS
-    assert all(row["operation"] in engine.registry.operations or row["operation"] in IDENTITY_OPERATIONS for row in evidence["operations"])
-    names={row["operation"] for row in snapshot["climate"]["last_api_results"]}
-    assert {"cariad.discovery.full","cariad.discovery.batterySupport","custom_or_discovery_route"} <= names
-    encoded=json.dumps(snapshot)
+
+    assert all(
+        row["operation"] in engine.registry.operations
+        or row["operation"] in IDENTITY_OPERATIONS
+        for row in evidence["operations"]
+    )
+    names = {row["operation"] for row in snapshot["climate"]["last_api_results"]}
+    assert {
+        "cariad.discovery.full",
+        "cariad.discovery.batterySupport",
+        "custom_or_discovery_route",
+    } <= names
+    encoded = json.dumps(snapshot)
     assert "private_custom_route" not in encoded and VIN not in encoded
     assert "engineering_history" not in encoded
-    assert all("preview" not in row and "fields" not in row
-               for row in snapshot["climate"]["last_api_results"])
+    assert all(
+        "preview" not in row and "fields" not in row
+        for row in snapshot["climate"]["last_api_results"]
+    )
     from custom_components.audiconnect.v3.historical_catalog import CANONICAL_ATTRIBUTES
+
     assert set(evidence["attributes"]) == set(CANONICAL_ATTRIBUTES)
-    for job, historical in snapshot["historical_schema_evidence"]["fields_by_job"].items():
+    for job, historical in snapshot["historical_schema_evidence"][
+        "fields_by_job"
+    ].items():
         current = snapshot["job_schema_evidence"].get(job, {}).get("fields", [])
         assert not any(row in current for row in historical)
 
@@ -408,26 +530,51 @@ async def test_diagnostics_cover_all_product_capabilities_without_private_route_
 async def test_inventory_evidence_is_per_vehicle_and_not_a_physical_command():
     from custom_components.audiconnect.v3.transport import INVENTORY_OPERATION
     from custom_components.audiconnect.v3.capability_status import build_status_report
-    engine,transport,_=engine_for()
-    other="WAUZZZ4M0MD123457"
+
+    engine, transport, _ = engine_for()
+    other = "WAUZZZ4M0MD123457"
+
     async def inventory():
-        transport.last_inventory_metadata=V3Response(200,None,datetime.now(UTC),
-            request={"method":"POST","url":"https://example.invalid/vgql/v1/graphql",
-                     "body":{"query":"query vehicleList { userVehicles { vin } }"}})
-        return [{"vin":VIN,"nickname":"private nickname","vehicle":{"media":{"shortName":"Q8"}}},
-                {"vin":other,"nickname":"other private nickname","vehicle":{"media":{"shortName":"A6"}}}]
-    transport.discover_vehicles=inventory
+        transport.last_inventory_metadata = V3Response(
+            200,
+            None,
+            datetime.now(UTC),
+            request={
+                "method": "POST",
+                "url": "https://example.invalid/vgql/v1/graphql",
+                "body": {"query": "query vehicleList { userVehicles { vin } }"},
+            },
+        )
+        return [
+            {
+                "vin": VIN,
+                "nickname": "private nickname",
+                "vehicle": {"media": {"shortName": "Q8"}},
+            },
+            {
+                "vin": other,
+                "nickname": "other private nickname",
+                "vehicle": {"media": {"shortName": "A6"}},
+            },
+        ]
+
+    transport.discover_vehicles = inventory
     await engine.discover()
-    detail=engine.engineering_response_for(VIN,INVENTORY_OPERATION)
-    assert detail["payload"]["data"]["userVehicles"]==[
-        {"vin":"{VIN}","nickname":"{PERSONAL}","vehicle":{"media":{"shortName":"Q8"}}}]
+    detail = engine.engineering_response_for(VIN, INVENTORY_OPERATION)
+    assert detail["payload"]["data"]["userVehicles"] == [
+        {
+            "vin": "{VIN}",
+            "nickname": "{PERSONAL}",
+            "vehicle": {"media": {"shortName": "Q8"}},
+        }
+    ]
     assert other not in json.dumps(detail) and "A6" not in json.dumps(detail)
-    assert detail["request"]["payload"]["method"]=="POST"
-    profile=engine.profiles[VIN.lower()]
+    assert detail["request"]["payload"]["method"] == "POST"
+    profile = engine.profiles[VIN.lower()]
     assert "private nickname" not in json.dumps(profile.snapshot())
-    report=build_status_report(engine.vehicles[VIN.lower()],profile)
-    row=next(x for x in report["operations"] if x["operation"]==INVENTORY_OPERATION)
-    assert row["read_only"] and row["physical"]=="not_applicable"
+    report = build_status_report(engine.vehicles[VIN.lower()], profile)
+    row = next(x for x in report["operations"] if x["operation"] == INVENTORY_OPERATION)
+    assert row["read_only"] and row["physical"] == "not_applicable"
     assert "accepted_not_physically_verified" not in row["attention"]
 
 
@@ -435,30 +582,45 @@ async def test_inventory_evidence_is_per_vehicle_and_not_a_physical_command():
 async def test_accepted_climate_start_and_immediate_stop_use_real_command_owner():
     from homeassistant.components.climate import HVACMode
     from custom_components.audiconnect.v3.entities import V3ClimateEntity
-    engine, transport, store=engine_for(status(),V3Response(200,{},datetime.now(UTC)),
-                                        V3Response(200,{},datetime.now(UTC)))
+
+    engine, transport, store = engine_for(
+        status(),
+        V3Response(200, {}, datetime.now(UTC)),
+        V3Response(200, {}, datetime.now(UTC)),
+    )
     await engine.poll()
-    profile=engine.profiles[VIN.lower()]
-    for action,route in (("start","cariad.climate.start.stored"),("stop","cariad.climate.stop")):
-        profile.control_results[route]="worked"
-        profile.choose_working("climate",action,route)
-    car=engine.vehicles[VIN.lower()]
-    climate=V3ClimateEntity(SimpleNamespace(engine=engine,last_update_success=True),car)
-    climate.async_write_ha_state=lambda:None
-    assert climate.hvac_mode==HVACMode.OFF
+    profile = engine.profiles[VIN.lower()]
+    for action, route in (
+        ("start", "cariad.climate.start.stored"),
+        ("stop", "cariad.climate.stop"),
+    ):
+        profile.control_results[route] = "worked"
+        profile.choose_working("climate", action, route)
+    car = engine.vehicles[VIN.lower()]
+    climate = V3ClimateEntity(
+        SimpleNamespace(engine=engine, last_update_success=True), car
+    )
+    climate.async_write_ha_state = lambda: None
+    assert climate.hvac_mode == HVACMode.OFF
     await climate.async_turn_on()
-    assert climate.hvac_mode==HVACMode.HEAT_COOL
-    assert climate.extra_state_attributes["state_source"]=="command_pending"
-    assert car.climate_state=="off"
-    assert profile.last_command.state=="accepted_unconfirmed"
+    assert climate.hvac_mode == HVACMode.HEAT_COOL
+    assert climate.extra_state_attributes["state_source"] == "command_pending"
+    assert car.climate_state == "off"
+    assert profile.last_command.state == "accepted_unconfirmed"
     await climate.async_turn_off()
-    assert climate.hvac_mode==HVACMode.OFF
-    assert climate.extra_state_attributes["state_source"]=="command_pending"
-    assert [call[1] for call in transport.calls if len(call)>1]==["GET","POST","POST"]
-    assert len([r for r in profile.command_journal if r.origin=="home_assistant"])==2
-    with pytest.raises(RuntimeError,match="cooldown"):
-        await engine.send_control(VIN,"start")
-    assert transport.request_count==3
+    assert climate.hvac_mode == HVACMode.OFF
+    assert climate.extra_state_attributes["state_source"] == "command_pending"
+    assert [call[1] for call in transport.calls if len(call) > 1] == [
+        "GET",
+        "POST",
+        "POST",
+    ]
+    assert (
+        len([r for r in profile.command_journal if r.origin == "home_assistant"]) == 2
+    )
+    with pytest.raises(RuntimeError, match="cooldown"):
+        await engine.send_control(VIN, "start")
+    assert transport.request_count == 3
 
 
 @pytest.mark.asyncio
@@ -466,41 +628,85 @@ async def test_direct_command_response_uses_actual_vehicle_status():
     from datetime import timedelta
     from homeassistant.components.climate import HVACMode
     from custom_components.audiconnect.v3.entities import V3ClimateEntity
-    engine,transport,_=engine_for(status())
+
+    engine, transport, _ = engine_for(status())
     await engine.poll()
-    profile=engine.profiles[VIN.lower()]
-    route="cariad.climate.start.stored"
-    profile.control_results[route]="worked"
-    profile.choose_working("climate","start",route)
-    future=datetime.now(UTC)+timedelta(seconds=1)
-    transport._responses.append(V3Response(200,{"climatisation":{"climatisationStatus":{"value":{
-        "climatisationState":"cooling","carCapturedTimestamp":future.isoformat()}}}},future))
-    await engine.send_control(VIN,"start")
-    car=engine.vehicles[VIN.lower()]
-    entity=V3ClimateEntity(SimpleNamespace(engine=engine,last_update_success=True),car)
-    assert entity.hvac_mode==HVACMode.HEAT_COOL
-    assert entity.hvac_action.value=="cooling"
-    assert entity.extra_state_attributes["state_source"]=="vehicle"
-    assert profile.last_command.state=="verified"
+    profile = engine.profiles[VIN.lower()]
+    route = "cariad.climate.start.stored"
+    profile.control_results[route] = "worked"
+    profile.choose_working("climate", "start", route)
+    future = datetime.now(UTC) + timedelta(seconds=1)
+    transport._responses.append(
+        V3Response(
+            200,
+            {
+                "climatisation": {
+                    "climatisationStatus": {
+                        "value": {
+                            "climatisationState": "cooling",
+                            "carCapturedTimestamp": future.isoformat(),
+                        }
+                    }
+                }
+            },
+            future,
+        )
+    )
+    await engine.send_control(VIN, "start")
+    car = engine.vehicles[VIN.lower()]
+    entity = V3ClimateEntity(
+        SimpleNamespace(engine=engine, last_update_success=True), car
+    )
+    assert entity.hvac_mode == HVACMode.HEAT_COOL
+    assert entity.hvac_action.value == "cooling"
+    assert entity.extra_state_attributes["state_source"] == "vehicle"
+    assert profile.last_command.state == "verified"
 
 
 @pytest.mark.asyncio
 async def test_standalone_schema_evidence_and_discovery_export_without_trip_values():
     registry = CapabilityRegistry.from_json_file(
-        CATALOG.parents[2] / "custom_components/audiconnect/v3/full_catalog.json")
-    engine = V3Engine(SimpleNamespace(), SimpleNamespace(entry_id="example"),
-                      registry, auth=FakeAuth(), transport=FakeTransport([]), storage=FakeStore())
+        CATALOG.parents[2] / "custom_components/audiconnect/v3/full_catalog.json"
+    )
+    engine = V3Engine(
+        SimpleNamespace(),
+        SimpleNamespace(entry_id="example"),
+        registry,
+        auth=FakeAuth(),
+        transport=FakeTransport([]),
+        storage=FakeStore(),
+    )
     await engine.discover()
     profile = engine.profiles[VIN.lower()]
     operation = "cariad.mobility.status.lastTrip"
-    engine._api_record(profile, operation, "cariad", "GET",
-        V3Response(200, {"data": {"tripEndTimestamp": "2026-01-01T00:00:00Z",
-            "mileage_km": 123.456, "tripID": "private-trip"}}, datetime.now(UTC)), VIN)
+    engine._api_record(
+        profile,
+        operation,
+        "cariad",
+        "GET",
+        V3Response(
+            200,
+            {
+                "data": {
+                    "tripEndTimestamp": "2026-01-01T00:00:00Z",
+                    "mileage_km": 123.456,
+                    "tripID": "private-trip",
+                }
+            },
+            datetime.now(UTC),
+        ),
+        VIN,
+    )
     snapshot = engine.diagnostics()["vehicles"][0]
     schema = snapshot["job_schema_evidence"][operation]
     assert any(row["path"] == "data.mileage_km" for row in schema["fields"])
-    assert snapshot["discovery_progress"]["standalone_schema"][operation]["field_count"] > 0
-    assert snapshot["discovery_progress"]["control_evidence_scope"].startswith("stored_vehicle_context")
+    assert (
+        snapshot["discovery_progress"]["standalone_schema"][operation]["field_count"]
+        > 0
+    )
+    assert snapshot["discovery_progress"]["control_evidence_scope"].startswith(
+        "stored_vehicle_context"
+    )
     assert "123.456" not in json.dumps(snapshot)
     assert "private-trip" not in json.dumps(snapshot)
 
@@ -509,6 +715,7 @@ async def test_standalone_schema_evidence_and_discovery_export_without_trip_valu
 async def test_optional_vehicle_render_failure_does_not_break_identity_and_retries_follow_fresh_inventory():
     engine, transport, _ = engine_for()
     from unittest.mock import AsyncMock
+
     transport.discover_vehicle_images = AsyncMock(side_effect=RuntimeError("denied"))
     await engine.discover()
     car = engine.vehicles[VIN.lower()]
@@ -525,6 +732,7 @@ async def test_optional_vehicle_render_failure_does_not_break_identity_and_retri
 async def test_optional_vehicle_render_url_is_not_exported_in_diagnostics():
     engine, transport, _ = engine_for()
     from unittest.mock import AsyncMock
+
     url = "https://mediaservice.audi.com/render/example.png"
     transport.discover_vehicle_images = AsyncMock(return_value={VIN.lower(): url})
     await engine.discover()
@@ -538,17 +746,30 @@ async def test_optional_vehicle_render_url_is_not_exported_in_diagnostics():
 async def test_model_context_refinement_preserves_vin_trip_snapshots():
     from custom_components.audiconnect.v3.trips import observe_cariad_trip
     from unittest.mock import AsyncMock
+
     engine, transport, _ = engine_for()
-    transport.discover_vehicles = AsyncMock(side_effect=[
-        [{"vin": VIN}],
-        [{"vin": VIN, "vehicle": {"media": {"longName": "Audi Q8 TFSI e"},
-                                  "classification": {"driveTrain": "PHEV"}}}],
-    ])
+    transport.discover_vehicles = AsyncMock(
+        side_effect=[
+            [{"vin": VIN}],
+            [
+                {
+                    "vin": VIN,
+                    "vehicle": {
+                        "media": {"longName": "Audi Q8 TFSI e"},
+                        "classification": {"driveTrain": "PHEV"},
+                    },
+                }
+            ],
+        ]
+    )
     await engine.discover()
     car = engine.vehicles[VIN.lower()]
     assert car.model_family == ""
-    observe_cariad_trip(car, "cariad.mobility.status.lastTrip", {"data": {
-        "tripEndTimestamp": "2026-01-01T00:00:00Z", "mileage_km": 42}})
+    observe_cariad_trip(
+        car,
+        "cariad.mobility.status.lastTrip",
+        {"data": {"tripEndTimestamp": "2026-01-01T00:00:00Z", "mileage_km": 42}},
+    )
     engine.status._trip_poll_at[VIN.lower()] = 123
     await engine.discover()
     assert car is engine.vehicles[VIN.lower()]
@@ -559,17 +780,37 @@ async def test_model_context_refinement_preserves_vin_trip_snapshots():
 
 @pytest.mark.asyncio
 async def test_missing_identity_does_not_automatically_run_research_queries():
-    from custom_components.audiconnect.v3.transport import GARAGE_OPERATION, INVENTORY_OPERATION
+    from custom_components.audiconnect.v3.transport import (
+        GARAGE_OPERATION,
+        INVENTORY_OPERATION,
+    )
     from unittest.mock import AsyncMock
+
     engine, transport, _ = engine_for()
     other = "WAUZZZ4M0MD123457"
+
     async def discover():
         transport.last_inventory_metadata = V3Response(200, None, datetime.now(UTC))
-        return [{"vin": VIN, "vehicle": {"core":None,"media":None,"classification":None}}]
+        return [
+            {
+                "vin": VIN,
+                "vehicle": {"core": None, "media": None, "classification": None},
+            }
+        ]
+
     transport.discover_vehicles = discover
-    transport.test_identity_query = AsyncMock(return_value=V3Response(
-        200, {"data":[{"vin":VIN,"model":"Audi Q8","modelYear":2022},
-                      {"vin":other,"model":"Other"}]}, datetime.now(UTC)))
+    transport.test_identity_query = AsyncMock(
+        return_value=V3Response(
+            200,
+            {
+                "data": [
+                    {"vin": VIN, "model": "Audi Q8", "modelYear": 2022},
+                    {"vin": other, "model": "Other"},
+                ]
+            },
+            datetime.now(UTC),
+        )
+    )
     await engine.discover()
     car = engine.require_vehicle(VIN)
     assert not car.model
@@ -588,29 +829,52 @@ async def test_missing_identity_does_not_automatically_run_research_queries():
 @pytest.mark.asyncio
 async def test_older_targeted_read_keeps_current_attribute_and_evidence_aligned():
     from datetime import timedelta
+
     engine, transport, store = engine_for()
     await engine.discover()
     car = engine.require_vehicle(VIN)
     profile = engine.profiles[VIN.lower()]
     now = datetime.now(UTC)
     path = "charging.batteryStatus.value.currentSOC_pct"
-    fresh_payload = {"charging": {"batteryStatus": {"value": {
-        "currentSOC_pct": 70, "carCapturedTimestamp": now.isoformat()
-    }}}}
-    stale_payload = {"charging": {"batteryStatus": {"value": {
-        "currentSOC_pct": 49,
-        "carCapturedTimestamp": (now - timedelta(hours=3)).isoformat()
-    }}}}
+    fresh_payload = {
+        "charging": {
+            "batteryStatus": {
+                "value": {"currentSOC_pct": 70, "carCapturedTimestamp": now.isoformat()}
+            }
+        }
+    }
+    stale_payload = {
+        "charging": {
+            "batteryStatus": {
+                "value": {
+                    "currentSOC_pct": 49,
+                    "carCapturedTimestamp": (now - timedelta(hours=3)).isoformat(),
+                }
+            }
+        }
+    }
     from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+
     observe_read_only(car, profile, fresh_payload, now)
     original = dict(profile.attribute_evidence["stateOfCharge"])
     response = V3Response(200, stale_payload, now, 50)
     result = engine._record_attribute_response(
-        car, profile, "stateOfCharge", "cariad.selectivestatus.targeted", [path], response)
+        car,
+        profile,
+        "stateOfCharge",
+        "cariad.selectivestatus.targeted",
+        [path],
+        response,
+    )
     assert result["result"] == "readable_but_stale"
     assert car.readings["stateOfCharge"]["value"] == 70
     assert profile.attribute_evidence["stateOfCharge"] == original
-    assert profile.attribute_route_evidence["stateOfCharge"]["cariad.selectivestatus.targeted"]["outcome"] == "readable_but_stale"
+    assert (
+        profile.attribute_route_evidence["stateOfCharge"][
+            "cariad.selectivestatus.targeted"
+        ]["outcome"]
+        == "readable_but_stale"
+    )
 
 
 @pytest.mark.asyncio
@@ -620,6 +884,7 @@ async def test_targeted_external_power_uses_same_meaningful_unavailable_state_as
     car = engine.require_vehicle(VIN)
     profile = engine.profiles[VIN.lower()]
     from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+
     path = ATTRIBUTES["externalPower"]["paths"][0]
     # Build a matching envelope from the canonical path, not a separate fixture mapping.
     now = datetime.now(UTC)
@@ -630,16 +895,26 @@ async def test_targeted_external_power_uses_same_meaningful_unavailable_state_as
         node = node[name]
     node[path.split(".")[-1]] = "unavailable"
     node["carCapturedTimestamp"] = now.isoformat()
-    result = engine._record_attribute_response(car, profile, "externalPower",
-        "cariad.selectivestatus.targeted", [path], V3Response(200, payload, now))
+    result = engine._record_attribute_response(
+        car,
+        profile,
+        "externalPower",
+        "cariad.selectivestatus.targeted",
+        [path],
+        V3Response(200, payload, now),
+    )
     assert result["result"] == "verified"
     assert car.readings["externalPower"]["value"] == "unavailable"
 
 
 @pytest.mark.asyncio
 async def test_selected_climate_mapping_is_the_single_native_state_source():
-    engine, _, _ = engine_for(status(value="off"), status(value="heating"),
-                              status(value="off"), status(value="heating"))
+    engine, _, _ = engine_for(
+        status(value="off"),
+        status(value="heating"),
+        status(value="off"),
+        status(value="heating"),
+    )
     await engine.poll()
     car = engine.require_vehicle(VIN)
     assert car.climate_state == car.readings["climatisationState"]["value"] == "off"
@@ -655,8 +930,17 @@ async def test_selected_climate_mapping_is_the_single_native_state_source():
 @pytest.mark.asyncio
 async def test_targeted_jobs_do_not_overwrite_each_others_api_evidence():
     stamp = datetime.now(UTC).isoformat()
-    charging = V3Response(200, {"charging":{"batteryStatus":{"value":{
-        "currentSOC_pct":61, "carCapturedTimestamp":stamp}}}}, datetime.now(UTC))
+    charging = V3Response(
+        200,
+        {
+            "charging": {
+                "batteryStatus": {
+                    "value": {"currentSOC_pct": 61, "carCapturedTimestamp": stamp}
+                }
+            }
+        },
+        datetime.now(UTC),
+    )
     engine, _, _ = engine_for(status(), charging, status(value="heating"))
     await engine.poll()
     route = "cariad.selectivestatus.targeted"
@@ -665,8 +949,12 @@ async def test_targeted_jobs_do_not_overwrite_each_others_api_evidence():
     assert first["operation"] == "cariad.status.charging"
     assert second["operation"] == "cariad.status.climatisation"
     profile = engine.profiles[VIN.lower()]
-    assert first["operation"] in profile.api_observations and second["operation"] in profile.api_observations
+    assert (
+        first["operation"] in profile.api_observations
+        and second["operation"] in profile.api_observations
+    )
     assert route not in profile.api_observations
+
 
 @pytest.mark.asyncio
 async def test_engineering_review_waits_for_in_flight_dispatch():
@@ -686,14 +974,14 @@ async def test_engineering_review_waits_for_in_flight_dispatch():
         return await original_request(*args, **kwargs)
 
     transport.request = delayed_request
-    dispatch = asyncio.create_task(engine.test_action(
-        VIN, "start", "cariad.climate.start.stored"
-    ))
+    dispatch = asyncio.create_task(
+        engine.test_action(VIN, "start", "cariad.climate.start.stored")
+    )
     await asyncio.wait_for(entered.wait(), 2)
     profile = engine.profiles[VIN.lower()]
-    review = asyncio.create_task(engine.review_action(
-        VIN, profile.discovery._active.sequence, "worked"
-    ))
+    review = asyncio.create_task(
+        engine.review_action(VIN, profile.discovery._active.sequence, "worked")
+    )
     try:
         await asyncio.sleep(0)
         assert not review.done()
@@ -704,6 +992,7 @@ async def test_engineering_review_waits_for_in_flight_dispatch():
     assert profile.discovery._active is None
     assert engine.control_enabled(VIN, "start")
     assert transport.request_count == 2
+
 
 @pytest.mark.asyncio
 async def test_queued_engineering_command_rechecks_vehicle_after_lock():
@@ -717,9 +1006,9 @@ async def test_queued_engineering_command_rechecks_vehicle_after_lock():
         raise ValueError("Vehicle no longer available")
 
     async with engine.commands._actions:
-        task = asyncio.create_task(engine.test_action(
-            VIN, "start", "cariad.climate.start.stored"
-        ))
+        task = asyncio.create_task(
+            engine.test_action(VIN, "start", "cariad.climate.start.stored")
+        )
         await asyncio.sleep(0)
         engine.commands.require_vehicle = unavailable
     with pytest.raises(ValueError, match="Vehicle no longer available"):
@@ -759,6 +1048,7 @@ async def test_pre_dispatch_storage_failure_rolls_back_without_mutation(origin):
     await dispatch()
     assert transport.request_count == 2
 
+
 @pytest.mark.asyncio
 async def test_schema_evidence_excludes_echoed_spin_in_field_names():
     from custom_components.audiconnect.const import CONF_SPIN
@@ -768,9 +1058,17 @@ async def test_schema_evidence_excludes_echoed_spin_in_field_names():
     engine.entry.data = {CONF_SPIN: "9387"}
     await engine.discover()
     profile = engine.profiles[VIN.lower()]
-    payload = {"data": {"userVehicles": [{"vehicle": {"field9387": 1, "modelYear": 2020}}]}}
-    engine._api_record(profile, INVENTORY_OPERATION, "graphql", "POST",
-                       V3Response(200, payload, datetime.now(UTC)), VIN)
+    payload = {
+        "data": {"userVehicles": [{"vehicle": {"field9387": 1, "modelYear": 2020}}]}
+    }
+    engine._api_record(
+        profile,
+        INVENTORY_OPERATION,
+        "graphql",
+        "POST",
+        V3Response(200, payload, datetime.now(UTC)),
+        VIN,
+    )
     schema = profile.job_schema["inventory"]["fields"]
     assert any("modelYear" in row["path"] for row in schema)
     assert all("9387" not in row["path"] for row in schema)
@@ -783,16 +1081,20 @@ async def test_execution_review_is_private_persistent_and_non_authorizing():
     await engine.discover()
     profile = engine.profiles[VIN.lower()]
     now = datetime.now(UTC)
-    engine._api_record(profile, "test.read", "cariad", "GET",
-                       V3Response(200, {"value": 7}, now), VIN)
+    engine._api_record(
+        profile, "test.read", "cariad", "GET", V3Response(200, {"value": 7}, now), VIN
+    )
     at = profile.api_observations["test.read"]["at"]
     before = dict(profile.active)
-    await engine.review_execution(VIN, "test.read", at, "worked",
-                                  "checked private-password-value")
+    await engine.review_execution(
+        VIN, "test.read", at, "worked", "checked private-password-value"
+    )
     assert profile.active == before and profile.control_results == {}
     assert len(transport.calls) == 1
     assert profile.execution_reviews[0]["comment"] == "checked {SECRET}"
-    restored = restore_profile(engine.registry, profile.discovery.context, profile.snapshot())
+    restored = restore_profile(
+        engine.registry, profile.discovery.context, profile.snapshot()
+    )
     assert restored.execution_reviews == profile.execution_reviews
     assert "private-password-value" not in json.dumps(profile.snapshot())
     with pytest.raises(ValueError, match="no longer retained"):
@@ -804,16 +1106,23 @@ async def test_discard_unused_read_draft_preserves_tested_definitions():
     engine, transport, _ = engine_for(status())
     await engine.poll()
     profile = engine.profiles[VIN.lower()]
-    route = {"id":"user.read.soc", "attribute":"stateOfCharge", "family":"cariad", "method":"GET",
-             "path":"/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=charging",
-             "response_path":"charging.batteryStatus.value.currentSOC_pct"}
+    route = {
+        "id": "user.read.soc",
+        "attribute": "stateOfCharge",
+        "family": "cariad",
+        "method": "GET",
+        "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=charging",
+        "response_path": "charging.batteryStatus.value.currentSOC_pct",
+    }
     await engine.add_attribute_route(VIN, route)
     await engine.save_attribute_candidate(VIN, "stateOfCharge", route["id"])
     await engine.discard_unused_route(VIN, route["id"])
     assert route["id"] not in profile.attribute_custom
     assert "stateOfCharge" not in profile.attribute_drafts
     await engine.add_attribute_route(VIN, route)
-    profile.attribute_route_evidence["stateOfCharge"] = {route["id"]: {"outcome":"failed"}}
+    profile.attribute_route_evidence["stateOfCharge"] = {
+        route["id"]: {"outcome": "failed"}
+    }
     with pytest.raises(ValueError, match="Tested or active"):
         await engine.discard_unused_route(VIN, route["id"])
     assert route["id"] in profile.attribute_custom
@@ -824,12 +1133,20 @@ async def test_discard_unused_read_draft_preserves_tested_definitions():
 async def test_reviewed_identity_activation_uses_matching_fresh_oem_metadata():
     from unittest.mock import AsyncMock
     from custom_components.audiconnect.v3.transport import GARAGE_OPERATION
+
     engine, transport, store = engine_for()
+
     async def incomplete():
         return [{"vin": VIN, "vehicle": {"core": None, "media": None}}]
+
     transport.discover_vehicles = incomplete
-    transport.test_identity_query = AsyncMock(return_value=V3Response(
-        200, {"data": [{"vin": VIN, "model": "Audi Q8", "modelYear": 2022}]}, datetime.now(UTC)))
+    transport.test_identity_query = AsyncMock(
+        return_value=V3Response(
+            200,
+            {"data": [{"vin": VIN, "model": "Audi Q8", "modelYear": 2022}]},
+            datetime.now(UTC),
+        )
+    )
     await engine.discover()
     car = engine.require_vehicle(VIN)
     profile = engine.profiles[VIN.lower()]
@@ -846,7 +1163,10 @@ async def test_reviewed_identity_activation_uses_matching_fresh_oem_metadata():
     assert store.records[VIN.lower()]["manufacturer_identity"]["model"] == "Audi Q8"
     assert profile.discovery.context == car.context
     transport.test_identity_query.return_value = V3Response(
-        200, {"data": [{"vin": "WAUZZZ4M0MD123457", "model": "Other Audi"}]}, datetime.now(UTC))
+        200,
+        {"data": [{"vin": "WAUZZZ4M0MD123457", "model": "Other Audi"}]},
+        datetime.now(UTC),
+    )
     with pytest.raises(ValueError, match="No current matching"):
         await engine.test_identity_operation(VIN, GARAGE_OPERATION, activate=True)
     assert car.model == "Audi Q8"
@@ -856,12 +1176,20 @@ async def test_reviewed_identity_activation_uses_matching_fresh_oem_metadata():
 async def test_adopted_identity_is_retained_without_repeating_experimental_query():
     from unittest.mock import AsyncMock
     from custom_components.audiconnect.v3.transport import GARAGE_OPERATION
+
     engine, transport, store = engine_for()
+
     async def incomplete():
         return [{"vin": VIN, "vehicle": {"media": None, "core": None}}]
+
     transport.discover_vehicles = incomplete
-    transport.test_identity_query = AsyncMock(return_value=V3Response(
-        200, {"data": [{"vin": VIN, "model": "Audi Q8", "modelYear": 2022}]}, datetime.now(UTC)))
+    transport.test_identity_query = AsyncMock(
+        return_value=V3Response(
+            200,
+            {"data": [{"vin": VIN, "model": "Audi Q8", "modelYear": 2022}]},
+            datetime.now(UTC),
+        )
+    )
     await engine.discover()
     transport.test_identity_query.assert_not_awaited()
     await engine.test_identity_operation(VIN, GARAGE_OPERATION, activate=True)
@@ -879,18 +1207,37 @@ async def test_guided_command_automatically_confirms_only_fresh_changed_readback
     from types import SimpleNamespace as NS
     from custom_components.audiconnect.v3.runtime import catalog_path
     from datetime import timedelta
+
     engine, transport, store = engine_for()
     engine.registry = CapabilityRegistry.from_json_file(catalog_path())
     engine.auth.service = NS(_spin=None)
     await engine.discover()
     car = engine.require_vehicle(VIN)
     profile = engine.profiles[VIN.lower()]
-    car.readings["climatisationState"] = {"value": "off", "captured": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()}
+    car.readings["climatisationState"] = {
+        "value": "off",
+        "captured": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+    }
     stamp = datetime.now(UTC) + timedelta(seconds=1)
-    transport._responses.append(V3Response(202, {"climatisation": {"climatisationStatus": {"value": {
-        "climatisationState": "heating", "carCapturedTimestamp": stamp.isoformat()}}}}, stamp))
-    result = await engine.approved_control_discovery(VIN, "start", "cariad.climate.start.stored",
-                                                      approval="non_spin", guided=True)
+    transport._responses.append(
+        V3Response(
+            202,
+            {
+                "climatisation": {
+                    "climatisationStatus": {
+                        "value": {
+                            "climatisationState": "heating",
+                            "carCapturedTimestamp": stamp.isoformat(),
+                        }
+                    }
+                }
+            },
+            stamp,
+        )
+    )
+    result = await engine.approved_control_discovery(
+        VIN, "start", "cariad.climate.start.stored", approval="non_spin", guided=True
+    )
     assert result["physical_result"] == "verified"
     assert profile.discovery._active is None
     assert profile.control_results["cariad.climate.start.stored"] == "worked"
@@ -900,16 +1247,22 @@ async def test_guided_command_automatically_confirms_only_fresh_changed_readback
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("first_status,first_payload,expected_calls", [
-    (405, {"error": {"code": "notSupported"}}, 2),
-    (410, {"error": {"code": "unsupported"}}, 2),
-    (405, {}, 1),
-    (502, {}, 1),
-    (202, {"data": {"requestID": "test"}}, 1),
-])
-async def test_guided_charging_alternative_only_after_definite_rejection(first_status, first_payload, expected_calls):
+@pytest.mark.parametrize(
+    "first_status,first_payload,expected_calls",
+    [
+        (405, {"error": {"code": "notSupported"}}, 2),
+        (410, {"error": {"code": "unsupported"}}, 2),
+        (405, {}, 1),
+        (502, {}, 1),
+        (202, {"data": {"requestID": "test"}}, 1),
+    ],
+)
+async def test_guided_charging_alternative_only_after_definite_rejection(
+    first_status, first_payload, expected_calls
+):
     from types import SimpleNamespace as NS
     from custom_components.audiconnect.v3.runtime import catalog_path
+
     engine, transport, store = engine_for()
     engine.registry = CapabilityRegistry.from_json_file(catalog_path())
     engine.auth.service = NS(_spin=None)
@@ -917,10 +1270,20 @@ async def test_guided_charging_alternative_only_after_definite_rejection(first_s
     car = engine.require_vehicle(VIN)
     car.advertised_capabilities.add("charging")
     profile = engine.profiles[VIN.lower()]
-    transport._responses.extend([V3Response(first_status, first_payload, datetime.now(UTC)),
-        V3Response(202, {"data": {"requestID": "second"}}, datetime.now(UTC))])
-    result = await engine.approved_control_discovery(VIN, "start", "cariad.charging.start",
-                                                      capability="charging", approval="non_spin", guided=True)
+    transport._responses.extend(
+        [
+            V3Response(first_status, first_payload, datetime.now(UTC)),
+            V3Response(202, {"data": {"requestID": "second"}}, datetime.now(UTC)),
+        ]
+    )
+    result = await engine.approved_control_discovery(
+        VIN,
+        "start",
+        "cariad.charging.start",
+        capability="charging",
+        approval="non_spin",
+        guided=True,
+    )
     assert transport.request_count == expected_calls
     assert profile.discovery._active is not None
     if expected_calls == 2:
@@ -929,7 +1292,9 @@ async def test_guided_charging_alternative_only_after_definite_rejection(first_s
         assert profile.command_journal[0].state == "rejected"
         assert result["previous_attempt"]["status"] == first_status
         assert not engine.control_enabled(VIN, "start", "charging")
-        restored = restore_profile(engine.registry, car.context, store.records[VIN.lower()], cooldown_seconds=0)
+        restored = restore_profile(
+            engine.registry, car.context, store.records[VIN.lower()], cooldown_seconds=0
+        )
         assert restored.discovery.history[0].result == "rejected"
     else:
         assert result["operation"] == "cariad.charging.start"
@@ -949,8 +1314,10 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     store = FakeStore()
     auth = FakeAuth()
     auth.service = NS(_spin=None)
+
     class Transport(FakeTransport):
         charging = False
+
         async def request(self, family, method, path, **kwargs):
             self.calls.append((family, method, path, kwargs))
             self.request_count += 1
@@ -962,13 +1329,44 @@ async def test_golden_configure_discover_use_restart_without_workbench():
             else:
                 assert method == "GET"
             value = "charging" if self.charging else "readyForCharging"
-            return V3Response(200, {"charging": {
-                "chargingStatus": {"value": {"chargingState": value, "carCapturedTimestamp": stamp.isoformat()}},
-                "batteryStatus": {"value": {"currentSOC_pct": 65, "carCapturedTimestamp": stamp.isoformat()}}},
-                "climatisation": {"climatisationStatus": {"value": {
-                    "climatisationState": "off", "carCapturedTimestamp": stamp.isoformat()}}}}, stamp)
+            return V3Response(
+                200,
+                {
+                    "charging": {
+                        "chargingStatus": {
+                            "value": {
+                                "chargingState": value,
+                                "carCapturedTimestamp": stamp.isoformat(),
+                            }
+                        },
+                        "batteryStatus": {
+                            "value": {
+                                "currentSOC_pct": 65,
+                                "carCapturedTimestamp": stamp.isoformat(),
+                            }
+                        },
+                    },
+                    "climatisation": {
+                        "climatisationStatus": {
+                            "value": {
+                                "climatisationState": "off",
+                                "carCapturedTimestamp": stamp.isoformat(),
+                            }
+                        }
+                    },
+                },
+                stamp,
+            )
+
     transport = Transport([])
-    engine = V3Engine(NS(), NS(entry_id="golden"), registry, auth=auth, transport=transport, storage=store)
+    engine = V3Engine(
+        NS(),
+        NS(entry_id="golden"),
+        registry,
+        auth=auth,
+        transport=transport,
+        storage=store,
+    )
     await engine.poll()
     assert all(call[1] == "GET" for call in transport.calls if len(call) > 1)
     car = engine.require_vehicle(VIN)
@@ -978,15 +1376,33 @@ async def test_golden_configure_discover_use_restart_without_workbench():
 
     def entities_for(engine):
         result = []
-        coordinator = NS(engine=engine, async_add_listener=lambda cb: None, last_update_success=True)
-        entry = NS(entry_id="golden", runtime_data=NS(v3=engine, coordinator=coordinator),
-                   async_on_unload=lambda cb: None)
-        for platform in ("sensor", "switch", "climate", "binary_sensor", "button", "lock", "number", "select", "device_tracker"):
+        coordinator = NS(
+            engine=engine, async_add_listener=lambda cb: None, last_update_success=True
+        )
+        entry = NS(
+            entry_id="golden",
+            runtime_data=NS(v3=engine, coordinator=coordinator),
+            async_on_unload=lambda cb: None,
+        )
+        for platform in (
+            "sensor",
+            "switch",
+            "climate",
+            "binary_sensor",
+            "button",
+            "lock",
+            "number",
+            "select",
+            "device_tracker",
+        ):
             setup(platform, entry, result.extend)
         return {entity.unique_id: entity for entity in result}
 
     entities = entities_for(engine)
-    model_key, switch_key = VIN.lower()+"_sensor_model", VIN.lower()+"_switch_charging"
+    model_key, switch_key = (
+        VIN.lower() + "_sensor_model",
+        VIN.lower() + "_switch_charging",
+    )
     assert entities[model_key].native_value == "Audi Q8 TFSI e"
     switch = entities[switch_key]
     assert switch.available and switch.is_on is False
@@ -994,26 +1410,39 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     await switch.async_turn_on()
     assert switch.is_on is True
     assert engine.profiles[VIN.lower()].last_command.state == "verified"
-    assert sum(call[1]=="POST" for call in transport.calls if len(call)>1) == 1
+    assert sum(call[1] == "POST" for call in transport.calls if len(call) > 1) == 1
 
-    restarted = V3Engine(NS(), NS(entry_id="golden"), registry, auth=auth, transport=transport, storage=store)
+    restarted = V3Engine(
+        NS(),
+        NS(entry_id="golden"),
+        registry,
+        auth=auth,
+        transport=transport,
+        storage=store,
+    )
     await restarted.poll()
     restored_entities = entities_for(restarted)
     assert restored_entities[model_key].native_value == "Audi Q8 TFSI e"
     assert restored_entities[switch_key].is_on is True
-    assert sum(call[1]=="POST" for call in transport.calls if len(call)>1) == 1
+    assert sum(call[1] == "POST" for call in transport.calls if len(call) > 1) == 1
     assert restarted.profiles[VIN.lower()].last_command.state == "verified"
 
 
 def test_identity_refresh_is_periodic_quota_aware_and_session_aware():
     from custom_components.audiconnect.v3.status_engine import identity_refresh_due
+
     car = V3Vehicle(VIN, "Audi", "", "", "DE")
     cars = {VIN.lower(): car}
     assert not identity_refresh_due(cars, 1799, 100)
     assert identity_refresh_due(cars, 1800, 100)
     assert identity_refresh_due(cars, 1, 100, token_renewed=True)
     assert not identity_refresh_due(cars, 3600, 12, token_renewed=True)
-    car.model, car.model_family, car.model_year, car.car_type = "Audi Q8", "q8", "2022", "phev"
+    car.model, car.model_family, car.model_year, car.car_type = (
+        "Audi Q8",
+        "q8",
+        "2022",
+        "phev",
+    )
     car.image_url = "https://mediaservice.audi.com/render/example.png"
     assert not identity_refresh_due(cars, 86399, 100, token_renewed=True)
     assert identity_refresh_due(cars, 86400, 100)
@@ -1025,10 +1454,13 @@ def test_identity_refresh_is_periodic_quota_aware_and_session_aware():
 async def test_identity_image_waits_for_real_model_then_caches_across_restart():
     from unittest.mock import AsyncMock
     from custom_components.audiconnect.v3.identity_cache import apply_cached_identity
+
     engine, transport, store = engine_for()
     original = transport.discover_vehicles
+
     async def incomplete():
         return [{"vin": VIN, "vehicle": {"media": None, "core": None}}]
+
     url = "https://mediaservice.audi.com/render/example.png"
     transport.discover_vehicle_images = AsyncMock(return_value={VIN.lower(): url})
     transport.discover_vehicles = incomplete
@@ -1049,11 +1481,19 @@ async def test_identity_image_waits_for_real_model_then_caches_across_restart():
     assert car.model and car.image_url == url
     transport.discover_vehicle_images.assert_awaited_once()
     assert url not in json.dumps(engine.diagnostics())
+
     async def load_identity(key, country):
         return store.records[key]["manufacturer_identity"]
+
     store.async_identity = load_identity
-    restarted = V3Engine(SimpleNamespace(), SimpleNamespace(entry_id="example"),
-                         engine.registry, auth=engine.auth, transport=transport, storage=store)
+    restarted = V3Engine(
+        SimpleNamespace(),
+        SimpleNamespace(entry_id="example"),
+        engine.registry,
+        auth=engine.auth,
+        transport=transport,
+        storage=store,
+    )
     await restarted.discover()
     restored_car = restarted.require_vehicle(VIN)
     assert restored_car.identity_restored

@@ -1,28 +1,31 @@
 """V3 owns all nine native HA platforms; V2 classes are unchanged."""
+
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 
 from custom_components.audiconnect.v3.entities import (
-    V3ChargeModeSelect, V3ChargeTargetNumber, V3ParkedTracker,
+    V3ChargeModeSelect,
+    V3ChargeTargetNumber,
+    V3ParkedTracker,
 )
 from custom_components.audiconnect.v3.parking import (
-    parse_parked_position, keep_newest_position,
+    parse_parked_position,
+    keep_newest_position,
 )
 from custom_components.audiconnect.v3.vehicle import V3Vehicle
-from custom_components.audiconnect.v3.engine import V3Engine
 
 
 VIN = "WAUZZZ4M0MD123456"
 
 
 def car():
-    return V3Vehicle(vin=VIN, name="My Audi", model="Audi Q8",
-                     model_family="q8", country="BE")
+    return V3Vehicle(
+        vin=VIN, name="My Audi", model="Audi Q8", model_family="q8", country="BE"
+    )
 
 
 def coordinator(allow=False):
@@ -54,10 +57,13 @@ def test_v3_platforms_reuse_exact_v2_unique_ids():
 def test_v3_parking_position_is_last_known_not_live_and_never_logs_location():
     now = datetime.now(UTC)
     previous = {"latitude": 50.0, "longitude": 4.0, "timestamp": now.isoformat()}
-    payload = {"data": {
-        "lat": 50.10, "lon": 4.55,
-        "carCapturedTimestamp": (now - timedelta(minutes=10)).isoformat(),
-    }}
+    payload = {
+        "data": {
+            "lat": 50.10,
+            "lon": 4.55,
+            "carCapturedTimestamp": (now - timedelta(minutes=10)).isoformat(),
+        }
+    }
     position = parse_parked_position(payload)
     assert position is not None
     assert not keep_newest_position(previous, position)
@@ -71,15 +77,18 @@ def test_v3_parking_position_is_last_known_not_live_and_never_logs_location():
     assert tracker.extra_state_attributes["position_age_minutes"] >= 10
 
 
-@pytest.mark.parametrize("payload", [
-    None,
-    {},
-    {"data": {"lat": 100, "lon": 4}},
-    {"data": {"lat": 50, "lon": -200}},
-    {"data": {"lat": float("nan"), "lon": 4}},
-    {"data": {"lat": True, "lon": 4}},
-    {"data": {"lat": "invalid", "lon": 4}},
-])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        {},
+        {"data": {"lat": 100, "lon": 4}},
+        {"data": {"lat": 50, "lon": -200}},
+        {"data": {"lat": float("nan"), "lon": 4}},
+        {"data": {"lat": True, "lon": 4}},
+        {"data": {"lat": "invalid", "lon": 4}},
+    ],
+)
 def test_parking_rejects_untrusted_or_invalid_coordinates(payload):
     assert parse_parked_position(payload) is None
 
@@ -89,11 +98,19 @@ def test_charge_targets_and_modes_read_normalized_v3_values():
     captured = datetime.now(UTC).isoformat()
     vehicle.readings = {
         "targetstateOfCharge": {
-            "value": 80, "captured": captured, "status": "verified",
+            "value": 80,
+            "captured": captured,
+            "status": "verified",
         },
-        "availableChargeModes": {"value": ["manual", "timer"], "captured": captured, "status": "verified"},
+        "availableChargeModes": {
+            "value": ["manual", "timer"],
+            "captured": captured,
+            "status": "verified",
+        },
         "preferredChargeMode": {
-            "value": "timer", "captured": captured, "status": "verified",
+            "value": "timer",
+            "captured": captured,
+            "status": "verified",
         },
     }
     ctx = coordinator(allow=True)
@@ -113,9 +130,19 @@ def test_settings_fail_closed_without_verified_v3_command():
 def test_all_nine_ha_platforms_have_independent_v3_code():
     import inspect
     from custom_components.audiconnect.v3 import ha_platforms
+
     code = inspect.getsource(ha_platforms)
-    for kind in ("sensor", "binary_sensor", "button", "switch", "lock",
-                 "climate", "number", "select", "device_tracker"):
+    for kind in (
+        "sensor",
+        "binary_sensor",
+        "button",
+        "switch",
+        "lock",
+        "climate",
+        "number",
+        "select",
+        "device_tracker",
+    ):
         assert f'"{kind}"' in code
     assert "AudiAccount" not in code
     assert "AudiConnectVehicle" not in code

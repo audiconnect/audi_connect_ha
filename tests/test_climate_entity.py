@@ -222,7 +222,9 @@ def test_legacy_v2_ignores_retired_global_bodyless_option():
         options={"climate_quick_start": True}, data={"api_level": 0}
     )
     asyncio.run(entity.async_turn_on())
-    assert connection.calls == [("start_climate_control", (VIN,), {"temp_c": entity.native_target_temperature})]
+    assert connection.calls == [
+        ("start_climate_control", (VIN,), {"temp_c": entity.native_target_temperature})
+    ]
 
 
 def test_explicit_temp_change_is_not_ignored_in_quick_start_mode():

@@ -1,4 +1,5 @@
 """Protect V2 identity/device class while validating independent V3 presentation."""
+
 from types import SimpleNamespace
 
 from custom_components.audiconnect.binary_sensor import BINARY_SENSOR_DESCRIPTIONS
@@ -12,14 +13,22 @@ def test_binary_identity_and_device_class_parity_with_v3_product_presentation():
     coordinator = SimpleNamespace(async_add_listener=lambda callback: None)
     assert set(binary_contracts()) == {d.key for d in BINARY_SENSOR_DESCRIPTIONS}
     for description in BINARY_SENSOR_DESCRIPTIONS:
-        entity = V3ReadOnlyBinarySensor(coordinator, car,
-            {"id": description.key, "entity_key": description.key, "capability": "vehicle_status"})
+        entity = V3ReadOnlyBinarySensor(
+            coordinator,
+            car,
+            {
+                "id": description.key,
+                "entity_key": description.key,
+                "capability": "vehicle_status",
+            },
+        )
         assert entity.unique_id == car.vin.lower() + "_binary_sensor_" + description.key
         contract = binary_contracts()[description.key]
         assert entity.name == contract["name"]
         assert entity.device_class == description.device_class
         assert entity.entity_category is None
         assert entity.icon == contract["icon"]
+
 
 def test_vehicle_binary_properties_are_not_integration_diagnostics():
     contracts = binary_contracts()

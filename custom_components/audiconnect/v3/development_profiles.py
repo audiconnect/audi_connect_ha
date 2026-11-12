@@ -13,16 +13,19 @@ from copy import deepcopy
 from dataclasses import asdict
 import re
 from string import Formatter
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 from urllib.parse import quote
 
-from .action_discovery import DiscoveryError, GuidedActionDiscovery
+from .action_discovery import GuidedActionDiscovery
 from .registry import CapabilityRegistry, RegistryError, VehicleContext
 from .command_journal import CommandRecord, HISTORY_LIMIT, legacy_snapshot
 from .operation_revision import operation_revision
-from .command_parameters import validate_bindings, runtime_ready
+from .command_parameters import validate_bindings
 
-_ID = re.compile(r"^user\.[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,31}$")
+_ID = re.compile(
+    r"^user\.[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,31}$"
+)
 _VAR = re.compile(r"^[A-Z][A-Z0-9_]{0,31}$")
 _TYPE = {"string", "integer", "number", "boolean"}
 _SYSTEM = {"VIN", "COUNTRY", "TYPE", "JOBS", "SPIN"}  # SPIN: secure body only
@@ -56,8 +59,14 @@ def _check_template(value: Any, allowed: set[str], *, depth: int = 0) -> None:
             raise DevelopmentProfileError("Request field too long")
     elif isinstance(value, dict):
         if len(value) > 50 or any(
-            not isinstance(k, str) or len(k) > 64 or "{" in k
-            or re.search(r"(?:authorization|bearer|password|secret|access.?token|refresh.?token|api.?key)", k, re.I)
+            not isinstance(k, str)
+            or len(k) > 64
+            or "{" in k
+            or re.search(
+                r"(?:authorization|bearer|password|secret|access.?token|refresh.?token|api.?key)",
+                k,
+                re.I,
+            )
             for k in value
         ):
             raise DevelopmentProfileError("Invalid JSON object keys")
@@ -73,13 +82,24 @@ def _check_template(value: Any, allowed: set[str], *, depth: int = 0) -> None:
 
 
 def _validated_route(
-    data: Mapping[str, Any], known_families: Mapping[str, Any],
+    data: Mapping[str, Any],
+    known_families: Mapping[str, Any],
     known_capabilities: Mapping[str, Any],
 ) -> dict[str, Any]:
     if not isinstance(data, Mapping) or set(data) - {
-        "id", "capability", "aspect", "family", "method", "path",
-        "variables", "body", "response_paths", "scope", "description",
-        "parameter_bindings", "handler",
+        "id",
+        "capability",
+        "aspect",
+        "family",
+        "method",
+        "path",
+        "variables",
+        "body",
+        "response_paths",
+        "scope",
+        "description",
+        "parameter_bindings",
+        "handler",
     }:
         raise DevelopmentProfileError("Unknown custom operation fields")
     operation_id = data.get("id")
@@ -87,13 +107,21 @@ def _validated_route(
         raise DevelopmentProfileError("Invalid namespaced user operation ID")
     capability, aspect = data.get("capability"), data.get("aspect")
     node = known_capabilities.get(capability) if isinstance(capability, str) else None
-    if not isinstance(node, dict) or not isinstance(aspect, str) or not (
-        (aspect == "status" and node.get("status"))
-        or aspect in (node.get("control") or {})
+    if (
+        not isinstance(node, dict)
+        or not isinstance(aspect, str)
+        or not (
+            (aspect == "status" and node.get("status"))
+            or aspect in (node.get("control") or {})
+        )
     ):
-        raise DevelopmentProfileError("Unknown capability or unsupported control aspect")
+        raise DevelopmentProfileError(
+            "Unknown capability or unsupported control aspect"
+        )
     if not operation_id.startswith(f"user.{capability}.{aspect}."):
-        raise DevelopmentProfileError("Operation ID must match its capability and aspect")
+        raise DevelopmentProfileError(
+            "Operation ID must match its capability and aspect"
+        )
     family = data.get("family")
     if family not in known_families:
         raise DevelopmentProfileError("Unknown API family")
@@ -106,13 +134,20 @@ def _validated_route(
     if method == "PUT" and not isinstance(handler, str):
         raise DevelopmentProfileError("PUT requires an approved code-owned handler")
     if handler is not None and method != "PUT":
-        raise DevelopmentProfileError("Handler aliases are reserved for approved PUT operations")
+        raise DevelopmentProfileError(
+            "Handler aliases are reserved for approved PUT operations"
+        )
     path = data.get("path")
     if not isinstance(path, str) or not 1 <= len(path) <= 1024:
         raise DevelopmentProfileError("Invalid path length")
     if (
-        not path.startswith("/") or path.startswith("//") or "://" in path
-        or "\\" in path or ".." in path or "#" in path or any(ord(c) < 32 for c in path)
+        not path.startswith("/")
+        or path.startswith("//")
+        or "://" in path
+        or "\\" in path
+        or ".." in path
+        or "#" in path
+        or any(ord(c) < 32 for c in path)
         or re.search(r"%(?:2e|2f|5c|00)", path, re.IGNORECASE)
     ):
         raise DevelopmentProfileError("Only safe API-family-relative paths allowed")
@@ -120,10 +155,13 @@ def _validated_route(
         raise DevelopmentProfileError("Vehicle route must use {VIN}, never a fixed VIN")
     variables = data.get("variables", {})
     if (
-        not isinstance(variables, dict) or len(variables) > 12
+        not isinstance(variables, dict)
+        or len(variables) > 12
         or any(
-            not isinstance(name, str) or not _VAR.fullmatch(name)
-            or name in _SYSTEM or value not in _TYPE
+            not isinstance(name, str)
+            or not _VAR.fullmatch(name)
+            or name in _SYSTEM
+            or value not in _TYPE
             for name, value in variables.items()
         )
     ):
@@ -138,6 +176,7 @@ def _validated_route(
     if aspect == "status" and body is not None:
         raise DevelopmentProfileError("GET status never carries a request body")
     _check_template(body, allowed)
+
     # The S-PIN is a reserved runtime credential, not a user parameter.
     # Audi's reviewed Auth0 door controls accept it ONLY as body.spin.
     def has_secure_field(value: Any) -> bool:
@@ -154,8 +193,10 @@ def _validated_route(
         return False
 
     if has_secure_field(body) and not (
-        capability == "access" and aspect in ("lock", "unlock")
-        and family == "cariad" and method == "POST"
+        capability == "access"
+        and aspect in ("lock", "unlock")
+        and family == "cariad"
+        and method == "POST"
         and path == f"/vehicle/v1/vehicles/{{VIN}}/access/{aspect}"
         and body == {"spin": "{SPIN}"}
     ):
@@ -163,17 +204,23 @@ def _validated_route(
             "S-PIN may only be injected as body.spin on the approved CARIAD lock/unlock route"
         )
     response_paths = data.get("response_paths", [])
-    if not isinstance(response_paths, list) or (
-        aspect == "status" and not response_paths
-    ) or any(
-        not isinstance(x, str) or not x or len(x) > 180
-        or not re.fullmatch(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*", x)
-        for x in response_paths
+    if (
+        not isinstance(response_paths, list)
+        or (aspect == "status" and not response_paths)
+        or any(
+            not isinstance(x, str)
+            or not x
+            or len(x) > 180
+            or not re.fullmatch(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*", x)
+            for x in response_paths
+        )
     ):
         raise DevelopmentProfileError("Invalid response field mappings")
     scope = data.get("scope", {})
-    if not isinstance(scope, dict) or set(scope) - _SCOPES or any(
-        not isinstance(x, str) or len(x) > 60 for x in scope.values()
+    if (
+        not isinstance(scope, dict)
+        or set(scope) - _SCOPES
+        or any(not isinstance(x, str) or len(x) > 60 for x in scope.values())
     ):
         raise DevelopmentProfileError("Invalid optional context scope")
     if "auth" in scope and scope["auth"] != known_families[family]["auth"]:
@@ -184,8 +231,14 @@ def _validated_route(
             bindings = validate_bindings(capability, aspect, variables, bindings)
         except (ValueError, TypeError) as exc:
             raise DevelopmentProfileError(str(exc)) from exc
-        if method != "POST" or family != "cariad" or path != "/vehicle/v1/vehicles/{VIN}/climatisation/start":
-            raise DevelopmentProfileError("Parameterized runtime route must use the approved climate-start endpoint")
+        if (
+            method != "POST"
+            or family != "cariad"
+            or path != "/vehicle/v1/vehicles/{VIN}/climatisation/start"
+        ):
+            raise DevelopmentProfileError(
+                "Parameterized runtime route must use the approved climate-start endpoint"
+            )
     elif not isinstance(bindings, dict):
         raise DevelopmentProfileError("Invalid runtime parameter bindings")
     description = data.get("description", "")
@@ -230,15 +283,21 @@ def _fill_request(template: Any, params: Mapping[str, Any]) -> Any:
     parts = list(Formatter().parse(template))
     if len(parts) == 1 and parts[0][0] == "" and parts[0][1] in params:
         return params[parts[0][1]]
-    return template.format_map({
-        key: str(value).lower() if type(value) is bool else str(value)
-        for key, value in params.items()
-    })
+    return template.format_map(
+        {
+            key: str(value).lower() if type(value) is bool else str(value)
+            for key, value in params.items()
+        }
+    )
 
 
-def render_request(data: Mapping[str, Any], *, vehicle_values: Mapping[str, str],
-                   user_values: Mapping[str, Any] | None = None,
-                   experimental: bool = False) -> dict[str, Any]:
+def render_request(
+    data: Mapping[str, Any],
+    *,
+    vehicle_values: Mapping[str, str],
+    user_values: Mapping[str, Any] | None = None,
+    experimental: bool = False,
+) -> dict[str, Any]:
     """Render an already validated operation or attribute route without secrets."""
     values: dict[str, Any] = {}
     for key in _SYSTEM - {"SPIN"}:
@@ -256,8 +315,10 @@ def render_request(data: Mapping[str, Any], *, vehicle_values: Mapping[str, str]
     if not required <= set(values):
         raise DevelopmentProfileError("Missing vehicle context placeholder")
     encoded = {
-        k: quote(str(v).lower() if type(v) is bool else str(v),
-                 safe="," if k == "JOBS" and not experimental else "")
+        k: quote(
+            str(v).lower() if type(v) is bool else str(v),
+            safe="," if k == "JOBS" and not experimental else "",
+        )
         for k, v in values.items()
     }
     path = data["path"].format_map(encoded)
@@ -282,8 +343,11 @@ class DevelopmentProfile:
     """
 
     def __init__(
-        self, catalog: CapabilityRegistry, context: VehicleContext,
-        *, cooldown_seconds: float = 15
+        self,
+        catalog: CapabilityRegistry,
+        context: VehicleContext,
+        *,
+        cooldown_seconds: float = 15,
     ) -> None:
         self._base = {
             "schema_version": 1,
@@ -320,9 +384,15 @@ class DevelopmentProfile:
         self.job_discovery: dict[str, str] = {}
         self.job_probe_attempts: dict[str, int] = {}
         self.api_observations: dict[str, dict[str, Any]] = {}
-        self.execution_reviews: list[dict[str, Any]] = []  # private, non-authorizing notes
-        self.job_schema: dict[str, dict[str, Any]] = {}  # session-only structural evidence
-        self.historical_job_schema: dict[str, dict[str, Any]] = {}  # non-authorizing structural archive
+        self.execution_reviews: list[
+            dict[str, Any]
+        ] = []  # private, non-authorizing notes
+        self.job_schema: dict[
+            str, dict[str, Any]
+        ] = {}  # session-only structural evidence
+        self.historical_job_schema: dict[
+            str, dict[str, Any]
+        ] = {}  # non-authorizing structural archive
         self.standalone_discovery: dict[str, int] = {}
         self.unsupported_reads: set[str] = set()
         self.engineering_responses: dict[str, dict[str, Any]] = {}
@@ -334,16 +404,30 @@ class DevelopmentProfile:
 
     def add(self, operation: Mapping[str, Any]) -> str:
         """Add a user-authored operation, purely as a development definition."""
-        data = _validated_route(operation, self._base["api_families"], self._base["capabilities"])
+        data = _validated_route(
+            operation, self._base["api_families"], self._base["capabilities"]
+        )
         ident = data["id"]
         if data.get("handler"):
             original = self._base["operations"].get(data["handler"], {})
             definition = self._base["capabilities"][data["capability"]]
-            owned = (definition.get("control") or {}).get(data["aspect"], {}).get("operations", [])
-            if (data["handler"] not in owned or original.get("method") != "PUT"
-                    or original.get("family") != data["family"] or original.get("path") != data["path"]
-                    or not original.get("request_mode") or data["body"] is not None or data["variables"]):
-                raise DevelopmentProfileError("PUT alias must retain the approved handler, endpoint and body ownership")
+            owned = (
+                (definition.get("control") or {})
+                .get(data["aspect"], {})
+                .get("operations", [])
+            )
+            if (
+                data["handler"] not in owned
+                or original.get("method") != "PUT"
+                or original.get("family") != data["family"]
+                or original.get("path") != data["path"]
+                or not original.get("request_mode")
+                or data["body"] is not None
+                or data["variables"]
+            ):
+                raise DevelopmentProfileError(
+                    "PUT alias must retain the approved handler, endpoint and body ownership"
+                )
         if ident in self.registry.operations:
             raise DevelopmentProfileError("Operation ID already exists")
         if len(self.custom) >= 50:
@@ -376,8 +460,12 @@ class DevelopmentProfile:
                 op["request_mode"] = original["request_mode"]
                 op["handler"] = row["handler"]
                 op["confirmation"] = original.get("confirmation")
-                for flag in ("legacy_compatible", "legacy_climate_level1",
-                             "input_schema", "parameter_bindings"):
+                for flag in (
+                    "legacy_compatible",
+                    "legacy_climate_level1",
+                    "input_schema",
+                    "parameter_bindings",
+                ):
                     if flag in original:
                         op[flag] = original[flag]
                 if "input_schema" in original:
@@ -386,7 +474,8 @@ class DevelopmentProfile:
             overlay["operations"][row_id] = op
             definition = overlay["capabilities"][row["capability"]]
             target = (
-                definition["status"] if row["aspect"] == "status"
+                definition["status"]
+                if row["aspect"] == "status"
                 else definition["control"][row["aspect"]]
             )
             target["operations"].append(row_id)
@@ -403,18 +492,35 @@ class DevelopmentProfile:
         """Discard only a local unused draft; never delete a tested revision."""
         if ident not in self.custom and ident not in self.attribute_custom:
             raise DevelopmentProfileError("Only local custom drafts may be deleted")
-        if (ident in self.active.values() or ident in self.attribute_routes.values()
-                or ident in self.discovery.preferred.values()
-                or ident in self.control_results or ident in self.read_results
-                or ident in self.api_observations or ident in self.engineering_responses
-                or any(ident in evidence for evidence in self.attribute_route_evidence.values())
-                or any(row.operation == ident for row in self.command_journal)
-                or any(row.operation == ident for row in self.discovery.history)
-                or any(row.get("operation") == ident for row in
-                       [*self.engineering_history, *self.execution_reviews, *self.historical_control_evidence])):
-            raise DevelopmentProfileError("Tested or active definitions cannot be deleted; disable or replace the binding")
+        if (
+            ident in self.active.values()
+            or ident in self.attribute_routes.values()
+            or ident in self.discovery.preferred.values()
+            or ident in self.control_results
+            or ident in self.read_results
+            or ident in self.api_observations
+            or ident in self.engineering_responses
+            or any(
+                ident in evidence for evidence in self.attribute_route_evidence.values()
+            )
+            or any(row.operation == ident for row in self.command_journal)
+            or any(row.operation == ident for row in self.discovery.history)
+            or any(
+                row.get("operation") == ident
+                for row in [
+                    *self.engineering_history,
+                    *self.execution_reviews,
+                    *self.historical_control_evidence,
+                ]
+            )
+        ):
+            raise DevelopmentProfileError(
+                "Tested or active definitions cannot be deleted; disable or replace the binding"
+            )
         if ident in self.custom:
-            self._replace_custom_routes({key: row for key, row in self.custom.items() if key != ident})
+            self._replace_custom_routes(
+                {key: row for key, row in self.custom.items() if key != ident}
+            )
         else:
             self.attribute_custom.pop(ident)
         for selections in (self.draft_selected, self.attribute_drafts):
@@ -431,21 +537,40 @@ class DevelopmentProfile:
         # Keep security review and active engineering attempts; routine errors are bounded history.
         while len(rows) > HISTORY_LIMIT:
             active = self.discovery._active
-            index = next((i for i, row in enumerate(rows)
-                          if not (row.origin == "home_assistant" and row.requires_review)
-                          and not (active is not None and row.origin == "workbench"
-                                   and row.engineering_sequence == active.sequence)
-                          and not (row.is_wake and record.started_at - row.started_at < 86400)
-                          and row is not latest and row is not record), None)
+            index = next(
+                (
+                    i
+                    for i, row in enumerate(rows)
+                    if not (row.origin == "home_assistant" and row.requires_review)
+                    and not (
+                        active is not None
+                        and row.origin == "workbench"
+                        and row.engineering_sequence == active.sequence
+                    )
+                    and not (row.is_wake and record.started_at - row.started_at < 86400)
+                    and row is not latest
+                    and row is not record
+                ),
+                None,
+            )
             if index is None:
-                raise DevelopmentProfileError("Command journal full of unresolved commands")
+                raise DevelopmentProfileError(
+                    "Command journal full of unresolved commands"
+                )
             rows.pop(index)
         self.command_journal[:] = rows
         self.last_command = latest
 
     def engineering_record(self, sequence: int) -> CommandRecord | None:
-        return next((record for record in reversed(self.command_journal)
-                     if record.origin == "workbench" and record.engineering_sequence == sequence), None)
+        return next(
+            (
+                record
+                for record in reversed(self.command_journal)
+                if record.origin == "workbench"
+                and record.engineering_sequence == sequence
+            ),
+            None,
+        )
 
     @contextmanager
     def command_transaction(self):
@@ -473,11 +598,19 @@ class DevelopmentProfile:
             attempt = self.discovery.begin(
                 capability, action, operation, user_initiated=True, now=now
             )
-            self.track_command(CommandRecord.begin(
-                capability, action, operation, now, origin="workbench",
-                engineering_sequence=attempt.sequence,
-                operation_revision=operation_revision(self.registry.operations[operation]),
-            ))
+            self.track_command(
+                CommandRecord.begin(
+                    capability,
+                    action,
+                    operation,
+                    now,
+                    origin="workbench",
+                    engineering_sequence=attempt.sequence,
+                    operation_revision=operation_revision(
+                        self.registry.operations[operation]
+                    ),
+                )
+            )
         return attempt
 
     def observe_http(self, sequence: int, status: int | None) -> None:
@@ -495,41 +628,85 @@ class DevelopmentProfile:
         # Preserve reviewed built-in outcomes before invalidating the current
         # context. A revision is proven only for a revision-bound selection.
         for operation, outcome in sorted(self.control_results.items()):
-            if operation not in self._base["operations"] or outcome not in ("worked", "failed"):
+            if operation not in self._base["operations"] or outcome not in (
+                "worked",
+                "failed",
+            ):
                 continue
-            revision = next((self.active_revisions.get(key) for key, selected in self.active.items()
-                             if selected == operation and self.active_revisions.get(key)), None)
-            row = {"operation": operation, "outcome": outcome,
-                   "context": asdict(self.discovery.context), "operation_revision": revision}
+            revision = next(
+                (
+                    self.active_revisions.get(key)
+                    for key, selected in self.active.items()
+                    if selected == operation and self.active_revisions.get(key)
+                ),
+                None,
+            )
+            row = {
+                "operation": operation,
+                "outcome": outcome,
+                "context": asdict(self.discovery.context),
+                "operation_revision": revision,
+            }
             if row not in self.historical_control_evidence:
                 self.historical_control_evidence.append(row)
         self.historical_control_evidence = self.historical_control_evidence[-50:]
         self.discovery.context = context
         self.discovery.preferred.clear()
-        for data in (self.active, self.active_revisions, self.fast_bindings,
-                     self.draft_selected, self.read_results, self.control_results,
-                     self.attribute_routes, self.attribute_evidence, self.attribute_drafts,
-                     self.attribute_route_evidence, self.job_discovery, self.job_probe_attempts,
-                     self.api_observations, self.job_schema, self.standalone_discovery, self.unsupported_reads, self.engineering_responses, self.engineering_history):
+        for data in (
+            self.active,
+            self.active_revisions,
+            self.fast_bindings,
+            self.draft_selected,
+            self.read_results,
+            self.control_results,
+            self.attribute_routes,
+            self.attribute_evidence,
+            self.attribute_drafts,
+            self.attribute_route_evidence,
+            self.job_discovery,
+            self.job_probe_attempts,
+            self.api_observations,
+            self.job_schema,
+            self.standalone_discovery,
+            self.unsupported_reads,
+            self.engineering_responses,
+            self.engineering_history,
+        ):
             data.clear()
 
     def confirm(
-        self, sequence: int, *, worked: bool | None,
-        inspected_vehicle: bool, now: float, readback_verified: bool = False
+        self,
+        sequence: int,
+        *,
+        worked: bool | None,
+        inspected_vehicle: bool,
+        now: float,
+        readback_verified: bool = False,
     ) -> None:
         record = self.engineering_record(sequence)
-        if readback_verified and (worked is not True or record is None or record.state != "verified"
-                                  or not record.readback_attribute):
+        if readback_verified and (
+            worked is not True
+            or record is None
+            or record.state != "verified"
+            or not record.readback_attribute
+        ):
             raise DevelopmentProfileError("No verified readback for this action")
         attempted = self.discovery.review(
             sequence,
             result="uncertain" if worked is None else "worked" if worked else "failed",
             inspected_vehicle=inspected_vehicle,
-            now=now, readback_verified=readback_verified,
+            now=now,
+            readback_verified=readback_verified,
         )
         key = f"{attempted.capability}.{attempted.action}"
         if record is not None:
-            record.state = "verified" if worked is True else "physical_failed" if worked is False else "uncertain"
+            record.state = (
+                "verified"
+                if worked is True
+                else "physical_failed"
+                if worked is False
+                else "uncertain"
+            )
             if worked is not None:
                 record.completed_at = now
         if sequence == self.invalidated_attempt_sequence:
@@ -560,26 +737,40 @@ class DevelopmentProfile:
             self.active_revisions.pop(key, None)
 
     def record_status(
-        self, capability: str, operation: str, *, http_status: int,
-        schema_valid: bool, fresh: bool
+        self,
+        capability: str,
+        operation: str,
+        *,
+        http_status: int,
+        schema_valid: bool,
+        fresh: bool,
     ) -> str:
         """Classify an observed GET without issuing a request or exposing data.
 
         Route selection requires HTTP acceptance, recognized response mapping
         AND fresh field evidence. Cloud success alone is insufficient.
         """
-        if capability not in self.registry.capabilities or not 100 <= http_status <= 599:
+        if (
+            capability not in self.registry.capabilities
+            or not 100 <= http_status <= 599
+        ):
             raise DevelopmentProfileError("Invalid status observation")
         if type(schema_valid) is not bool or type(fresh) is not bool:
             raise DevelopmentProfileError("Status evidence must be explicit booleans")
-        if operation not in self.registry.resolve(
-            capability, "status", self.discovery.context
-        )["available_operations"]:
+        if (
+            operation
+            not in self.registry.resolve(capability, "status", self.discovery.context)[
+                "available_operations"
+            ]
+        ):
             raise DevelopmentProfileError("Status operation not applicable")
         result = (
-            "worked" if 200 <= http_status < 300 and schema_valid and fresh
-            else "readable_but_stale" if 200 <= http_status < 300 and schema_valid
-            else "inconclusive" if http_status in (401, 403, 429) or http_status >= 500
+            "worked"
+            if 200 <= http_status < 300 and schema_valid and fresh
+            else "readable_but_stale"
+            if 200 <= http_status < 300 and schema_valid
+            else "inconclusive"
+            if http_status in (401, 403, 429) or http_status >= 500
             else "failed"
         )
         self.read_results[operation] = {
@@ -597,9 +788,12 @@ class DevelopmentProfile:
         """Remember an untested route without claiming or enabling success."""
         if action != "status" and not self.registry.operations_for(capability, action):
             raise DevelopmentProfileError("Unknown control aspect")
-        if operation not in self.registry.resolve(
-            capability, action, self.discovery.context
-        )["available_operations"]:
+        if (
+            operation
+            not in self.registry.resolve(capability, action, self.discovery.context)[
+                "available_operations"
+            ]
+        ):
             raise DevelopmentProfileError("Route is not applicable to this vehicle")
         self.draft_selected[f"{capability}.{action}"] = operation
 
@@ -608,9 +802,12 @@ class DevelopmentProfile:
         key = f"{capability}.{action}"
         if key in self.discovery.disabled:
             raise DevelopmentProfileError("Action is disabled")
-        if operation not in self.registry.resolve(
-            capability, action, self.discovery.context
-        )["available_operations"]:
+        if (
+            operation
+            not in self.registry.resolve(capability, action, self.discovery.context)[
+                "available_operations"
+            ]
+        ):
             raise DevelopmentProfileError("Route is not applicable")
         if action == "status":
             if self.read_results.get(operation, {}).get("outcome") != "worked":
@@ -623,7 +820,9 @@ class DevelopmentProfile:
                     "Latest real vehicle test must confirm this route"
                 )
         self.active[key] = operation
-        self.active_revisions[key] = operation_revision(self.registry.operations[operation])
+        self.active_revisions[key] = operation_revision(
+            self.registry.operations[operation]
+        )
         self.draft_selected[key] = operation
 
     def disable(self, capability: str, action: str) -> None:
@@ -632,12 +831,20 @@ class DevelopmentProfile:
 
     def save_identity_draft(self, operation: str, query: str, variables: dict) -> None:
         """Private VIN-scoped definitions, never automatic polling or control proof."""
-        from .transport import IDENTITY_QUERIES, identity_request_body, validate_identity_body
+        from .transport import (
+            IDENTITY_QUERIES,
+            identity_request_body,
+            validate_identity_body,
+        )
+
         if operation not in IDENTITY_QUERIES:
             raise DevelopmentProfileError("Unknown GraphQL draft template")
         body = {"query": query, "variables": variables}
         default = identity_request_body(operation)
-        if body != {"query": default["query"], "variables": default.get("variables", {})}:
+        if body != {
+            "query": default["query"],
+            "variables": default.get("variables", {}),
+        }:
             validate_identity_body(body)
         self.identity_drafts[operation] = deepcopy(body)
 
@@ -657,7 +864,9 @@ class DevelopmentProfile:
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),
             "identity_drafts": deepcopy(self.identity_drafts),
-            "last_command": legacy_snapshot(self.last_command) if self.last_command else None,
+            "last_command": legacy_snapshot(self.last_command)
+            if self.last_command
+            else None,
             "command_journal": [row.snapshot() for row in self.command_journal],
             "attribute_routes": dict(self.attribute_routes),
             "attribute_disabled": sorted(self.attribute_disabled),
@@ -677,8 +886,11 @@ class DevelopmentProfile:
         }
 
     def preview_request(
-        self, operation: str, *, vehicle_values: Mapping[str, str],
-        user_values: Mapping[str, Any] | None = None
+        self,
+        operation: str,
+        *,
+        vehicle_values: Mapping[str, str],
+        user_values: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Render built-in and local definitions through the same registry contract.
 
@@ -688,5 +900,9 @@ class DevelopmentProfile:
         if data is None:
             raise DevelopmentProfileError("Unknown operation")
         experimental = operation in self.custom
-        return render_request(data, vehicle_values=vehicle_values, user_values=user_values,
-                              experimental=experimental)
+        return render_request(
+            data,
+            vehicle_values=vehicle_values,
+            user_values=user_values,
+            experimental=experimental,
+        )

@@ -2,6 +2,7 @@
 
 This is fixture-backed evidence, not a physical car or HA recorder acceptance.
 """
+
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -24,11 +25,23 @@ def wire(value):
     return value
 
 
-@pytest.mark.parametrize("key", [
-    "stateOfCharge", "chargingState", "chargingPower", "actualChargeRate",
-    "chargeType", "targetstateOfCharge", "plugState", "plugLockState",
-    "externalPower", "plugledColor", "remainingChargingTime", "doorLockStatus",
-])
+@pytest.mark.parametrize(
+    "key",
+    [
+        "stateOfCharge",
+        "chargingState",
+        "chargingPower",
+        "actualChargeRate",
+        "chargeType",
+        "targetstateOfCharge",
+        "plugState",
+        "plugLockState",
+        "externalPower",
+        "plugledColor",
+        "remainingChargingTime",
+        "doorLockStatus",
+    ],
+)
 def test_q8_cariad_raw_values_match_v2_and_v3(key):
     payload = wire(PAYLOAD)
     v2 = {row["name"]: row["value"] for row in VehicleDataResponse(payload).states}

@@ -62,8 +62,14 @@ class StubHass:
 
     def __init__(self):
         self.data = {}
-        self.config = type("C", (), {"config_dir": "/tmp",
-                                     "path": lambda self, *parts: join(self.config_dir, *parts)})()
+        self.config = type(
+            "C",
+            (),
+            {
+                "config_dir": "/tmp",
+                "path": lambda self, *parts: join(self.config_dir, *parts),
+            },
+        )()
         self.bus = type(
             "B",
             (),
@@ -81,9 +87,11 @@ def hass():
     hass = StubHass()
     registry = er.EntityRegistry(hass)
     # HA 2026.11 adds the context and registry settings to the native index.
-    registry.entities = (er.EntityRegistryItems(hass)
-                         if "hass" in signature(er.EntityRegistryItems).parameters
-                         else er.EntityRegistryItems())
+    registry.entities = (
+        er.EntityRegistryItems(hass)
+        if "hass" in signature(er.EntityRegistryItems).parameters
+        else er.EntityRegistryItems()
+    )
     if hasattr(er, "EntityRegistrySettings"):
         registry.settings = er.EntityRegistrySettings()
     registry.deleted_entities = {}

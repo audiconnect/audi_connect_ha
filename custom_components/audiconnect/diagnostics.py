@@ -170,9 +170,7 @@ async def async_get_config_entry_diagnostics(
                 getattr(runtime.coordinator, "last_update_success", False)
             ),
             "v3": runtime.v3.diagnostics(),
-            "active_ha_platforms": [
-                str(x) for x in runtime.loaded_platforms
-            ],
+            "active_ha_platforms": [str(x) for x in runtime.loaded_platforms],
         }
         return result
 

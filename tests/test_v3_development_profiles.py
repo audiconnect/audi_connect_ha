@@ -8,16 +8,15 @@ from pathlib import Path
 import pytest
 
 from custom_components.audiconnect.v3.development_profiles import (
-    DevelopmentProfile, DevelopmentProfileError,
+    DevelopmentProfile,
+    DevelopmentProfileError,
 )
 from custom_components.audiconnect.v3.registry import (
-    CapabilityRegistry, VehicleContext,
+    CapabilityRegistry,
+    VehicleContext,
 )
 
-CATALOG = (
-    Path(__file__).resolve().parents[1] /
-    "tests/fixtures/v3_climate_catalog.json"
-)
+CATALOG = Path(__file__).resolve().parents[1] / "tests/fixtures/v3_climate_catalog.json"
 
 
 def workspace(*, family="q8"):
@@ -62,9 +61,7 @@ def test_preview_expands_vin_and_typed_settings_without_dispatch():
         vehicle_values={"VIN": "TESTVIN00000000001"},
         user_values={"MODE": "eco mode", "TARGET": 22},
     )
-    assert preview["relative_path"].endswith(
-        "/climatisation/start?mode=eco%20mode"
-    )
+    assert preview["relative_path"].endswith("/climatisation/start?mode=eco%20mode")
     assert preview["json_body"] == {"targetTemperature": 22, "enabled": True}
     assert preview["experimental_only"] is True
     assert p.snapshot()["discovery"]["attempts"] == []
@@ -120,22 +117,25 @@ def test_disabling_action_removes_active_selection_but_not_status():
     assert p.registry.resolve("climate", "status", p.discovery.context)["operation"]
 
 
-@pytest.mark.parametrize("bad", [
-    {"path": "https://evil.example/vehicles/{VIN}/climatisation/start"},
-    {"path": "//evil.example/vehicles/{VIN}/climatisation/start"},
-    {"path": "/vehicles/WAUZZZZZ9JA123456/climatisation/start"},
-    {"path": "/vehicles/{VIN}/../secrets"},
-    {"path": "/vehicles/{VIN}/%2E%2E/climate"},
-    {"path": "/vehicles/{VIN}/climate#{MODE}"},
-    {"path": "/vehicles/{VIN}/climate/{TOKEN}"},
-    {"family": "unknown"},
-    {"method": "GET"},
-    {"scope": {"auth": "legacy"}},
-    {"variables": {"VIN": "string"}},
-    {"variables": {"MODE": "executable"}},
-    {"body": {"token": "{ACCESS_TOKEN}"}},
-    {"id": "cariad.climate.start.stored"},
-])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"path": "https://evil.example/vehicles/{VIN}/climatisation/start"},
+        {"path": "//evil.example/vehicles/{VIN}/climatisation/start"},
+        {"path": "/vehicles/WAUZZZZZ9JA123456/climatisation/start"},
+        {"path": "/vehicles/{VIN}/../secrets"},
+        {"path": "/vehicles/{VIN}/%2E%2E/climate"},
+        {"path": "/vehicles/{VIN}/climate#{MODE}"},
+        {"path": "/vehicles/{VIN}/climate/{TOKEN}"},
+        {"family": "unknown"},
+        {"method": "GET"},
+        {"scope": {"auth": "legacy"}},
+        {"variables": {"VIN": "string"}},
+        {"variables": {"MODE": "executable"}},
+        {"body": {"token": "{ACCESS_TOKEN}"}},
+        {"id": "cariad.climate.start.stored"},
+    ],
+)
 def test_invalid_or_dangerous_user_api_routes_are_rejected(bad):
     p = workspace()
     with pytest.raises(DevelopmentProfileError):
@@ -145,15 +145,19 @@ def test_invalid_or_dangerous_user_api_routes_are_rejected(bad):
 
 def test_read_only_status_path_can_be_added_without_a_control():
     p = workspace()
-    op = p.add({
-        "id": "user.climate.status.extra",
-        "capability": "climate",
-        "aspect": "status",
-        "family": "cariad",
-        "method": "GET",
-        "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
-        "response_paths": ["climatisation.climatisationStatus.value.climatisationState"],
-    })
+    op = p.add(
+        {
+            "id": "user.climate.status.extra",
+            "capability": "climate",
+            "aspect": "status",
+            "family": "cariad",
+            "method": "GET",
+            "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
+            "response_paths": [
+                "climatisation.climatisationStatus.value.climatisationState"
+            ],
+        }
+    )
     assert p.registry.operations[op]["method"] == "GET"
     assert op in p.registry.operations_for("climate", "status")
     assert p.registry.operations[op]["delivery"] == "manual"
@@ -166,7 +170,8 @@ def test_missing_or_incorrect_parameter_rejected_in_preview():
         p.preview_request(op, vehicle_values={"VIN": "TEST"}, user_values={"MODE": "a"})
     with pytest.raises(DevelopmentProfileError, match="invalid typed"):
         p.preview_request(
-            op, vehicle_values={"VIN": "TEST"},
+            op,
+            vehicle_values={"VIN": "TEST"},
             user_values={"MODE": "a", "TARGET": "22"},
         )
 
@@ -176,7 +181,6 @@ def test_user_operation_never_overwrites_existing_id():
     p.add(custom_start())
     with pytest.raises(DevelopmentProfileError, match="already exists"):
         p.add(custom_start())
-
 
 
 def test_latest_failed_result_withdraws_previously_active_route():
@@ -202,36 +206,54 @@ def test_nested_or_format_modified_path_placeholders_are_blocked():
         profile.add(custom_start(path="/vehicles/{VIN:40}/start"))
 
 
-
 def test_status_get_can_be_chosen_only_after_fresh_valid_response():
     p = workspace()
-    op = p.add({
-        "id": "user.climate.status.probe",
-        "capability": "climate",
-        "aspect": "status",
-        "family": "cariad",
-        "method": "GET",
-        "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
-        "response_paths": ["climatisation.climatisationStatus.value.climatisationState"],
-    })
-    assert p.record_status("climate", op, http_status=200, schema_valid=True, fresh=False) == "readable_but_stale"
+    op = p.add(
+        {
+            "id": "user.climate.status.probe",
+            "capability": "climate",
+            "aspect": "status",
+            "family": "cariad",
+            "method": "GET",
+            "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
+            "response_paths": [
+                "climatisation.climatisationStatus.value.climatisationState"
+            ],
+        }
+    )
+    assert (
+        p.record_status("climate", op, http_status=200, schema_valid=True, fresh=False)
+        == "readable_but_stale"
+    )
     with pytest.raises(DevelopmentProfileError, match="fresh"):
         p.choose_working("climate", "status", op)
-    assert p.record_status("climate", op, http_status=200, schema_valid=True, fresh=True) == "worked"
+    assert (
+        p.record_status("climate", op, http_status=200, schema_valid=True, fresh=True)
+        == "worked"
+    )
     p.choose_working("climate", "status", op)
     assert p.snapshot()["active"]["climate.status"] == op
-    assert p.record_status("climate", op, http_status=404, schema_valid=False, fresh=False) == "failed"
+    assert (
+        p.record_status("climate", op, http_status=404, schema_valid=False, fresh=False)
+        == "failed"
+    )
     assert "climate.status" not in p.snapshot()["active"]
 
 
 def test_rate_limit_does_not_count_as_confirmed_unsupported():
     p = workspace()
     result = p.record_status(
-        "climate", "cariad.climate.status.batch",
-        http_status=429, schema_valid=False, fresh=False,
+        "climate",
+        "cariad.climate.status.batch",
+        http_status=429,
+        schema_valid=False,
+        fresh=False,
     )
     assert result == "inconclusive"
-    assert p.snapshot()["read_evidence"]["cariad.climate.status.batch"]["outcome"] == "inconclusive"
+    assert (
+        p.snapshot()["read_evidence"]["cariad.climate.status.batch"]["outcome"]
+        == "inconclusive"
+    )
 
 
 def test_route_cannot_include_bearer_or_password_in_json_keys():
@@ -239,7 +261,6 @@ def test_route_cannot_include_bearer_or_password_in_json_keys():
     with pytest.raises(DevelopmentProfileError, match="Invalid JSON"):
         p.add(custom_start(body={"Authorization": "Bearer bad"}))
     assert not p.custom
-
 
 
 def test_development_candidate_save_is_not_equivalent_to_verified_activation():

@@ -3,6 +3,7 @@
 The stored v3_climate value is retained for in-place config-entry compatibility.
 It selects the clean V3 runtime, not a climate-only pilot.
 """
+
 from pathlib import Path
 
 V3_RUNTIME_OPTION = "runtime_version"

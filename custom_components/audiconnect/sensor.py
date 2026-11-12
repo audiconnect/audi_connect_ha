@@ -604,8 +604,10 @@ async def async_setup_entry(
 ) -> None:
     runtime_data: AudiRuntimeData = config_entry.runtime_data
     from .v3.engine import V3Engine
+
     if isinstance(runtime_data.v3, V3Engine):
         from .v3.ha_platforms import setup as v3_setup
+
         v3_setup("sensor", config_entry, async_add_entities)
         return
 

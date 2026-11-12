@@ -110,9 +110,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "last_update_time"
-      ],
+      "historical_ids": ["last_update_time"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
@@ -140,9 +138,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "shortterm_current"
-      ],
+      "historical_ids": ["shortterm_current"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
@@ -170,9 +166,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "shortterm_reset"
-      ],
+      "historical_ids": ["shortterm_reset"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
@@ -200,9 +194,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "longterm_current"
-      ],
+      "historical_ids": ["longterm_current"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
@@ -230,9 +222,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "longterm_reset"
-      ],
+      "historical_ids": ["longterm_reset"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
@@ -260,9 +250,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "model"
-      ],
+      "historical_ids": ["model"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
@@ -290,13 +278,8 @@
         "state_class": "total_increasing",
         "precision": 0
       },
-      "historical_ids": [
-        "UTC_TIME_AND_KILOMETER_STATUS",
-        "mileage"
-      ],
-      "historical_paths": [
-        "measurements.odometerStatus.value.odometer"
-      ],
+      "historical_ids": ["UTC_TIME_AND_KILOMETER_STATUS", "mileage"],
+      "historical_paths": ["measurements.odometerStatus.value.odometer"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -323,13 +306,8 @@
         "state_class": null,
         "precision": 0
       },
-      "historical_ids": [
-        "ADBLUE_RANGE",
-        "service_adblue_distance"
-      ],
-      "historical_paths": [
-        "measurements.rangeStatus.value.adBlueRange"
-      ],
+      "historical_ids": ["ADBLUE_RANGE", "service_adblue_distance"],
+      "historical_paths": ["measurements.rangeStatus.value.adBlueRange"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P2",
@@ -356,13 +334,8 @@
         "state_class": null,
         "precision": 0
       },
-      "historical_ids": [
-        "TOTAL_RANGE",
-        "range"
-      ],
-      "historical_paths": [
-        "fuelStatus.rangeStatus.value.totalRange_km"
-      ],
+      "historical_ids": ["TOTAL_RANGE", "range"],
+      "historical_paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -389,12 +362,8 @@
         "state_class": null,
         "precision": 0
       },
-      "historical_ids": [
-        "hybridRange"
-      ],
-      "historical_paths": [
-        "fuelStatus.rangeStatus.value.totalRange_km"
-      ],
+      "historical_ids": ["hybridRange"],
+      "historical_paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -553,13 +522,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
-        "oil_level"
-      ],
-      "historical_paths": [
-        "oilLevel.oilLevelStatus.value.value"
-      ],
+      "historical_ids": ["OIL_LEVEL_DIPSTICKS_PERCENTAGE", "oil_level"],
+      "historical_paths": ["oilLevel.oilLevelStatus.value.value"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P2",
@@ -586,12 +550,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "chargingState"
-      ],
-      "historical_paths": [
-        "charging.chargingStatus.value.chargingState"
-      ],
+      "historical_ids": ["chargingState"],
+      "historical_paths": ["charging.chargingStatus.value.chargingState"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -599,9 +559,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "chargingState"
-        ],
+        "raw_parser_fixture": ["chargingState"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -620,10 +578,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "chargeMode",
-        "preferredChargeMode"
-      ],
+      "historical_ids": ["chargeMode", "preferredChargeMode"],
       "historical_paths": [
         "charging.chargingStatus.value.chargeMode",
         "charging.chargeMode.value.preferredChargeMode"
@@ -654,9 +609,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "charging_type"
-      ],
+      "historical_ids": ["charging_type"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -684,9 +637,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "energy_flow"
-      ],
+      "historical_ids": ["energy_flow"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
@@ -714,9 +665,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "max_charge_current"
-      ],
+      "historical_ids": ["max_charge_current"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -744,9 +693,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "chargingCurrentLimitA"
-      ],
+      "historical_ids": ["chargingCurrentLimitA"],
       "historical_paths": [
         "charging.chargingSettings.value.maxChargeCurrentAC_A"
       ],
@@ -776,9 +723,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "chargingCurrentLimitMode"
-      ],
+      "historical_ids": ["chargingCurrentLimitMode"],
       "historical_paths": [
         "charging.chargingSettings.value.maxChargeCurrentAC"
       ],
@@ -808,9 +753,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "chargingPlugAutoUnlock"
-      ],
+      "historical_ids": ["chargingPlugAutoUnlock"],
       "historical_paths": [
         "charging.chargingSettings.value.autoUnlockPlugWhenChargedAC"
       ],
@@ -840,9 +783,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "vehicleReportedOnline"
-      ],
+      "historical_ids": ["vehicleReportedOnline"],
       "historical_paths": [
         "readiness.readinessStatus.value.connectionState.isOnline"
       ],
@@ -872,9 +813,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "vehicleReportedActive"
-      ],
+      "historical_ids": ["vehicleReportedActive"],
       "historical_paths": [
         "readiness.readinessStatus.value.connectionState.isActive"
       ],
@@ -904,9 +843,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "primary_engine_type"
-      ],
+      "historical_ids": ["primary_engine_type"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -934,9 +871,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "secondary_engine_type"
-      ],
+      "historical_ids": ["secondary_engine_type"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -964,9 +899,7 @@
         "state_class": null,
         "precision": 0
       },
-      "historical_ids": [
-        "primaryEngineRange"
-      ],
+      "historical_ids": ["primaryEngineRange"],
       "historical_paths": [
         "fuelStatus.rangeStatus.value.primaryEngine.remainingRange_km"
       ],
@@ -996,9 +929,7 @@
         "state_class": null,
         "precision": 0
       },
-      "historical_ids": [
-        "secondaryEngineRange"
-      ],
+      "historical_ids": ["secondaryEngineRange"],
       "historical_paths": [
         "fuelStatus.rangeStatus.value.secondaryEngine.remainingRange_km"
       ],
@@ -1028,9 +959,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "primaryEngineRangePercent"
-      ],
+      "historical_ids": ["primaryEngineRangePercent"],
       "historical_paths": [
         "fuelStatus.rangeStatus.value.primaryEngine.currentSOC_pct"
       ],
@@ -1060,12 +989,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "carType"
-      ],
-      "historical_paths": [
-        "fuelStatus.rangeStatus.value.carType"
-      ],
+      "historical_ids": ["carType"],
+      "historical_paths": ["fuelStatus.rangeStatus.value.carType"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P2",
@@ -1092,9 +1017,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "secondaryEngineRangePercent"
-      ],
+      "historical_ids": ["secondaryEngineRangePercent"],
       "historical_paths": [
         "fuelStatus.rangeStatus.value.secondaryEngine.currentSOC_pct"
       ],
@@ -1124,12 +1047,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "chargingPower"
-      ],
-      "historical_paths": [
-        "charging.chargingStatus.value.chargePower_kW"
-      ],
+      "historical_ids": ["chargingPower"],
+      "historical_paths": ["charging.chargingStatus.value.chargePower_kW"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -1137,9 +1056,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "chargingPower"
-        ],
+        "raw_parser_fixture": ["chargingPower"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -1158,12 +1075,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "actualChargeRate"
-      ],
-      "historical_paths": [
-        "charging.chargingStatus.value.chargeRate_kmph"
-      ],
+      "historical_ids": ["actualChargeRate"],
+      "historical_paths": ["charging.chargingStatus.value.chargeRate_kmph"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P2",
@@ -1171,9 +1084,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "actualChargeRate"
-        ],
+        "raw_parser_fixture": ["actualChargeRate"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -1192,10 +1103,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "TANK_LEVEL_IN_PERCENTAGE",
-        "tank_level"
-      ],
+      "historical_ids": ["TANK_LEVEL_IN_PERCENTAGE", "tank_level"],
       "historical_paths": [
         "measurements.fuelLevelStatus.value.currentFuelLevel_pct"
       ],
@@ -1225,12 +1133,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "stateOfCharge"
-      ],
-      "historical_paths": [
-        "charging.batteryStatus.value.currentSOC_pct"
-      ],
+      "historical_ids": ["stateOfCharge"],
+      "historical_paths": ["charging.batteryStatus.value.currentSOC_pct"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -1238,9 +1142,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "stateOfCharge"
-        ],
+        "raw_parser_fixture": ["stateOfCharge"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -1259,9 +1161,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "remainingChargingTime"
-      ],
+      "historical_ids": ["remainingChargingTime"],
       "historical_paths": [
         "charging.chargingStatus.value.remainingChargingTimeToComplete_min"
       ],
@@ -1272,9 +1172,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "remainingChargingTime"
-        ],
+        "raw_parser_fixture": ["remainingChargingTime"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -1293,9 +1191,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "charging_complete_time"
-      ],
+      "historical_ids": ["charging_complete_time"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1323,12 +1219,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "targetstateOfCharge"
-      ],
-      "historical_paths": [
-        "charging.chargingSettings.value.targetSOC_pct"
-      ],
+      "historical_ids": ["targetstateOfCharge"],
+      "historical_paths": ["charging.chargingSettings.value.targetSOC_pct"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -1336,9 +1228,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "targetstateOfCharge"
-        ],
+        "raw_parser_fixture": ["targetstateOfCharge"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -1357,12 +1247,8 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "externalPower"
-      ],
-      "historical_paths": [
-        "charging.plugStatus.value.externalPower"
-      ],
+      "historical_ids": ["externalPower"],
+      "historical_paths": ["charging.plugStatus.value.externalPower"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P2",
@@ -1370,9 +1256,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "externalPower"
-        ],
+        "raw_parser_fixture": ["externalPower"],
         "ha_metadata": "not_assessed_by_this_check",
         "physical_q8": "not_verified"
       }
@@ -1391,9 +1275,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "plug_led_color"
-      ],
+      "historical_ids": ["plug_led_color"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1421,9 +1303,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "doors_trunk_status"
-      ],
+      "historical_ids": ["doors_trunk_status"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1451,9 +1331,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "climatisationState"
-      ],
+      "historical_ids": ["climatisationState"],
       "historical_paths": [
         "climatisation.auxiliaryHeatingStatus.value.climatisationState",
         "climatisation.climatisationStatus.value.climatisationState"
@@ -1484,9 +1362,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "outdoor_temperature"
-      ],
+      "historical_ids": ["outdoor_temperature"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
@@ -1514,9 +1390,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "park_time"
-      ],
+      "historical_ids": ["park_time"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
@@ -1544,9 +1418,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "position_last_updated"
-      ],
+      "historical_ids": ["position_last_updated"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
@@ -1574,9 +1446,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "remainingClimatisationTime"
-      ],
+      "historical_ids": ["remainingClimatisationTime"],
       "historical_paths": [
         "climatisation.climatisationStatus.value.remainingClimatisationTime_min"
       ],
@@ -1606,9 +1476,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "preheater_duration"
-      ],
+      "historical_ids": ["preheater_duration"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "CARIAD auxiliary-heating or MBB preheater status payload required; no invented duration.",
@@ -1636,9 +1504,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "preheater_remaining"
-      ],
+      "historical_ids": ["preheater_remaining"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "CARIAD auxiliary-heating or MBB preheater status payload required; no invented duration.",
@@ -1666,9 +1532,7 @@
         "state_class": "measurement",
         "precision": null
       },
-      "historical_ids": [
-        "active_charging_profile_target_soc"
-      ],
+      "historical_ids": ["active_charging_profile_target_soc"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1696,9 +1560,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "active_charging_profile_name"
-      ],
+      "historical_ids": ["active_charging_profile_name"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1726,9 +1588,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "active_charging_profile_min_soc"
-      ],
+      "historical_ids": ["active_charging_profile_min_soc"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1756,9 +1616,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "preferred_charging_time_start"
-      ],
+      "historical_ids": ["preferred_charging_time_start"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1786,9 +1644,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "preferred_charging_time_end"
-      ],
+      "historical_ids": ["preferred_charging_time_end"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1816,9 +1672,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "climatisation_timer_enabled_count"
-      ],
+      "historical_ids": ["climatisation_timer_enabled_count"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1846,9 +1700,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "next_climatisation_timer_local"
-      ],
+      "historical_ids": ["next_climatisation_timer_local"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -1876,9 +1728,7 @@
         "state_class": null,
         "precision": null
       },
-      "historical_ids": [
-        "charging_timer_enabled_count"
-      ],
+      "historical_ids": ["charging_timer_enabled_count"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2068,12 +1918,8 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_plug_state",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "plugState"
-      ],
-      "historical_paths": [
-        "charging.plugStatus.value.plugConnectionState"
-      ],
+      "historical_ids": ["plugState"],
+      "historical_paths": ["charging.plugStatus.value.plugConnectionState"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -2081,9 +1927,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "plugState"
-        ],
+        "raw_parser_fixture": ["plugState"],
         "ha_metadata": "v2_binary_description_comparison",
         "physical_q8": "not_verified"
       }
@@ -2096,12 +1940,8 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_plug_lock_state",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "plugLockState"
-      ],
-      "historical_paths": [
-        "charging.plugStatus.value.plugLockState"
-      ],
+      "historical_ids": ["plugLockState"],
+      "historical_paths": ["charging.plugStatus.value.plugLockState"],
       "v3_implementation": "mapped_conditional",
       "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "priority": "P0",
@@ -2109,9 +1949,7 @@
       "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
       "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
       "automated_evidence": {
-        "raw_parser_fixture": [
-          "plugLockState"
-        ],
+        "raw_parser_fixture": ["plugLockState"],
         "ha_metadata": "v2_binary_description_comparison",
         "physical_q8": "not_verified"
       }
@@ -2124,9 +1962,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_glass_surface_heating",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "glass_surface_heating"
-      ],
+      "historical_ids": ["glass_surface_heating"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
@@ -2148,9 +1984,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_sun_roof",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "sun_roof"
-      ],
+      "historical_ids": ["sun_roof"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2172,9 +2006,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_roof_cover",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "roof_cover"
-      ],
+      "historical_ids": ["roof_cover"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2196,9 +2028,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_parking_light",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "parking_light"
-      ],
+      "historical_ids": ["parking_light"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2220,9 +2050,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_any_window_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "any_window_open"
-      ],
+      "historical_ids": ["any_window_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2244,9 +2072,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_any_door_unlocked",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "any_door_unlocked"
-      ],
+      "historical_ids": ["any_door_unlocked"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2268,9 +2094,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_any_door_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "any_door_open"
-      ],
+      "historical_ids": ["any_door_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2292,9 +2116,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_trunk_unlocked",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "trunk_unlocked"
-      ],
+      "historical_ids": ["trunk_unlocked"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2316,9 +2138,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_trunk_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "trunk_open"
-      ],
+      "historical_ids": ["trunk_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2340,9 +2160,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_hood_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "hood_open"
-      ],
+      "historical_ids": ["hood_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2364,9 +2182,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_left_front_door_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "left_front_door_open"
-      ],
+      "historical_ids": ["left_front_door_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2388,9 +2204,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_right_front_door_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "right_front_door_open"
-      ],
+      "historical_ids": ["right_front_door_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2412,9 +2226,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_left_rear_door_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "left_rear_door_open"
-      ],
+      "historical_ids": ["left_rear_door_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2436,9 +2248,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_right_rear_door_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "right_rear_door_open"
-      ],
+      "historical_ids": ["right_rear_door_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2460,9 +2270,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_left_front_window_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "left_front_window_open"
-      ],
+      "historical_ids": ["left_front_window_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2484,9 +2292,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_right_front_window_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "right_front_window_open"
-      ],
+      "historical_ids": ["right_front_window_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2508,9 +2314,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_left_rear_window_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "left_rear_window_open"
-      ],
+      "historical_ids": ["left_rear_window_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2532,9 +2336,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_right_rear_window_open",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "right_rear_window_open"
-      ],
+      "historical_ids": ["right_rear_window_open"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2556,9 +2358,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_braking_status",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "braking_status"
-      ],
+      "historical_ids": ["braking_status"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
@@ -2580,9 +2380,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_oil_level_binary",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "oil_level_binary"
-      ],
+      "historical_ids": ["oil_level_binary"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
@@ -2604,9 +2402,7 @@
       "v2_unique_id_template": "{vin_lower}_binary_sensor_is_moving",
       "v2_experimental": false,
       "v2_dynamic": false,
-      "historical_ids": [
-        "is_moving"
-      ],
+      "historical_ids": ["is_moving"],
       "historical_paths": [],
       "v3_implementation": "mapped_conditional",
       "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
@@ -3134,9 +2930,7 @@
       "entity_key": "range",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.totalRange_km"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
       "has_explicit_path": true
     },
     {
@@ -3145,9 +2939,7 @@
       "entity_key": "tank_level",
       "capability": "vehicle_status",
       "job": "measurements",
-      "paths": [
-        "measurements.fuelLevelStatus.value.currentFuelLevel_pct"
-      ],
+      "paths": ["measurements.fuelLevelStatus.value.currentFuelLevel_pct"],
       "has_explicit_path": true
     },
     {
@@ -3156,9 +2948,7 @@
       "entity_key": "mileage",
       "capability": "vehicle_status",
       "job": "measurements",
-      "paths": [
-        "measurements.odometerStatus.value.odometer"
-      ],
+      "paths": ["measurements.odometerStatus.value.odometer"],
       "has_explicit_path": true
     },
     {
@@ -3211,9 +3001,7 @@
       "entity_key": "oil_level",
       "capability": "vehicle_status",
       "job": "oilLevel",
-      "paths": [
-        "oilLevel.oilLevelStatus.value.value"
-      ],
+      "paths": ["oilLevel.oilLevelStatus.value.value"],
       "has_explicit_path": true
     },
     {
@@ -3222,9 +3010,7 @@
       "entity_key": "service_adblue_distance",
       "capability": "vehicle_status",
       "job": "measurements",
-      "paths": [
-        "measurements.rangeStatus.value.adBlueRange"
-      ],
+      "paths": ["measurements.rangeStatus.value.adBlueRange"],
       "has_explicit_path": true
     },
     {
@@ -3233,9 +3019,7 @@
       "entity_key": "vehicle_lights",
       "capability": "vehicle_status",
       "job": "vehicleLights",
-      "paths": [
-        "vehicleLights.lightsStatus.value.lights"
-      ],
+      "paths": ["vehicleLights.lightsStatus.value.lights"],
       "has_explicit_path": true
     },
     {
@@ -3244,9 +3028,7 @@
       "entity_key": "door_lock_status",
       "capability": "access",
       "job": "access",
-      "paths": [
-        "access.accessStatus.value.doorLockStatus"
-      ],
+      "paths": ["access.accessStatus.value.doorLockStatus"],
       "has_explicit_path": true
     },
     {
@@ -3255,9 +3037,7 @@
       "entity_key": "car_type",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.carType"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.carType"],
       "has_explicit_path": true
     },
     {
@@ -3266,9 +3046,7 @@
       "entity_key": "engine_type_first_engine",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.primaryEngine.type"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.primaryEngine.type"],
       "has_explicit_path": true
     },
     {
@@ -3277,9 +3055,7 @@
       "entity_key": "primary_engine_range",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.primaryEngine.remainingRange_km"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.primaryEngine.remainingRange_km"],
       "has_explicit_path": true
     },
     {
@@ -3288,9 +3064,7 @@
       "entity_key": "primary_engine_range_percent",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.primaryEngine.currentSOC_pct"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.primaryEngine.currentSOC_pct"],
       "has_explicit_path": true
     },
     {
@@ -3299,9 +3073,7 @@
       "entity_key": "engine_type_second_engine",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.secondaryEngine.type"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.secondaryEngine.type"],
       "has_explicit_path": true
     },
     {
@@ -3321,9 +3093,7 @@
       "entity_key": "secondary_engine_range_percent",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.secondaryEngine.currentSOC_pct"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.secondaryEngine.currentSOC_pct"],
       "has_explicit_path": true
     },
     {
@@ -3332,9 +3102,7 @@
       "entity_key": "hybrid_range",
       "capability": "vehicle_status",
       "job": "fuelStatus",
-      "paths": [
-        "fuelStatus.rangeStatus.value.totalRange_km"
-      ],
+      "paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
       "has_explicit_path": true
     },
     {
@@ -3343,9 +3111,7 @@
       "entity_key": "state_of_charge",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.batteryStatus.value.currentSOC_pct"
-      ],
+      "paths": ["charging.batteryStatus.value.currentSOC_pct"],
       "has_explicit_path": true
     },
     {
@@ -3354,9 +3120,7 @@
       "entity_key": "charging_state",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingStatus.value.chargingState"
-      ],
+      "paths": ["charging.chargingStatus.value.chargingState"],
       "has_explicit_path": true
     },
     {
@@ -3365,9 +3129,7 @@
       "entity_key": "charging_mode",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingStatus.value.chargeMode"
-      ],
+      "paths": ["charging.chargingStatus.value.chargeMode"],
       "has_explicit_path": true
     },
     {
@@ -3376,9 +3138,7 @@
       "entity_key": "charging_power",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingStatus.value.chargePower_kW"
-      ],
+      "paths": ["charging.chargingStatus.value.chargePower_kW"],
       "has_explicit_path": true
     },
     {
@@ -3387,9 +3147,7 @@
       "entity_key": "actual_charge_rate",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingStatus.value.chargeRate_kmph"
-      ],
+      "paths": ["charging.chargingStatus.value.chargeRate_kmph"],
       "has_explicit_path": true
     },
     {
@@ -3398,9 +3156,7 @@
       "entity_key": "charge_type",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingStatus.value.chargeType"
-      ],
+      "paths": ["charging.chargingStatus.value.chargeType"],
       "has_explicit_path": true
     },
     {
@@ -3409,9 +3165,7 @@
       "entity_key": "target_state_of_charge",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingSettings.value.targetSOC_pct"
-      ],
+      "paths": ["charging.chargingSettings.value.targetSOC_pct"],
       "has_explicit_path": true
     },
     {
@@ -3420,9 +3174,7 @@
       "entity_key": "plug_state",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.plugStatus.value.plugConnectionState"
-      ],
+      "paths": ["charging.plugStatus.value.plugConnectionState"],
       "has_explicit_path": true
     },
     {
@@ -3442,9 +3194,7 @@
       "entity_key": "plug_lock_state",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.plugStatus.value.plugLockState"
-      ],
+      "paths": ["charging.plugStatus.value.plugLockState"],
       "has_explicit_path": true
     },
     {
@@ -3453,9 +3203,7 @@
       "entity_key": "external_power",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.plugStatus.value.externalPower"
-      ],
+      "paths": ["charging.plugStatus.value.externalPower"],
       "has_explicit_path": true
     },
     {
@@ -3464,9 +3212,7 @@
       "entity_key": "plugled_color",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.plugStatus.value.ledColor"
-      ],
+      "paths": ["charging.plugStatus.value.ledColor"],
       "has_explicit_path": true
     },
     {
@@ -3498,9 +3244,7 @@
       "entity_key": "charging_mode",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargeMode.value.preferredChargeMode"
-      ],
+      "paths": ["charging.chargeMode.value.preferredChargeMode"],
       "has_explicit_path": true
     },
     {
@@ -3509,9 +3253,7 @@
       "entity_key": "charging_mode",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargeMode.value.availableChargeModes"
-      ],
+      "paths": ["charging.chargeMode.value.availableChargeModes"],
       "has_explicit_path": true
     },
     {
@@ -3619,9 +3361,7 @@
       "entity_key": "charging_current_limit_a",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingSettings.value.maxChargeCurrentAC_A"
-      ],
+      "paths": ["charging.chargingSettings.value.maxChargeCurrentAC_A"],
       "has_explicit_path": true
     },
     {
@@ -3630,9 +3370,7 @@
       "entity_key": "charging_current_limit_mode",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingSettings.value.maxChargeCurrentAC"
-      ],
+      "paths": ["charging.chargingSettings.value.maxChargeCurrentAC"],
       "has_explicit_path": true
     },
     {
@@ -3641,9 +3379,7 @@
       "entity_key": "charging_plug_auto_unlock",
       "capability": "charging",
       "job": "charging",
-      "paths": [
-        "charging.chargingSettings.value.autoUnlockPlugWhenChargedAC"
-      ],
+      "paths": ["charging.chargingSettings.value.autoUnlockPlugWhenChargedAC"],
       "has_explicit_path": true
     },
     {
@@ -3652,9 +3388,7 @@
       "entity_key": "vehicle_reported_online",
       "capability": "vehicle_status",
       "job": "readiness",
-      "paths": [
-        "readiness.readinessStatus.value.connectionState.isOnline"
-      ],
+      "paths": ["readiness.readinessStatus.value.connectionState.isOnline"],
       "has_explicit_path": true
     },
     {
@@ -3663,9 +3397,7 @@
       "entity_key": "vehicle_reported_active",
       "capability": "vehicle_status",
       "job": "readiness",
-      "paths": [
-        "readiness.readinessStatus.value.connectionState.isActive"
-      ],
+      "paths": ["readiness.readinessStatus.value.connectionState.isActive"],
       "has_explicit_path": true
     },
     {
@@ -3674,9 +3406,7 @@
       "entity_key": "charging_profiles",
       "capability": "charging",
       "job": "chargingProfiles",
-      "paths": [
-        "chargingProfiles.chargingProfilesStatus.value.profiles"
-      ],
+      "paths": ["chargingProfiles.chargingProfilesStatus.value.profiles"],
       "has_explicit_path": true
     },
     {
@@ -3685,9 +3415,7 @@
       "entity_key": "charging_timers",
       "capability": "charging",
       "job": "chargingTimers",
-      "paths": [
-        "chargingTimers.chargingTimersStatus.value.timers"
-      ],
+      "paths": ["chargingTimers.chargingTimersStatus.value.timers"],
       "has_explicit_path": true
     },
     {
@@ -3696,9 +3424,7 @@
       "entity_key": "climatisation_timers",
       "capability": "climate",
       "job": "climatisationTimers",
-      "paths": [
-        "climatisationTimers.climatisationTimersStatus.value.timers"
-      ],
+      "paths": ["climatisationTimers.climatisationTimersStatus.value.timers"],
       "has_explicit_path": true
     },
     {
@@ -3707,9 +3433,7 @@
       "entity_key": "user_capabilities",
       "capability": "vehicle_status",
       "job": "userCapabilities",
-      "paths": [
-        "userCapabilities.capabilitiesStatus.value"
-      ],
+      "paths": ["userCapabilities.capabilitiesStatus.value"],
       "has_explicit_path": true
     },
     {

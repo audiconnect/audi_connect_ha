@@ -5,6 +5,7 @@ complete action-name translation and fail-closed command execution. Nothing
 imports or invokes V2 vehicle business code. Command route/payload resolution
 belongs to V3Engine; this module does not build OEM HTTP requests.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -36,15 +37,20 @@ _V2_ACTIONS: dict[str, tuple[str, str]] = {
 
 
 async def execute(
-    engine: Any, vin: str, action: str,
+    engine: Any,
+    vin: str,
+    action: str,
     data: dict[str, Any] | None = None,
 ) -> None:
     """Execute one reviewed V3 command via the same external V2 service ID.
 
     Never discard unknown service parameters or fall back to V2 actions.
     """
-    values = {k: v for k, v in (data or {}).items()
-              if k not in ("device_id", "action") and v is not None}
+    values = {
+        k: v
+        for k, v in (data or {}).items()
+        if k not in ("device_id", "action") and v is not None
+    }
     mapped = _V2_ACTIONS.get(action)
     if action == "start_climatisation" and values:
         mapped = ("climate", "start_with_settings")

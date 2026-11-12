@@ -1,12 +1,10 @@
 """Source-derived MBB legacy GET paths are explicit alternative variants."""
+
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 
 from custom_components.audiconnect.v3.attribute_routes import read_variants
 from custom_components.audiconnect.v3.legacy_read_mappings import FIELDS, variant_for
 from custom_components.audiconnect.v3.entities import _reading_available
-from custom_components.audiconnect.v3.registry import CapabilityRegistry
-from custom_components.audiconnect.v3.runtime import catalog_path
 
 
 def test_historical_mbb_charger_mappings_and_climater_share_normalized_attributes():
@@ -19,21 +17,26 @@ def test_historical_mbb_charger_mappings_and_climater_share_normalized_attribute
 
 
 def test_read_variants_include_distinct_safe_mbb_executor_and_mappings():
-    routes=read_variants("stateOfCharge", {})
+    routes = read_variants("stateOfCharge", {})
     assert {x["family"] for x in routes} == {"mbb", "cariad"}
-    mbb=next(x for x in routes if x["family"]=="mbb")
+    mbb = next(x for x in routes if x["family"] == "mbb")
     assert mbb["response_paths"] == [
         "charger.status.batteryStatusData.stateOfCharge.content"
     ]
 
 
 def test_legacy_unstamped_readings_never_claim_vehicle_freshness():
-    now=datetime.now(UTC)
-    item={"family":"mbb","status":"readable_but_stale",
-          "observed":now.isoformat(),"captured":None,"value":22}
+    now = datetime.now(UTC)
+    item = {
+        "family": "mbb",
+        "status": "readable_but_stale",
+        "observed": now.isoformat(),
+        "captured": None,
+        "value": 22,
+    }
     assert _reading_available(item)
-    item["observed"]=(now-timedelta(hours=2)).isoformat()
+    item["observed"] = (now - timedelta(hours=2)).isoformat()
     assert not _reading_available(item)
-    item["observed"]=now.isoformat()
-    item["family"]="cariad"
+    item["observed"] = now.isoformat()
+    item["family"] = "cariad"
     assert not _reading_available(item)

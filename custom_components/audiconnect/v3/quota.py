@@ -1,10 +1,11 @@
 """Account request budget: bounded read-only recovery, no automatic mutations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
-from typing import Mapping
+from collections.abc import Mapping
 
 
 @dataclass
@@ -22,9 +23,7 @@ class QuotaBudget:
             raise RuntimeError("Audi request budget suspended until cooldown")
         if not exhausted and self.retry_at is None:
             return
-        eligible_at = self.retry_at or (
-            (self.observed_at or now) + self.recovery_delay
-        )
+        eligible_at = self.retry_at or ((self.observed_at or now) + self.recovery_delay)
         if not read_only or now < eligible_at:
             raise RuntimeError("Audi request budget too low; recovery read required")
         # Reserve before sending: timeout/cancellation cannot cause a probe storm.

@@ -25,11 +25,13 @@ async def test_switch_v2_to_v3_saves_mode_and_preserves_legacy_options():
             "local_dealers": {"EXAMPLE": {"name": "Dealer"}},
         },
     )
-    result = await flow.async_step_init({
-        "runtime_version": "v3_climate",
-        "scan_interval": 15,
-        "scan_initial": True,
-    })
+    result = await flow.async_step_init(
+        {
+            "runtime_version": "v3_climate",
+            "scan_interval": 15,
+            "scan_initial": True,
+        }
+    )
     assert result["type"] == "create_entry"
     saved = result["data"]
     assert saved["runtime_version"] == "v3_climate"
@@ -57,10 +59,12 @@ async def test_switch_back_to_v2_preserves_legacy_configuration():
             "scan_interval": 15,
         },
     )
-    result = await flow.async_step_init({
-        "runtime_version": "v2",
-        "scan_interval": 15,
-    })
+    result = await flow.async_step_init(
+        {
+            "runtime_version": "v2",
+            "scan_interval": 15,
+        }
+    )
     assert result["type"] == "create_entry"
     saved = result["data"]
     assert saved["runtime_version"] == "v2"
@@ -77,12 +81,15 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
         )
     )
     flow._test_entry = SimpleNamespace(
-        data={"scan_interval": 15}, options={"runtime_version": "v2"},
+        data={"scan_interval": 15},
+        options={"runtime_version": "v2"},
     )
-    schema = flow._options_schema({
-        "runtime_version": "v3_climate",
-        "scan_interval": 15,
-    })
+    schema = flow._options_schema(
+        {
+            "runtime_version": "v3_climate",
+            "scan_interval": 15,
+        }
+    )
     fields = [key.schema for key in schema.schema]
     assert "v3_development_workbench" in fields
     assert "climate_quick_start" not in fields
@@ -91,37 +98,63 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
 
 
 @pytest.mark.asyncio
-async def test_user_discovery_never_dispatches_without_exact_single_action_consent(monkeypatch):
+async def test_user_discovery_never_dispatches_without_exact_single_action_consent(
+    monkeypatch,
+):
     from unittest.mock import AsyncMock
     from custom_components.audiconnect.v3 import read_discovery
 
     flow = OptionsFlowHandler()
     car = SimpleNamespace(vin="WAUZZZ4M0MD123456", name="Synthetic test car")
-    profile = SimpleNamespace(discovery=SimpleNamespace(_active=None), last_command=None)
-    engine = SimpleNamespace(approved_control_discovery=AsyncMock(return_value={"sequence": 1}))
+    profile = SimpleNamespace(
+        discovery=SimpleNamespace(_active=None), last_command=None
+    )
+    engine = SimpleNamespace(
+        approved_control_discovery=AsyncMock(return_value={"sequence": 1})
+    )
     flow._discovery_context = lambda: (engine, car, profile)
     flow._discovery_action = "climate.start"
     route = "cariad.climate.start.stored"
     original = ("Start cabin climate", "climate", "start", route, "non_spin")
     flow._discovery_candidate = original
-    monkeypatch.setattr(read_discovery, "user_test_candidates", lambda *args: {"climate.start": original})
+    monkeypatch.setattr(
+        read_discovery,
+        "user_test_candidates",
+        lambda *args: {"climate.start": original},
+    )
     flow.async_step_discovery = AsyncMock(return_value={"step_id": "discovery"})
     flow.async_step_discovery_review = AsyncMock(return_value={"step_id": "review"})
     result = await flow.async_step_discovery_consent({"accept": False})
     assert result["step_id"] == "discovery"
     engine.approved_control_discovery.assert_not_awaited()
     flow._discovery_candidate = original
-    monkeypatch.setattr(read_discovery, "user_test_candidates", lambda *args: {
-        "climate.start": ("Start cabin climate", "climate", "start", "another.route", "non_spin")})
+    monkeypatch.setattr(
+        read_discovery,
+        "user_test_candidates",
+        lambda *args: {
+            "climate.start": (
+                "Start cabin climate",
+                "climate",
+                "start",
+                "another.route",
+                "non_spin",
+            )
+        },
+    )
     result = await flow.async_step_discovery_consent({"accept": True})
     assert result["step_id"] == "discovery"
     engine.approved_control_discovery.assert_not_awaited()
     flow._discovery_candidate = original
-    monkeypatch.setattr(read_discovery, "user_test_candidates", lambda *args: {"climate.start": original})
+    monkeypatch.setattr(
+        read_discovery,
+        "user_test_candidates",
+        lambda *args: {"climate.start": original},
+    )
     result = await flow.async_step_discovery_consent({"accept": True})
     assert result["step_id"] == "review"
     engine.approved_control_discovery.assert_awaited_once_with(
-        car.vin, "start", route, approval="non_spin", capability="climate", guided=True)
+        car.vin, "start", route, approval="non_spin", capability="climate", guided=True
+    )
     assert flow._discovery_candidate is None
     await flow.async_step_discovery_consent({"accept": True})
     assert engine.approved_control_discovery.await_count == 1

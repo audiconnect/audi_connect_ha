@@ -1,4 +1,5 @@
 """Vehicle capture timestamps must be recent, not merely present."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -6,7 +7,10 @@ from typing import Any
 
 
 def timestamp_is_fresh(
-    captured: Any, observed_at: datetime, *, max_age_minutes: int = 60,
+    captured: Any,
+    observed_at: datetime,
+    *,
+    max_age_minutes: int = 60,
 ) -> bool:
     """Do not mistake cached 4-hour-old vehicle state for a current reading.
 
@@ -21,10 +25,9 @@ def timestamp_is_fresh(
         return False
     if stamp.tzinfo is None:
         return False
-    diff = (
-        observed_at.astimezone(UTC) - stamp.astimezone(UTC)
-    ).total_seconds()
+    diff = (observed_at.astimezone(UTC) - stamp.astimezone(UTC)).total_seconds()
     return -300 <= diff <= max_age_minutes * 60
+
 
 def capture_age_minutes(captured: Any, now: datetime | None = None) -> float | None:
     """Shared vehicle timestamp policy; never substitute a cloud clock."""
@@ -49,8 +52,15 @@ def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
     groups = {}
     for row in vehicle.readings.values():
         job = row.get("job") or "unclassified"
-        group = groups.setdefault(job, {"oldest_minutes": None, "newest_minutes": None,
-                                        "observed": 0, "unknown": 0})
+        group = groups.setdefault(
+            job,
+            {
+                "oldest_minutes": None,
+                "newest_minutes": None,
+                "observed": 0,
+                "unknown": 0,
+            },
+        )
         group["observed"] += 1
         age = capture_age_minutes(row.get("captured"), now)
         if age is None or row.get("status") == "invalid_value":

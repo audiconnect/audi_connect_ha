@@ -18,17 +18,26 @@ def test_no_or_invalid_timestamp_cannot_confirm_state():
     assert not timestamp_is_fresh("2026-11-11T15:00:00", now)
     assert not timestamp_is_fresh((now + timedelta(minutes=6)).isoformat(), now)
 
+
 def test_new_sample_without_capture_does_not_inherit_timestamp():
     now = datetime.now(UTC)
-    car = V3Vehicle(vin="WAUZZZ4M0MD123456", name="Test",
-                    model="Audi Q8", model_family="q8", country="DE")
-    assert car.set_climate("off", now.isoformat(), route="a",
-                           observed_at=now, http_status=200)
+    car = V3Vehicle(
+        vin="WAUZZZ4M0MD123456",
+        name="Test",
+        model="Audi Q8",
+        model_family="q8",
+        country="DE",
+    )
+    assert car.set_climate(
+        "off", now.isoformat(), route="a", observed_at=now, http_status=200
+    )
     assert car.climate_captured == now
-    assert not car.set_climate("heating", None, route="b",
-                               observed_at=now, http_status=200)
+    assert not car.set_climate(
+        "heating", None, route="b", observed_at=now, http_status=200
+    )
     assert car.climate_captured == now
     assert car.climate_state == "off"
-    assert not car.set_climate("heating", "not-a-timestamp", route="c",
-                               observed_at=now, http_status=200)
+    assert not car.set_climate(
+        "heating", "not-a-timestamp", route="c", observed_at=now, http_status=200
+    )
     assert car.climate_captured == now

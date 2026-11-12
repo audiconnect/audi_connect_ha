@@ -4,23 +4,53 @@ The root platform modules keep their original V2 behavior untouched apart
 from one runtime-selector branch. This module and the V3 native entity
 classes own every V3 platform; no V2 vehicle objects or business operations.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from .entities import (
-    CONTROL_BUTTONS, V3ClimateEntity, V3ReadOnlyBinarySensor, V3TripSensor,
-    V3ReadOnlySensor, V3StatusSensor, V3CloudRefreshButton, V3TripMetricSensor, V3TripHistorySensor,
-    V3ControlButton, V3ClimateQuickSwitch, V3LockEntity,
-    V3ParkedTracker, V3ChargeTargetNumber, V3ChargeModeSelect,
-    V3LocationChargeTargetNumber, CLIMATE_SWITCHES, V3ClimateSettingSwitch,
-    V3PreheaterSwitch, V3LocalServiceSensor, V3ApiQuotaSensor, V3OperationalSwitch, V3ModelSensor,
-    V3HealthSensor, V3IntegrationProblem, V3AccessSummary, V3ChargingReady,
+    CONTROL_BUTTONS,
+    V3ClimateEntity,
+    V3ReadOnlyBinarySensor,
+    V3TripSensor,
+    V3ReadOnlySensor,
+    V3StatusSensor,
+    V3CloudRefreshButton,
+    V3TripMetricSensor,
+    V3TripHistorySensor,
+    V3ControlButton,
+    V3ClimateQuickSwitch,
+    V3LockEntity,
+    V3ParkedTracker,
+    V3ChargeTargetNumber,
+    V3ChargeModeSelect,
+    V3LocationChargeTargetNumber,
+    CLIMATE_SWITCHES,
+    V3ClimateSettingSwitch,
+    V3PreheaterSwitch,
+    V3LocalServiceSensor,
+    V3ApiQuotaSensor,
+    V3OperationalSwitch,
+    V3ModelSensor,
+    V3HealthSensor,
+    V3IntegrationProblem,
+    V3AccessSummary,
+    V3ChargingReady,
 )
 from .custom_attributes import attributes_for
 from .attribute_contracts import semantic_value_issue
-from .product_contract import (CORE_STATUS_KINDS, account_cloud_refresh_vin,
-                               projection_descriptor, projection_reading, entity_key, stateful_controls, stateful_control_supported, trip_metric_contracts, trip_metric_value)
+from .product_contract import (
+    CORE_STATUS_KINDS,
+    account_cloud_refresh_vin,
+    projection_descriptor,
+    projection_reading,
+    entity_key,
+    stateful_controls,
+    stateful_control_supported,
+    trip_metric_contracts,
+    trip_metric_value,
+)
 
 
 def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
@@ -34,22 +64,40 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
         engine.projected_entities = {}
     projected = engine.projected_entities.setdefault(platform, set())
 
-    if platform not in ("sensor", "binary_sensor", "button", "switch", "lock",
-                         "climate", "device_tracker", "number", "select"):
+    if platform not in (
+        "sensor",
+        "binary_sensor",
+        "button",
+        "switch",
+        "lock",
+        "climate",
+        "device_tracker",
+        "number",
+        "select",
+    ):
         raise ValueError("Unknown Audi V3 Home Assistant platform")
 
     def add_verified() -> None:
         entities: list[Any] = []
         if platform == "button":
-            anchor = getattr(engine, "cloud_refresh_vin", None) or account_cloud_refresh_vin(engine.vehicles)
-            if anchor and anchor in engine.vehicles and "account:cloud_refresh" not in seen:
+            anchor = getattr(
+                engine, "cloud_refresh_vin", None
+            ) or account_cloud_refresh_vin(engine.vehicles)
+            if (
+                anchor
+                and anchor in engine.vehicles
+                and "account:cloud_refresh" not in seen
+            ):
                 seen.add("account:cloud_refresh")
                 engine.cloud_refresh_vin = anchor
-                entities.append(V3CloudRefreshButton(coordinator, engine.vehicles[anchor]))
+                entities.append(
+                    V3CloudRefreshButton(coordinator, engine.vehicles[anchor])
+                )
         for car in engine.vehicles.values():
             if not car.inventory_present:
                 continue
             vin = car.vin.lower()
+
             def add_once(tag: str, factory, *args) -> None:
                 if tag not in seen:
                     seen.add(tag)
@@ -72,19 +120,31 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
             elif platform == "binary_sensor":
                 add_once(f"{vin}:health:problem", V3IntegrationProblem)
                 from .vehicle import charging_ready
-                if charging_ready(car.readings.get("chargingState", {}).get("value")) is not None:
+
+                if (
+                    charging_ready(car.readings.get("chargingState", {}).get("value"))
+                    is not None
+                ):
                     add_once(f"{vin}:charging_ready", V3ChargingReady)
             elif platform == "climate":
-                if car.climate_state is not None or any(engine.control_enabled(car.vin, action)
-                    for action in ("start", "stop", "start_with_settings")):
+                if car.climate_state is not None or any(
+                    engine.control_enabled(car.vin, action)
+                    for action in ("start", "stop", "start_with_settings")
+                ):
                     add_once(f"{vin}:climate", V3ClimateEntity)
             elif platform == "device_tracker":
                 add_once(f"{vin}:tracker", V3ParkedTracker)
             elif platform == "number":
-                if engine.control_enabled(car.vin, "set_target_soc", "charging") and type(car.readings.get("targetstateOfCharge", {}).get("value")) in (int, float):
+                if engine.control_enabled(
+                    car.vin, "set_target_soc", "charging"
+                ) and type(
+                    car.readings.get("targetstateOfCharge", {}).get("value")
+                ) in (int, float):
                     add_once(f"{vin}:target_soc", V3ChargeTargetNumber)
             elif platform == "select":
-                if engine.control_enabled(car.vin, "set_charge_mode", "charging") and car.readings.get("availableChargeModes", {}).get("value"):
+                if engine.control_enabled(
+                    car.vin, "set_charge_mode", "charging"
+                ) and car.readings.get("availableChargeModes", {}).get("value"):
                     add_once(f"{vin}:charge_mode", V3ChargeModeSelect)
 
             if platform in ("sensor", "binary_sensor"):
@@ -93,7 +153,9 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                         add_once(f"{vin}:trip_history", V3TripHistorySensor)
                     for key in trip_metric_contracts():
                         if trip_metric_value(car, key) is not None:
-                            add_once(f"{vin}:trip_metric:{key}", V3TripMetricSensor, key)
+                            add_once(
+                                f"{vin}:trip_metric:{key}", V3TripMetricSensor, key
+                            )
                     for key in car.trips:
                         tag = f"{vin}:{key}"
                         if tag not in seen:
@@ -104,12 +166,23 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 # Canonical entities can be backed by declared alternative sources.
                 candidates = set(car.readings)
                 if platform == "sensor":
-                    candidates.update(("stateOfCharge", "TOTAL_RANGE", "TANK_LEVEL_IN_PERCENTAGE", "carType"))
+                    candidates.update(
+                        (
+                            "stateOfCharge",
+                            "TOTAL_RANGE",
+                            "TANK_LEVEL_IN_PERCENTAGE",
+                            "carType",
+                        )
+                    )
                 for ident in sorted(candidates):
                     descriptor = attributes.get(ident)
                     if profile and ident in getattr(profile, "attribute_disabled", ()):
                         continue
-                    if descriptor and descriptor.get("local") and ident not in profile.attribute_routes:
+                    if (
+                        descriptor
+                        and descriptor.get("local")
+                        and ident not in profile.attribute_routes
+                    ):
                         continue
                     if not descriptor or descriptor["platform"] != platform:
                         continue
@@ -117,8 +190,13 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     if descriptor is None:
                         continue
                     _source, reading = projection_reading(car, descriptor)
-                    if platform == "sensor" and descriptor["entity_key"] == "car_type" and not descriptor.get("local"):
+                    if (
+                        platform == "sensor"
+                        and descriptor["entity_key"] == "car_type"
+                        and not descriptor.get("local")
+                    ):
                         from .vehicle import powertrain_identity
+
                         if powertrain_identity(car)["value"] is not None:
                             add_once(f"{vin}:car_type", V3ReadOnlySensor, descriptor)
                         continue
@@ -127,15 +205,18 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     ):
                         continue
                     if platform == "sensor" and semantic_value_issue(
-                        descriptor["entity_key"], reading["value"], descriptor.get("contract")
+                        descriptor["entity_key"],
+                        reading["value"],
+                        descriptor.get("contract"),
                     ):
                         continue
-                    tag = f'{vin}:{descriptor["entity_key"]}'
+                    tag = f"{vin}:{descriptor['entity_key']}"
                     if tag in seen:
                         continue
                     seen.add(tag)
                     entity_type = (
-                        V3ReadOnlySensor if platform == "sensor"
+                        V3ReadOnlySensor
+                        if platform == "sensor"
                         else V3ReadOnlyBinarySensor
                     )
                     entities.append(entity_type(coordinator, car, descriptor))
@@ -153,8 +234,9 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     tag = f"{vin}:profile:{profile_id}"
                     if tag not in seen and car.charging_profiles:
                         seen.add(tag)
-                        entities.append(V3LocationChargeTargetNumber(
-                            coordinator, car, profile_id))
+                        entities.append(
+                            V3LocationChargeTargetNumber(coordinator, car, profile_id)
+                        )
             elif platform == "switch":
                 for key in stateful_controls():
                     if stateful_control_supported(engine, car, key):
@@ -171,17 +253,21 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     tag = f"{vin}:{key}"
                     if tag not in seen and reading in car.readings:
                         seen.add(tag)
-                        entities.append(V3ClimateSettingSwitch(coordinator, car, descriptor))
-                if (vin not in seen
+                        entities.append(
+                            V3ClimateSettingSwitch(coordinator, car, descriptor)
+                        )
+                if (
+                    vin not in seen
                     and engine.control_enabled(car.vin, "start")
-                    and engine.control_enabled(car.vin, "stop")):
+                    and engine.control_enabled(car.vin, "stop")
+                ):
                     seen.add(vin)
                     entities.append(V3ClimateQuickSwitch(coordinator, car))
             elif platform == "lock":
-                if (vin not in seen and (
+                if vin not in seen and (
                     engine.control_enabled(car.vin, "lock", "access")
                     or engine.control_enabled(car.vin, "unlock", "access")
-                )):
+                ):
                     seen.add(vin)
                     entities.append(V3LockEntity(coordinator, car))
         if entities:

@@ -2,11 +2,17 @@
 
 No V2 runtime imports, no automatic vehicle commands or position requests.
 """
+
 from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 from .freshness import timestamp_is_fresh
-from .historical_catalog import ATTRIBUTES, V2_JOBS, advertised_capabilities, extract_attributes
+from .historical_catalog import (
+    ATTRIBUTES,
+    V2_JOBS,
+    advertised_capabilities,
+    extract_attributes,
+)
 from .api_value_mappings import normalize_api_value, transform_for
 from .attribute_contracts import semantic_value_issue
 
@@ -43,30 +49,65 @@ def _accept_observation(previous: dict[str, Any] | None, captured: Any) -> bool:
     return incoming is not None and incoming >= prior
 
 
-def record_invalid_observation(vehicle: Any, ident: str, captured: Any, observed_at: datetime,
-                               path: str, job: str | None, reason: str, family: str = "cariad") -> None:
+def record_invalid_observation(
+    vehicle: Any,
+    ident: str,
+    captured: Any,
+    observed_at: datetime,
+    path: str,
+    job: str | None,
+    reason: str,
+    family: str = "cariad",
+) -> None:
     """Invalidate a contradictory newer sample without accepting old cache."""
     if _accept_observation(vehicle.readings.get(ident), captured):
         vehicle.readings[ident] = {
-            "value": None, "captured": captured, "observed": observed_at.isoformat(),
-            "fresh": False, "path": path, "job": job, "status": "invalid_value",
-            "family": family, "reason": reason,
+            "value": None,
+            "captured": captured,
+            "observed": observed_at.isoformat(),
+            "fresh": False,
+            "path": path,
+            "job": job,
+            "status": "invalid_value",
+            "family": family,
+            "reason": reason,
         }
 
 
-def record_observation(vehicle, profile, ident, value, captured, observed_at,
-                       path, job, family, *, fresh, operation=None):
+def record_observation(
+    vehicle,
+    profile,
+    ident,
+    value,
+    captured,
+    observed_at,
+    path,
+    job,
+    family,
+    *,
+    fresh,
+    operation=None,
+):
     """Commit value and evidence together, only if the vehicle sample is accepted."""
     if not _accept_observation(vehicle.readings.get(ident), captured):
         return False
     status = "verified" if fresh else "readable_but_stale"
     vehicle.readings[ident] = {
-        "value": value, "captured": captured, "observed": observed_at.isoformat(),
-        "fresh": fresh, "path": path, "job": job, "status": status, "family": family,
-        "operation": operation or ("mbb.legacy" if family == "mbb" else "cariad.climate.status.batch"),
+        "value": value,
+        "captured": captured,
+        "observed": observed_at.isoformat(),
+        "fresh": fresh,
+        "path": path,
+        "job": job,
+        "status": status,
+        "family": family,
+        "operation": operation
+        or ("mbb.legacy" if family == "mbb" else "cariad.climate.status.batch"),
     }
     profile.attribute_evidence[ident] = {
-        "status": status, "path": path, "job": job,
+        "status": status,
+        "path": path,
+        "job": job,
         "source": "mbb.legacy" if family == "mbb" else "cariad.selectivestatus",
         "timestamp_present": bool(captured),
     }
@@ -79,7 +120,13 @@ def normalize_attribute_value(definition, value, conversion):
     Preserve meaningful false/zero and external-power 'unavailable'. Reject
     error envelopes and never turn missing data into a working mapping.
     """
-    if value is None or isinstance(value, dict) and ("error" in value or not value) or isinstance(value, list) and not value:
+    if (
+        value is None
+        or isinstance(value, dict)
+        and ("error" in value or not value)
+        or isinstance(value, list)
+        and not value
+    ):
         return None, None
     try:
         value = normalize_api_value(value, conversion)
@@ -87,20 +134,41 @@ def normalize_attribute_value(definition, value, conversion):
         return None, None
     if definition.get("local"):
         from .custom_attributes import normalize_local_value
+
         value = normalize_local_value(value, definition)
-    issue = semantic_value_issue(definition["entity_key"], value, definition.get("contract"))
+    issue = semantic_value_issue(
+        definition["entity_key"], value, definition.get("contract")
+    )
     if issue:
         return None, issue
-    if isinstance(value, str) and value.strip().lower() in (
-        "", "unknown", "unsupported", "invalid", "unavailable", "error", "notavailable"
-    ) and not (definition["id"] == "externalPower" and value.strip().lower() == "unavailable"):
-        return None, "unknown_charging_state" if definition["id"] == "chargingState" else None
+    if (
+        isinstance(value, str)
+        and value.strip().lower()
+        in (
+            "",
+            "unknown",
+            "unsupported",
+            "invalid",
+            "unavailable",
+            "error",
+            "notavailable",
+        )
+        and not (
+            definition["id"] == "externalPower"
+            and value.strip().lower() == "unavailable"
+        )
+    ):
+        return None, "unknown_charging_state" if definition[
+            "id"
+        ] == "chargingState" else None
     if value is not None and len(str(value)) > 10000:
         return None, None
     return value, None
 
 
-def observe_read_only(vehicle: Any, profile: Any, payload: Any, observed_at: datetime) -> dict[str, int]:
+def observe_read_only(
+    vehicle: Any, profile: Any, payload: Any, observed_at: datetime
+) -> dict[str, int]:
     if not isinstance(payload, dict):
         return {"mapped": 0, "fresh": 0}
     reported, impaired = advertised_capabilities(payload)
@@ -113,27 +181,51 @@ def observe_read_only(vehicle: Any, profile: Any, payload: Any, observed_at: dat
         selected = profile.attribute_routes.get(ident)
         if selected and selected != "cariad.selectivestatus.batch":
             continue
-        value, issue = normalize_attribute_value(ATTRIBUTES[ident], row["value"], transform_for("cariad", ident))
+        value, issue = normalize_attribute_value(
+            ATTRIBUTES[ident], row["value"], transform_for("cariad", ident)
+        )
         if issue:
-            record_invalid_observation(vehicle, ident, row["captured"], observed_at,
-                                       row["path"], row["job"], issue)
+            record_invalid_observation(
+                vehicle,
+                ident,
+                row["captured"],
+                observed_at,
+                row["path"],
+                row["job"],
+                issue,
+            )
         if value is None:
             continue
         fresh = timestamp_is_fresh(row["captured"], observed_at)
-        if not record_observation(vehicle, profile, ident, value, row["captured"],
-                                  observed_at, row["path"], row["job"], "cariad", fresh=fresh):
+        if not record_observation(
+            vehicle,
+            profile,
+            ident,
+            value,
+            row["captured"],
+            observed_at,
+            row["path"],
+            row["job"],
+            "cariad",
+            fresh=fresh,
+        ):
             continue
         # A proven V2 response field is *readable* even if the vehicle's
         # capture time is older than 60 minutes.  Activation exposes a clearly
         # marked last-known sensor, not a fresh control or lock reading.
-        if (ident not in profile.attribute_routes and ident not in getattr(profile, "attribute_disabled", ())
-                and ATTRIBUTES[ident]["platform"] in ("sensor", "binary_sensor")):
+        if (
+            ident not in profile.attribute_routes
+            and ident not in getattr(profile, "attribute_disabled", ())
+            and ATTRIBUTES[ident]["platform"] in ("sensor", "binary_sensor")
+        ):
             profile.attribute_routes[ident] = "cariad.selectivestatus.batch"
         mapped += 1
         fresh_count += int(fresh)
     from .derived_values import observe_derived
+
     observe_derived(vehicle, profile, payload, observed_at, _accept_observation)
     from .structured_details import observe_structured
+
     observe_structured(vehicle, payload, observed_at, _accept_observation)
     vehicle.v2_initial_discovery_completed = True
     return {"mapped": mapped, "fresh": fresh_count}

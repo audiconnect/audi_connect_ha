@@ -4,11 +4,12 @@ Generated from V2 audi_models.py field mappings, sensor/binary_sensor descriptor
 and the V2 selective-status job allowlist. No runtime dependency on V2 code.
 An inventory entry is NOT a proven V3 response or an authorized vehicle action.
 """
+
 from __future__ import annotations
 import json
 from typing import Any
 
-INVENTORY: dict[str, Any] = json.loads(r'''{
+INVENTORY: dict[str, Any] = json.loads(r"""{
   "schema_version": 1,
   "source": "audiconnect_v2_source_inventory",
   "jobs": [
@@ -1628,7 +1629,7 @@ INVENTORY: dict[str, Any] = json.loads(r'''{
     "cariad",
     "mbb"
   ]
-}''')
+}""")
 V2_JOBS = tuple(row["id"] for row in INVENTORY["jobs"])
 ATTRIBUTES = {row["id"]: row for row in INVENTORY["attributes"]}
 CONTROLS = {row["id"]: row for row in INVENTORY["controls"]}
@@ -1664,6 +1665,7 @@ def capture_time(payload: Any, dotted_path: str) -> str | None:
             return stamp
     return None
 
+
 def extract_attributes(payload: Any) -> list[dict[str, Any]]:
     """Extract only declared V2 mappings, preserving False/0 and source evidence."""
     if not isinstance(payload, dict):
@@ -1672,13 +1674,20 @@ def extract_attributes(payload: Any) -> list[dict[str, Any]]:
     for item in INVENTORY["attributes"]:
         value, path = extract_first(payload, item["paths"])
         if path is not None:
-            results.append({
-                "id": item["id"], "capability": item["capability"],
-                "job": item["job"], "platform": item["platform"],
-                "entity_key": item["entity_key"], "path": path,
-                "value": value, "captured": capture_time(payload, path),
-            })
+            results.append(
+                {
+                    "id": item["id"],
+                    "capability": item["capability"],
+                    "job": item["job"],
+                    "platform": item["platform"],
+                    "entity_key": item["entity_key"],
+                    "path": path,
+                    "value": value,
+                    "captured": capture_time(payload, path),
+                }
+            )
     return results
+
 
 def advertised_capabilities(payload: Any) -> tuple[set[str], set[str]]:
     items = read_path(payload, "userCapabilities.capabilitiesStatus.value")

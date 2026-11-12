@@ -31,10 +31,7 @@
           ]
         },
         "stop": {
-          "operations": [
-            "cariad.climate.stop",
-            "mbb.climate.stop"
-          ]
+          "operations": ["cariad.climate.stop", "mbb.climate.stop"]
         }
       }
     }

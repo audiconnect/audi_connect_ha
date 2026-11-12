@@ -1,4 +1,5 @@
 """V3 read-only value discovery preserves historical entity identity."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "audiconnect"
@@ -8,9 +9,9 @@ def test_v3_binary_sensor_platform_is_loaded_from_v3_and_not_v2():
     main = (ROOT / "__init__.py").read_text()
     code = (ROOT / "binary_sensor.py").read_text()
     assert "loaded_platforms=list(PLATFORMS)" in main
-    assert 'from .v3.ha_platforms import setup as v3_setup' in code
+    assert "from .v3.ha_platforms import setup as v3_setup" in code
     assert "if isinstance(runtime_data.v3, V3Engine)" in code
-    assert "V3ReadOnlyBinarySensor" in (ROOT/"v3"/"ha_platforms.py").read_text()
+    assert "V3ReadOnlyBinarySensor" in (ROOT / "v3" / "ha_platforms.py").read_text()
 
 
 def test_recovered_sensor_requires_vehicle_specific_evidence():
@@ -23,8 +24,11 @@ def test_recovered_sensor_requires_vehicle_specific_evidence():
     engine = NS(vehicles={car.vin.lower(): car}, profiles={})
     listeners, offered = [], []
     coordinator = NS(engine=engine, async_add_listener=lambda cb: listeners.append(cb))
-    entry = NS(entry_id="entry", runtime_data=NS(v3=engine, coordinator=coordinator),
-               async_on_unload=lambda cb: None)
+    entry = NS(
+        entry_id="entry",
+        runtime_data=NS(v3=engine, coordinator=coordinator),
+        async_on_unload=lambda cb: None,
+    )
     setup("sensor", entry, offered.extend)
     uid = car.vin.lower() + "_sensor_state_of_charge"
     assert uid not in {entity.unique_id for entity in offered}

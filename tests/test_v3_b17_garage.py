@@ -1,17 +1,40 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 import pytest
-from custom_components.audiconnect.v3.transport import V3Response, selected_garage_response, GARAGE_OPERATION, identity_errors
+from custom_components.audiconnect.v3.transport import (
+    V3Response,
+    selected_garage_response,
+    GARAGE_OPERATION,
+    identity_errors,
+)
 from custom_components.audiconnect.v3.vehicle import V3Vehicle
-from custom_components.audiconnect.v3.identity_cache import capture_identity, apply_cached_identity
+from custom_components.audiconnect.v3.identity_cache import (
+    capture_identity,
+    apply_cached_identity,
+)
 from custom_components.audiconnect.v3.family_executors import CARIADExecutor
 
 VIN = "WAUZZZ4M0MD123456"
 OTHER = "WAUZZZ4M0MD123457"
 
+
 def test_garage_scoped_identity_and_cache():
-    response = V3Response(200, {"data":[{"vin":VIN,"model":"Audi Q8", "modelYear":2022,
-        "nickname":"personal", "carnetAllocationType":"unknown"}, {"vin":OTHER,"model":"Other"}]}, datetime.now(UTC))
+    response = V3Response(
+        200,
+        {
+            "data": [
+                {
+                    "vin": VIN,
+                    "model": "Audi Q8",
+                    "modelYear": 2022,
+                    "nickname": "personal",
+                    "carnetAllocationType": "unknown",
+                },
+                {"vin": OTHER, "model": "Other"},
+            ]
+        },
+        datetime.now(UTC),
+    )
     selected = selected_garage_response(response, VIN)
     assert OTHER not in str(selected.data) and "personal" not in str(selected.data)
     car = V3Vehicle.from_garage(selected.data["data"][0], "DE")
@@ -21,29 +44,53 @@ def test_garage_scoped_identity_and_cache():
     saved = capture_identity(car)
     restored = V3Vehicle(VIN, "Audi vehicle", "", "", "DE")
     apply_cached_identity(restored, saved)
-    assert restored.model == car.model and restored.identity_operation == GARAGE_OPERATION
+    assert (
+        restored.model == car.model and restored.identity_operation == GARAGE_OPERATION
+    )
     assert restored.identity_restored and not restored.car_type
 
+
 def test_no_model_from_nickname_or_vin():
-    car = V3Vehicle.from_garage({"vin":VIN,"model":VIN,"nickname":"Q8","modelYear":2022}, "DE")
+    car = V3Vehicle.from_garage(
+        {"vin": VIN, "model": VIN, "nickname": "Q8", "modelYear": 2022}, "DE"
+    )
     assert not car.model and car.model_year == "2022"
 
+
 def test_garage_only_read():
-    auth = SimpleNamespace(uses_auth0=True,country="DE", access_token=lambda family:"fake")
+    auth = SimpleNamespace(
+        uses_auth0=True, country="DE", access_token=lambda family: "fake"
+    )
     plan = CARIADExecutor().plan(auth, "GET", "/vehicle/v1/vehicles")
     assert plan.url == "https://emea.bff.cariad.digital/vehicle/v1/vehicles"
-    for method,path in [("POST","/vehicle/v1/vehicles"),("GET","/vehicle/v1/vehicles?foo=1")]:
+    for method, path in [
+        ("POST", "/vehicle/v1/vehicles"),
+        ("GET", "/vehicle/v1/vehicles?foo=1"),
+    ]:
         with pytest.raises(ValueError):
             CARIADExecutor().plan(auth, method, path, explicit_action=True)
 
+
 def test_graphql_exchange_denial_classification():
-    result = identity_errors({"errors":[{"message":"client does not have access to the IDP for token exchange: private",
-                 "extensions":{"code":"FORBIDDEN"}}]}, VIN)
-    assert result == [{"code":"FORBIDDEN","field":"","reason":"token_exchange_denied"}]
+    result = identity_errors(
+        {
+            "errors": [
+                {
+                    "message": "client does not have access to the IDP for token exchange: private",
+                    "extensions": {"code": "FORBIDDEN"},
+                }
+            ]
+        },
+        VIN,
+    )
+    assert result == [
+        {"code": "FORBIDDEN", "field": "", "reason": "token_exchange_denied"}
+    ]
 
 
 def test_explicit_readiness_not_active_charging_or_unknown():
     from custom_components.audiconnect.v3.vehicle import charging_ready, charging_active
+
     assert charging_ready("readyForCharging") is True
     assert charging_ready("notReadyForCharging") is False
     assert charging_ready("charging") is None and charging_active("charging") is True
@@ -51,11 +98,27 @@ def test_explicit_readiness_not_active_charging_or_unknown():
 
 
 def test_identity_recovery_accumulates_independent_fields_and_operations():
-    first = V3Vehicle.from_graphql({"vin": VIN, "vehicle": {
-        "core": {"modelYear": 2022}, "classification": {"driveTrain": "PHEV"}}}, "DE")
+    first = V3Vehicle.from_graphql(
+        {
+            "vin": VIN,
+            "vehicle": {
+                "core": {"modelYear": 2022},
+                "classification": {"driveTrain": "PHEV"},
+            },
+        },
+        "DE",
+    )
     first.year_operation = "graphql.inventory.afterGarage"
-    second = V3Vehicle.from_graphql({"vin": VIN, "vehicle": {
-        "media": {"longName": "Audi Q8 TFSI e"}, "core": {"modelYear": 2023}}}, "DE")
+    second = V3Vehicle.from_graphql(
+        {
+            "vin": VIN,
+            "vehicle": {
+                "media": {"longName": "Audi Q8 TFSI e"},
+                "core": {"modelYear": 2023},
+            },
+        },
+        "DE",
+    )
     first.merge_identity_evidence(second, operation="graphql.inventory.extended")
     assert first.model == "Audi Q8 TFSI e" and first.model_family == "q8"
     assert first.model_year == "2022" and first.car_type == "phev"
@@ -71,11 +134,15 @@ def test_identity_recovery_accumulates_independent_fields_and_operations():
 
 
 def test_identity_recovery_combines_graphql_and_garage_only_for_same_vin_market():
-    car = V3Vehicle.from_graphql({"vin": VIN, "vehicle": {
-        "media": {"longName": "Audi Q8"}}}, "DE")
+    car = V3Vehicle.from_graphql(
+        {"vin": VIN, "vehicle": {"media": {"longName": "Audi Q8"}}}, "DE"
+    )
     for vin, region in ((OTHER, "DE"), (VIN, "BE")):
-        car.merge_identity_evidence(V3Vehicle.from_garage({
-            "vin": vin, "model": "Other", "modelYear": 2025}, region))
+        car.merge_identity_evidence(
+            V3Vehicle.from_garage(
+                {"vin": vin, "model": "Other", "modelYear": 2025}, region
+            )
+        )
     assert not car.model_year and car.model == "Audi Q8"
     garage = V3Vehicle.from_garage({"vin": VIN, "modelYear": 2022}, "DE")
     car.merge_identity_evidence(garage)
@@ -85,23 +152,32 @@ def test_identity_recovery_combines_graphql_and_garage_only_for_same_vin_market(
 
 def test_identity_recovery_rejects_cached_as_fresh_evidence():
     car = V3Vehicle.from_graphql({"vin": VIN}, "DE")
-    cached = V3Vehicle(VIN, "Audi Q8", "Audi Q8", "q8", "DE",
-                       model_year="2022", identity_restored=True)
+    cached = V3Vehicle(
+        VIN, "Audi Q8", "Audi Q8", "q8", "DE", model_year="2022", identity_restored=True
+    )
     car.merge_identity_evidence(cached)
     assert not car.model and not car.model_year and not car.car_type
 
 
-@pytest.mark.parametrize("rows,errors,expected", [
-    ([{"vin": VIN}, {"vin": OTHER}], [], True),
-    ([{"vin": VIN}], [{"path": ["userVehicles", 0, "vehicle", "core"]}], True),
-    ([{"vin": VIN}], [{"path": ["userVehicles"]}], False),
-    ([{"vin": VIN}], [{"path": ["userVehicles", 0, "vin"]}], False),
-    ([{"vin": VIN}], [{"message": "root failure"}], False),
-    ([{"vin": VIN}, None], [], False),
-    ([{"vin": VIN}, {"vin": VIN.lower()}], [], False),
-    ([], [], False),
-])
+@pytest.mark.parametrize(
+    "rows,errors,expected",
+    [
+        ([{"vin": VIN}, {"vin": OTHER}], [], True),
+        ([{"vin": VIN}], [{"path": ["userVehicles", 0, "vehicle", "core"]}], True),
+        ([{"vin": VIN}], [{"path": ["userVehicles"]}], False),
+        ([{"vin": VIN}], [{"path": ["userVehicles", 0, "vin"]}], False),
+        ([{"vin": VIN}], [{"message": "root failure"}], False),
+        ([{"vin": VIN}, None], [], False),
+        ([{"vin": VIN}, {"vin": VIN.lower()}], [], False),
+        ([], [], False),
+    ],
+)
 def test_inventory_absence_requires_complete_membership(rows, errors, expected):
     from custom_components.audiconnect.v3.transport import inventory_membership_complete
-    assert inventory_membership_complete({
-        "data": {"userVehicles": rows}, "errors": errors}) is expected
+
+    assert (
+        inventory_membership_complete(
+            {"data": {"userVehicles": rows}, "errors": errors}
+        )
+        is expected
+    )

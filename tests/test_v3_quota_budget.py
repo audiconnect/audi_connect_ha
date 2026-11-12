@@ -1,4 +1,5 @@
 """Known quota is debited even if a response omits the quota header."""
+
 from datetime import UTC, datetime
 from custom_components.audiconnect.v3.quota import QuotaBudget
 

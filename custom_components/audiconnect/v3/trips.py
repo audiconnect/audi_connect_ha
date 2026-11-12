@@ -10,31 +10,60 @@ import math
 from datetime import UTC, datetime
 from typing import Any
 
-_TRIP_FIELDS = frozenset((
-    "tripEndTimestamp", "timestamp", "vehicleType", "tripType", "mileage_km",
-    "startMileage_km", "overallMileage_km", "averageSpeed_kmph",
-    "travelTime", "travelTime_min", "traveltime", "averageFuelConsumption",
-    "averageFuelConsumption_L_per_100km",
-    "averageElectricEngineConsumption_kWh_per_100km", "averageElectricConsumption",
-    "totalElectricConsumption_kwh", "totalFuelConsumption_L",
-    "zeroEmissionDistance_km", "zeroEmissionDistance",
-    "mileage", "startMileage", "overallMileage", "averageSpeed",
-))
+_TRIP_FIELDS = frozenset(
+    (
+        "tripEndTimestamp",
+        "timestamp",
+        "vehicleType",
+        "tripType",
+        "mileage_km",
+        "startMileage_km",
+        "overallMileage_km",
+        "averageSpeed_kmph",
+        "travelTime",
+        "travelTime_min",
+        "traveltime",
+        "averageFuelConsumption",
+        "averageFuelConsumption_L_per_100km",
+        "averageElectricEngineConsumption_kWh_per_100km",
+        "averageElectricConsumption",
+        "totalElectricConsumption_kwh",
+        "totalFuelConsumption_L",
+        "zeroEmissionDistance_km",
+        "zeroEmissionDistance",
+        "mileage",
+        "startMileage",
+        "overallMileage",
+        "averageSpeed",
+    )
+)
 _MAX_CANDIDATE_RECORDS = 10000
 MAX_TRIP_HISTORY = 10000
 MAX_TRIP_ENTITY_ROWS = 50
 _MAX_CONTAINER_NODES = 30
 
 # Explicitly permitted key names, never raw JSON values or unknown keys.
-_SAFE_SCHEMA_KEYS = frozenset((
-    "tripEndTimestamp", "timestamp", "tripType", "vehicleType", "mileage_km",
-    "startMileage_km", "overallMileage_km", "averageSpeed_kmph",
-    "travelTime", "travelTime_min", "averageFuelConsumption",
-    "averageFuelConsumption_L_per_100km",
-    "averageElectricEngineConsumption_kWh_per_100km", "averageElectricConsumption",
-    "totalElectricConsumption_kwh", "totalFuelConsumption_L",
-    "zeroEmissionDistance_km",
-))
+_SAFE_SCHEMA_KEYS = frozenset(
+    (
+        "tripEndTimestamp",
+        "timestamp",
+        "tripType",
+        "vehicleType",
+        "mileage_km",
+        "startMileage_km",
+        "overallMileage_km",
+        "averageSpeed_kmph",
+        "travelTime",
+        "travelTime_min",
+        "averageFuelConsumption",
+        "averageFuelConsumption_L_per_100km",
+        "averageElectricEngineConsumption_kWh_per_100km",
+        "averageElectricConsumption",
+        "totalElectricConsumption_kwh",
+        "totalFuelConsumption_L",
+        "zeroEmissionDistance_km",
+    )
+)
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -55,7 +84,9 @@ def _timestamp(value: Any) -> datetime | None:
     return result
 
 
-def _number(record: dict[str, Any], keys: tuple[str, ...], low: float, high: float) -> float | None:
+def _number(
+    record: dict[str, Any], keys: tuple[str, ...], low: float, high: float
+) -> float | None:
     for key in keys:
         value = record.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -102,8 +133,10 @@ def describe_cariad_trip_schema(payload: Any) -> dict[str, Any]:
     exporting personal trip history. Only allowlisted, fixed keys can appear.
     """
     envelope = (
-        "object" if isinstance(payload, dict)
-        else "array" if isinstance(payload, list)
+        "object"
+        if isinstance(payload, dict)
+        else "array"
+        if isinstance(payload, list)
         else "other"
     )
     records = _records(payload)
@@ -113,7 +146,8 @@ def describe_cariad_trip_schema(payload: Any) -> dict[str, Any]:
     known_fields = sorted(_SAFE_SCHEMA_KEYS.intersection(candidate or {}))
     timestamp = (
         _timestamp(candidate.get("tripEndTimestamp") or candidate.get("timestamp"))
-        if candidate else None
+        if candidate
+        else None
     )
     return {
         "envelope": envelope,
@@ -164,17 +198,34 @@ def _normalize_record(stamp, item):
     # than importing V2's tenths scaling or trusting an ambiguous raw field.
     total_electric = _number(item, ("totalElectricConsumption_kwh",), 0, 3000000)
     total_fuel = _number(item, ("totalFuelConsumption_L",), 0, 1000000)
-    if electric is None and distance is not None and distance > 0 and total_electric is not None:
+    if (
+        electric is None
+        and distance is not None
+        and distance > 0
+        and total_electric is not None
+    ):
         candidate = _number(item, ("averageElectricConsumption",), 0, 150)
         if candidate is not None and math.isclose(
-                candidate * distance / 100, total_electric, rel_tol=0.02, abs_tol=0.02):
+            candidate * distance / 100, total_electric, rel_tol=0.02, abs_tol=0.02
+        ):
             electric = candidate
     zero_emission = _number(item, ("zeroEmissionDistance_km",), 0, 2000000)
-    readings = [distance, overall, starting, speed, duration, fuel, electric, zero_emission,
-                total_electric, total_fuel]
+    readings = [
+        distance,
+        overall,
+        starting,
+        speed,
+        duration,
+        fuel,
+        electric,
+        zero_emission,
+        total_electric,
+        total_fuel,
+    ]
     if all(x is None for x in readings):
         return None, "no_unambiguous_numeric_trip_fields"
     from .vehicle import normalize_powertrain
+
     vehicle_type = normalize_powertrain(item.get("vehicleType"))
     trip_type = item.get("tripType")
     return {
@@ -208,32 +259,65 @@ def _normalize_record(stamp, item):
 
 def normalize_mbb_trips(payload: Any) -> dict[str, dict]:
     """Historical trip API uses tenths for consumption and integer km/min."""
-    if not isinstance(payload,dict): return {}
-    wrapper=payload.get("tripDataList")
-    rows=wrapper.get("tripData") if isinstance(wrapper,dict) else None
-    if not isinstance(rows,list): return {}
-    def integer(row,key):
+    if not isinstance(payload, dict):
+        return {}
+    wrapper = payload.get("tripDataList")
+    rows = wrapper.get("tripData") if isinstance(wrapper, dict) else None
+    if not isinstance(rows, list):
+        return {}
+
+    def integer(row, key):
         try:
-            value=row.get(key)
-            return int(value) if type(value) in (int,float,str) else None
-        except (ValueError,TypeError,OverflowError): return None
-    valid=[r for r in rows[:100] if isinstance(r,dict) and _timestamp(r.get("timestamp"))
-           and integer(r,"overallMileage") is not None and integer(r,"startMileage") is not None]
-    if not valid: return {}
-    valid.sort(key=lambda r:integer(r,"overallMileage"),reverse=True)
-    current=valid[0]
-    reset=next((r for r in valid if integer(current,"startMileage")-integer(r,"startMileage")>2),current)
+            value = row.get(key)
+            return int(value) if type(value) in (int, float, str) else None
+        except (ValueError, TypeError, OverflowError):
+            return None
+
+    valid = [
+        r
+        for r in rows[:100]
+        if isinstance(r, dict)
+        and _timestamp(r.get("timestamp"))
+        and integer(r, "overallMileage") is not None
+        and integer(r, "startMileage") is not None
+    ]
+    if not valid:
+        return {}
+    valid.sort(key=lambda r: integer(r, "overallMileage"), reverse=True)
+    current = valid[0]
+    reset = next(
+        (
+            r
+            for r in valid
+            if integer(current, "startMileage") - integer(r, "startMileage") > 2
+        ),
+        current,
+    )
+
     def normalized(row):
-        result={"timestamp":_timestamp(row["timestamp"]).isoformat(),"source":"mbb_legacy","tripID":None}
-        for key in ("averageSpeed","mileage","startMileage","traveltime","overallMileage","zeroEmissionDistance"):
-            result[key]=integer(row,key)
-        for key in ("averageElectricEngineConsumption","averageFuelConsumption"):
+        result = {
+            "timestamp": _timestamp(row["timestamp"]).isoformat(),
+            "source": "mbb_legacy",
+            "tripID": None,
+        }
+        for key in (
+            "averageSpeed",
+            "mileage",
+            "startMileage",
+            "traveltime",
+            "overallMileage",
+            "zeroEmissionDistance",
+        ):
+            result[key] = integer(row, key)
+        for key in ("averageElectricEngineConsumption", "averageFuelConsumption"):
             try:
-                value=float(row[key])/10
-                result[key]=value if math.isfinite(value) and value>=0 else None
-            except (KeyError,TypeError,ValueError): result[key]=None
+                value = float(row[key]) / 10
+                result[key] = value if math.isfinite(value) and value >= 0 else None
+            except (KeyError, TypeError, ValueError):
+                result[key] = None
         return result
-    return {"current":normalized(current),"reset":normalized(reset)}
+
+    return {"current": normalized(current), "reset": normalized(reset)}
 
 
 CARIAD_TRIP_OPERATIONS = {
@@ -261,6 +345,7 @@ def normalize_cariad_history(payload):
     # Use the same archive merge for duplicates within one response and across
     # polls. A later incomplete duplicate must not erase an earlier metric.
     from .trip_archive import merge_history
+
     return merge_history(rows)
 
 
@@ -276,13 +361,16 @@ def observe_cariad_trip(vehicle, operation, payload):
         # Retain the normalized per-trip rows received in this session. The
         # dedicated last-trip endpoint and historical array can overlap.
         from .trip_archive import merge_history
-        vehicle.trip_history = merge_history(getattr(vehicle, "trip_history", []),
-                                             normalize_cariad_history(payload))
+
+        vehicle.trip_history = merge_history(
+            getattr(vehicle, "trip_history", []), normalize_cariad_history(payload)
+        )
     previous = _timestamp(vehicle.trips.get(key, {}).get("timestamp"))
     incoming = _timestamp(trip.get("timestamp"))
     if previous is not None and (incoming is None or incoming < previous):
         return False
     from .trip_archive import merge_snapshots
+
     # Same completed trip with partial values must not erase earlier metrics.
     vehicle.trips.update(merge_snapshots({key: vehicle.trips.get(key)}, {key: trip}))
     return True

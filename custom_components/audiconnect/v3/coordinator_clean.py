@@ -1,4 +1,5 @@
 """Independent V3 polling coordinator, not a subclass of V2 coordinator."""
+
 from __future__ import annotations
 
 import logging
@@ -23,7 +24,10 @@ class V3CleanCoordinator(DataUpdateCoordinator[list[V3Vehicle]]):
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
         )
         super().__init__(
-            hass, _LOGGER, name=f"{DOMAIN}_v3", config_entry=entry,
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_v3",
+            config_entry=entry,
             update_interval=timedelta(minutes=max(5, int(minutes))),
         )
         self.engine = engine
@@ -50,5 +54,9 @@ class V3CleanCoordinator(DataUpdateCoordinator[list[V3Vehicle]]):
             self.engine.health.poll_error = "cloud_unavailable"
             raise
         except Exception as err:
-            self.engine.health.poll_error = "cloud_unavailable" if isinstance(err, (OSError, TimeoutError)) else "error"
+            self.engine.health.poll_error = (
+                "cloud_unavailable"
+                if isinstance(err, (OSError, TimeoutError))
+                else "error"
+            )
             raise UpdateFailed(str(err)) from err

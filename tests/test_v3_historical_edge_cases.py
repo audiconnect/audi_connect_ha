@@ -1,4 +1,5 @@
 """Historical access aggregation and account quota restore contracts."""
+
 from datetime import UTC, datetime
 from types import SimpleNamespace as NS
 
@@ -11,13 +12,29 @@ def test_incomplete_or_duplicated_doors_do_not_prove_closed():
     car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE")
     profile = NS(attribute_routes={}, attribute_evidence={})
     now = datetime.now(UTC)
-    data = {"access": {"accessStatus": {"value": {
-        "carCapturedTimestamp": now.isoformat(),
-        "doors": [{"name": name, "status": ["closed", "locked"]}
-                  for name in ("frontLeft", "frontRight", "rearLeft", "rearLeft", "trunk")],
-        "windows": [{"name": name, "status": ["closed"]}
-                    for name in ("frontLeft", "frontRight", "rearLeft", "sunRoof")],
-    }}}}
+    data = {
+        "access": {
+            "accessStatus": {
+                "value": {
+                    "carCapturedTimestamp": now.isoformat(),
+                    "doors": [
+                        {"name": name, "status": ["closed", "locked"]}
+                        for name in (
+                            "frontLeft",
+                            "frontRight",
+                            "rearLeft",
+                            "rearLeft",
+                            "trunk",
+                        )
+                    ],
+                    "windows": [
+                        {"name": name, "status": ["closed"]}
+                        for name in ("frontLeft", "frontRight", "rearLeft", "sunRoof")
+                    ],
+                }
+            }
+        }
+    }
     observe_read_only(car, profile, data, now)
     assert "any_door_open" not in car.readings
     assert "any_door_unlocked" not in car.readings

@@ -35,21 +35,28 @@ def approval_group(capability: str, action: str, operation: dict) -> str:
         return "unsupported"
     if operation.get("method") not in ("POST", "PUT"):
         return "unsupported"
-    if (capability == "access" or "/access/" in operation.get("path", "")
-            or "/engine/" in operation.get("path", "")
-            or "/auxiliaryheating/" in operation.get("path", "")
-            or action in (
-            "engine_start", "engine_stop", "preheater_start", "preheater_stop"
-        ) or operation.get("request_mode") in ("secure_spin", "engine_start", "auxiliary_start")):
+    if (
+        capability == "access"
+        or "/access/" in operation.get("path", "")
+        or "/engine/" in operation.get("path", "")
+        or "/auxiliaryheating/" in operation.get("path", "")
+        or action
+        in ("engine_start", "engine_stop", "preheater_start", "preheater_stop")
+        or operation.get("request_mode")
+        in ("secure_spin", "engine_start", "auxiliary_start")
+    ):
         return "spin"
     return "non_spin"
 
 
-def validate_approval(capability: str, action: str, operation: dict,
-                      approval: object, *, has_spin: bool) -> str:
+def validate_approval(
+    capability: str, action: str, operation: dict, approval: object, *, has_spin: bool
+) -> str:
     group = approval_group(capability, action, operation)
     if group not in ("non_spin", "spin") or approval != group:
-        raise DiscoveryError("Explicit approval for this control security group is required")
+        raise DiscoveryError(
+            "Explicit approval for this control security group is required"
+        )
     if group == "spin" and not has_spin:
         raise DiscoveryError("S-PIN must already be configured for protected discovery")
     return group
@@ -125,21 +132,26 @@ class GuidedActionDiscovery:
         refs = self.registry.resolve(capability, action, self.context)
         works = self.preferred.get(f"{capability}.{action}")
         previously_failed = {
-            row.operation for row in self.history
+            row.operation
+            for row in self.history
             if row.capability == capability
             and row.action == action
             and row.result == "failed"
         }
         ids = list(refs["available_operations"])
-        ids.sort(key=lambda ident: (
-            0 if ident == works else 1 if ident not in previously_failed else 2,
-            self.registry.operations[ident].get("priority", 100),
-        ))
+        ids.sort(
+            key=lambda ident: (
+                0 if ident == works else 1 if ident not in previously_failed else 2,
+                self.registry.operations[ident].get("priority", 100),
+            )
+        )
         return [
             {
                 "operation": ident,
-                "evidence": "worked_for_this_vehicle" if ident == works
-                else "previously_failed" if ident in previously_failed
+                "evidence": "worked_for_this_vehicle"
+                if ident == works
+                else "previously_failed"
+                if ident in previously_failed
                 else "untested",
                 "selection_only": "true",
             }
@@ -183,7 +195,7 @@ class GuidedActionDiscovery:
         )
         self._active = record
         self.history.append(record)
-        self.history[:] = self.history[-self.history_limit:]
+        self.history[:] = self.history[-self.history_limit :]
         return record
 
     def observe_transport(self, sequence: int, *, http_status: int | None) -> None:
@@ -195,8 +207,10 @@ class GuidedActionDiscovery:
             raise DiscoveryError("Invalid HTTP status")
         record.http_status = http_status
         record.transport = (
-            "timeout_or_unknown" if http_status is None
-            else "accepted_unconfirmed" if 200 <= http_status < 300
+            "timeout_or_unknown"
+            if http_status is None
+            else "accepted_unconfirmed"
+            if 200 <= http_status < 300
             else "http_rejected_or_error"
         )
 
@@ -217,8 +231,11 @@ class GuidedActionDiscovery:
         record = self._require_active(sequence)
         if result not in ("worked", "failed", "uncertain"):
             raise DiscoveryError("Unknown physical-action outcome")
-        if result in ("worked", "failed") and inspected_vehicle is not True and not (
-                result == "worked" and readback_verified is True):
+        if (
+            result in ("worked", "failed")
+            and inspected_vehicle is not True
+            and not (result == "worked" and readback_verified is True)
+        ):
             raise DiscoveryError("Physical outcome requires vehicle confirmation")
         if now < record.started_at:
             raise DiscoveryError("Feedback timestamp precedes request")
@@ -239,7 +256,11 @@ class GuidedActionDiscovery:
     def reject_nonexecution(self, sequence: int, *, now: float) -> ActionAttempt:
         """Close a definitive pre-execution rejection without inventing physical feedback."""
         record = self._require_active(sequence)
-        if record.http_status not in (405, 410) or record.transport != "http_rejected_or_error" or now < record.started_at:
+        if (
+            record.http_status not in (405, 410)
+            or record.transport != "http_rejected_or_error"
+            or now < record.started_at
+        ):
             raise DiscoveryError("No definitive route rejection")
         record.result = "rejected"
         record.closed_at = now

@@ -1,4 +1,5 @@
 """V3 development profile HA-storage roundtrips (no API calls)."""
+
 from __future__ import annotations
 
 import json
@@ -7,17 +8,16 @@ from pathlib import Path
 import pytest
 
 from custom_components.audiconnect.v3.development_profiles import (
-    DevelopmentProfile, DevelopmentProfileError,
+    DevelopmentProfile,
+    DevelopmentProfileError,
 )
 from custom_components.audiconnect.v3.profile_store import restore_profile
 from custom_components.audiconnect.v3.registry import (
-    CapabilityRegistry, VehicleContext,
+    CapabilityRegistry,
+    VehicleContext,
 )
 
-PATH = (
-    Path(__file__).resolve().parents[1]
-    / "tests/fixtures/v3_climate_catalog.json"
-)
+PATH = Path(__file__).resolve().parents[1] / "tests/fixtures/v3_climate_catalog.json"
 
 
 def fresh():
@@ -77,13 +77,17 @@ def test_status_result_must_be_fresh_to_remain_selected():
 
 def test_custom_route_survives_snapshot_without_becoming_active():
     catalog, context, profile = fresh()
-    ident = profile.add({
-        "id": "user.climate.start.my_probe",
-        "capability": "climate", "aspect": "start", "family": "cariad",
-        "method": "POST",
-        "path": "/vehicle/v1/vehicles/{VIN}/climatisation/start",
-        "body": {"targetTemperature": 22},
-    })
+    ident = profile.add(
+        {
+            "id": "user.climate.start.my_probe",
+            "capability": "climate",
+            "aspect": "start",
+            "family": "cariad",
+            "method": "POST",
+            "path": "/vehicle/v1/vehicles/{VIN}/climatisation/start",
+            "body": {"targetTemperature": 22},
+        }
+    )
     result = restore_profile(catalog, context, profile.snapshot())
     assert ident in result.registry.operations
     assert not result.active
@@ -94,9 +98,10 @@ def test_disabled_start_is_restored_without_disabling_climate_status():
     profile.disable("climate", "start")
     restored = restore_profile(catalog, context, profile.snapshot())
     assert "climate.start" in restored.discovery.disabled
-    assert restored.registry.resolve(
-        "climate", "status", context
-    )["operation"] == "cariad.climate.status.batch"
+    assert (
+        restored.registry.resolve("climate", "status", context)["operation"]
+        == "cariad.climate.status.batch"
+    )
 
 
 @pytest.mark.asyncio
@@ -117,14 +122,9 @@ async def test_partial_vehicle_save_never_erases_another_car_profile():
     storage = V3ProfileStorage.__new__(V3ProfileStorage)
     storage._store = FakeStore()
     await storage.async_save({"current_vehicle": profile})
-    assert set(storage._store.data["profiles"]) == {
-        "current_vehicle", "other_vehicle"
-    }
-    loaded = await storage.async_load(
-        catalog, {"current_vehicle": ctx}
-    )
+    assert set(storage._store.data["profiles"]) == {"current_vehicle", "other_vehicle"}
+    loaded = await storage.async_load(catalog, {"current_vehicle": ctx})
     assert isinstance(loaded["current_vehicle"], DevelopmentProfile)
-
 
 
 def test_saved_unverified_candidate_survives_restart_but_not_active():
@@ -154,13 +154,18 @@ def test_historical_physical_review_survives_context_change_without_authorizing_
     profile.confirm(run.sequence, worked=True, inspected_vehicle=True, now=15)
     profile.choose_working("climate", "start", route)
     revision = profile.active_revisions["climate.start"]
-    refined = VehicleContext(auth="auth0", region="DE", model_family="q8", vehicle_type="phev")
+    refined = VehicleContext(
+        auth="auth0", region="DE", model_family="q8", vehicle_type="phev"
+    )
     restored = restore_profile(catalog, refined, profile.snapshot(), cooldown_seconds=0)
     assert not restored.control_results
     assert not restored.active and not restored.active_revisions
     history = restored.historical_control_evidence
     assert len(history) == 1 and history[0]["outcome"] == "worked"
-    assert history[0]["operation"] == route and history[0]["operation_revision"] == revision
+    assert (
+        history[0]["operation"] == route
+        and history[0]["operation_revision"] == revision
+    )
     again = restore_profile(catalog, refined, restored.snapshot(), cooldown_seconds=0)
     assert again.historical_control_evidence == history
     assert not again.control_results and not again.active
@@ -168,12 +173,18 @@ def test_historical_physical_review_survives_context_change_without_authorizing_
 
 def test_identity_draft_roundtrip_does_not_activate_or_dispatch():
     from custom_components.audiconnect.v3.transport import INVENTORY_OPERATION
+
     catalog, context, profile = fresh()
     query = "query Probe { userVehicles { vin vehicle { core { modelYear } } } }"
     profile.save_identity_draft(INVENTORY_OPERATION, query, {})
     result = restore_profile(catalog, context, profile.snapshot())
-    assert result.identity_drafts[INVENTORY_OPERATION] == {"query": query, "variables": {}}
+    assert result.identity_drafts[INVENTORY_OPERATION] == {
+        "query": query,
+        "variables": {},
+    }
     assert not result.active and not result.command_journal
     with pytest.raises(ValueError):
-        result.save_identity_draft(INVENTORY_OPERATION, "mutation { userVehicles { vin } }", {})
+        result.save_identity_draft(
+            INVENTORY_OPERATION, "mutation { userVehicles { vin } }", {}
+        )
     assert result.identity_drafts[INVENTORY_OPERATION]["query"] == query

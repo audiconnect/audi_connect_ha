@@ -4,14 +4,22 @@ V2 keeps its original business entities/requests. V3 has its own entities,
 normalization, API execution and command implementation. The shared touch
 points are account bootstrap, runtime selection and HA platform forwarding.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "custom_components/audiconnect"
 PLATFORMS = (
-    "sensor", "binary_sensor", "button", "switch", "lock",
-    "climate", "number", "select", "device_tracker",
+    "sensor",
+    "binary_sensor",
+    "button",
+    "switch",
+    "lock",
+    "climate",
+    "number",
+    "select",
+    "device_tracker",
 )
 
 
@@ -20,7 +28,7 @@ def test_v2_platform_modules_have_only_one_v3_delegation_point():
         source = (ROOT / f"{platform}.py").read_text()
         assert source.count("v3_setup(") == 1, platform
         assert source.count("if isinstance(runtime_data.v3, V3Engine):") == 1, platform
-        assert 'from .v3.ha_platforms import setup as v3_setup' in source
+        assert "from .v3.ha_platforms import setup as v3_setup" in source
         assert f'v3_setup("{platform}", config_entry, async_add_entities)' in source
         # V3 entity classes and business paths must remain out of V2.
         assert "V3ReadOnlySensor(" not in source

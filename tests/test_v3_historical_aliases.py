@@ -1,7 +1,12 @@
 """Historical V2 inventory deduplicates aliases without deleting references."""
+
 from custom_components.audiconnect.v3.historical_catalog import (
-    INVENTORY, ATTRIBUTES, ALIAS_OF, CANONICAL_ATTRIBUTES
+    INVENTORY,
+    ATTRIBUTES,
+    ALIAS_OF,
+    CANONICAL_ATTRIBUTES,
 )
+
 
 def test_raw_references_and_user_facing_logical_entities_are_distinct():
     assert len(INVENTORY["attributes"]) == len(ATTRIBUTES)
@@ -11,8 +16,11 @@ def test_raw_references_and_user_facing_logical_entities_are_distinct():
     assert ALIAS_OF["mileage"] == "UTC_TIME_AND_KILOMETER_STATUS"
     assert ALIAS_OF["range"] == "TOTAL_RANGE"
     assert ALIAS_OF["oil_level"] == "OIL_LEVEL_DIPSTICKS_PERCENTAGE"
-    assert all(alias in ATTRIBUTES and canonical in ATTRIBUTES
-               for alias, canonical in ALIAS_OF.items())
+    assert all(
+        alias in ATTRIBUTES and canonical in ATTRIBUTES
+        for alias, canonical in ALIAS_OF.items()
+    )
+
 
 def test_aliases_never_turn_into_migrated_or_verified_entities_by_counting():
     assert "mileage" not in CANONICAL_ATTRIBUTES

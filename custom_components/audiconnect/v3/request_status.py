@@ -4,6 +4,7 @@ One mutating request is sent by V3Engine. This module never retries it:
 only the reviewed read-only pendingrequests endpoint is checked. A completed
 backend request is NOT inferred to mean a physically confirmed vehicle state.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -13,7 +14,9 @@ from typing import Any
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 _PENDING = frozenset({"in_progress", "pending", "queued", "accepted"})
 _SUCCESS = frozenset({"successful", "succeeded", "completed"})
-_REJECTED = frozenset({"failed", "rejected", "error", "cancelled", "canceled", "timeout"})
+_REJECTED = frozenset(
+    {"failed", "rejected", "error", "cancelled", "canceled", "timeout"}
+)
 
 
 def request_id_of(payload: Any) -> str | None:
@@ -45,8 +48,12 @@ def status_of(payload: Any, request_id: str) -> str:
 
 
 async def confirm(
-    transport: Any, vin: str, request_id: str, *,
-    max_reads: int = 3, delay_s: float = 4,
+    transport: Any,
+    vin: str,
+    request_id: str,
+    *,
+    max_reads: int = 3,
+    delay_s: float = 4,
 ) -> str:
     """Check only the known VIN request; never POST/retry a physical command."""
     if not _ID.fullmatch(request_id):
@@ -58,7 +65,8 @@ async def confirm(
             await asyncio.sleep(delay_s)
         try:
             response = await transport.request(
-                "cariad", "GET",
+                "cariad",
+                "GET",
                 f"/vehicle/v1/vehicles/{vin}/pendingrequests",
             )
         except (TimeoutError, OSError, RuntimeError, ValueError):

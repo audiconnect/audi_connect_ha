@@ -4,12 +4,18 @@ No new mutation or extra per-command request. An observed expected state
 is separate from backend execution proof; unsupported transient commands
 remain backend-only or require manual review.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
 from .attribute_runtime import _capture_in_utc
-from .vehicle import CLIMATE_ON_STATES, CLIMATE_OFF_STATES, CHARGING_ON_STATES, CHARGING_OFF_STATES
+from .vehicle import (
+    CLIMATE_ON_STATES,
+    CLIMATE_OFF_STATES,
+    CHARGING_ON_STATES,
+    CHARGING_OFF_STATES,
+)
 
 
 def configure_readback(record, params):
@@ -37,12 +43,14 @@ def configure_readback(record, params):
         if value in ("manual", "timer"):
             match = ("preferredChargeMode", [value])
     if (record.capability, record.action) == ("climate", "set_settings"):
-        fields = {"windowHeatingEnabled": "climatisationWindowHeatingEnabled",
-                  "climatizationAtUnlock": "climatisationAtUnlock",
-                  "zoneFrontLeftEnabled": "climatisationZoneFrontLeft",
-                  "zoneFrontRightEnabled": "climatisationZoneFrontRight",
-                  "zoneRearLeftEnabled": "climatisationZoneRearLeft",
-                  "zoneRearRightEnabled": "climatisationZoneRearRight"}
+        fields = {
+            "windowHeatingEnabled": "climatisationWindowHeatingEnabled",
+            "climatizationAtUnlock": "climatisationAtUnlock",
+            "zoneFrontLeftEnabled": "climatisationZoneFrontLeft",
+            "zoneFrontRightEnabled": "climatisationZoneFrontRight",
+            "zoneRearLeftEnabled": "climatisationZoneRearLeft",
+            "zoneRearRightEnabled": "climatisationZoneRearRight",
+        }
         if len(values) == 1:
             field, value = next(iter(values.items()))
             if field in fields and type(value) is bool:
@@ -64,15 +72,24 @@ def configure_discovery_readback(record, car, params):
     if isinstance(value, str):
         value = value.strip().lower()
     now = datetime.now(UTC)
-    known_states = {"climate": CLIMATE_ON_STATES + CLIMATE_OFF_STATES,
-                    "chargingState": CHARGING_ON_STATES + CHARGING_OFF_STATES}
+    known_states = {
+        "climate": CLIMATE_ON_STATES + CLIMATE_OFF_STATES,
+        "chargingState": CHARGING_ON_STATES + CHARGING_OFF_STATES,
+    }
     states = known_states.get(record.readback_attribute)
     # Restrict unattended verification to well-defined comfort/charging states
     # and boolean window heating. Security and wake require explicit review.
-    known = (value in states if states else
-             record.readback_attribute == "windowHeatingActive" and type(value) is bool)
-    if (not known or captured is None or not -300 <= (now-captured).total_seconds() <= 3600
-            or value in record.readback_values):
+    known = (
+        value in states
+        if states
+        else record.readback_attribute == "windowHeatingActive" and type(value) is bool
+    )
+    if (
+        not known
+        or captured is None
+        or not -300 <= (now - captured).total_seconds() <= 3600
+        or value in record.readback_values
+    ):
         record.readback_attribute, record.readback_values = None, None
 
 
@@ -115,13 +132,21 @@ _OPTIMISTIC = {
 
 
 def latest_readback_command(profile, attribute):
-    return next((record for record in reversed(getattr(profile, "command_journal", ()))
-                 if record.origin == "home_assistant"
-                 and record.readback_attribute == attribute
-                 and record.state != "rejected"), None)
+    return next(
+        (
+            record
+            for record in reversed(getattr(profile, "command_journal", ()))
+            if record.origin == "home_assistant"
+            and record.readback_attribute == attribute
+            and record.state != "rejected"
+        ),
+        None,
+    )
 
 
-def projected_state(profile, attribute, reported, captured, *, now=None, optimistic=True):
+def projected_state(
+    profile, attribute, reported, captured, *, now=None, optimistic=True
+):
     """Return (effective value, source). A newer valid report always wins.
 
     No optimistic write to readings, no physical verification from HTTP,
@@ -131,7 +156,11 @@ def projected_state(profile, attribute, reported, captured, *, now=None, optimis
     if record is None:
         return reported, "vehicle" if reported is not None else "unknown"
     stamp = captured if isinstance(captured, datetime) else _capture_in_utc(captured)
-    if reported is not None and stamp is not None and stamp.timestamp() > record.started_at:
+    if (
+        reported is not None
+        and stamp is not None
+        and stamp.timestamp() > record.started_at
+    ):
         return reported, "vehicle"
     if record.state not in _ACCEPTED | {"pending", "uncertain"}:
         return reported, "vehicle" if reported is not None else "unknown"
@@ -160,15 +189,23 @@ def observe_command_response(record, car, profile, family, response):
         return
     from .attribute_runtime import observe_read_only
     from .registry import read_json_path
-    paths = {"climate": ("climatisation", "climatisationStatus"),
-             "chargingState": ("charging", "chargingStatus"),
-             "windowHeatingActive": ("climatisation", "windowHeatingStatus"),
-             "doorLockStatus": ("access", "accessStatus"),
-             "targetstateOfCharge": ("charging", "chargingSettings"),
-             "preferredChargeMode": ("charging", "chargeMode")}
-    if record.readback_attribute in ("climatisationWindowHeatingEnabled", "climatisationAtUnlock",
-            "climatisationZoneFrontLeft", "climatisationZoneFrontRight",
-            "climatisationZoneRearLeft", "climatisationZoneRearRight"):
+
+    paths = {
+        "climate": ("climatisation", "climatisationStatus"),
+        "chargingState": ("charging", "chargingStatus"),
+        "windowHeatingActive": ("climatisation", "windowHeatingStatus"),
+        "doorLockStatus": ("access", "accessStatus"),
+        "targetstateOfCharge": ("charging", "chargingSettings"),
+        "preferredChargeMode": ("charging", "chargeMode"),
+    }
+    if record.readback_attribute in (
+        "climatisationWindowHeatingEnabled",
+        "climatisationAtUnlock",
+        "climatisationZoneFrontLeft",
+        "climatisationZoneFrontRight",
+        "climatisationZoneRearLeft",
+        "climatisationZoneRearRight",
+    ):
         paths[record.readback_attribute] = ("climatisation", "climatisationSettings")
     path = paths.get(record.readback_attribute)
     if not path:
@@ -178,7 +215,11 @@ def observe_command_response(record, car, profile, family, response):
     if not isinstance(envelope, dict):
         return
     value = envelope.get("value")
-    captured = _capture_in_utc(value.get("carCapturedTimestamp")) if isinstance(value, dict) else None
+    captured = (
+        _capture_in_utc(value.get("carCapturedTimestamp"))
+        if isinstance(value, dict)
+        else None
+    )
     if captured is None or captured.timestamp() <= record.started_at:
         return
     observe_read_only(car, profile, {job: {group: envelope}}, response.observed_at)
