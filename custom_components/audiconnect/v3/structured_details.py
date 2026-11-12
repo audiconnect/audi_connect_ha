@@ -158,10 +158,7 @@ def _component(row):
     if not isinstance(row, dict) or (name := _token(row.get("name"))) is None:
         return None
     status = row.get("status")
-    if isinstance(status, list):
-        status = _tokens(status)
-    else:
-        status = _token(status)
+    status = _tokens(status) if isinstance(status, list) else _token(status)
     return _compact({"name": name, "status": status})
 
 

@@ -45,7 +45,7 @@ def test_historical_controls_are_not_auto_executable_by_catalog_entry():
         "mbb.access.lock",
     ]
     assert all(
-        not op.get("delivery") == "existing_poll"
+        op.get("delivery") != "existing_poll"
         for op in model.operations.values()
         if op["method"] == "POST"
     )

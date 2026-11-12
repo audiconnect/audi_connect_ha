@@ -98,7 +98,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 continue
             vin = car.vin.lower()
 
-            def add_once(tag: str, factory, *args) -> None:
+            def add_once(tag: str, factory, *args, car=car) -> None:
                 if tag not in seen:
                     seen.add(tag)
                     entities.append(factory(coordinator, car, *args))
@@ -141,11 +141,12 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     car.readings.get("targetstateOfCharge", {}).get("value")
                 ) in (int, float):
                     add_once(f"{vin}:target_soc", V3ChargeTargetNumber)
-            elif platform == "select":
-                if engine.control_enabled(
-                    car.vin, "set_charge_mode", "charging"
-                ) and car.readings.get("availableChargeModes", {}).get("value"):
-                    add_once(f"{vin}:charge_mode", V3ChargeModeSelect)
+            elif (
+                platform == "select"
+                and engine.control_enabled(car.vin, "set_charge_mode", "charging")
+                and car.readings.get("availableChargeModes", {}).get("value")
+            ):
+                add_once(f"{vin}:charge_mode", V3ChargeModeSelect)
 
             if platform in ("sensor", "binary_sensor"):
                 if platform == "sensor":
@@ -263,13 +264,16 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 ):
                     seen.add(vin)
                     entities.append(V3ClimateQuickSwitch(coordinator, car))
-            elif platform == "lock":
-                if vin not in seen and (
+            elif (
+                platform == "lock"
+                and vin not in seen
+                and (
                     engine.control_enabled(car.vin, "lock", "access")
                     or engine.control_enabled(car.vin, "unlock", "access")
-                ):
-                    seen.add(vin)
-                    entities.append(V3LockEntity(coordinator, car))
+                )
+            ):
+                seen.add(vin)
+                entities.append(V3LockEntity(coordinator, car))
         if entities:
             for entity in entities:
                 if entity_key(entity.unique_id, entry.entry_id) is None:

@@ -1,6 +1,6 @@
-import pytest
-
 """Automated CARIAD GET discovery keeps absent fields as inconclusive, not unsupported."""
+
+import pytest
 from types import SimpleNamespace
 from custom_components.audiconnect.v3.read_discovery import (
     record_jobs,

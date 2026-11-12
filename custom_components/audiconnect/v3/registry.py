@@ -145,7 +145,7 @@ class CapabilityRegistry:
             raise RegistryError("Unrecognized CARIAD family executor")
         if self.families.get("mbb", {}).get("executor") not in (None, "mbb_legacy_v1"):
             raise RegistryError("Unrecognized legacy MBB executor")
-        for ident, op in self.operations.items():
+        for op in self.operations.values():
             if not isinstance(op, dict):
                 raise RegistryError("Malformed operation")
             family = self.families.get(op.get("family"))
@@ -185,7 +185,7 @@ class CapabilityRegistry:
                     raise RegistryError("GET requires response mapping paths")
                 if any(not isinstance(p, str) for p in op["response_paths"]):
                     raise RegistryError("Invalid response path")
-        for capability, definition in self.capabilities.items():
+        for definition in self.capabilities.values():
             if not isinstance(definition, dict) or set(definition) - {
                 "status",
                 "control",

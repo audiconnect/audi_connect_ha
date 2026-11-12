@@ -1,6 +1,6 @@
-from custom_components.audiconnect.v3.transport import _GRAPHQL_QUERY
-
 """API family isolation: host, token, operation and proof policy differ."""
+
+from custom_components.audiconnect.v3.transport import _GRAPHQL_QUERY
 import pytest
 from types import SimpleNamespace
 from custom_components.audiconnect.v3.family_executors import (

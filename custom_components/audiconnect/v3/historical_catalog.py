@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .registry import read_json_path as read_path, extract_first
+
 INVENTORY: dict[str, Any] = json.loads(r"""{
   "schema_version": 1,
   "source": "audiconnect_v2_source_inventory",
@@ -1646,9 +1648,6 @@ ALIAS_OF = {
 CANONICAL_ATTRIBUTES = {
     name: row for name, row in ATTRIBUTES.items() if name not in ALIAS_OF
 }
-
-
-from .registry import read_json_path as read_path, extract_first
 
 
 def capture_time(payload: Any, dotted_path: str) -> str | None:
