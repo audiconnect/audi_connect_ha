@@ -96,7 +96,8 @@
           "update_sleep": "Verzögerung der Cloud-Aktualisierung",
           "filter_vins": "Ausgeschlossene VINs",
           "edit_local_dealer": "Händler- und Servicedaten lokal bearbeiten",
-          "experimental_commands": "Experimentelle Fahrzeugsteuerungen aktivieren"
+          "experimental_commands": "Experimentelle Fahrzeugsteuerungen aktivieren",
+          "v3_development_workbench": "V3-Entwicklungswerkbank aktivieren"
         },
         "title": "Audi Connect-Optionen",
         "data_description": {
@@ -107,7 +108,8 @@
           "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln.",
           "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden.",
           "edit_local_dealer": "Öffnet ein Formular zur lokalen Speicherung von Händlerdaten, Serviceterminen und Garantieinformationen in Home Assistant. Dabei werden keine Anfragen an die Audi-API gesendet.",
-          "experimental_commands": "Aktiviert zusätzliche, manuell auslösbare CARIAD-Fahrzeugaktionen für das Laden, die Scheibenheizung und das Aufwecken des Fahrzeugs. Standardmässig deaktiviert. Die tatsächliche Ausführung muss überprüft werden, da eine erfolgreiche API-Antwort nicht zwangsläufig bedeutet, dass das Fahrzeug die Aktion ausgeführt hat."
+          "experimental_commands": "Aktiviert zusätzliche, manuell auslösbare CARIAD-Fahrzeugaktionen für das Laden, die Scheibenheizung und das Aufwecken des Fahrzeugs. Standardmässig deaktiviert. Die tatsächliche Ausführung muss überprüft werden, da eine erfolgreiche API-Antwort nicht zwangsläufig bedeutet, dass das Fahrzeug die Aktion ausgeführt hat.",
+          "v3_development_workbench": "Die API-Entwicklungswerkbank nur im V3-Modus für Administratoren anzeigen. Standardmäßig aus; gespeicherte API-Profile bleiben erhalten."
         }
       },
       "dealer_vehicle": {

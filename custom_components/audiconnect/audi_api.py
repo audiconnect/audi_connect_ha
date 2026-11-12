@@ -175,10 +175,10 @@ class AudiAPI:
                             message=response.reason,
                         )
 
-        except asyncio.CancelledError as err:
+        except asyncio.CancelledError:
             if DEBUG_VERBOSE:
                 _LOGGER.debug("Request cancelled (CancelledError).")
-            raise builtins.TimeoutError("Timeout error") from err
+            raise
 
         except builtins.TimeoutError:
             if DEBUG_VERBOSE:

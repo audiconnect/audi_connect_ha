@@ -72,13 +72,15 @@
         "data": {
           "scan_interval": "Scaninterval",
           "edit_local_dealer": "Dealer en onderhoudsgegevens bewerken",
-          "experimental_commands": "Experimentele voertuigbediening inschakelen"
+          "runtime_version": "Uitvoeringsversie",
+          "v3_development_workbench": "V3 Development Workbench inschakelen"
         },
         "title": "Audi Connect-opties",
         "data_description": {
           "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden.",
           "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
-          "experimental_commands": "Toont optionele, door de gebruiker te bedienen CARIAD-functies zoals laden, ruitverwarming en wagen wekken. Standaard uit. Verifieer acties fysiek; API HTTP 200 is geen bewijs van uitvoering."
+          "runtime_version": "V2 behoudt de historische stabiele functionaliteit. V3 — Experimental heeft eigen discovery, polling, API-configuratie en Home Assistant-entities. Omschakelen blijft mogelijk.",
+          "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard."
         }
       },
       "dealer_vehicle": {

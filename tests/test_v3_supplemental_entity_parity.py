@@ -1,0 +1,90 @@
+"""Independent historical diagnostics, local service and stale-state controls."""
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace as NS
+from unittest.mock import AsyncMock
+import asyncio
+
+from custom_components.audiconnect.v3.entities import (
+    V3StatusSensor, V3ApiQuotaSensor, V3LocalServiceSensor,
+    V3LockEntity, V3ClimateQuickSwitch,
+)
+from custom_components.audiconnect.v3.vehicle import V3Vehicle
+from custom_components.audiconnect.v3.attribute_runtime import _accept_observation
+from custom_components.audiconnect.v3.derived_values import observe_derived
+
+VIN = "WAUZZZ4M0MD123456"
+
+def context():
+    car = V3Vehicle(VIN, "Audi", "Audi Q8", "q8", "DE")
+    now = datetime.now(UTC)
+    engine = NS(last_cloud_poll_success=now,last_cloud_poll_attempt=now,
+        auth=NS(service=NS(_spin="test-pin")),
+        entry=NS(options={"local_dealers": {VIN.lower(): {"dealer_name":"Dealer", "next_service_date":"2027-01-01"}}}),
+        transport=NS(remaining_calls=44,remaining_calls_observed_at=now),
+        control_enabled=lambda *a:True, send_control=AsyncMock())
+    coord = NS(engine=engine,last_update_success=True,async_add_listener=lambda cb:None)
+    return car,coord,now
+
+def test_historical_freshness_age_and_quota_are_distinct():
+    car,co,now=context()
+    car.readings["stateOfCharge"]={"captured":(now-timedelta(hours=4)).isoformat()}
+    car.readings["invalid"]={"captured":(now+timedelta(hours=4)).isoformat()}
+    fresh=V3StatusSensor(co,car,"freshness")
+    age=V3StatusSensor(co,car,"age")
+    quota=V3ApiQuotaSensor(co,car,"entry")
+    assert fresh.unique_id==VIN.lower()+"_sensor_vehicle_data_freshness"
+    assert fresh.native_value=="stale"
+    assert age.native_value>=240
+    assert quota.unique_id=="entry_api_requests_remaining" and quota.native_value==44
+    assert fresh.extra_state_attributes["last_cloud_poll_succeeded"] is True
+
+def test_service_overview_and_dealer_are_vehicle_local_data():
+    car,co,now=context()
+    dealer=V3LocalServiceSensor(co,car,"local_dealer")
+    service=V3LocalServiceSensor(co,car,"service_overview")
+    assert dealer.native_value=="Dealer"
+    assert service.native_value=="appointment_recorded"
+    car.readings["MAINTENANCE_INTERVAL_TIME_TO_INSPECTION"]={
+        "value":12,"captured":now.isoformat(),"status":"verified"}
+    assert service.native_value=="due_soon"
+    assert service.extra_state_attributes["inspection_due_days"]==12
+
+def test_parked_state_unknown_does_not_hide_authorized_control():
+    car,co,now=context()
+    stamp=(now-timedelta(hours=4)).isoformat()
+    car.readings["doorLockStatus"]={"value":"locked","captured":stamp,"status":"readable_but_stale"}
+    car.set_climate("off", stamp, route="test", observed_at=now, http_status=200)
+    lock=V3LockEntity(co,car)
+    quick=V3ClimateQuickSwitch(co,car)
+    assert lock.available and lock.is_locked is None
+    assert quick.available and quick.is_on is None
+    lock.async_write_ha_state=lambda:None
+    quick.async_write_ha_state=lambda:None
+    asyncio.run(lock.async_lock())
+    asyncio.run(quick.async_turn_on())
+    assert co.engine.send_control.await_count==2
+
+def test_aliases_and_completion_keep_source_capture():
+    car,co,now=context()
+    stamp=now.isoformat()
+    for key,value in (("chargeType","ac"),("plugledColor","green"),
+        ("engineTypeFirstEngine","gasoline"),("chargingCurrentLimitA",16),
+        ("remainingChargingTime",45)):
+        car.readings[key]={"value":value,"captured":stamp,"job":"charging","path":"test"}
+    observe_derived(car,NS(),{},now,_accept_observation)
+    assert car.readings["charging_type"]["value"]=="ac"
+    assert car.readings["max_charge_current"]["value"]==16
+    assert car.readings["charging_complete_time"]["value"]==(now+timedelta(minutes=45)).isoformat()
+    assert car.readings["charging_complete_time"]["captured"]==stamp
+
+def test_freshness_does_not_hide_old_climate_behind_recent_charging():
+    car, co, now = context()
+    car.readings.update(
+        stateOfCharge={"value": 77, "job": "charging", "captured": now.isoformat()},
+        climatisationState={"value": "off", "job": "climatisation",
+                            "captured": (now-timedelta(hours=3)).isoformat()},
+    )
+    assert V3StatusSensor(co, car, "age").native_value == 0
+    sensor = V3StatusSensor(co, car, "freshness")
+    assert sensor.native_value == "stale"
+    assert sensor.extra_state_attributes["job_capture_coverage"]["climatisation"]["oldest_minutes"] >= 180

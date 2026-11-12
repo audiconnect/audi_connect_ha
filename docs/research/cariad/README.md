@@ -4,7 +4,7 @@
 
 ## Mission
 
-Restore and expand the **base Audi Connect integration**, not an RHI Mobility workaround, by understanding the entire Volkswagen Group connected-vehicle API landscape. The first practical target is genuine **Audi Q8 PHEV trip data**: trips, fuel and electric consumption, distance, time and relevant charging data. This research also identifies ways to recover vehicle metadata, images, diagnostics and reliable remote controls.
+Restore and expand the **Audi Connect integration** by understanding the entire Volkswagen Group connected-vehicle API landscape. The first practical target is genuine **Audi Q8 PHEV trip data**: trips, fuel and electric consumption, distance, time and relevant charging data. This research also identifies ways to recover vehicle metadata, images, diagnostics and reliable remote controls.
 
 An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another integration is a **clue**, not proof that the endpoint works with an Audi account, token or specific car.
 

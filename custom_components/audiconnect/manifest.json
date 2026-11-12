@@ -1,13 +1,25 @@
 {
   "domain": "audiconnect",
   "name": "Audi Connect",
-  "codeowners": ["@audiconnect"],
+  "codeowners": [
+    "@audiconnect"
+  ],
   "config_flow": true,
+  "dependencies": [
+    "http",
+    "frontend",
+    "panel_custom",
+    "websocket_api"
+  ],
   "documentation": "https://github.com/audiconnect/audi_connect_ha",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/audiconnect/audi_connect_ha/issues",
-  "loggers": ["audiconnect"],
-  "requirements": ["beautifulsoup4"],
+  "loggers": [
+    "audiconnect"
+  ],
+  "requirements": [
+    "beautifulsoup4"
+  ],
   "version": "2.5.2"
 }

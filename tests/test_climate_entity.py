@@ -212,7 +212,7 @@ def test_turn_on_uses_the_live_start_path_and_sends_only_celsius():
     assert coordinator.refreshed == 1
 
 
-def test_optional_auth0_quick_start_uses_vehicle_stored_settings():
+def test_legacy_v2_ignores_retired_global_bodyless_option():
     from types import SimpleNamespace as NS
 
     connection = RecordingConnection()
@@ -222,7 +222,7 @@ def test_optional_auth0_quick_start_uses_vehicle_stored_settings():
         options={"climate_quick_start": True}, data={"api_level": 0}
     )
     asyncio.run(entity.async_turn_on())
-    assert connection.calls == [("start_climate_control", (VIN,), {"temp_c": None})]
+    assert connection.calls == [("start_climate_control", (VIN,), {"temp_c": entity.native_target_temperature})]
 
 
 def test_explicit_temp_change_is_not_ignored_in_quick_start_mode():

@@ -91,23 +91,25 @@
         "data": {
           "scan_initial": "Cloud Update at Startup",
           "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
-          "climate_quick_start": "Quick start climate using car-stored settings",
           "update_sleep": "Cloud Refresh Delay",
           "scan_interval": "Scan Interval",
           "filter_vins": "Excluded VINs",
           "edit_local_dealer": "Edit dealer and local service details",
-          "experimental_commands": "Enable experimental vehicle controls"
+          "runtime_version": "Runtime",
+          "v3_development_workbench": "Enable V3 Development Workbench",
+          "run_vehicle_discovery": "Vehicle discovery and control acceptance"
         },
         "title": "Audi Connect Options",
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
-          "climate_quick_start": "When the climate card is switched on, send a bodyless CARIAD start request using settings already stored in the vehicle. Does not send the temperature shown in Home Assistant. Optional workaround for newer cars; leave disabled unless needed.",
           "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
           "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud.",
           "scan_interval": "Minutes between cloud polling updates.",
           "filter_vins": "Comma-separated VIN list to exclude from setup and updates.",
           "edit_local_dealer": "Open the form to save dealership, service appointment and warranty details locally, without any Audi API requests.",
-          "experimental_commands": "Show additional user-triggered CARIAD charging, window heating and wake-up actions. Off by default. Verify real operation; HTTP 200 is not proof the vehicle acted."
+          "runtime_version": "V2 retains historical stable functionality. V3 — Experimental uses independent capability discovery, polling, API configuration and Home Assistant entities. Switch back here at any time.",
+          "v3_development_workbench": "Show the administrator-only API Development Workbench in the Home Assistant sidebar. Available in V3 only. Off by default; disabling does not delete saved API profiles.",
+          "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action."
         }
       },
       "dealer_vehicle": {
@@ -129,11 +131,46 @@
           "warranty_expiry": "Warranty expiry",
           "clear": "Remove this vehicle's local details"
         }
+      },
+      "discovery_vehicle": {
+        "title": "Select vehicle for discovery",
+        "data": {
+          "vehicle": "Vehicle"
+        }
+      },
+      "discovery": {
+        "title": "Vehicle discovery",
+        "description": "{vehicle}: {read_state}. Read assessment {read}% ({assessed}/{total}); physically verified controls {verified}/{controls} catalog candidates. Read assessment is not proof of vehicle support. Refresh is read-only. No remaining eligible tests in this session. Finish or refresh read discovery.",
+        "data": {
+          "action": "Next action"
+        }
+      },
+      "discovery_consent": {
+        "title": "Discover vehicle function?",
+        "description": "{vehicle} — {action}. Verified {verified}/{controls}; skipped {skipped}. This authorizes this specific physical action on the vehicle and may unlock or lock doors, change charging or climate operation, or flash lights. Ensure the vehicle is safely parked, you are authorized and present, nobody is endangered, and you can inspect and restore its state. Only a definitively rejected command may use one reviewed equivalent route. No automatic repeat after uncertainty and no other action.",
+        "data": {
+          "accept": "Discover this function?"
+        }
+      },
+      "discovery_review": {
+        "title": "Did it work?",
+        "description": "{vehicle}: {action}. Transport result: {transport}. Check the actual vehicle, not just its cloud response. OK saves the working route. Not OK records failure. Not sure leaves the action pending; no additional physical test is sent.",
+        "data": {
+          "outcome": "Observed outcome"
+        }
+      },
+      "discovery_recover": {
+        "title": "Resolve pending command",
+        "description": "{vehicle}: previous {action} outcome is uncertain. Inspect the actual vehicle before acknowledging. This sends no new command and does not certify success.",
+        "data": {
+          "inspected": "I inspected the vehicle and acknowledge the prior command outcome"
+        }
       }
     },
     "error": {
       "invalid_dealer": "Check date, website and field lengths.",
-      "invalid_vehicle": "Select a valid vehicle."
+      "invalid_vehicle": "Select a valid vehicle.",
+      "discovery_test_failed": "The action could not be completed. Check the current vehicle state and try again only after the pending outcome has been resolved."
     },
     "abort": {
       "no_vehicle_available": "No Audi vehicle is currently loaded."

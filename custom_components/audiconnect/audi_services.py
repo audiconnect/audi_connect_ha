@@ -16,8 +16,8 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from aiohttp import ClientResponseError
 from bs4 import BeautifulSoup
 
-from .audi_api import AudiAPI
 from .api_probe import run_read_only_probes
+from .audi_api import AudiAPI
 from .capability_jobs import (
     BASE_SELECTIVE_JOBS,
     capability_snapshot,
@@ -834,7 +834,7 @@ class AudiService:
             "requestStatusResponse.status",
         )
 
-    async def set_battery_charger(self, vin: str, start: bool, timer: bool):
+    async def set_battery_charger(self, vin: str, start: bool, timer: bool) -> bool | None:
         """Start or stop charging.
 
         start=True, timer=True  -> select timer mode, so the car charges on its
@@ -850,9 +850,9 @@ class AudiService:
         """
         if start and timer:
             await self.set_preferred_charge_mode(vin, "timer")
-            return
+            return None  # Preference accepted; not a vehicle-action confirmation.
 
-        await self._send_charging_command(vin, "start" if start else "stop")
+        return await self._send_charging_command(vin, "start" if start else "stop")
 
     async def set_preferred_charge_mode(self, vin: str, mode: str) -> None:
         """Set which mode the car charges in. A preference, not an action: it does
@@ -889,7 +889,7 @@ class AudiService:
                 return None
             raise
 
-    async def _send_charging_command(self, vin: str, action: str) -> None:
+    async def _send_charging_command(self, vin: str, action: str) -> bool | None:
         """Actually start or stop a charge.
 
         Separate charging/start and charging/stop are what current firmware
@@ -918,15 +918,15 @@ class AudiService:
                 action,
                 vin,
             )
-            return
+            return None
 
-        await self._confirm_charging_command(vin, action, request_id)
+        return await self._confirm_charging_command(vin, action, request_id)
 
     async def _confirm_charging_command(
         self, vin: str, action: str, request_id: str
-    ) -> None:
-        """Confirm a charging command. Thin wrapper kept for its call sites."""
-        await self._confirm_vehicle_request(
+    ) -> bool:
+        """Return the confirmed/unconfirmed verdict for a charging command."""
+        return await self._confirm_vehicle_request(
             vin,
             action,
             request_id,
@@ -943,15 +943,14 @@ class AudiService:
         noun: str = "Charging",
         attempts: int = CHARGING_CONFIRM_ATTEMPTS,
         sleep: int = CHARGING_CONFIRM_SLEEP,
-    ) -> None:
+    ) -> bool:
         """Poll pendingrequests until the car acts on the command.
 
+        True means confirmed, False means the polling window expired.
         Deliberately shorter than check_bff_request_succeeded (10 polls, 10s
-        apart): every poll is an API call against a metered daily allowance, and
-        this runs inside a service call the user is waiting on. Running out of
-        attempts is reported as unconfirmed rather than failed, so a command that
-        did work is never announced as broken. An explicit rejection still
-        raises.
+        apart): every poll is an API call against a metered daily allowance.
+        Running out of attempts remains unconfirmed, not a hard failure.
+        An explicit rejection still raises.
         """
         headers = {
             "Accept": "application/json",
@@ -987,7 +986,7 @@ class AudiService:
                     break
                 if status == "successful":
                     _LOGGER.debug("%s %s confirmed by CARIAD", noun, action)
-                    return
+                    return True
                 raise RuntimeError(
                     f"{noun} {action} rejected by the vehicle "
                     f"(confirmation state {str(status)[:32]})"
@@ -1000,6 +999,7 @@ class AudiService:
             action,
             attempts * sleep,
         )
+        return False
 
         # checkUrl = "{homeRegion}/fs-car/bs/batterycharge/v1/{type}/{country}/vehicles/{vin}/charger/actions/{actionid}".format(
         #     homeRegion=await self._get_home_region(vin.upper()),
@@ -1334,7 +1334,7 @@ class AudiService:
         seat_rr: bool | None = None,
         climatisation_at_unlock: bool | None = None,
         climatisation_mode: str | None = None,
-    ):
+    ) -> bool | None:
         api_level = self._climate_api_level()
         country = self._country
         target_temperature = None
@@ -1427,6 +1427,7 @@ class AudiService:
                 FAILED,
                 "action.actionState",
             )
+            return True  # Legacy action status was explicitly confirmed.
 
         elif api_level == 1:
             # Some vehicles (for example the Q6 e-tron) reject a settings payload
@@ -1505,7 +1506,7 @@ class AudiService:
             # switch command.
             request_id = get_attr(res, "data.requestID")
             if request_id is not None:
-                await self._confirm_vehicle_request(
+                return await self._confirm_vehicle_request(
                     vin,
                     "start",
                     request_id,
@@ -1513,11 +1514,11 @@ class AudiService:
                     attempts=CLIMATISATION_CONFIRM_ATTEMPTS,
                     sleep=CLIMATISATION_CONFIRM_SLEEP,
                 )
-            else:
-                _LOGGER.debug(
-                    "Climatisation start accepted for %s with no request id to confirm",
-                    vin,
-                )
+            _LOGGER.debug(
+                "Climatisation start accepted for %s with no request id to confirm",
+                vin,
+            )
+            return None
 
             # checkUrl = "https://emea.bff.cariad.digital/vehicle/v1/vehicles/{vin}/pendingrequests".format(
             #     vin=vin.upper(),

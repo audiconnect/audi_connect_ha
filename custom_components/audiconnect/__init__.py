@@ -11,7 +11,8 @@ from typing import Any
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.const import Platform
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -53,6 +54,13 @@ from .const import (
 )
 from .coordinator import AudiDataUpdateCoordinator
 from .local_extensions import DEALER_FIELDS, update_local_dealer_options
+from .v3.coordinator_clean import V3CleanCoordinator
+from .v3.engine import V3Engine
+from .v3.service_commands import execute as v3_execute_action
+from .v3.registry import CapabilityRegistry
+from .v3.runtime import (
+    V3_DEFAULT, V3_ENABLED, V3_RUNTIME_OPTION, catalog_path,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,8 +145,10 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 class AudiRuntimeData:
     """Runtime data for each config entry."""
 
-    account: AudiAccount
-    coordinator: AudiDataUpdateCoordinator
+    account: AudiAccount | None
+    coordinator: AudiDataUpdateCoordinator | V3CleanCoordinator
+    v3: V3Engine | None = None
+    loaded_platforms: list[Platform] = field(default_factory=lambda: list(PLATFORMS))
     options_snapshot: dict[str, Any] = field(default_factory=dict)
     data_snapshot: dict[str, Any] = field(default_factory=dict)
 
@@ -160,7 +170,7 @@ def _get_account_for_vin(hass: HomeAssistant, vin: str) -> AudiAccount | None:
     vin_lower = vin.lower()
     for entry in hass.config_entries.async_entries(DOMAIN):
         runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
-        if runtime_data is None:
+        if runtime_data is None or runtime_data.account is None:
             continue
         for vehicle_data in runtime_data.account.config_vehicles:
             if vehicle_data.vehicle and vehicle_data.vehicle.vin.lower() == vin_lower:
@@ -170,7 +180,7 @@ def _get_account_for_vin(hass: HomeAssistant, vin: str) -> AudiAccount | None:
 
 def _resolve_service_call(
     hass: HomeAssistant, service: ServiceCall
-) -> tuple[str, AudiAccount] | None:
+) -> tuple[str, AudiAccount | V3Engine] | None:
     """Resolve device_id from a service call to (vin, account).
 
     Returns None and logs an error if resolution fails.
@@ -180,6 +190,15 @@ def _resolve_service_call(
     if vin is None:
         _LOGGER.error("No VIN found for device %s", device_id)
         return None
+    # When V3 is active its AudiAccount is deliberately not polled; its
+    # config_vehicles list stays empty. Use the independent V3 VIN inventory
+    # instead of resolving to a V2 business-command adapter.
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
+        engine = getattr(runtime_data, "v3", None)
+        if (isinstance(engine, V3Engine) and
+                vin.lower() in engine.vehicles):
+            return vin, engine
     account = _get_account_for_vin(hass, vin)
     if account is None:
         _LOGGER.error("No account found for VIN associated with device %s", device_id)
@@ -240,14 +259,22 @@ def _async_register_services(hass: HomeAssistant) -> None:
         if result is None:
             return
         vin, account = result
-        await account.refresh_vehicle_data(vin)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "refresh_vehicle_data")
+        else:
+            await account.refresh_vehicle_data(vin)
 
     async def _handle_probe_api_paths(service: ServiceCall) -> None:
-        """Explicit user action. A diagnostics download never triggers probes."""
+        """Retain the upstream V2 probe service without invoking V2 from V3."""
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
+        if isinstance(account, V3Engine):
+            raise HomeAssistantError(
+                "V3 uses its own read discovery. Use the Engineering Workbench "
+                "for targeted scans; this legacy probe service is available in V2."
+            )
         await account.connection.probe_read_only_api(
             vin, extended=service.data.get("extended", False)
         )
@@ -261,13 +288,14 @@ def _async_register_services(hass: HomeAssistant) -> None:
         fields = {
             key: service.data[key] for key in DEALER_FIELDS if key in service.data
         }
-        current = dict(account.config_entry.options)
+        entry = account.entry if isinstance(account, V3Engine) else account.config_entry
+        current = dict(entry.options)
         options = update_local_dealer_options(
             current, vin, fields, clear=service.data.get("clear", False)
         )
         if options != current:
             hass.config_entries.async_update_entry(
-                account.config_entry, options=options
+                entry, options=options
             )
 
     async def _handle_execute_vehicle_action(service: ServiceCall) -> None:
@@ -275,56 +303,84 @@ def _async_register_services(hass: HomeAssistant) -> None:
         if result is None:
             return
         vin, account = result
-        await account.execute_vehicle_action(vin, service)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(
+                account, vin, str(service.data.get("action", "")), dict(service.data)
+            )
+        else:
+            await account.execute_vehicle_action(vin, service)
 
     async def _handle_start_climate_control(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.start_climate_control(vin, service)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(
+                account, vin, "start_climatisation", dict(service.data)
+            )
+        else:
+            await account.start_climate_control(vin, service)
 
     async def _handle_start_auxiliary_heating(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.start_auxiliary_heating(vin, service)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "start_auxiliary_heating", dict(service.data))
+        else:
+            await account.start_auxiliary_heating(vin, service)
 
     async def _handle_set_location_charge_target(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.set_location_charge_target(vin, service)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "set_location_charge_target", dict(service.data))
+        else:
+            await account.set_location_charge_target(vin, service)
 
     async def _handle_set_charge_mode(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.set_charge_mode(vin, service)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "set_charge_mode", dict(service.data))
+        else:
+            await account.set_charge_mode(vin, service)
 
     async def _handle_set_target_soc(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.set_target_soc(vin, service)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "set_target_soc", dict(service.data))
+        else:
+            await account.set_target_soc(vin, service)
 
     async def _handle_start_engine(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.start_engine(vin)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "start_engine")
+        else:
+            await account.start_engine(vin)
 
     async def _handle_stop_engine(service: ServiceCall) -> None:
         result = _resolve_service_call(hass, service)
         if result is None:
             return
         vin, account = result
-        await account.stop_engine(vin)
+        if isinstance(account, V3Engine):
+            await v3_execute_action(account, vin, "stop_engine")
+        else:
+            await account.stop_engine(vin)
 
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CLOUD_DATA):
         hass.services.async_register(
@@ -337,6 +393,10 @@ def _async_register_services(hass: HomeAssistant) -> None:
             _handle_refresh_vehicle_data,
             schema=SERVICE_REFRESH_VEHICLE_DATA_SCHEMA,
         )
+    # Remove obsolete engineering actions left by older development builds.
+    for obsolete in ("probe_vehicle_health", "probe_trip_data", "refresh_trip_data"):
+        if hass.services.has_service(DOMAIN, obsolete):
+            hass.services.async_remove(DOMAIN, obsolete)
     if not hass.services.has_service(DOMAIN, SERVICE_PROBE_API_PATHS):
         hass.services.async_register(
             DOMAIN,
@@ -420,11 +480,21 @@ def _async_cleanup_orphaned_devices(
     runtime_data: AudiRuntimeData | None = getattr(config_entry, "runtime_data", None)
     if runtime_data is None:
         return
+    if runtime_data.v3 is not None:
+        # V3 must not destructively prune HA device registry entries as a side
+        # effect of a mode switch or an incomplete account inventory. Device
+        # removal needs a separate authoritative-inventory workflow.
+        return
 
     active_vins: set[str] = set()
     for vehicle_data in runtime_data.account.config_vehicles:
         if vehicle_data.vehicle and vehicle_data.vehicle.vin:
             active_vins.add(vehicle_data.vehicle.vin.lower())
+
+    if not active_vins:
+        # A skipped/failed startup scan is not evidence that every Audi was
+        # removed. Never delete registered devices from an empty snapshot.
+        return
 
     device_registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(device_registry, config_entry.entry_id)
@@ -460,40 +530,104 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             else "Audi Connect needs your myAudi username and password to sign in"
         )
 
-    account = AudiAccount(hass, config_entry)
-    coordinator = AudiDataUpdateCoordinator.from_entry(hass, account, config_entry)
-
-    async def _request_refresh(*_: Any) -> None:
-        await coordinator.async_request_refresh()
-
-    account.set_refresh_callback(_request_refresh)
-    config_entry.runtime_data = AudiRuntimeData(
-        account=account,
-        coordinator=coordinator,
-        options_snapshot=dict(config_entry.options),
-        data_snapshot=_reloadable_data(config_entry),
+    selected_v3 = (
+        config_entry.options.get(V3_RUNTIME_OPTION, V3_DEFAULT) == V3_ENABLED
     )
+    if selected_v3:
+        # One Audi account, one refresh-token owner. V3 supplies its own
+        # independent vehicle polling and command engine; creating AudiAccount
+        # here does NOT activate its V2 coordinator or cloud business polls.
+        from .v3.auth import V3Auth
+
+        account = AudiAccount(hass, config_entry)
+        registry = await hass.async_add_executor_job(
+            CapabilityRegistry.from_json_file, catalog_path()
+        )
+        engine = V3Engine(
+            hass, config_entry, registry,
+            auth=V3Auth(hass, config_entry, shared_account=account),
+        )
+        coordinator = V3CleanCoordinator(hass, engine, config_entry)
+        config_entry.runtime_data = AudiRuntimeData(
+            account=account, coordinator=coordinator, v3=engine,
+            loaded_platforms=list(PLATFORMS),  # Same 9 HA platforms; V3 owns implementation.
+            options_snapshot=dict(config_entry.options),
+            data_snapshot=_reloadable_data(config_entry),
+        )
+    else:
+        account = AudiAccount(hass, config_entry)
+        coordinator = AudiDataUpdateCoordinator.from_entry(
+            hass, account, config_entry
+        )
+
+        async def _request_refresh(*_: Any) -> None:
+            await coordinator.async_request_refresh()
+
+        account.set_refresh_callback(_request_refresh)
+        config_entry.runtime_data = AudiRuntimeData(
+            account=account, coordinator=coordinator,
+            options_snapshot=dict(config_entry.options),
+            data_snapshot=_reloadable_data(config_entry),
+        )
 
     config_entry.async_on_unload(
         config_entry.add_update_listener(_async_update_listener)
     )
-
-    if config_entry.options.get(CONF_SCAN_INITIAL, True):
+    # V3 must enumerate its vehicles before creating the limited HA entities.
+    # V2 retains the user's historical "scan on setup" preference.
+    if selected_v3 or config_entry.options.get(CONF_SCAN_INITIAL, True):
         await coordinator.async_config_entry_first_refresh()
 
     _async_cleanup_orphaned_devices(hass, config_entry)
+    # Register the same HA service IDs in both runtimes. Service handlers
+    # resolve VIN ownership to the active adapter, never a parallel V2 poller.
     _async_register_services(hass)
-    await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+    if selected_v3:
+        from .v3.registry_lifecycle import async_apply_v3_entity_visibility
+        from .v3.dashboard import async_setup_dashboard
+
+        await async_apply_v3_entity_visibility(hass, config_entry, True)
+        await hass.config_entries.async_forward_entry_setups(
+            config_entry, config_entry.runtime_data.loaded_platforms
+        )
+        if config_entry.options.get("v3_development_workbench", False):
+            await async_setup_dashboard(hass)
+    else:
+        from .v3.registry_lifecycle import async_apply_v3_entity_visibility
+
+        await async_apply_v3_entity_visibility(hass, config_entry, False)
+        await hass.config_entries.async_forward_entry_setups(
+            config_entry, PLATFORMS
+        )
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload Audi Connect entry."""
+    runtime = getattr(config_entry, "runtime_data", None)
+    platforms = runtime.loaded_platforms if runtime is not None else PLATFORMS
     unload_ok = await hass.config_entries.async_unload_platforms(
-        config_entry, PLATFORMS
+        config_entry, platforms
     )
     if not unload_ok:
         return False
+
+    if isinstance(getattr(runtime, "v3", None), V3Engine):
+        from .v3.dashboard import async_remove_dashboard
+        # On V3→V2 switch, or opting out, hide the sidebar panel. Do not
+        # remove it if another live V3 entry explicitly opted in.
+        others = any(
+            entry.entry_id != config_entry.entry_id
+            and entry.options.get("runtime_version", "v2") == "v3_climate"
+            and entry.options.get("v3_development_workbench", False)
+            and isinstance(
+                getattr(getattr(entry, "runtime_data", None), "v3", None),
+                V3Engine,
+            )
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        )
+        if not others:
+            async_remove_dashboard(hass)
 
     if len(hass.config_entries.async_entries(DOMAIN)) <= 1:
         for service in (
@@ -514,6 +648,13 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
                 hass.services.async_remove(DOMAIN, service)
 
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Remove the private trip archive on explicit integration removal only."""
+    from homeassistant.helpers.storage import Store
+
+    await Store(hass, 1, f"audiconnect_v3_{config_entry.entry_id}_trips", private=True).async_remove()
 
 
 async def async_remove_config_entry_device(

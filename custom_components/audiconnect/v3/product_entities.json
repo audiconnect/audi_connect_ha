@@ -1,0 +1,1512 @@
+{
+  "schema_version": 1,
+  "source": "V2_V3_PARITY_BASELINE plus explicit product extensions; b10 reversible compatibility visibility, vehicle-first categories",
+  "entities": {
+    "sensor.last_update_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "last_update_time"
+      ],
+      "metadata_contract": "attribute_contracts.json:last_update_time",
+      "freshness": "last_known"
+    },
+    "sensor.shortterm_current": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "shortterm_current"
+      ],
+      "metadata_contract": "attribute_contracts.json:shortterm_current",
+      "freshness": "last_known"
+    },
+    "sensor.shortterm_reset": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "shortterm_reset"
+      ],
+      "metadata_contract": "attribute_contracts.json:shortterm_reset",
+      "freshness": "last_known"
+    },
+    "sensor.longterm_current": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "longterm_current"
+      ],
+      "metadata_contract": "attribute_contracts.json:longterm_current",
+      "freshness": "last_known"
+    },
+    "sensor.longterm_reset": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "longterm_reset"
+      ],
+      "metadata_contract": "attribute_contracts.json:longterm_reset",
+      "freshness": "last_known"
+    },
+    "sensor.model": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "model"
+      ],
+      "metadata_contract": "attribute_contracts.json:model",
+      "freshness": "last_known"
+    },
+    "sensor.mileage": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "UTC_TIME_AND_KILOMETER_STATUS",
+        "mileage"
+      ],
+      "metadata_contract": "attribute_contracts.json:mileage",
+      "freshness": "last_known"
+    },
+    "sensor.service_adblue_distance": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "ADBLUE_RANGE",
+        "service_adblue_distance"
+      ],
+      "metadata_contract": "attribute_contracts.json:service_adblue_distance",
+      "freshness": "last_known"
+    },
+    "sensor.range": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "TOTAL_RANGE",
+        "range"
+      ],
+      "metadata_contract": "attribute_contracts.json:range",
+      "freshness": "last_known"
+    },
+    "sensor.hybrid_range": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "hybridRange"
+      ],
+      "metadata_contract": "attribute_contracts.json:hybrid_range",
+      "freshness": "last_known"
+    },
+    "sensor.service_inspection_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+        "service_inspection_time"
+      ],
+      "metadata_contract": "attribute_contracts.json:service_inspection_time",
+      "freshness": "last_known"
+    },
+    "sensor.service_inspection_distance": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+        "service_inspection_distance"
+      ],
+      "metadata_contract": "attribute_contracts.json:service_inspection_distance",
+      "freshness": "last_known"
+    },
+    "sensor.oil_change_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+        "oil_change_time"
+      ],
+      "metadata_contract": "attribute_contracts.json:oil_change_time",
+      "freshness": "last_known"
+    },
+    "sensor.oil_change_distance": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
+        "oil_change_distance"
+      ],
+      "metadata_contract": "attribute_contracts.json:oil_change_distance",
+      "freshness": "last_known"
+    },
+    "sensor.oil_level": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
+        "oil_level"
+      ],
+      "metadata_contract": "attribute_contracts.json:oil_level",
+      "freshness": "last_known"
+    },
+    "sensor.charging_state": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargingState"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_state",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.charging_mode": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargeMode"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_mode",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.charging_type": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "charging_type"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_type",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.energy_flow": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "energy_flow"
+      ],
+      "metadata_contract": "attribute_contracts.json:energy_flow",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.max_charge_current": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "max_charge_current"
+      ],
+      "metadata_contract": "attribute_contracts.json:max_charge_current",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.charging_current_limit_a": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargingCurrentLimitA"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_current_limit_a",
+      "freshness": "last_known"
+    },
+    "sensor.charging_current_limit_mode": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargingCurrentLimitMode"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_current_limit_mode",
+      "freshness": "last_known"
+    },
+    "sensor.charging_plug_auto_unlock": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargingPlugAutoUnlock"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_plug_auto_unlock",
+      "freshness": "last_known"
+    },
+    "sensor.vehicle_reported_online": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "vehicleReportedOnline"
+      ],
+      "metadata_contract": "attribute_contracts.json:vehicle_reported_online",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.vehicle_reported_active": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "vehicleReportedActive"
+      ],
+      "metadata_contract": "attribute_contracts.json:vehicle_reported_active",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.primary_engine_type": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "primary_engine_type"
+      ],
+      "metadata_contract": "attribute_contracts.json:primary_engine_type",
+      "freshness": "last_known"
+    },
+    "sensor.secondary_engine_type": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "secondary_engine_type"
+      ],
+      "metadata_contract": "attribute_contracts.json:secondary_engine_type",
+      "freshness": "last_known"
+    },
+    "sensor.primary_engine_range": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "primaryEngineRange"
+      ],
+      "metadata_contract": "attribute_contracts.json:primary_engine_range",
+      "freshness": "last_known"
+    },
+    "sensor.secondary_engine_range": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "secondaryEngineRange"
+      ],
+      "metadata_contract": "attribute_contracts.json:secondary_engine_range",
+      "freshness": "last_known"
+    },
+    "sensor.primary_engine_range_percent": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "primaryEngineRangePercent"
+      ],
+      "metadata_contract": "attribute_contracts.json:primary_engine_range_percent",
+      "freshness": "last_known"
+    },
+    "sensor.car_type": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "carType"
+      ],
+      "metadata_contract": "attribute_contracts.json:car_type",
+      "freshness": "last_known"
+    },
+    "sensor.secondary_engine_range_percent": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "secondaryEngineRangePercent"
+      ],
+      "metadata_contract": "attribute_contracts.json:secondary_engine_range_percent",
+      "freshness": "last_known"
+    },
+    "sensor.charging_power": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargingPower"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_power",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.actual_charge_rate": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "actualChargeRate"
+      ],
+      "metadata_contract": "attribute_contracts.json:actual_charge_rate",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.tank_level": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "TANK_LEVEL_IN_PERCENTAGE",
+        "tank_level"
+      ],
+      "metadata_contract": "attribute_contracts.json:tank_level",
+      "freshness": "last_known"
+    },
+    "sensor.state_of_charge": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "stateOfCharge"
+      ],
+      "metadata_contract": "attribute_contracts.json:state_of_charge",
+      "freshness": "last_known"
+    },
+    "sensor.remaining_charging_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "remainingChargingTime"
+      ],
+      "metadata_contract": "attribute_contracts.json:remaining_charging_time",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.charging_complete_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "charging_complete_time"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_complete_time",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.target_state_of_charge": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "targetstateOfCharge"
+      ],
+      "metadata_contract": "attribute_contracts.json:target_state_of_charge",
+      "freshness": "last_known"
+    },
+    "sensor.external_power": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "externalPower"
+      ],
+      "metadata_contract": "attribute_contracts.json:external_power",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.plug_led_color": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "plug_led_color"
+      ],
+      "metadata_contract": "attribute_contracts.json:plug_led_color",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.doors_trunk_status": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "doors_trunk_status"
+      ],
+      "metadata_contract": "attribute_contracts.json:doors_trunk_status",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.climatisation_state": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "climatisationState"
+      ],
+      "metadata_contract": "attribute_contracts.json:climatisation_state",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.outdoor_temperature": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "outdoor_temperature"
+      ],
+      "metadata_contract": "attribute_contracts.json:outdoor_temperature",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.park_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "park_time"
+      ],
+      "metadata_contract": "attribute_contracts.json:park_time",
+      "freshness": "last_known"
+    },
+    "sensor.position_last_updated": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "position_last_updated"
+      ],
+      "metadata_contract": "attribute_contracts.json:position_last_updated",
+      "freshness": "last_known"
+    },
+    "sensor.remaining_climatisation_time": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "remainingClimatisationTime"
+      ],
+      "metadata_contract": "attribute_contracts.json:remaining_climatisation_time",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.preheater_duration": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "preheater_duration"
+      ],
+      "metadata_contract": "attribute_contracts.json:preheater_duration",
+      "freshness": "last_known"
+    },
+    "sensor.preheater_remaining": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "preheater_remaining"
+      ],
+      "metadata_contract": "attribute_contracts.json:preheater_remaining",
+      "freshness": "fresh_or_unknown"
+    },
+    "sensor.active_charging_profile_target_soc": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "active_charging_profile_target_soc"
+      ],
+      "metadata_contract": "attribute_contracts.json:active_charging_profile_target_soc",
+      "freshness": "last_known"
+    },
+    "sensor.active_charging_profile_name": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "active_charging_profile_name"
+      ],
+      "metadata_contract": "attribute_contracts.json:active_charging_profile_name",
+      "freshness": "last_known"
+    },
+    "sensor.active_charging_profile_min_soc": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "active_charging_profile_min_soc"
+      ],
+      "metadata_contract": "attribute_contracts.json:active_charging_profile_min_soc",
+      "freshness": "last_known"
+    },
+    "sensor.preferred_charging_time_start": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "preferred_charging_time_start"
+      ],
+      "metadata_contract": "attribute_contracts.json:preferred_charging_time_start",
+      "freshness": "last_known"
+    },
+    "sensor.preferred_charging_time_end": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "preferred_charging_time_end"
+      ],
+      "metadata_contract": "attribute_contracts.json:preferred_charging_time_end",
+      "freshness": "last_known"
+    },
+    "sensor.climatisation_timer_enabled_count": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "climatisation_timer_enabled_count"
+      ],
+      "metadata_contract": "attribute_contracts.json:climatisation_timer_enabled_count",
+      "freshness": "last_known"
+    },
+    "sensor.next_climatisation_timer_local": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "next_climatisation_timer_local"
+      ],
+      "metadata_contract": "attribute_contracts.json:next_climatisation_timer_local",
+      "freshness": "last_known"
+    },
+    "sensor.charging_timer_enabled_count": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "charging_timer_enabled_count"
+      ],
+      "metadata_contract": "attribute_contracts.json:charging_timer_enabled_count",
+      "freshness": "last_known"
+    },
+    "sensor.vehicle_data_freshness": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "diagnostic",
+      "name": "Vehicle data freshness"
+    },
+    "sensor.vehicle_data_age": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "diagnostic",
+      "name": "Vehicle data age"
+    },
+    "sensor.cloud_last_successful_poll": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "diagnostic",
+      "name": "Cloud last successful poll"
+    },
+    "sensor.local_dealer": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Dealer"
+    },
+    "sensor.service_overview": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Service overview"
+    },
+    "sensor.api_requests_remaining": {
+      "origin": "v2",
+      "scope": "account",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "diagnostic",
+      "name": "API requests remaining"
+    },
+    "binary_sensor.plug_state": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "plugState"
+      ],
+      "metadata_contract": "binary_contracts.json:plug_state",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.plug_lock_state": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "plugLockState"
+      ],
+      "metadata_contract": "binary_contracts.json:plug_lock_state",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.glass_surface_heating": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "glass_surface_heating"
+      ],
+      "metadata_contract": "binary_contracts.json:glass_surface_heating",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.sun_roof": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "sun_roof"
+      ],
+      "metadata_contract": "binary_contracts.json:sun_roof",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.roof_cover": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "roof_cover"
+      ],
+      "metadata_contract": "binary_contracts.json:roof_cover",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.parking_light": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "parking_light"
+      ],
+      "metadata_contract": "binary_contracts.json:parking_light",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.any_window_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "any_window_open"
+      ],
+      "metadata_contract": "binary_contracts.json:any_window_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.any_door_unlocked": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "any_door_unlocked"
+      ],
+      "metadata_contract": "binary_contracts.json:any_door_unlocked",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.any_door_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "any_door_open"
+      ],
+      "metadata_contract": "binary_contracts.json:any_door_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.trunk_unlocked": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "trunk_unlocked"
+      ],
+      "metadata_contract": "binary_contracts.json:trunk_unlocked",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.trunk_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "trunk_open"
+      ],
+      "metadata_contract": "binary_contracts.json:trunk_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.hood_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "hood_open"
+      ],
+      "metadata_contract": "binary_contracts.json:hood_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.left_front_door_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "left_front_door_open"
+      ],
+      "metadata_contract": "binary_contracts.json:left_front_door_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.right_front_door_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "right_front_door_open"
+      ],
+      "metadata_contract": "binary_contracts.json:right_front_door_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.left_rear_door_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "left_rear_door_open"
+      ],
+      "metadata_contract": "binary_contracts.json:left_rear_door_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.right_rear_door_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "right_rear_door_open"
+      ],
+      "metadata_contract": "binary_contracts.json:right_rear_door_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.left_front_window_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "left_front_window_open"
+      ],
+      "metadata_contract": "binary_contracts.json:left_front_window_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.right_front_window_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "right_front_window_open"
+      ],
+      "metadata_contract": "binary_contracts.json:right_front_window_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.left_rear_window_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "left_rear_window_open"
+      ],
+      "metadata_contract": "binary_contracts.json:left_rear_window_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.right_rear_window_open": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "right_rear_window_open"
+      ],
+      "metadata_contract": "binary_contracts.json:right_rear_window_open",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.braking_status": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "braking_status"
+      ],
+      "metadata_contract": "binary_contracts.json:braking_status",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.oil_level_binary": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "oil_level_binary"
+      ],
+      "metadata_contract": "binary_contracts.json:oil_level_binary",
+      "freshness": "fresh_or_unknown"
+    },
+    "binary_sensor.is_moving": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [
+        "is_moving"
+      ],
+      "metadata_contract": "binary_contracts.json:is_moving",
+      "freshness": "fresh_or_unknown"
+    },
+    "button.refresh_vehicle_data": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": null,
+      "name": "Request fresh vehicle data"
+    },
+    "button.flash_lights": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Flash lights"
+    },
+    "button.start_charging_modern": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Start charging"
+    },
+    "button.stop_charging_modern": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Stop charging"
+    },
+    "button.start_window_heating_modern": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Start window heating"
+    },
+    "button.stop_window_heating_modern": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Stop window heating"
+    },
+    "button.wake_vehicle_modern": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Wake vehicle"
+    },
+    "button.start_engine": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Start engine"
+    },
+    "button.stop_engine": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Stop engine"
+    },
+    "switch.preheater_active": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Auxiliary heating"
+    },
+    "switch.climatisation_window_heating": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Climate window heating enabled"
+    },
+    "switch.climatisation_at_unlock": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Climate at unlock"
+    },
+    "switch.climatisation_zone_front_left": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Climate front left zone"
+    },
+    "switch.climatisation_zone_front_right": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Climate front right zone"
+    },
+    "switch.climatisation_zone_rear_left": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Climate rear left zone"
+    },
+    "switch.climatisation_zone_rear_right": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Climate rear right zone"
+    },
+    "number.target_state_of_charge": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Target state of charge"
+    },
+    "number.active_charging_profile_target_soc": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Current location charge target"
+    },
+    "number.charge_profile_{profile_id}_target_soc": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Profile {profile_id} charge target"
+    },
+    "select.charge_mode": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Preferred charge mode"
+    },
+    "climate.climatisation": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Climate"
+    },
+    "lock.lock": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Central locking"
+    },
+    "device_tracker.position": {
+      "origin": "v2",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": null,
+      "name": "Position"
+    },
+    "sensor.last_trip": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Last trip"
+    },
+    "switch.climate_quick_control": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Climate power"
+    },
+    "button.v3_refresh_cloud": {
+      "origin": "v3_product_extension",
+      "scope": "account",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "diagnostic",
+      "name": "Refresh cloud data"
+    },
+    "switch.charging": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": null,
+      "name": "Charging"
+    },
+    "switch.window_heating": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": null,
+      "name": "Window heating"
+    },
+    "sensor.last_trip_distance": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip distance",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "mileage",
+        "unit": "km",
+        "device_class": "distance",
+        "precision": 1
+      }
+    },
+    "sensor.last_trip_duration": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip duration",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "traveltime",
+        "unit": "min",
+        "device_class": "duration",
+        "precision": 0
+      }
+    },
+    "sensor.last_trip_average_speed": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip average speed",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "averageSpeed",
+        "unit": "km/h",
+        "device_class": "speed",
+        "precision": 1
+      }
+    },
+    "sensor.last_trip_average_fuel_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip average fuel consumption",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "averageFuelConsumption",
+        "unit": "L/100 km",
+        "device_class": null,
+        "precision": 1
+      }
+    },
+    "sensor.last_trip_average_electric_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip average electric consumption",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "averageElectricEngineConsumption",
+        "unit": "kWh/100 km",
+        "device_class": null,
+        "precision": 1
+      }
+    },
+    "sensor.last_trip_fuel_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip fuel consumption",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "totalFuelConsumption",
+        "unit": "L",
+        "device_class": "volume",
+        "precision": 3
+      }
+    },
+    "sensor.last_trip_electric_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip electric consumption",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "totalElectricConsumption",
+        "unit": "kWh",
+        "device_class": "energy",
+        "precision": 3
+      }
+    },
+    "sensor.longterm_trip_distance": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip distance",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "mileage",
+        "unit": "km",
+        "device_class": "distance",
+        "precision": 1
+      }
+    },
+    "sensor.longterm_trip_duration": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip duration",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "traveltime",
+        "unit": "min",
+        "device_class": "duration",
+        "precision": 0
+      }
+    },
+    "sensor.longterm_trip_average_speed": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip average speed",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "averageSpeed",
+        "unit": "km/h",
+        "device_class": "speed",
+        "precision": 1
+      }
+    },
+    "sensor.longterm_trip_average_fuel_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip average fuel consumption",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "averageFuelConsumption",
+        "unit": "L/100 km",
+        "device_class": null,
+        "precision": 1
+      }
+    },
+    "sensor.longterm_trip_average_electric_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip average electric consumption",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "averageElectricEngineConsumption",
+        "unit": "kWh/100 km",
+        "device_class": null,
+        "precision": 1
+      }
+    },
+    "sensor.longterm_trip_fuel_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip fuel consumption",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "totalFuelConsumption",
+        "unit": "L",
+        "device_class": "volume",
+        "precision": 3
+      }
+    },
+    "sensor.longterm_trip_electric_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip electric consumption",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "totalElectricConsumption",
+        "unit": "kWh",
+        "device_class": "energy",
+        "precision": 3
+      }
+    },
+    "sensor.shortterm_trip_distance": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip distance",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "mileage",
+        "unit": "km",
+        "device_class": "distance",
+        "precision": 1
+      }
+    },
+    "sensor.shortterm_trip_duration": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip duration",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "traveltime",
+        "unit": "min",
+        "device_class": "duration",
+        "precision": 0
+      }
+    },
+    "sensor.shortterm_trip_average_speed": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip average speed",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "averageSpeed",
+        "unit": "km/h",
+        "device_class": "speed",
+        "precision": 1
+      }
+    },
+    "sensor.shortterm_trip_average_fuel_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip average fuel consumption",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "averageFuelConsumption",
+        "unit": "L/100 km",
+        "device_class": null,
+        "precision": 1
+      }
+    },
+    "sensor.shortterm_trip_average_electric_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip average electric consumption",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "averageElectricEngineConsumption",
+        "unit": "kWh/100 km",
+        "device_class": null,
+        "precision": 1
+      }
+    },
+    "sensor.shortterm_trip_fuel_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip fuel consumption",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "totalFuelConsumption",
+        "unit": "L",
+        "device_class": "volume",
+        "precision": 3
+      }
+    },
+    "sensor.shortterm_trip_electric_consumption": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip electric consumption",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "totalElectricConsumption",
+        "unit": "kWh",
+        "device_class": "energy",
+        "precision": 3
+      }
+    },
+    "sensor.last_trip_zero_emission_distance": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Last trip zero-emission distance",
+      "trip_metric": {
+        "source": "last_trip",
+        "field": "zeroEmissionDistance",
+        "unit": "km",
+        "device_class": "distance",
+        "precision": 1
+      }
+    },
+    "sensor.shortterm_trip_zero_emission_distance": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Short-term trip zero-emission distance",
+      "trip_metric": {
+        "source": "shortterm_current",
+        "field": "zeroEmissionDistance",
+        "unit": "km",
+        "device_class": "distance",
+        "precision": 1
+      }
+    },
+    "sensor.longterm_trip_zero_emission_distance": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Long-term trip zero-emission distance",
+      "trip_metric": {
+        "source": "longterm_current",
+        "field": "zeroEmissionDistance",
+        "unit": "km",
+        "device_class": "distance",
+        "precision": 1
+      }
+    },
+    "sensor.trip_history": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "last_known",
+      "name": "Trip history"
+    },
+    "sensor.discovery_coverage": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "diagnostic",
+      "name": "Discovery coverage"
+    },
+    "sensor.integration_status": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Integration status",
+      "category": "diagnostic"
+    },
+    "sensor.last_error": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Last error",
+      "category": "diagnostic"
+    },
+    "binary_sensor.integration_problem": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Integration problem",
+      "category": "diagnostic"
+    },
+    "sensor.door_status": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Door status"
+    },
+    "sensor.window_status": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Window status"
+    },
+    "binary_sensor.charging_ready": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [
+        "chargingState"
+      ],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Charging ready"
+    }
+  },
+  "retired_v3_sensors": [
+    "v3_climate_capability",
+    "v3_poll_status",
+    "charge_type",
+    "climatisation_at_unlock",
+    "climatisation_target_temperature_c",
+    "climatisation_target_temperature_f",
+    "climatisation_window_heating_enabled",
+    "climatisation_without_external_power",
+    "climatisation_zone_front_left",
+    "climatisation_zone_front_right",
+    "climatisation_zone_rear_left",
+    "climatisation_zone_rear_right",
+    "door_lock_status",
+    "engine_type_first_engine",
+    "engine_type_second_engine",
+    "plugled_color",
+    "vehicle_lights"
+  ],
+  "raw_only_attributes": [
+    "preferredChargeMode"
+  ],
+  "local_extensions": "validated sensor/binary_sensor v3_custom_*",
+  "default_hidden_compatibility": [
+    "switch.climate_quick_control",
+    "sensor.climatisation_state",
+    "sensor.hybrid_range"
+  ],
+  "retired_legacy_buttons": [
+    "start_climate_car_settings",
+    "stop_climate"
+  ],
+  "stateful_controls": {
+    "charging": {
+      "capability": "charging",
+      "attribute": "chargingState",
+      "on": "start",
+      "off": "stop",
+      "icon": "mdi:ev-station",
+      "compatibility_buttons": [
+        "start_charging_modern",
+        "stop_charging_modern"
+      ]
+    },
+    "window_heating": {
+      "capability": "climate",
+      "attribute": "windowHeatingActive",
+      "on": "window_heating_start",
+      "off": "window_heating_stop",
+      "icon": "mdi:car-defrost-rear",
+      "compatibility_buttons": [
+        "start_window_heating_modern",
+        "stop_window_heating_modern"
+      ]
+    }
+  }
+}

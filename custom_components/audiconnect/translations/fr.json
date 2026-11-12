@@ -71,12 +71,14 @@
       "init": {
         "data": {
           "scan_initial": "Mise à jour du cloud au démarrage",
-          "scan_interval": "Intervalle de mises à jour"
+          "scan_interval": "Intervalle de mises à jour",
+          "v3_development_workbench": "Activer l'atelier de développement V3"
         },
         "title": "Options Audi Connect",
         "data_description": {
           "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
-          "scan_interval": "Minutes entre les mises à jour du cloud."
+          "scan_interval": "Minutes entre les mises à jour du cloud.",
+          "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés."
         }
       }
     }
