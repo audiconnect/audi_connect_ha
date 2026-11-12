@@ -772,7 +772,7 @@ async def async_setup_dashboard(hass) -> None:
     if hass.data.get(_READY_KEY):
         return
     # HA websocket commands and static paths live for the HA process.
-    # Removing/readding the optional sidebar must not register duplicates.
+    # Removing and re-adding the optional sidebar must not register duplicates.
     if not hass.data.get(_HANDLERS_KEY):
         frontend_dir = Path(__file__).parent / "frontend"
         await hass.http.async_register_static_paths(

@@ -123,7 +123,7 @@
     {
       "path": "custom_components/audiconnect/services.yaml",
       "upstream_blob": "1c2629be225460d2b8ea2d2112ec9aa66957500e",
-      "development_blob": "9199bdd1d80c6dc5fa9564844a5107a0c641fc9a"
+      "development_blob": "288559fd6fd3aa65b93381bf182dadbdd1194d3c"
     },
     {
       "path": "custom_components/audiconnect/strings.json",

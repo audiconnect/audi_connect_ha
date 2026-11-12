@@ -4,8 +4,8 @@
 probe_api_paths:
   name: Probe known read-only Audi API paths
   description: >
-    V2 only. For V3 use its Engineering Workbench. On-demand, rate-limited validation of eight known CARIAD GET endpoints for
-    a single vehicle. No remote control actions. Results appear in the next
+    V2 only. For V3 use its Engineering Workbench. On-demand, rate-limited
+    validation of eight known CARIAD GET endpoints for a single vehicle. No remote control actions. Results appear in the next
     Home Assistant Download diagnostics export. Only run when investigating
     missing vehicle data. Extended mode adds four experimental GET-only checks,
     including climate timers, measurements, inspection and trip statistics.
