@@ -541,11 +541,13 @@ class V3Engine:
             at=response.observed_at if response else None,
         )
         if (
-            operation.startswith("cariad.mobility.status.")
-            and operation != "cariad.mobility.status.parkingPosition"
-        ) or operation.startswith("mbb.trip."):
-            if method == "GET":
-                record["preview"] = "[trip values withheld: private history]"
+            (
+                operation.startswith("cariad.mobility.status.")
+                and operation != "cariad.mobility.status.parkingPosition"
+            )
+            or operation.startswith("mbb.trip.")
+        ) and method == "GET":
+            record["preview"] = "[trip values withheld: private history]"
         if operation == GARAGE_OPERATION:
             record["preview"] = (
                 "[garage metadata withheld: selected vehicle structure only]"

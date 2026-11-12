@@ -54,17 +54,22 @@ def eligible_operation(car, auth, capability, aspect):
         ):
             return None
         return "cariad.remote." + aspect
-    if capability == "access" and aspect in ("lock", "unlock"):
-        if supports("access", "remoteLockUnlock") or (
-            readable("doorLockStatus") and "access" not in impaired
-        ):
-            if getattr(auth.service, "_spin", None):
-                return "cariad.access." + aspect
+    if (
+        capability == "access"
+        and aspect in ("lock", "unlock")
+        and (
+            supports("access", "remoteLockUnlock")
+            or (readable("doorLockStatus") and "access" not in impaired)
+        )
+        and getattr(auth.service, "_spin", None)
+    ):
+        return "cariad.access." + aspect
     if capability == "climate":
         if aspect.startswith("preheater_"):
-            if supports("auxiliaryHeating", "hybridCarAuxiliaryHeating"):
-                if aspect == "preheater_stop" or getattr(auth.service, "_spin", None):
-                    return "cariad.climate." + aspect
+            if supports("auxiliaryHeating", "hybridCarAuxiliaryHeating") and (
+                aspect == "preheater_stop" or getattr(auth.service, "_spin", None)
+            ):
+                return "cariad.climate." + aspect
         elif supports("climatisation") or (
             car.climate_state is not None and "climatisation" not in impaired
         ):
@@ -91,15 +96,14 @@ def eligible_operation(car, auth, capability, aspect):
                 mode in ("manual", "timer") for mode in modes
             ):
                 return None
-        elif aspect == "set_location_charge_target":
-            if not any(
-                type(row.get("id")) is int
-                and type(row.get("targetSOC_pct")) in (int, float)
-                and 0 <= row["targetSOC_pct"] <= 100
-                for row in getattr(car, "charging_profiles", ())
-                if isinstance(row, dict)
-            ):
-                return None
+        elif aspect == "set_location_charge_target" and not any(
+            type(row.get("id")) is int
+            and type(row.get("targetSOC_pct")) in (int, float)
+            and 0 <= row["targetSOC_pct"] <= 100
+            for row in getattr(car, "charging_profiles", ())
+            if isinstance(row, dict)
+        ):
+            return None
         return {
             "start": "cariad.charging.start",
             "stop": "cariad.charging.stop",

@@ -95,9 +95,7 @@ def control_decision(
                 return False
         if capability == "climate" and aspect.startswith("preheater_"):
             relevant = {"auxiliaryHeating", "hybridCarAuxiliaryHeating"}
-        if relevant and relevant & impaired:
-            return False
-        return True
+        return not (relevant and relevant & impaired)
 
     ident = profile.active.get(key)
     if (

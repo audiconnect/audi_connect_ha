@@ -264,13 +264,16 @@ class CommandRecord:
             )
         ):
             raise ValueError("Invalid stored command context")
-        if recover_pending and record.state in ("pending", "accepted_unconfirmed"):
-            if not (
+        if (
+            recover_pending
+            and record.state in ("pending", "accepted_unconfirmed")
+            and not (
                 record.is_wake
                 and record.state == "accepted_unconfirmed"
                 and record.backend_result == "accepted_unconfirmed"
-            ):
-                record.state = "uncertain"  # Never replay an interrupted mutation.
+            )
+        ):
+            record.state = "uncertain"  # Never replay an interrupted mutation.
         return record
 
 
