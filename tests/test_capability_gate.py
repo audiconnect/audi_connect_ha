@@ -64,15 +64,18 @@ def test_capabilities_reporting_an_error_are_recorded_separately():
 
 
 def test_the_job_is_actually_requested():
-    """It was commented out of JOBS2QUERY, so parsing it would have been dead
-    code. This is the call-site half."""
-    import inspect
+    """The explicit, ordered request planner always includes capabilities.
 
-    from custom_components.audiconnect import audi_services
+    Check the actual planner rather than source text that breaks on refactors.
+    The service request path itself is exercised in test_q8_capability_poll_planner.
+    """
+    from custom_components.audiconnect.capability_jobs import select_jobs
 
-    source = inspect.getsource(audi_services.AudiService.get_stored_vehicle_data)
-    assert '"userCapabilities",' in source
-    assert '# "userCapabilities"' not in source
+    assert "userCapabilities" in select_jobs()
+    assert "userCapabilities" in select_jobs(frozenset({"charging"}))
+    assert "userCapabilities" in select_jobs(
+        frozenset({"charging"}), frozenset({"charging"})
+    )
 
 
 def test_a_payload_without_the_block_yields_nothing():

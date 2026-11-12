@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.components.lock import LockEntity
@@ -18,6 +19,7 @@ from .coordinator import AudiDataUpdateCoordinator
 # vehicle.  State is derived from doors_trunk_status (matching the legacy
 # Lock instrument exactly).
 _LOCK_ATTR_KEY = "lock"
+_LOGGER = logging.getLogger(__name__)
 
 
 def _spin_configured(vehicle: Any) -> bool:
@@ -82,21 +84,65 @@ class AudiLock(AudiEntity, LockEntity):
     def available(self) -> bool:
         return super().available and self.is_locked is not None
 
-    async def async_lock(self, **kwargs: Any) -> None:
+    async def _async_set_door_lock(self, target_locked: bool) -> None:
+        """Apply identical lock/unlock outcome handling with no blind retry.
+
+        A gateway acknowledgement is not confirmation of the physical door
+        state. Audi's state reports may lag an accepted command.
+        """
+        action = "lock" if target_locked else "unlock"
+        initial_state = self.is_locked
         connection = self.coordinator.account.connection
-        if not await connection.set_vehicle_lock(self._vehicle.vin, True):
+        if not await connection.set_vehicle_lock(
+            self._vehicle.vin, target_locked, refresh=False
+        ):
+            self._attr_extra_state_attributes = {
+                "last_command": action,
+                "last_command_status": "request_failed",
+            }
             raise HomeAssistantError(
-                "Failed to lock the vehicle; see the log for details"
+                f"Audi {action} request was rejected or could not be completed; "
+                "see the integration log for details."
             )
-        await self.coordinator.async_request_refresh()
+
+        try:
+            # Exactly one vehicle refresh and no automatic duplicate command.
+            await self.coordinator.async_request_refresh()
+        except Exception:
+            # Refresh can fail after Audi has already accepted the action.
+            # Cancellation propagates (CancelledError is BaseException).
+            outcome = "accepted_unconfirmed"
+        else:
+            reported = self.is_locked
+            if (
+                getattr(self.coordinator, "last_update_success", False)
+                and reported is target_locked
+                and initial_state is not target_locked
+            ):
+                outcome = "confirmed_by_readback"
+            elif reported is target_locked and initial_state is target_locked:
+                outcome = "already_reported_in_requested_state"
+            else:
+                outcome = "accepted_unconfirmed"
+
+        self._attr_extra_state_attributes = {
+            "last_command": action,
+            "last_command_status": outcome,
+        }
+        if outcome == "accepted_unconfirmed":
+            _LOGGER.warning(
+                "Audi %s request accepted but vehicle state not yet confirmed; "
+                "verify at the vehicle or in myAudi before sending another command.",
+                action,
+            )
+        if getattr(self, "hass", None) is not None:
+            self.async_write_ha_state()
+
+    async def async_lock(self, **kwargs: Any) -> None:
+        await self._async_set_door_lock(True)
 
     async def async_unlock(self, **kwargs: Any) -> None:
-        connection = self.coordinator.account.connection
-        if not await connection.set_vehicle_lock(self._vehicle.vin, False):
-            raise HomeAssistantError(
-                "Failed to unlock the vehicle; see the log for details"
-            )
-        await self.coordinator.async_request_refresh()
+        await self._async_set_door_lock(False)
 
 
 __all__ = ["AudiLock", "async_setup_entry"]

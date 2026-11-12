@@ -90,10 +90,26 @@ def test_button_callables_are_awaitable(description):
 
 
 class _Vehicle:
-    def __init__(self, spin=None, car_type=None):
-        self._audi_service = type("Svc", (), {"_spin": spin})()
+    def __init__(
+        self,
+        spin=None,
+        car_type=None,
+        caps=None,
+        model=None,
+        impaired=(),
+        auth0=True,
+    ):
+        self._audi_service = type("Svc", (), {"_spin": spin, "_uses_auth0": auth0})()
         if car_type is not None:
             self.car_type = car_type
+        self.model = model
+        self.impaired_capabilities = frozenset(impaired)
+        self._caps = caps
+
+    def has_capability(self, name):
+        if not self._caps:
+            return None
+        return name in self._caps
 
 
 def _engine_buttons(vehicle):
@@ -110,26 +126,77 @@ def test_battery_electric_cars_get_no_engine_buttons():
     assert _engine_buttons(_Vehicle(spin="1234", car_type="electric")) == []
 
 
-def test_a_combustion_car_still_gets_them():
-    assert _engine_buttons(_Vehicle(spin="1234", car_type="gasoline")) == [
-        "start_engine",
-        "stop_engine",
-    ]
+def test_a_combustion_car_needs_explicit_remote_engine_capability():
+    assert _engine_buttons(
+        _Vehicle(spin="1234", car_type="gasoline", caps={"remoteEngineStart"})
+    ) == ["start_engine", "stop_engine"]
 
 
 @pytest.mark.parametrize("car_type", [None, "unsupported", "hybrid", ""])
-def test_an_unknown_car_type_keeps_the_buttons(car_type):
-    """Omitting a control the car does support is the worse failure, so only a
-    positive "electric" suppresses them."""
-    assert len(_engine_buttons(_Vehicle(spin="1234", car_type=car_type))) == 2
+def test_an_unknown_car_type_cannot_authorize_remote_engine(car_type):
+    """A combustion engine and configured PIN do not imply a remote start."""
+    assert _engine_buttons(_Vehicle(spin="1234", car_type=car_type)) == []
+
+
+def test_legacy_engine_buttons_survive_absent_capability_list():
+    car = _Vehicle(spin="1234", car_type="gasoline", caps=None, auth0=False)
+    assert _engine_buttons(car) == ["start_engine", "stop_engine"]
+
+
+def test_legacy_explicit_denial_still_blocks_engine():
+    car = _Vehicle(spin="1234", car_type="gasoline", caps={"charging"}, auth0=False)
+    assert _engine_buttons(car) == []
+
+
+def test_auth0_missing_engine_capability_does_not_enable_engine():
+    car = _Vehicle(spin="1234", car_type="gasoline", caps=None, auth0=True)
+    assert _engine_buttons(car) == []
+
+
+def test_q8_hybrid_does_not_offer_remote_engine_even_with_capability():
+    vehicle = _Vehicle(
+        spin="1234",
+        car_type="hybrid",
+        model="Audi Q8 TFSI e",
+        caps={"remoteEngineStart"},
+    )
+    assert _engine_buttons(vehicle) == []
+
+
+def test_q8_model_vetoes_engine_without_fuel_type():
+    assert (
+        _engine_buttons(_Vehicle(spin="1234", model="Q8", caps={"remoteEngineStart"}))
+        == []
+    )
+
+
+def test_an_impaired_capability_does_not_enable_engine():
+    assert (
+        _engine_buttons(
+            _Vehicle(
+                spin="1234",
+                car_type="gasoline",
+                caps={"remoteEngineStart"},
+                impaired={"remoteEngineStart"},
+            )
+        )
+        == []
+    )
 
 
 def test_no_spin_still_means_no_engine_buttons():
-    assert _engine_buttons(_Vehicle(spin=None, car_type="gasoline")) == []
+    assert (
+        _engine_buttons(
+            _Vehicle(spin=None, car_type="gasoline", caps={"remoteEngineStart"})
+        )
+        == []
+    )
 
 
 def test_the_gate_is_case_insensitive():
-    assert not _engine_controls_supported(_Vehicle(spin="1234", car_type="Electric"))
+    assert not _engine_controls_supported(
+        _Vehicle(spin="1234", car_type="Electric", caps={"remoteEngineStart"})
+    )
 
 
 # --- a failed command must not read as success --------------------------------------

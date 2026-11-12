@@ -164,12 +164,25 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         else:
             await self.async_turn_on()
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, *, force_temperature: bool = False) -> None:
         connection = self.coordinator.account.connection
-        # Only temp_c is sent: the service prefers temp_f when both are given,
-        # so passing a converted Fahrenheit value would quantise the 0.5 step.
+        # Some CARIAD cars accept start only with no body: use stored car
+        # settings when explicitly enabled. Never silently override user temp.
+        entry = getattr(self.coordinator, "config_entry", None)
+        options = getattr(entry, "options", {}) if entry is not None else {}
+        data = getattr(entry, "data", {}) if entry is not None else {}
+        quick_start = bool(options.get("climate_quick_start", False))
+        service = getattr(connection, "_audi_service", None)
+        modern_api = (
+            bool(getattr(service, "uses_auth0", False)) or data.get("api_level", 0) == 1
+        )
+        temperature = (
+            None
+            if quick_start and modern_api and not force_temperature
+            else self.native_target_temperature
+        )
         if not await connection.start_climate_control(
-            self._vehicle.vin, temp_c=self.native_target_temperature
+            self._vehicle.vin, temp_c=temperature
         ):
             raise HomeAssistantError(
                 "Failed to start climatisation; see the log for details"
@@ -192,7 +205,9 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
         # Re-send only if it is already running, so setting a temperature while
         # off does not start the car climatising.
         if self._is_running:
-            await self.async_turn_on()
+            # An explicit temperature change must never be silently discarded
+            # by the optional bodyless quick-start mode.
+            await self.async_turn_on(force_temperature=True)
 
 
 __all__ = ["AudiClimate", "async_setup_entry"]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -35,10 +35,16 @@ class AudiDataUpdateCoordinator(DataUpdateCoordinator[list[Any]]):
             update_interval=timedelta(minutes=scan_interval),
         )
         self.account = account
+        # A successful cloud poll is NOT a guarantee of new car telemetry.
+        self.last_cloud_poll_attempt: datetime | None = None
+        self.last_cloud_poll_success: datetime | None = None
 
     async def _async_update_data(self) -> list[Any]:
+        self.last_cloud_poll_attempt = datetime.now(UTC)
         try:
-            return await self.account.async_refresh_data()
+            result = await self.account.async_refresh_data()
+            self.last_cloud_poll_success = datetime.now(UTC)
+            return result
         except (ConfigEntryAuthFailed, ConfigEntryNotReady):
             # Let Home Assistant handle reauth / retry-setup instead of masking
             # these as a generic update failure.

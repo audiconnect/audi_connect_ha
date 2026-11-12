@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -23,12 +24,15 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AudiRuntimeData
 from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
+from .freshness import usable_vehicle_timestamp, vehicle_age_minutes, vehicle_freshness
+from .local_extensions import get_local_dealer
 from .util import parse_datetime
 
 
@@ -94,12 +98,46 @@ def _active_profile_attrs(vehicle: Any) -> dict[str, Any]:
     return {k: v for k, v in attrs.items() if v is not None}
 
 
+def _climatisation_timer_attrs(vehicle: Any) -> dict[str, Any]:
+    """Safe, bounded climate timers returned by the car (not inferred)."""
+    timers = getattr(vehicle, "climatisation_timers", None)
+    return {
+        "timers": timers[:12] if isinstance(timers, list) else [],
+        "start_timezone": "vehicle_local_not_inferred",
+        "meaning": "Configured climate timers, not proof that the car will start",
+    }
+
+
 def _charging_timer_attrs(vehicle: Any) -> dict[str, Any]:
     attrs: dict[str, Any] = {
         "timers": getattr(vehicle, "charging_timers", None),
         "next_departure": getattr(vehicle, "next_charging_timer_departure", None),
     }
     return {k: v for k, v in attrs.items() if v is not None}
+
+
+def _model_attrs(vehicle: Any) -> dict[str, Any]:
+    """Disclose when Model is sourced from a user nickname, not Audi metadata."""
+    return {
+        "model_source": getattr(vehicle, "model_source", "unavailable"),
+        "model_year": getattr(vehicle, "model_year", "") or None,
+    }
+
+
+def _park_time_attrs(vehicle: Any) -> dict[str, Any]:
+    """A GPS-position capture is an approximation, not an engine-off event."""
+    source = getattr(vehicle, "park_time_source", "unavailable")
+    return {
+        "time_source": source,
+        "estimated": source == "last_parked_position_capture_estimate",
+        "meaning": (
+            "Time Audi reported the last parked location; not verified time parked"
+            if source == "last_parked_position_capture_estimate"
+            else "Vehicle parking clock"
+            if source == "vehicle_parking_clock"
+            else "No parking timestamp reported"
+        ),
+    }
 
 
 SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
@@ -147,7 +185,7 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         attr_key="model",
         name="Model",
         icon="mdi:car-info",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        extra_attrs_fn=_model_attrs,
     ),
     AudiSensorEntityDescription(
         key="mileage",
@@ -258,6 +296,43 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         icon="mdi:current-ac",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
+    ),
+    AudiSensorEntityDescription(
+        key="charging_current_limit_a",
+        attr_key="charging_current_limit_a",
+        capability="charging",
+        name="Charging AC current limit",
+        icon="mdi:current-ac",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+    ),
+    AudiSensorEntityDescription(
+        key="charging_current_limit_mode",
+        attr_key="charging_current_limit_mode",
+        capability="charging",
+        name="Charging current mode",
+        icon="mdi:ev-station",
+    ),
+    AudiSensorEntityDescription(
+        key="charging_plug_auto_unlock",
+        attr_key="charging_plug_auto_unlock",
+        capability="charging",
+        name="Unlock charging plug after charge",
+        icon="mdi:ev-plug-type2",
+    ),
+    AudiSensorEntityDescription(
+        key="vehicle_reported_online",
+        attr_key="vehicle_reported_online",
+        capability="readiness",
+        name="Vehicle reported connectivity",
+        icon="mdi:car-connected",
+    ),
+    AudiSensorEntityDescription(
+        key="vehicle_reported_active",
+        attr_key="vehicle_reported_active",
+        capability="readiness",
+        name="Vehicle reported activity",
+        icon="mdi:car-clock",
     ),
     AudiSensorEntityDescription(
         key="primary_engine_type",
@@ -402,6 +477,7 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         name="Park Time",
         icon="mdi:car-clock",
         device_class=SensorDeviceClass.TIMESTAMP,
+        extra_attrs_fn=_park_time_attrs,
     ),
     AudiSensorEntityDescription(
         key="position_last_updated",
@@ -472,6 +548,22 @@ SENSOR_DESCRIPTIONS: tuple[AudiSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     AudiSensorEntityDescription(
+        key="climatisation_timer_enabled_count",
+        attr_key="climatisation_timer_enabled_count",
+        capability="climatisationTimers",
+        name="Climate Timers Enabled",
+        icon="mdi:calendar-clock",
+        extra_attrs_fn=_climatisation_timer_attrs,
+    ),
+    AudiSensorEntityDescription(
+        key="next_climatisation_timer_local",
+        attr_key="next_climatisation_timer_local",
+        capability="climatisationTimers",
+        name="Next Climate Timer (Car Local Time)",
+        icon="mdi:calendar-start",
+        extra_attrs_fn=_climatisation_timer_attrs,
+    ),
+    AudiSensorEntityDescription(
         key="charging_timer_enabled_count",
         attr_key="charging_timer_enabled_count",
         name="Charging Timers Enabled",
@@ -492,6 +584,23 @@ async def async_setup_entry(
 
     for config_vehicle in runtime_data.account.config_vehicles:
         vehicle = config_vehicle.vehicle
+        # Always expose freshness on the device, even if current Audi data is
+        # stale or unavailable. Existing Last Update keeps its unique ID.
+        entities.extend(
+            (
+                AudiVehicleFreshnessSensor(runtime_data.coordinator, vehicle),
+                AudiVehicleAgeSensor(runtime_data.coordinator, vehicle),
+                AudiCloudLastPollSensor(runtime_data.coordinator, vehicle),
+            )
+        )
+        # Add the local dealer sensor even before the user configures it.
+        # Hiding it until data exists made this feature effectively invisible.
+        entities.append(
+            AudiLocalDealerSensor(runtime_data.coordinator, vehicle, config_entry)
+        )
+        entities.append(
+            AudiServiceOverviewSensor(runtime_data.coordinator, vehicle, config_entry)
+        )
         for description in SENSOR_DESCRIPTIONS:
             if should_create_entity(
                 hass,
@@ -553,6 +662,220 @@ class AudiSensor(AudiEntity, SensorEntity):
         if self.entity_description.extra_attrs_fn is not None:
             return self.entity_description.extra_attrs_fn(self._vehicle)
         return None
+
+
+class _AudiClockAwareSensor(AudiEntity, SensorEntity):
+    """Refresh display age even when Audi cloud polling fails."""
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass, self._async_clock_tick, timedelta(minutes=5)
+            )
+        )
+
+    @callback
+    def _async_clock_tick(self, _now: datetime) -> None:
+        self.async_write_ha_state()
+
+
+class AudiVehicleFreshnessSensor(_AudiClockAwareSensor):
+    """Readable freshness status of the newest car telemetry timestamp."""
+
+    _attr_name = "Vehicle data freshness"
+    _attr_icon = "mdi:clock-check-outline"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["fresh", "delayed", "stale", "unknown"]
+
+    def __init__(self, coordinator: AudiDataUpdateCoordinator, vehicle: Any) -> None:
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "sensor", "vehicle_data_freshness"
+        )
+
+    @property
+    def available(self) -> bool:
+        # Stale/offline car data must remain visible instead of going unavailable.
+        return True
+
+    @property
+    def native_value(self) -> str:
+        return vehicle_freshness(getattr(self._vehicle, "last_update_time", None))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        timestamp = usable_vehicle_timestamp(
+            getattr(self._vehicle, "last_update_time", None)
+        )
+        last_success = getattr(self.coordinator, "last_cloud_poll_success", None)
+        last_attempt = getattr(self.coordinator, "last_cloud_poll_attempt", None)
+        return {
+            "vehicle_last_update": timestamp.isoformat() if timestamp else None,
+            "vehicle_age_minutes": vehicle_age_minutes(
+                getattr(self._vehicle, "last_update_time", None)
+            ),
+            "cloud_last_successful_poll": (
+                last_success.isoformat() if isinstance(last_success, datetime) else None
+            ),
+            "cloud_last_attempt": (
+                last_attempt.isoformat() if isinstance(last_attempt, datetime) else None
+            ),
+            "last_cloud_poll_succeeded": bool(
+                getattr(self.coordinator, "last_update_success", False)
+            ),
+            "freshness_basis": "newest_vehicle_timestamp_not_all_fields",
+        }
+
+
+class AudiVehicleAgeSensor(_AudiClockAwareSensor):
+    """Age of the newest vehicle data timestamp, independent of cloud login."""
+
+    _attr_name = "Vehicle data age"
+    _attr_icon = "mdi:timer-sand"
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: AudiDataUpdateCoordinator, vehicle: Any) -> None:
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = entity_unique_id(vehicle, "sensor", "vehicle_data_age")
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> int | None:
+        return vehicle_age_minutes(getattr(self._vehicle, "last_update_time", None))
+
+
+class AudiCloudLastPollSensor(AudiEntity, SensorEntity):
+    """Last actual successful cloud poll, never mistaken for vehicle telemetry."""
+
+    _attr_name = "Cloud last successful poll"
+    _attr_icon = "mdi:cloud-check-outline"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator: AudiDataUpdateCoordinator, vehicle: Any) -> None:
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "sensor", "cloud_last_successful_poll"
+        )
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> datetime | None:
+        return getattr(self.coordinator, "last_cloud_poll_success", None)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        attempt = getattr(self.coordinator, "last_cloud_poll_attempt", None)
+        return {
+            "last_attempt": attempt.isoformat()
+            if isinstance(attempt, datetime)
+            else None,
+            "last_poll_succeeded": bool(
+                getattr(self.coordinator, "last_update_success", False)
+            ),
+        }
+
+
+class AudiLocalDealerSensor(AudiEntity, SensorEntity):
+    """Visible, locally managed dealership details on the Audi device.
+
+    The source connector has inspection dates, but no verified dealer lookup.
+    Never claim that manual dealer metadata came from the Audi cloud.
+    """
+
+    _attr_name = "Dealer (local)"
+    _attr_icon = "mdi:store"
+
+    def __init__(
+        self, coordinator: AudiDataUpdateCoordinator, vehicle: Any, entry: ConfigEntry
+    ) -> None:
+        super().__init__(coordinator, vehicle)
+        self._entry = entry
+        self._attr_unique_id = entity_unique_id(vehicle, "sensor", "local_dealer")
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def _local_data(self) -> dict[str, str]:
+        return get_local_dealer(self._entry.options, self._vehicle.vin)
+
+    @property
+    def native_value(self) -> str:
+        return self._local_data.get("dealer_name", "Not configured")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self._local_data
+        return {
+            "source": "Home Assistant local configuration (not Audi)",
+            "configured": bool(data),
+            "configuration_path": "Audi Connect > Configure > Edit dealer and local service details",
+            **{key: value for key, value in data.items() if key != "dealer_name"},
+        }
+
+
+class AudiServiceOverviewSensor(AudiEntity, SensorEntity):
+    """Car-sourced maintenance combined with optional local appointment data."""
+
+    _attr_name = "Service overview"
+    _attr_icon = "mdi:car-wrench"
+
+    def __init__(
+        self, coordinator: AudiDataUpdateCoordinator, vehicle: Any, entry: ConfigEntry
+    ) -> None:
+        super().__init__(coordinator, vehicle)
+        self._entry = entry
+        self._attr_unique_id = entity_unique_id(vehicle, "sensor", "service_overview")
+
+    @property
+    def available(self) -> bool:
+        # A local appointment remains useful even if Audi cloud is down.
+        return True
+
+    @property
+    def native_value(self) -> str:
+        inspection = getattr(self._vehicle, "service_inspection_time", None)
+        oil = getattr(self._vehicle, "oil_change_time", None)
+        numbers = [
+            value
+            for value in (inspection, oil)
+            if isinstance(value, (float, int)) and not isinstance(value, bool)
+        ]
+        if any(value <= 0 for value in numbers):
+            return "overdue"
+        if any(value <= 30 for value in numbers):
+            return "due_soon"
+        if numbers:
+            return "scheduled"
+        data = get_local_dealer(self._entry.options, self._vehicle.vin)
+        return "appointment_recorded" if data.get("next_service_date") else "unknown"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = get_local_dealer(self._entry.options, self._vehicle.vin)
+        return {
+            "inspection_due_days": getattr(
+                self._vehicle, "service_inspection_time", None
+            ),
+            "inspection_due_km": getattr(
+                self._vehicle, "service_inspection_distance", None
+            ),
+            "oil_service_due_days": getattr(self._vehicle, "oil_change_time", None),
+            "oil_service_due_km": getattr(self._vehicle, "oil_change_distance", None),
+            "next_appointment_local": data.get("next_service_date"),
+            "warranty_expiry_local": data.get("warranty_expiry"),
+            "maintenance_source": "Audi vehicleHealthInspection when reported",
+            "appointment_source": "Home Assistant local configuration, not Audi",
+        }
 
 
 class AudiApiRateLimitSensor(AudiEntity, RestoreSensor):
@@ -627,4 +950,12 @@ class AudiApiRateLimitSensor(AudiEntity, RestoreSensor):
         return attrs
 
 
-__all__ = ["AudiApiRateLimitSensor", "AudiSensor", "async_setup_entry"]
+__all__ = [
+    "AudiApiRateLimitSensor",
+    "AudiCloudLastPollSensor",
+    "AudiLocalDealerSensor",
+    "AudiSensor",
+    "AudiVehicleAgeSensor",
+    "AudiVehicleFreshnessSensor",
+    "async_setup_entry",
+]
