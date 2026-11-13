@@ -710,8 +710,9 @@ class CommandEngine:
                         "pending",
                     ):
                         # A failed status GET cannot undo a successful POST/PUT.
-                        # Keep security-sensitive outcomes conservative.
-                        if capability not in ("climate", "charging"):
+                        # A known accepted access mutation is not an unknown
+                        # transport outcome. The journal retains the 2xx proof.
+                        if capability not in ("climate", "charging", "access"):
                             record.state = "uncertain"
                         else:
                             car.last_command_result = record.state

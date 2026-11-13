@@ -85,10 +85,24 @@ class CommandRecord:
         return self.state in _UNRESOLVED or self.requires_review
 
     @property
+    def known_access_acceptance(self) -> bool:
+        """A durable successful mutation is distinct from an unknown transport."""
+        return (
+            self.origin == "home_assistant"
+            and self.capability == "access"
+            and self.action in ("lock", "unlock")
+            and self.http_status is not None
+            and 200 <= self.http_status < 300
+            and self.backend_result
+            in ("accepted_unconfirmed", "unknown", "pending", "quota_limited")
+        )
+
+    @property
     def requires_review(self) -> bool:
-        """Security-sensitive acceptance without confirmation requires review."""
+        """Uncertain security mutations require explicit review."""
         return self.state == "pending" or (
             self.state in ("uncertain", "accepted_unconfirmed")
+            and not self.known_access_acceptance
             and (
                 self.capability == "access"
                 or (
@@ -127,6 +141,11 @@ class CommandRecord:
             raise RuntimeError(
                 "Previous vehicle command outcome uncertain; inspect and review it"
             )
+        if self.known_access_acceptance and self.state in (
+            "accepted_unconfirmed",
+            "uncertain",
+        ):
+            cooldown = max(cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS)
         if self.state == "uncertain":
             until = (self.completed_at or self.started_at) + max(
                 cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS
@@ -274,9 +293,12 @@ class CommandRecord:
             )
         ):
             raise ValueError("Invalid stored command context")
+        if record.state == "uncertain" and record.known_access_acceptance:
+            record.state = "accepted_unconfirmed"
         if (
             recover_pending
             and record.state in ("pending", "accepted_unconfirmed")
+            and not record.known_access_acceptance
             and not (
                 record.is_wake
                 and record.state == "accepted_unconfirmed"
@@ -346,7 +368,9 @@ def check_command_sequence(
         ),
         None,
     )
-    if previous is not None and previous.state == "uncertain":
+    if previous is not None and (
+        previous.state == "uncertain" or previous.known_access_acceptance
+    ):
         previous.check_next(
             now, cooldown=cooldown, capability=capability, action=action
         )
@@ -396,6 +420,7 @@ def restore_history(rows):
             if record.state == "pending" or (
                 record.state == "accepted_unconfirmed"
                 and latest_by_capability[record.capability] is record
+                and not record.known_access_acceptance
                 and not (
                     record.is_wake and record.backend_result == "accepted_unconfirmed"
                 )

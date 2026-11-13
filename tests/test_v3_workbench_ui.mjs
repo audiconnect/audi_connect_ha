@@ -1782,3 +1782,35 @@ test("Backend portable local definition imports into the new attribute editor", 
     shared,
   );
 });
+
+test("pending engineering review retains disabled Test buttons and identifies the blocker", () => {
+  const p = new Panel();
+  p.step = 5;
+  p.expertDiscovery = true;
+  p.pending = {
+    capability: "access",
+    action: "unlock",
+    operation: "cariad.access.unlock",
+    http_status: 200,
+    started_at: 1000,
+    sequence: 1,
+  };
+  p.capabilityStatus = {
+    end_user_progress: {
+      controls: [
+        {
+          capability: "access",
+          action: "lock",
+          status: "pending_review",
+          reason: "engineering_command_awaiting_review",
+          physical: "worked",
+        },
+      ],
+    },
+    expert_candidates: [],
+  };
+  const html = p.endUserValidation();
+  assert.match(html, /data-action="end-user-yes"[^>]*disabled[^>]*>Test/);
+  assert.match(html, /Finish the pending engineering test above/);
+  assert.match(html, /Edit API/);
+});

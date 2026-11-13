@@ -202,7 +202,7 @@ def test_access_mismatch_releases_only_accepted_command_with_new_evidence():
             }
         }
     )
-    assert row.requires_review
+    assert not row.requires_review
     assert not reconcile_access_mismatch(row, car, NOW)
     car.readings["doorLockStatus"]["captured"] = NOW.isoformat()
     assert not reconcile_readback(row, car, NOW)
@@ -221,3 +221,20 @@ def test_access_mismatch_releases_only_accepted_command_with_new_evidence():
         now=NOW,
         optimistic=False,
     ) == ("unlocked", "vehicle")
+
+
+def test_lock_transition_expires_without_fabricating_physical_state():
+    row = record("access", "unlock")
+    row.observe_http(200)
+    profile = NS(command_journal=[row])
+    assert projected_state(
+        profile, "doorLockStatus", "locked", OLD, now=NOW, optimistic=False
+    ) == (None, "command_pending")
+    assert projected_state(
+        profile,
+        "doorLockStatus",
+        "locked",
+        OLD,
+        now=NOW + timedelta(seconds=31),
+        optimistic=False,
+    ) == (None, "unknown")

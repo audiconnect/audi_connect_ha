@@ -36,6 +36,12 @@ const friendly = (value) =>
     candidate_unverified: "Alternative route needs verification",
     no_working_route: "No working control route",
     http_error: "API request failed",
+    pending_review: "Temporarily blocked · review required",
+    engineering_command_awaiting_review:
+      "Finish the pending engineering test above",
+    vehicle_command_in_progress: "Previous vehicle command is still pending",
+    previous_vehicle_command_uncertain:
+      "Check the car and acknowledge the uncertain command above",
   })[value] || String(value || "Unknown").replaceAll("_", " ");
 const domainName = (value) =>
   ({
@@ -1538,10 +1544,10 @@ class AudiConnectV3Panel extends HTMLElement {
           const failed =
             latest && ["physical_failed", "rejected"].includes(latest.state);
           const attrs = `data-capability="${escapeHTML(c.capability)}" data-control="${escapeHTML(c.action)}"`;
-          return `<div class="attribute-row"><div><b>${escapeHTML(actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(friendly(c.reason || ""))}</div></div>
+          return `<div class="attribute-row"><div><b>${escapeHTML(actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(c.reason ? friendly(c.reason) : this.pending ? "Testing paused: finish the pending engineering test above" : latest ? `Last command: ${friendly(latest.state)}${latest.http_status ? ` · HTTP ${latest.http_status}` : ""}` : "No current command restriction")}</div></div>
         ${
           this.expertDiscovery
-            ? `<div class="actions">${candidate ? `<button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(candidate.operation)}" ${this.pending || this.loading ? "disabled" : ""}>Test</button>` : ""}
+            ? `<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(candidate?.operation || "")}" ${!candidate || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !candidate ? friendly(c.reason || c.status) : "Test this action")}">Test</button>
         <button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div>`
             : ""
         }</div>`;
@@ -2000,12 +2006,12 @@ class AudiConnectV3Panel extends HTMLElement {
         ${
           car && this.pending
             ? `<section class="card" style="margin-bottom:18px">
-          <div class="warn"><b>Pending vehicle control: ${escapeHTML(this.pending.capability)} · ${escapeHTML(this.pending.action)}</b>
-            <p>Review the physical result before starting another discovery action.</p>
+          <div class="warn"><b>Pending engineering test: ${escapeHTML(actionName(this.pending.capability, this.pending.action))}</b>
+            <p>Route: ${escapeHTML(this.pending.operation)} · HTTP ${escapeHTML(this.pending.http_status ?? "not observed")} · ${escapeHTML(this.localTime(this.pending.started_at * 1000))}</p><p>Check the actual result on the car. Worked or Did not work closes this test; Not sure keeps it pending. No review sends another command. Normal controls for this capability and other engineering tests are paused until review.</p>
             <div class="actions">
-              <button data-action="confirm-worked">${this.step === 5 ? "OK" : "Verified working"}</button>
-              <button data-action="confirm-failed">${this.step === 5 ? "Not OK" : "Did not work"}</button>
-              <button data-action="confirm-uncertain">Not sure</button>
+              <button data-action="confirm-worked" ${this.loading ? "disabled" : ""}>Worked on vehicle</button>
+              <button data-action="confirm-failed" ${this.loading ? "disabled" : ""}>Did not work on vehicle</button>
+              <button data-action="confirm-uncertain" ${this.loading ? "disabled" : ""}>Not sure · keep pending</button>
             </div>
           </div>
         </section>`
@@ -2326,7 +2332,7 @@ class AudiConnectV3Panel extends HTMLElement {
               I approve this exact action on the selected car and will verify its effect.
             </label>
             <div class="actions">
-              <button data-action="control-test" class="primary" ${!this.controlChoice || this.loading || this.controlDisabled || this.pending || this.capabilityBlocked(this.controlCapability) || group === "unsupported" || (group === "spin" && !this.spinConfigured) ? "disabled" : ""}>Send one test command</button>
+              ${this.pending ? `<p class="warn">Testing paused: finish ${escapeHTML(actionName(this.pending.capability, this.pending.action))} above.</p>` : this.capabilityBlocked(this.controlCapability) ? `<p class="warn">Testing paused: inspect and acknowledge the previous uncertain command above.</p>` : ""}<button data-action="control-test" class="primary" ${!this.controlChoice || this.loading || this.controlDisabled || this.pending || this.capabilityBlocked(this.controlCapability) || group === "unsupported" || (group === "spin" && !this.spinConfigured) ? "disabled" : ""}>Send one test command</button>
               ${this.controlChoice.startsWith("user.") ? `<button data-action="share-definition" data-operation="${escapeHTML(this.controlChoice)}">Copy shareable definition</button>` : ""}
               <button data-action="control-select" ${this.loading || this.pending || selectedControl?.status !== "worked" || !selectedControl?.runtime_ready ? "disabled" : ""}>Activate verified route</button>
               ${this.controlChoice.startsWith("user.") && selectedControl?.status === "not_tested" && !selectedControl.active ? `<button data-action="discard-route" data-operation="${escapeHTML(this.controlChoice)}" ${this.loading || this.pending ? "disabled" : ""}>Delete unused draft</button>` : ""}
