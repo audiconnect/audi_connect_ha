@@ -365,9 +365,15 @@ def test_implemented_derived_fields_and_history_are_not_missing_mappings():
         "active_charging_profile_target_soc",
         "next_climatisation_timer_local",
     ):
-        assert attribute_status(car, profile, ATTRIBUTES[ident], now)[0] == "not_observed"
-    assert attribute_status(car, profile, ATTRIBUTES["energy_flow"], now)[0] == "mapping_pending"
+        assert (
+            attribute_status(car, profile, ATTRIBUTES[ident], now)[0] == "not_observed"
+        )
+    assert (
+        attribute_status(car, profile, ATTRIBUTES["energy_flow"], now)[0]
+        == "mapping_pending"
+    )
     profile.attribute_evidence["remainingChargingTime"] = {"status": "verified"}
-    assert attribute_status(
-        car, profile, ATTRIBUTES["remainingChargingTime"], now
-    )[0] == "not_observed"
+    assert (
+        attribute_status(car, profile, ATTRIBUTES["remainingChargingTime"], now)[0]
+        == "not_observed"
+    )
