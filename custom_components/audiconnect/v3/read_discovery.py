@@ -325,11 +325,21 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
         for job in V2_JOBS:
             status = profile.job_discovery.get(job, "not_scanned")
             schema = getattr(profile, "job_schema", {}).get(job, {})
+            fields = schema.get("fields", [])
+            # Structural error and command-request envelopes are not telemetry
+            # schemas. Keep their evidence visible without counting them as data.
+            parts = [field["path"].split(".") for field in fields]
             schema_status = (
                 "truncated"
                 if schema.get("truncated")
                 else "captured"
-                if schema.get("fields")
+                if any("value" in path and "error" not in path for path in parts)
+                else "error_only"
+                if any("error" in path for path in parts)
+                else "request_only"
+                if any("requests" in path for path in parts)
+                else "no_value"
+                if fields
                 else "not_captured"
             )
             attempts = profile.job_probe_attempts.get(job, 0)
@@ -339,7 +349,7 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
                 "retry_exhausted": status == "inconclusive"
                 and attempts >= MAX_TARGETED_PROBE_ATTEMPTS,
                 "schema_inventory": schema_status,
-                "schema_field_count": len(schema.get("fields", [])),
+                "schema_field_count": len(fields),
                 "assessed": status in ("observed", "unsupported")
                 or (
                     status == "not_observed"
@@ -490,7 +500,7 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
         "schema_inventory_percent": round(100 * schema_captured / len(jobs), 1)
         if jobs
         else None,
-        "schema_inventory_scope": "current_session_untruncated_capture_not_semantic_completeness",
+        "schema_inventory_scope": "current_session_untruncated_value_schema_not_semantic_completeness",
         "read_assessed": assessed,
         "read_total": total,
         "jobs": jobs,
