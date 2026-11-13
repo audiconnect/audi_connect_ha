@@ -38,14 +38,8 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
         ("max_charge_current", "chargingCurrentLimitA"),
     ):
         row = car.readings.get(source)
-        if row and row.get("value") is not None:
-            record(
-                ident,
-                row["value"],
-                row.get("captured"),
-                row.get("job"),
-                row.get("path"),
-            )
+        if row and accepts(car.readings.get(ident), row.get("captured")):
+            car.readings[ident] = dict(row)
     remaining = car.readings.get("remainingChargingTime", {})
     from .attribute_runtime import _capture_in_utc, record_invalid_observation
 
