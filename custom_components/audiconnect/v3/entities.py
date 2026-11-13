@@ -586,7 +586,7 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
     @property
     def options(self):
         return (
-            ["fresh", "delayed", "stale", "unknown"]
+            ["fresh", "partial", "delayed", "stale", "unknown"]
             if self.kind == "freshness"
             else None
         )
@@ -620,21 +620,14 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
         self.async_write_ha_state()
 
     def _vehicle_age(self):
-        from .freshness import newest_vehicle_capture, capture_age_minutes
+        from .freshness import vehicle_capture_summary
 
-        stamp = newest_vehicle_capture(self.vehicle)
-        age = capture_age_minutes(stamp.isoformat()) if stamp else None
-        return int(age) if age is not None else None
+        return vehicle_capture_summary(self.vehicle)["vehicle_age_minutes"]
 
     def _freshness(self):
-        # Same newest vehicle capture as the age sensor and upstream V2.
-        # Per-job ages remain separately visible for partial/stale data.
-        age = self._vehicle_age()
-        if age is None:
-            return "unknown"
-        if age > 120:
-            return "stale"
-        return "delayed" if age > 30 else "fresh"
+        from .freshness import vehicle_capture_summary
+
+        return vehicle_capture_summary(self.vehicle)["vehicle_freshness"]
 
     @property
     def native_unit_of_measurement(self):
@@ -674,14 +667,8 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
 
             now = datetime.now(UTC)
             coverage = capture_coverage(self.vehicle, now)
-            oldest = [
-                job["oldest_minutes"]
-                for job in coverage.values()
-                if job["oldest_minutes"] is not None
-            ]
             result = {
                 **vehicle_capture_summary(self.vehicle, now),
-                "oldest_observed_age_minutes": max(oldest, default=None),
                 "cloud_last_successful_poll": (
                     engine.last_cloud_poll_success.isoformat()
                     if engine.last_cloud_poll_success
