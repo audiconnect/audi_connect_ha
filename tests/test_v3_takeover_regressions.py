@@ -606,3 +606,58 @@ def test_b13_observed_timer_windows_service_codes_and_access_requests():
     assert details["access_requests"]["vehicle_captured"] is None
     assert "private" not in str(details)
     assert not car.advertised_capabilities
+
+
+def test_timer_projection_reuses_typed_data_and_rejects_older_cache():
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    now = datetime.now(UTC)
+    count = "climatisation_timer_enabled_count"
+    next_timer = "next_climatisation_timer_local"
+
+    def observe(stamp, timers):
+        observe_derived(
+            car,
+            SimpleNamespace(),
+            {
+                "climatisationTimers": {
+                    "climatisationTimersStatus": {
+                        "value": {
+                            "carCapturedTimestamp": stamp.isoformat(),
+                            "timers": timers,
+                        }
+                    }
+                }
+            },
+            stamp,
+            _accept_observation,
+        )
+
+    enabled = {
+        "id": 1,
+        "enabled": True,
+        "singleTimer": {"startDateTimeLocal": "2026-11-14T07:30:00"},
+    }
+    observe(now, [enabled])
+    assert car.readings[count]["value"] == 1
+    assert car.readings[next_timer]["value"] == "2026-11-14T07:30:00"
+    later = now + timedelta(minutes=1)
+    observe(later, [])
+    assert car.readings[count]["value"] == 0
+    assert next_timer not in car.readings
+    observe(now, [enabled])
+    assert car.readings[count]["value"] == 0
+    assert next_timer not in car.readings
+
+    latest = later + timedelta(minutes=1)
+    observe(latest, [{"id": 2, "enabled": "unknown"}, enabled])
+    assert car.readings[count]["status"] == "invalid_value"
+    assert next_timer not in car.readings
+    observe(
+        latest + timedelta(minutes=1),
+        [{"id": 3, "enabled": True, "singleTimer": {"startDateTimeLocal": "invalid"}}],
+    )
+    assert car.readings[count]["value"] == 1
+    assert next_timer not in car.readings
+    observe(latest + timedelta(minutes=2), [enabled] * 31)
+    assert car.readings[count]["status"] == "invalid_value"
+    assert next_timer not in car.readings
