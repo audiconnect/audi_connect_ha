@@ -208,7 +208,9 @@ async def test_native_inventory_fallback_is_bounded_and_does_not_revoke(failure)
     assert transport.last_inventory_fallback_reason
     assert transport.request.await_count == 2
     assert transport.request.await_args.args == (
-        "cariad", "GET", "/vehicle/v1/vehicles"
+        "cariad",
+        "GET",
+        "/vehicle/v1/vehicles",
     )
 
 
