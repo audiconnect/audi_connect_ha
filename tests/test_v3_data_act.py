@@ -537,3 +537,64 @@ def test_data_act_enum_and_temperature_mappings_do_not_invent_state():
     assert "doorLockStatus" not in rows
     assert "any_door_unlocked" not in rows
     assert all(row["captured"] == stamp for row in rows.values())
+
+
+@pytest.mark.asyncio
+async def test_vehicle_denial_is_scoped_and_not_retried():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import (
+        DataActClient,
+        DataActVehicleDenied,
+    )
+
+    client = DataActClient(None)
+    client._json = AsyncMock(side_effect=DataActVehicleDenied("denied"))
+    with pytest.raises(DataActVehicleDenied):
+        await client.latest(VIN)
+    assert await client.latest(VIN) is None
+    client._json.assert_awaited_once()
+    assert not client.authorization_required
+    other = "WAUZZZ4M0MD123457"
+    client._json = AsyncMock(return_value={})
+    assert await client.latest(other) is None
+    client._json.assert_awaited_once()
+
+
+def test_revoked_family_restores_native_without_replaying_old_data():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        remove_family_observations,
+    )
+
+    now = datetime.now(UTC)
+    car = V3Vehicle(VIN, "Audi", "", "", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    earlier = now - timedelta(hours=3)
+    assert record_observation(
+        car,
+        profile,
+        "stateOfCharge",
+        80,
+        earlier.isoformat(),
+        earlier,
+        "native",
+        "charging",
+        "cariad",
+        fresh=True,
+        operation="cariad.climate.status.batch",
+        persist_evidence=False,
+    )
+    assert observe_data_act(
+        car,
+        profile,
+        {"vin": VIN, "Data": [sample("52", now.isoformat())]},
+        now,
+        now.isoformat(),
+    )
+    assert car.readings["stateOfCharge"]["family"] == "eu_data_act"
+    assert remove_family_observations(car, profile, "eu_data_act", now)
+    assert car.readings["stateOfCharge"]["family"] == "cariad"
+    assert car.readings["stateOfCharge"]["value"] == 80
+    assert "eu_data_act" not in car.family_readings["stateOfCharge"]

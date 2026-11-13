@@ -135,6 +135,23 @@ def refresh_family_observations(vehicle, profile, now):
             _select_observation(vehicle, ident, candidates, profile.registry, now)
 
 
+def remove_family_observations(vehicle, profile, family, now):
+    """Remove explicitly revoked read access without losing other observations."""
+    changed = False
+    for ident in set(vehicle.readings) | set(vehicle.family_readings):
+        current = vehicle.readings.get(ident)
+        candidates = _current_candidates(vehicle, ident)
+        candidates.pop(family, None)
+        if current is None or current.get("family") != family:
+            continue
+        if candidates:
+            _select_observation(vehicle, ident, candidates, profile.registry, now)
+        else:
+            vehicle.readings.pop(ident, None)
+        changed = True
+    return changed
+
+
 def record_invalid_observation(
     vehicle: Any,
     ident: str,

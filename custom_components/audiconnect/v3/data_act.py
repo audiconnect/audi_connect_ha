@@ -38,6 +38,10 @@ class DataActAuthorizationRequired(DataActUnavailable):
     """User interaction required; never retry credentials automatically."""
 
 
+class DataActVehicleDenied(DataActUnavailable):
+    """Explicit refusal of a vehicle-scoped portal resource."""
+
+
 def _timestamp(value):
     if not isinstance(value, str):
         return None
@@ -110,6 +114,7 @@ class DataActClient:
         self._request_lock = asyncio.Lock()
         self._identifiers = {}
         self._last_file = {}
+        self.denied_vins = set()
 
     async def _get(self, path, *, limit, headers=None, allow_empty=False):
         async with self._request_lock:
@@ -133,6 +138,8 @@ class DataActClient:
                         )
                         self._logged_in = False
                         self.quota.retry_at = datetime.now(UTC) + timedelta(minutes=30)
+                    elif response.status == 403:
+                        raise DataActVehicleDenied("Data Act vehicle access denied")
                     elif response.status == 200:
                         self._renewed = False
                     if response.status == 404 and allow_empty:
@@ -159,6 +166,17 @@ class DataActClient:
         if not isinstance(vin, str) or not _VIN.fullmatch(vin):
             raise DataActUnavailable("Invalid Data Act VIN")
         vin = vin.upper()
+        if vin in self.denied_vins:
+            return None
+        try:
+            return await self._latest(vin)
+        except DataActVehicleDenied:
+            self.denied_vins.add(vin)
+            self._identifiers.pop(vin, None)
+            self._last_file.pop(vin, None)
+            raise
+
+    async def _latest(self, vin):
         if not self._logged_in:
             if self.authorization_required or self._login is None:
                 raise DataActUnavailable("Data Act authorization required")
@@ -183,6 +201,9 @@ class DataActClient:
         result = await self._json(
             path + "list", headers={"type": "partial"}, allow_empty=True
         )
+        if result is None:
+            # A replaced or removed subscription can recover on the next due poll.
+            self._identifiers.pop(vin, None)
         files = result.get("files") if isinstance(result, dict) else result
         if files is None:
             return None

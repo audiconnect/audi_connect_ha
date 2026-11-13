@@ -117,7 +117,7 @@ class StatusEngine:
 
     async def _poll_data_act(self, now=None):
         """Fetch due optional family data; native quota is separate."""
-        from .data_act import DataActUnavailable
+        from .data_act import DataActUnavailable, DataActVehicleDenied
 
         samples = []
 
@@ -153,8 +153,13 @@ class StatusEngine:
         self._data_act_attempt_at = now
         self._data_act_result = "no_new_dataset"
         for car, profile in profiles:
+            if car.vin.upper() in getattr(client, "denied_vins", ()):
+                continue
             try:
                 result = await client.latest(car.vin)
+            except DataActVehicleDenied:
+                self._data_act_result = "vehicle_access_denied"
+                continue
             except DataActUnavailable:
                 self._data_act_result = (
                     "authorization_required"
@@ -370,17 +375,27 @@ class StatusEngine:
             self._data_act_task = asyncio.create_task(self._collect_data_act())
 
     async def _collect_data_act(self):
-        from .attribute_runtime import observe_data_act
+        from .attribute_runtime import observe_data_act, remove_family_observations
 
         try:
             samples = await self._poll_data_act()
             changed = False
+            client = getattr(self.auth, "data_act_client", None)
+            denied = getattr(client, "denied_vins", ())
+            revoked = getattr(client, "authorization_required", False) is True
+            for key, car in self.vehicles.items():
+                if key in self.profiles and (revoked or car.vin.upper() in denied):
+                    changed |= remove_family_observations(
+                        car, self.profiles[key], "eu_data_act", datetime.now(UTC)
+                    )
             for car, profile, payload, observed, delivered in samples:
                 key = car.vin.lower()
                 if (
                     self.vehicles.get(key) is car
                     and self.profiles.get(key) is profile
                     and car.inventory_present
+                    and not revoked
+                    and car.vin.upper() not in denied
                 ):
                     changed |= observe_data_act(
                         car, profile, payload, observed, delivered
