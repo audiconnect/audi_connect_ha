@@ -315,11 +315,23 @@ def test_sparse_q8_shape_maps_known_information_only():
         ("41c0805c-43e5-313e-9dfb-356cb8d20f7c", "mileage", "12345"),
         ("1503760b-5570-3001-8ffc-1bb6f464948e", "fuel_level_current_level", "80"),
         ("153e8c40-4c6c-3c17-a11b-0ecc35d55b81", "cruising_range_combined", "620"),
-        ("55e0d40b-38ed-3cb5-9dcd-6193df6fc493", "cruising_range_primary_engine", "590"),
-        ("3dedefab-8ded-3f5a-907f-d5e9970720bf", "cruising_range_secondary_engine", "30"),
+        (
+            "55e0d40b-38ed-3cb5-9dcd-6193df6fc493",
+            "cruising_range_primary_engine",
+            "590",
+        ),
+        (
+            "3dedefab-8ded-3f5a-907f-d5e9970720bf",
+            "cruising_range_secondary_engine",
+            "30",
+        ),
         ("a3368611-8c63-3b7d-9d19-148a464c7a7b", "oil_level_actual_level", "95"),
         ("cf28f7d9-6201-30b8-82e5-a461968d30dc", "remaining_charging_time", "65535"),
-        ("1c62bf0a-8088-332c-9399-3b8cb0573099", "remaining_climatisation_time", "-256"),
+        (
+            "1c62bf0a-8088-332c-9399-3b8cb0573099",
+            "remaining_climatisation_time",
+            "-256",
+        ),
         ("60bc0937-f5a7-3809-9535-9a7942e5dd94", "lock_state", "unlocked"),
     ]
     payload = {

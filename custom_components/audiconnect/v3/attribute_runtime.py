@@ -364,9 +364,7 @@ def data_act_observations(payload, now, registry):
         candidates.setdefault(ident, []).append((captured, value, key))
     result = {}
     for ident, rows in candidates.items():
-        latest = max(
-            (_capture_in_utc(row[0]) for row in rows if row[0]), default=None
-        )
+        latest = max((_capture_in_utc(row[0]) for row in rows if row[0]), default=None)
         matching = [row for row in rows if _capture_in_utc(row[0]) == latest]
         if len({row[1] for row in matching}) != 1:
             continue
