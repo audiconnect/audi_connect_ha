@@ -1682,7 +1682,6 @@ class V3LockEntity(V3BaseEntity, LockEntity):
         super()._handle_coordinator_update()
         self._schedule_pending_refresh()
 
-
     @property
     def is_locked(self) -> bool | None:
         # No silent assumption that an unavailable lock status means unlocked.

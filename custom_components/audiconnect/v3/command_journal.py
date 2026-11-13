@@ -142,7 +142,8 @@ class CommandRecord:
                 "Previous vehicle command outcome uncertain; inspect and review it"
             )
         if self.known_access_acceptance and self.state in (
-            "accepted_unconfirmed", "uncertain"
+            "accepted_unconfirmed",
+            "uncertain",
         ):
             cooldown = max(cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS)
         if self.state == "uncertain":

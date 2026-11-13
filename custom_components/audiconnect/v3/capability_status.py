@@ -1183,10 +1183,11 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
         if item["operation"] in base_registry.operations
         or item["operation"] in IDENTITY_OPERATIONS
     ]
+
     def safe_command(row):
-        if row.capability not in known or row.action not in known[
-            row.capability
-        ].get("control", {}):
+        if row.capability not in known or row.action not in known[row.capability].get(
+            "control", {}
+        ):
             return None
         return {
             "capability": row.capability,

@@ -37,9 +37,11 @@ const friendly = (value) =>
     no_working_route: "No working control route",
     http_error: "API request failed",
     pending_review: "Temporarily blocked · review required",
-    engineering_command_awaiting_review: "Finish the pending engineering test above",
+    engineering_command_awaiting_review:
+      "Finish the pending engineering test above",
     vehicle_command_in_progress: "Previous vehicle command is still pending",
-    previous_vehicle_command_uncertain: "Check the car and acknowledge the uncertain command above",
+    previous_vehicle_command_uncertain:
+      "Check the car and acknowledge the uncertain command above",
   })[value] || String(value || "Unknown").replaceAll("_", " ");
 const domainName = (value) =>
   ({
