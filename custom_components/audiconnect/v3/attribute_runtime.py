@@ -153,22 +153,14 @@ def normalize_attribute_value(definition, value, conversion):
     ident = definition["id"]
     if ident == "availableChargeModes":
         # An explicit empty list is meaningful: no advertised write options.
-        if isinstance(value, list) and all(isinstance(mode, str) for mode in value):
+        if (
+            isinstance(value, list)
+            and len(value) <= 32
+            and all(isinstance(mode, str) and len(mode) <= 80 for mode in value)
+        ):
             return value, None
         return None, "invalid_charge_mode_options"
-    if ident == "preferredChargeMode" and (
-        not isinstance(value, str)
-        or value.strip().lower()
-        in (
-            "",
-            "unknown",
-            "unsupported",
-            "invalid",
-            "unavailable",
-            "error",
-            "notavailable",
-        )
-    ):
+    if ident == "preferredChargeMode" and not isinstance(value, str):
         return None, "invalid_preferred_charge_mode"
     if (
         value is None
@@ -208,9 +200,10 @@ def normalize_attribute_value(definition, value, conversion):
             and value.strip().lower() == "unavailable"
         )
     ):
-        return None, "unknown_charging_state" if definition[
-            "id"
-        ] == "chargingState" else None
+        return None, {
+            "chargingState": "unknown_charging_state",
+            "preferredChargeMode": "invalid_preferred_charge_mode",
+        }.get(ident)
     if value is not None and len(str(value)) > 10000:
         return None, None
     return value, None
