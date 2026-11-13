@@ -1478,7 +1478,21 @@ class V3Engine:
             p = self.profiles.get(car.vin.lower())
             schemas = getattr(p, "job_schema", {})
             capture = vehicle_capture_summary(car)
-            if capture["source_attribute"] not in ATTRIBUTES:
+            if capture["source_attribute"] not in ATTRIBUTES and capture[
+                "source_attribute"
+            ] not in (
+                "measuredCarType",
+                "measuredElectricRange",
+                "measuredFuelRange",
+                "measuredTotalRange",
+                "measuredElectricSOC",
+                "batteryElectricRange",
+                "maintenanceMileage",
+                "primaryEngineFuelLevel",
+                "secondaryEngineFuelLevel",
+                "windowHeatingActive",
+                "preheater_active",
+            ):
                 capture["source_attribute"] = (
                     "other_reading" if capture["source_attribute"] else None
                 )

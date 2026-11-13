@@ -183,3 +183,41 @@ def test_guided_readback_only_uses_known_changed_comfort_state(value, expected):
     row = CommandRecord.begin("climate", "start", "route", NOW.timestamp())
     configure_discovery_readback(row, car, {})
     assert bool(row.readback_attribute) is expected
+
+
+def test_access_mismatch_releases_only_accepted_command_with_new_evidence():
+    from custom_components.audiconnect.v3.command_readback import (
+        reconcile_access_mismatch,
+        reconcile_readback,
+    )
+
+    row = record("access", "lock")
+    row.started_at = (NOW - timedelta(minutes=3)).timestamp()
+    row.observe_http(200)
+    car = NS(
+        readings={
+            "doorLockStatus": {
+                "value": "unlocked",
+                "captured": (NOW - timedelta(minutes=4)).isoformat(),
+            }
+        }
+    )
+    assert row.requires_review
+    assert not reconcile_access_mismatch(row, car, NOW)
+    car.readings["doorLockStatus"]["captured"] = NOW.isoformat()
+    assert not reconcile_readback(row, car, NOW)
+    row.backend_result = "transport_uncertain"
+    assert not reconcile_access_mismatch(row, car, NOW)
+    row.backend_result = "accepted_unconfirmed"
+    assert reconcile_access_mismatch(row, car, NOW)
+    assert row.state == "readback_mismatch"
+    assert not row.requires_review
+    assert CommandRecord.restore(row.snapshot()).state == "readback_mismatch"
+    assert projected_state(
+        NS(command_journal=[row]),
+        "doorLockStatus",
+        "unlocked",
+        NOW,
+        now=NOW,
+        optimistic=False,
+    ) == ("unlocked", "vehicle")

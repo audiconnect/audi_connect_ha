@@ -137,3 +137,54 @@ async def test_charge_mode_service_rejects_unadvertised_mode_before_dispatch():
             await execute(engine, VIN, action, params)
     engine.transport.request.assert_not_awaited()
     assert not engine.profiles[VIN.lower()].command_journal
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["unknown", "quota_limited", "rejected"])
+async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outcome):
+    from datetime import timedelta
+    from custom_components.audiconnect.v3 import request_status
+    from custom_components.audiconnect.v3.command_readback import projected_state
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    stamp = datetime.now(UTC) - timedelta(minutes=2)
+    car.set_climate(
+        "off", stamp.isoformat(), route="test", observed_at=stamp, http_status=200
+    )
+    notifications = []
+
+    def notify():
+        notifications.append(
+            projected_state(profile, "climate", car.climate_state, car.climate_captured)
+        )
+
+    async def confirm(*args):
+        assert notifications == [("on", "command_pending")]
+        assert car.climate_state == "off"
+        return outcome
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            assert method == "POST"
+            return V3Response(
+                202, {"data": {"requestID": "test-id"}}, datetime.now(UTC)
+            )
+
+    engine.transport = Transport()
+    monkeypatch.setattr(request_status, "confirm", confirm)
+    monkeypatch.setattr(engine.commands, "_notify_discovery_change", notify)
+    monkeypatch.setattr(
+        engine.commands, "command_route", lambda *args: "cariad.climate.start.stored"
+    )
+    if outcome == "rejected":
+        with pytest.raises(RuntimeError, match="rejected"):
+            await engine.commands.send_control(VIN, "start", "climate")
+        assert notifications[-1] == ("off", "vehicle")
+    else:
+        record = await engine.commands.send_control(VIN, "start", "climate")
+        assert record.state == "accepted_unconfirmed"
+        assert record.backend_result == outcome
+        assert notifications[-1] == ("on", "command_pending")
+    assert car.climate_state == "off"
+    assert car.climate_captured == stamp

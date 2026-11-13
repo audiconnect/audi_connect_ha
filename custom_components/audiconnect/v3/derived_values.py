@@ -38,45 +38,29 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
         ("max_charge_current", "chargingCurrentLimitA"),
     ):
         row = car.readings.get(source)
-        if row and row.get("value") is not None:
-            record(
-                ident,
-                row["value"],
-                row.get("captured"),
-                row.get("job"),
-                row.get("path"),
-            )
+        if row and accepts(car.readings.get(ident), row.get("captured")):
+            car.readings[ident] = dict(row)
     remaining = car.readings.get("remainingChargingTime", {})
     from .attribute_runtime import _capture_in_utc, record_invalid_observation
 
     stamp = _capture_in_utc(remaining.get("captured"))
     minutes = remaining.get("value")
-    if stamp and remaining.get("status") == "invalid_value":
-        record_invalid_observation(
-            car,
-            "charging_complete_time",
-            remaining["captured"],
-            observed_at,
-            remaining.get("path"),
-            "charging",
-            remaining.get("reason") or "invalid_remaining_charging_time",
-        )
-    elif stamp and type(minutes) in (int, float) and 0 < minutes <= 10080:
-        record(
-            "charging_complete_time",
-            (stamp + timedelta(minutes=minutes)).isoformat(),
-            remaining["captured"],
-            "charging",
-            remaining.get("path"),
-        )
-    elif (
-        stamp
-        and type(minutes) in (int, float)
-        and accepts(car.readings.get("charging_complete_time"), remaining["captured"])
+    if stamp and accepts(
+        car.readings.get("charging_complete_time"), remaining["captured"]
     ):
-        # A valid zero duration has no future ETA. Do not leave a previous
-        # estimate visible after charging finishes or an out-of-range sample.
-        car.readings.pop("charging_complete_time", None)
+        if remaining.get("status") == "invalid_value":
+            car.readings["charging_complete_time"] = {
+                **remaining,
+                "reason": remaining.get("reason") or "invalid_remaining_charging_time",
+            }
+        elif type(minutes) in (int, float) and 0 < minutes <= 10080:
+            car.readings["charging_complete_time"] = {
+                **remaining,
+                "value": (stamp + timedelta(minutes=minutes)).isoformat(),
+            }
+        elif type(minutes) in (int, float):
+            # A zero duration has no future ETA; clear an outdated estimate.
+            car.readings.pop("charging_complete_time", None)
 
     # Complementary identity fields are present even if manufacturer media is null.
     from .vehicle import normalize_powertrain

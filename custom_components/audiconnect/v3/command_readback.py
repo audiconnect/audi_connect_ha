@@ -143,6 +143,45 @@ def reconcile_readback(record, car, now=None) -> bool:
     return True
 
 
+def reconcile_access_mismatch(record, car, now=None) -> bool:
+    """Close an accepted lock attempt on a later reliable contrary observation.
+
+    This is not proof that the command physically failed: the car may have
+    been operated externally. Never close a transport-uncertain mutation this way.
+    """
+    from .command_journal import TEMPORARY_ERROR_COOLDOWN_SECONDS
+
+    if (
+        record.origin != "home_assistant"
+        or record.capability != "access"
+        or record.readback_attribute != "doorLockStatus"
+        or record.state
+        not in ("accepted_unconfirmed", "backend_completed", "uncertain")
+        or record.http_status is None
+        or not 200 <= record.http_status < 300
+        or record.backend_result == "transport_uncertain"
+    ):
+        return False
+    row = car.readings.get("doorLockStatus") or {}
+    stamp = _capture_in_utc(row.get("captured"))
+    now = now or datetime.now(UTC)
+    value = row.get("value")
+    if (
+        stamp is None
+        or stamp.timestamp() < record.started_at + TEMPORARY_ERROR_COOLDOWN_SECONDS
+        or not 0 <= (now - stamp).total_seconds() <= 3600
+        or row.get("status") == "invalid_value"
+        or not isinstance(value, str)
+        or value.strip().lower() not in ("locked", "unlocked")
+        or not record.readback_values
+        or value.strip().lower() in record.readback_values
+    ):
+        return False
+    record.state = "readback_mismatch"
+    record.completed_at = max(record.started_at, now.timestamp())
+    return True
+
+
 # UI projection is separate from actual telemetry and physical evidence.
 # Only explicit, successfully accepted HA actions are eligible.
 OPTIMISTIC_TTL_SECONDS = 30 * 60
@@ -164,6 +203,35 @@ def latest_readback_command(profile, attribute):
         ),
         None,
     )
+
+
+def command_attributes(profile, capability, actions, *, attribute=None):
+    """Shared command evidence, including rejection, scoped to this control."""
+    record = next(
+        (
+            row
+            for row in reversed(getattr(profile, "command_journal", ()))
+            if row.origin == "home_assistant"
+            and row.capability == capability
+            and row.action in actions
+            and (
+                attribute is None
+                or row.readback_attribute == attribute
+                or (
+                    attribute == "climate"
+                    and row.action == "start_with_settings"
+                    and row.readback_attribute == "climatisationTargetTemperatureC"
+                )
+            )
+        ),
+        None,
+    )
+    return {
+        "command_status": record.state if record else None,
+        "command_action": record.action if record else None,
+        "command_backend_result": record.backend_result if record else None,
+        "command_http_status": record.http_status if record else None,
+    }
 
 
 def last_known_climate(profile):

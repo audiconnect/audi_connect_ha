@@ -128,12 +128,16 @@ def attribute_status(vehicle, profile, definition, now):
     reading = attribute_reading(vehicle, ident)
     legacy = legacy_variant_for(ident) if vehicle.context.auth == "legacy" else None
     native_trip = ident in _NATIVE_TRIP_ATTRIBUTES
-    known = bool(definition["paths"] or legacy or native_trip or ident == "model")
+    derived = definition.get("derived_job") is not None
+    known = bool(
+        definition["paths"] or legacy or native_trip or derived or ident == "model"
+    )
     fallback = (
         "not_tested"
         if definition.get("local")
         else "not_observed"
         if native_trip
+        or derived
         or ident == "model"
         or (
             known
@@ -145,6 +149,8 @@ def attribute_status(vehicle, profile, definition, now):
         else "mapping_pending"
     )
     status = evidence.get("status", fallback)
+    if not reading and status in ("verified", "readable_but_stale"):
+        status = "not_observed"
     key = definition["entity_key"]
     contract = definition.get("contract") or (
         binary_contract_for(key)
@@ -330,14 +336,18 @@ def build_status_report(
                 "method": "GET" if known else "-",
                 "path": mapped_path,
                 "route_result": evidence.get("status", "not_tested"),
-                "source": "v3_live_evidence" if evidence else "v2_attribute_reference",
+                "source": "v3_historical_evidence"
+                if evidence
+                else "v3_derived_reference"
+                if attr.get("derived_job")
+                else "v2_attribute_reference",
                 "selected": selected is not None,
                 "saved_candidate": False,
                 "custom": False,
                 "context_applicable": bool(candidate)
                 if vehicle.context.auth == "legacy"
                 else bool(attr["paths"]),
-                "job": attr["job"],
+                "job": attr.get("derived_job") or attr["job"],
             }
         )
     for attr in attributes_for(profile).values():
@@ -1178,6 +1188,13 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
             ident: attribute_status(vehicle, profile, definition, datetime.now(UTC))[0]
             for ident, definition in CANONICAL_ATTRIBUTES.items()
         },
+        "historically_normalized_without_current_reading": sorted(
+            ident
+            for ident in CANONICAL_ATTRIBUTES
+            if not attribute_reading(vehicle, ident)
+            and profile.attribute_evidence.get(ident, {}).get("status")
+            in ("verified", "readable_but_stale")
+        ),
         "controls": controls,
         "operations": operations,
         "job_capture_coverage": {

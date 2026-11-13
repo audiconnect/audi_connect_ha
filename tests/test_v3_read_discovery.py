@@ -342,12 +342,27 @@ def test_read_discovery_distinguishes_exhaustion_from_success():
         "charging": {
             "fields": [{"path": "charging.chargingStatus.value.chargingState"}],
         },
+        "vehicleHealthWarnings": {
+            "fields": [
+                {"path": "vehicleHealthWarnings.warningLights.value", "type": "object"},
+            ],
+        },
+        "chargingTimers": {
+            "fields": [
+                {
+                    "path": "chargingTimers.chargingTimersStatus.requests[].body.value",
+                    "type": "integer",
+                },
+            ],
+        },
     }
     progress = user_progress(car, profile, auth)
     assert progress["jobs"]["readiness"]["schema_inventory"] == "error_only"
     assert progress["jobs"]["chargingProfiles"]["schema_inventory"] == "error_only"
     assert progress["jobs"]["honkAndFlash"]["schema_inventory"] == "request_only"
     assert progress["jobs"]["charging"]["schema_inventory"] == "captured"
+    assert progress["jobs"]["vehicleHealthWarnings"]["schema_inventory"] == "no_value"
+    assert progress["jobs"]["chargingTimers"]["schema_inventory"] == "request_only"
     assert progress["schema_inventory_captured_jobs"] == 1
 
 

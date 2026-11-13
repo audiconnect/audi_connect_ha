@@ -75,7 +75,7 @@ def test_historical_freshness_age_and_quota_are_distinct():
         "job": "charging",
     }
     assert age.native_value == 0
-    assert fresh.native_value == "fresh"
+    assert fresh.native_value == "partial"
     coverage = fresh.extra_state_attributes["job_capture_coverage"]
     assert coverage["unclassified"]["oldest_minutes"] >= 240
 
@@ -153,7 +153,7 @@ def test_newest_vehicle_capture_keeps_older_climate_age_visible():
     )
     assert V3StatusSensor(co, car, "age").native_value == 0
     sensor = V3StatusSensor(co, car, "freshness")
-    assert sensor.native_value == "fresh"
+    assert sensor.native_value == "partial"
     assert (
         sensor.extra_state_attributes["job_capture_coverage"]["climatisation"][
             "oldest_minutes"
@@ -237,3 +237,96 @@ def test_native_controls_share_reported_capture_attributes():
         assert attrs["age_minutes"] >= 120
         assert attrs["vehicle_freshness"] in ("stale", "stale_last_known")
         assert attrs["verification"] == "readable_but_stale"
+        assert {
+            "state_source",
+            "last_reported_state",
+            "command_status",
+            "command_action",
+            "command_backend_result",
+            "command_http_status",
+            "control_actions",
+        } <= attrs.keys()
+        assert attrs["command_status"] is None
+        assert attrs["control_actions"]
+
+
+def test_derived_alias_and_eta_keep_original_observation_and_invalidity():
+    car, co, now = context()
+    source = {
+        "value": 45,
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "status": "verified",
+        "job": "charging",
+        "family": "cariad",
+    }
+    car.readings["remainingChargingTime"] = source
+    car.readings["chargeType"] = {**source, "value": "ac"}
+    observe_derived(car, NS(), {}, now + timedelta(minutes=30), _accept_observation)
+    assert car.readings["charging_complete_time"]["observed"] == now.isoformat()
+    assert car.readings["charging_type"]["observed"] == now.isoformat()
+    car.readings["chargeType"] = {
+        **source,
+        "value": None,
+        "status": "invalid_value",
+        "reason": "vendor_sentinel",
+    }
+    observe_derived(car, NS(), {}, now + timedelta(minutes=31), _accept_observation)
+    assert car.readings["charging_type"]["status"] == "invalid_value"
+    assert car.readings["charging_type"]["value"] is None
+
+
+def test_lock_remains_visible_while_command_is_accepted():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+
+    car, co, now = context()
+    car.readings["doorLockStatus"] = {
+        "value": "unlocked",
+        "captured": (now - timedelta(minutes=2)).isoformat(),
+        "status": "verified",
+    }
+    row = CommandRecord.begin("access", "lock", "route", now.timestamp() - 1)
+    configure_readback(row, {})
+    row.observe_http(200)
+    co.engine.profiles = {VIN.lower(): NS(command_journal=[row])}
+    co.engine.control_enabled = lambda *args: False
+    entity = V3LockEntity(co, car)
+    assert entity.available
+    assert entity.is_locking
+    assert entity.is_locked is None
+    assert entity.extra_state_attributes["command_status"] == "accepted_unconfirmed"
+    assert entity.extra_state_attributes["last_reported_state"] == "unlocked"
+    assert entity.extra_state_attributes["lock_enabled"] is False
+
+
+def test_control_metadata_scopes_commands_to_relevant_field_and_action():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.entities import (
+        V3ClimateEntity,
+        V3ChargeTargetNumber,
+        V3OperationalSwitch,
+    )
+
+    car, co, now = context()
+    car.readings["climatisationState"] = {"value": "off"}
+    car.readings["chargingState"] = {"value": "off"}
+    climate = CommandRecord.begin("climate", "start", "route", now.timestamp() - 2)
+    configure_readback(climate, {})
+    climate.observe_http(200)
+    charging = CommandRecord.begin("charging", "start", "route", now.timestamp() - 1)
+    configure_readback(charging, {})
+    charging.observe_http(403)
+    co.engine.profiles = {VIN.lower(): NS(command_journal=[climate, charging])}
+    for entity in (V3ClimateEntity(co, car), V3ClimateQuickSwitch(co, car)):
+        attrs = entity.extra_state_attributes
+        assert attrs["command_status"] == "accepted_unconfirmed"
+        assert attrs["command_action"] == "start"
+        assert attrs["command_http_status"] == 200
+    attrs = V3OperationalSwitch(co, car, "charging").extra_state_attributes
+    assert attrs["command_status"] == "rejected"
+    assert attrs["command_http_status"] == 403
+    assert (
+        V3ChargeTargetNumber(co, car).extra_state_attributes["command_status"] is None
+    )

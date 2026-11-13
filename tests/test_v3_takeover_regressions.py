@@ -661,3 +661,36 @@ def test_timer_projection_reuses_typed_data_and_rejects_older_cache():
     observe(latest + timedelta(minutes=2), [enabled] * 31)
     assert car.readings[count]["status"] == "invalid_value"
     assert next_timer not in car.readings
+
+
+def test_window_heating_vendor_sentinel_is_not_verified_detail():
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    now = datetime.now(UTC)
+    observe_structured(
+        car,
+        {
+            "climatisation": {
+                "windowHeatingStatus": {
+                    "value": {
+                        "carCapturedTimestamp": now.isoformat(),
+                        "windowHeatingStatus": [
+                            {
+                                "windowLocation": "front",
+                                "windowHeatingState": "unsupported",
+                            },
+                            {
+                                "windowLocation": "rear",
+                                "windowHeatingState": "unsupported",
+                            },
+                        ],
+                    }
+                }
+            }
+        },
+        now,
+        _accept_observation,
+    )
+    detail = details_for(car, "window_heating_detail")["window_heating"]
+    assert detail["verification"] == "invalid_value"
+    assert detail["vehicle_freshness"] == "unknown"
+    assert detail["data"]["received_count"] == 2
