@@ -37,6 +37,8 @@ const friendly = (value) =>
     no_working_route: "No working control route",
     http_error: "API request failed",
     pending_review: "Temporarily blocked · review required",
+    charge_mode_fallback_requires_verification:
+      "Empty Audi options: verify manual/timer via Edit API first",
     engineering_command_awaiting_review:
       "Finish the pending engineering test above",
     vehicle_command_in_progress: "Previous vehicle command is still pending",
@@ -1544,7 +1546,7 @@ class AudiConnectV3Panel extends HTMLElement {
           const failed =
             latest && ["physical_failed", "rejected"].includes(latest.state);
           const attrs = `data-capability="${escapeHTML(c.capability)}" data-control="${escapeHTML(c.action)}"`;
-          return `<div class="attribute-row"><div><b>${escapeHTML(actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(c.reason ? friendly(c.reason) : this.pending ? "Testing paused: finish the pending engineering test above" : latest ? `Last command: ${friendly(latest.state)}${latest.http_status ? ` · HTTP ${latest.http_status}` : ""}` : "No current command restriction")}</div></div>
+          return `<div class="attribute-row"><div><b>${escapeHTML(actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(c.reason ? friendly(c.reason) : c.dispatch_ready === false && c.dispatch_reason ? friendly(c.dispatch_reason) : this.pending ? "Testing paused: finish the pending engineering test above" : latest ? `Last command: ${friendly(latest.state)}${latest.http_status ? ` · HTTP ${latest.http_status}` : ""}` : "No current command restriction")}</div></div>
         ${
           this.expertDiscovery
             ? `<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(candidate?.operation || "")}" ${!candidate || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !candidate ? friendly(c.reason || c.status) : "Test this action")}">Test</button>

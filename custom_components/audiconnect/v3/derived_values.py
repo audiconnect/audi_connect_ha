@@ -570,6 +570,32 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 for t in entries
                 if t.get("enabled") is True and "start_datetime_local" in t
             ]
+            # Local wall-clock timestamps require a vehicle clock anchor.
+            # Never infer its timezone from the HA host or API market.
+            from .structured_details import _zoned_datetime
+
+            clock = _zoned_datetime(block.get("timeInCar"))
+            if clock is not None:
+                local_now = observed_at.astimezone(
+                    datetime.fromisoformat(clock).tzinfo
+                ).replace(tzinfo=None)
+                starts = [
+                    value for value in starts
+                    if datetime.fromisoformat(value) > local_now
+                ]
+            else:
+                # A date beyond every plausible UTC offset is unambiguously
+                # future even when Audi omitted its local clock.
+                from datetime import UTC
+
+                boundary = (
+                    observed_at.astimezone(UTC).replace(tzinfo=None)
+                    + timedelta(hours=14)
+                )
+                starts = [
+                    value for value in starts
+                    if datetime.fromisoformat(value) > boundary
+                ]
             if complete and starts:
                 record(
                     ident,

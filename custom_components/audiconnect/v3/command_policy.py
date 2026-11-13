@@ -5,17 +5,42 @@ from __future__ import annotations
 from .auth import configured_spin
 
 
-def supported_charge_modes(car):
-    """Only reviewed modes actually advertised by the vehicle."""
-    values = car.readings.get("availableChargeModes", {}).get("value")
+def charge_mode_fallback_candidate(car):
+    """V2 enum fallback only for an explicit empty list and a readable mode."""
+    options = car.readings.get("availableChargeModes", {})
+    preferred = car.readings.get("preferredChargeMode", {})
     return (
-        [mode for mode in ("manual", "timer") if mode in values]
-        if isinstance(values, list)
-        else []
+        options.get("value") == []
+        and options.get("status") != "invalid_value"
+        and preferred.get("value") in ("manual", "timer")
+        and preferred.get("status") != "invalid_value"
     )
 
 
-def eligible_operation(car, auth, capability, aspect):
+def supported_charge_modes(car, profile=None):
+    """Advertised modes first; V2 fallback requires current local route proof."""
+    row = car.readings.get("availableChargeModes", {})
+    values = row.get("value")
+    if row.get("status") == "invalid_value" or not isinstance(values, list):
+        return []
+    if values:
+        return [mode for mode in ("manual", "timer") if mode in values]
+    if profile is None or not charge_mode_fallback_candidate(car):
+        return []
+    from .operation_revision import operation_revision
+
+    key, route = "charging.set_charge_mode", "cariad.charging.mode"
+    if (
+        profile.active.get(key) == route
+        and profile.control_results.get(route) == "worked"
+        and profile.active_revisions.get(key)
+        == operation_revision(profile.registry.operations[route])
+    ):
+        return ["manual", "timer"]
+    return []
+
+
+def eligible_operation(car, auth, capability, aspect, *, profile=None):
     reported = car.advertised_capabilities
     impaired = car.impaired_capabilities
 
@@ -103,7 +128,7 @@ def eligible_operation(car, auth, capability, aspect):
             if type(value) not in (int, float) or not 0 <= value <= 100:
                 return None
         elif aspect == "set_charge_mode":
-            if not supported_charge_modes(car):
+            if not supported_charge_modes(car, profile):
                 return None
         elif aspect == "set_location_charge_target" and not any(
             type(row.get("id")) is int

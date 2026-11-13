@@ -188,3 +188,29 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
         assert notifications[-1] == ("on", "command_pending")
     assert car.climate_state == "off"
     assert car.climate_captured == stamp
+
+
+def test_empty_charge_modes_require_local_route_verification():
+    from custom_components.audiconnect.v3.command_policy import supported_charge_modes
+    from custom_components.audiconnect.v3.control_resolution import control_decision
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.readings.update(
+        availableChargeModes={"value": []},
+        preferredChargeMode={"value": "manual"},
+        chargingState={"value": "off"},
+    )
+    route = "cariad.charging.mode"
+    assert not supported_charge_modes(car, profile)
+    result = control_decision(car, profile, engine.auth, "charging", "set_charge_mode")
+    assert result["reason"] == "charge_mode_fallback_requires_verification"
+    assert result["operation"] is None
+    profile.control_results[route] = "worked"
+    profile.choose_working("charging", "set_charge_mode", route)
+    assert supported_charge_modes(car, profile) == ["manual", "timer"]
+    assert engine.control_enabled(VIN, "set_charge_mode", "charging")
+    car.readings["availableChargeModes"] = {"value": ["manual"]}
+    assert supported_charge_modes(car, profile) == ["manual"]
+    car.readings["availableChargeModes"] = {"value": None, "status": "invalid_value"}
+    assert not engine.control_enabled(VIN, "set_charge_mode", "charging")

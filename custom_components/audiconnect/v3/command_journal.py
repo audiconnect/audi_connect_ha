@@ -400,6 +400,22 @@ def check_command_sequence(
         prior.check_next(now, cooldown=cooldown, capability=capability, action=action)
 
 
+def dispatch_block_reason(profile, capability, action, *, now=None):
+    """Shared, side-effect-free temporal guard for normal vehicle commands."""
+    import time
+
+    now = time.time() if now is None else now
+    if getattr(profile, "last_command", None) is not None:
+        try:
+            check_command_sequence(profile, now, capability=capability, action=action)
+        except RuntimeError as err:
+            return str(err)
+    history = getattr(profile.discovery, "history", ())
+    if history and now < history[-1].started_at + profile.discovery.cooldown_seconds:
+        return "Vehicle command cooldown active after engineering test"
+    return None
+
+
 def restore_history(rows):
     """Validate bounded private history; restore unresolved commands per capability."""
     if not isinstance(rows, list) or len(rows) > HISTORY_LIMIT:

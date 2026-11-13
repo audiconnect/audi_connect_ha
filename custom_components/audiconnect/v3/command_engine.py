@@ -15,6 +15,7 @@ from .auth import configured_spin
 from .command_journal import (
     CommandRecord,
     check_command_sequence,
+    dispatch_block_reason,
     ENGINEERING_COMMAND_COOLDOWN_SECONDS,
     unresolved_normal_commands,
     blocking_normal_command,
@@ -640,11 +641,11 @@ class CommandEngine:
                     raise RuntimeError(
                         "No eligible completed parent command for vehicle refresh"
                     )
-            elif p.last_command is not None:
-                check_command_sequence(
-                    p, time.time(), capability=capability, action=aspect
-                )
-            if p.discovery.history and time.time() < (
+            else:
+                blocked = dispatch_block_reason(p, capability, aspect)
+                if blocked:
+                    raise RuntimeError(blocked)
+            if _follow_up_to is not None and p.discovery.history and time.time() < (
                 p.discovery.history[-1].started_at + p.discovery.cooldown_seconds
             ):
                 raise RuntimeError(
@@ -653,7 +654,7 @@ class CommandEngine:
             if (
                 capability == "charging"
                 and aspect == "set_charge_mode"
-                and (params or {}).get("value") not in supported_charge_modes(car)
+                and (params or {}).get("value") not in supported_charge_modes(car, p)
             ):
                 raise ValueError("Charge mode not advertised by this vehicle")
             ident = self.command_route(vin, aspect, capability)

@@ -1149,6 +1149,8 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                     "binding_status": decision["status"],
                     "reason": decision.get("reason"),
                     "eligible": operation is not None,
+                    "dispatch_ready": decision["dispatch_ready"],
+                    "dispatch_reason": decision["dispatch_reason"],
                     "operation": diagnostic_route_label(operation, base_registry)
                     if operation
                     else None,

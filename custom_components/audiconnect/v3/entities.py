@@ -104,6 +104,27 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
                 for action in actions
             },
         }
+        if profile is not None and getattr(engine, "auth", None) is not None:
+            from .control_resolution import control_decision
+
+            decisions = (
+                {
+                    action: control_decision(
+                        self.vehicle, profile, engine.auth, capability, action
+                    )
+                    for action in actions
+                }
+                if hasattr(profile, "registry")
+                else {}
+            )
+            if decisions:
+                result["control_dispatch"] = {
+                    action: {
+                        "ready": decision["dispatch_ready"],
+                        "reason": decision["dispatch_reason"],
+                    }
+                    for action, decision in decisions.items()
+                }
         if reading is not None or attribute is not None:
             row = (
                 reading if reading is not None else self.vehicle.readings.get(attribute)
@@ -2125,7 +2146,10 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        return supported_charge_modes(self.vehicle)
+        profile = getattr(self.coordinator.engine, "profiles", {}).get(
+            self.vehicle.vin.lower()
+        )
+        return supported_charge_modes(self.vehicle, profile)
 
     @property
     def current_option(self) -> str | None:
