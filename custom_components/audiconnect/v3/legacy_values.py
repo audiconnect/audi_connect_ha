@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 import math
-from .legacy_read_mappings import FIELDS, FIELD_IDS
+from .legacy_read_mappings import FIELDS, FIELD_IDS, variant_for
 from .registry import read_json_path
 from .attribute_runtime import (
-    _accept_observation,
     _capture_in_utc,
     record_invalid_observation,
+    record_observation,
 )
 from .attribute_contracts import semantic_value_issue
 from .historical_catalog import ATTRIBUTES
@@ -46,34 +46,26 @@ def observe_legacy(car, profile, kind, response):
                 car, key, stamp, response.observed_at, path or kind, None, issue, "mbb"
             )
             return
-        if not _accept_observation(car.readings.get(key), stamp):
-            return
-        fresh = timestamp_is_fresh(stamp, response.observed_at)
-        status = "verified" if fresh else "readable_but_stale"
-        car.readings[key] = {
-            "value": value,
-            "captured": stamp,
-            "observed": response.observed_at.isoformat(),
-            "status": status,
-            "family": "mbb",
-            "path": path or kind,
-            "job": None,
-            "operation": f"mbb.{kind}.readonly",
-        }
-        # Persist only evidence that the existing route-schema validator can
-        # reconstruct. Derived values remain in memory, like CARIAD derived
-        # readings; do not corrupt the saved profile with raw field IDs.
-        from .legacy_read_mappings import variant_for
-
+        # Only reviewed mappings survive restart; derived legacy readings use
+        # the same observation writer without persisting unmapped evidence.
         variant = variant_for(key)
-        if key in ATTRIBUTES and variant and path in variant["response_paths"]:
-            profile.attribute_evidence[key] = {
-                "status": status,
-                "path": path,
-                "job": ATTRIBUTES[key]["job"],
-                "source": "mbb.legacy",
-                "timestamp_present": bool(stamp),
-            }
+        persist = bool(
+            key in ATTRIBUTES and variant and path in variant["response_paths"]
+        )
+        record_observation(
+            car,
+            profile,
+            key,
+            value,
+            stamp,
+            response.observed_at,
+            path or kind,
+            descriptor.get("job") if persist else None,
+            "mbb",
+            fresh=timestamp_is_fresh(stamp, response.observed_at),
+            operation=f"mbb.{kind}.readonly",
+            persist_evidence=persist,
+        )
 
     numeric = {
         "stateOfCharge",
