@@ -674,8 +674,14 @@ def test_window_heating_vendor_sentinel_is_not_verified_detail():
                     "value": {
                         "carCapturedTimestamp": now.isoformat(),
                         "windowHeatingStatus": [
-                            {"windowLocation": "front", "windowHeatingState": "unsupported"},
-                            {"windowLocation": "rear", "windowHeatingState": "unsupported"},
+                            {
+                                "windowLocation": "front",
+                                "windowHeatingState": "unsupported",
+                            },
+                            {
+                                "windowLocation": "rear",
+                                "windowHeatingState": "unsupported",
+                            },
                         ],
                     }
                 }
