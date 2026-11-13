@@ -2005,11 +2005,11 @@ class AudiConnectV3Panel extends HTMLElement {
           car && this.pending
             ? `<section class="card" style="margin-bottom:18px">
           <div class="warn"><b>Pending engineering test: ${escapeHTML(actionName(this.pending.capability, this.pending.action))}</b>
-            <p>Route: ${escapeHTML(this.pending.operation)} · HTTP ${escapeHTML(this.pending.http_status ?? "not observed")} · ${escapeHTML(this.localTime(this.pending.started_at * 1000))}</p><p>Check the actual result on the car. Your answer closes this test; it does not send another command. Normal controls for this capability and other engineering tests are paused until review.</p>
+            <p>Route: ${escapeHTML(this.pending.operation)} · HTTP ${escapeHTML(this.pending.http_status ?? "not observed")} · ${escapeHTML(this.localTime(this.pending.started_at * 1000))}</p><p>Check the actual result on the car. Worked or Did not work closes this test; Not sure keeps it pending. No review sends another command. Normal controls for this capability and other engineering tests are paused until review.</p>
             <div class="actions">
               <button data-action="confirm-worked" ${this.loading ? "disabled" : ""}>Worked on vehicle</button>
               <button data-action="confirm-failed" ${this.loading ? "disabled" : ""}>Did not work on vehicle</button>
-              <button data-action="confirm-uncertain" ${this.loading ? "disabled" : ""}>Not sure · close test</button>
+              <button data-action="confirm-uncertain" ${this.loading ? "disabled" : ""}>Not sure · keep pending</button>
             </div>
           </div>
         </section>`
