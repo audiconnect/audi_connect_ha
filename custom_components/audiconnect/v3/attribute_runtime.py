@@ -97,26 +97,42 @@ def _observation_rank(row, registry, now):
     return (0, captured, -priority, family)
 
 
-def _commit_observation(vehicle, ident, row, registry, now):
-    """Keep one sample per family; choose from the same set in either arrival order."""
+def _current_candidates(vehicle, ident):
     previous = vehicle.readings.get(ident)
     candidates = vehicle.family_readings.setdefault(ident, {})
     if previous is None:
         candidates.clear()
     else:
-        # A few existing derived projections still write directly. Preserve a
-        # newer direct sample instead of reviving an older cached observation.
+        # Preserve a newer existing direct projection rather than reviving cache.
         source = previous.get("family", "")
         if _accept_observation(candidates.get(source), previous.get("captured")):
             candidates[source] = previous
+    return candidates
+
+
+def _select_observation(vehicle, ident, candidates, registry, now):
+    vehicle.readings[ident] = max(
+        candidates.values(), key=lambda sample: _observation_rank(sample, registry, now)
+    )
+
+
+def _commit_observation(vehicle, ident, row, registry, now):
+    """Keep one sample per family; choose from the same set in either arrival order."""
+    candidates = _current_candidates(vehicle, ident)
     family = row["family"]
     if not _accept_observation(candidates.get(family), row.get("captured")):
         return False
     candidates[family] = row
-    vehicle.readings[ident] = max(
-        candidates.values(), key=lambda sample: _observation_rank(sample, registry, now)
-    )
+    _select_observation(vehicle, ident, candidates, registry, now)
     return vehicle.readings[ident] is row
+
+
+def refresh_family_observations(vehicle, profile, now):
+    """Re-evaluate cached competing observations at the existing publish boundary."""
+    for ident in vehicle.family_readings:
+        candidates = _current_candidates(vehicle, ident)
+        if len(candidates) > 1:
+            _select_observation(vehicle, ident, candidates, profile.registry, now)
 
 
 def record_invalid_observation(

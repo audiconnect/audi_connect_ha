@@ -402,12 +402,17 @@ class StatusEngine:
         self._data_act_task = None
 
     def _update_capture_projection(self):
+        from .attribute_runtime import refresh_family_observations
+        from .freshness import newest_vehicle_capture
+
+        now = datetime.now(UTC)
         for car in self.vehicles.values():
             if not car.inventory_present:
                 continue
-            from .freshness import newest_vehicle_capture
-
-            newest = newest_vehicle_capture(car)
+            profile = self.profiles.get(car.vin.lower())
+            if profile is not None:
+                refresh_family_observations(car, profile, now)
+            newest = newest_vehicle_capture(car, now)
             captured = newest.isoformat() if newest else None
             if captured is None:
                 car.readings.pop("last_update_time", None)
