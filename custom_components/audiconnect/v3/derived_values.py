@@ -69,11 +69,14 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             "charging",
             remaining.get("path"),
         )
-    elif stamp and type(minutes) in (int, float):
+    elif (
+        stamp
+        and type(minutes) in (int, float)
+        and accepts(car.readings.get("charging_complete_time"), remaining["captured"])
+    ):
         # A valid zero duration has no future ETA. Do not leave a previous
         # estimate visible after charging finishes or an out-of-range sample.
-        if accepts(car.readings.get("charging_complete_time"), remaining["captured"]):
-            car.readings.pop("charging_complete_time", None)
+        car.readings.pop("charging_complete_time", None)
 
     # Complementary identity fields are present even if manufacturer media is null.
     from .vehicle import normalize_powertrain
@@ -583,9 +586,7 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             "enabled" in timer for timer in entries
         )
         if complete:
-            record(
-                count, sum(t["enabled"] for t in entries), captured, job, path
-            )
+            record(count, sum(t["enabled"] for t in entries), captured, job, path)
         else:
             record_invalid_observation(
                 car, count, captured, observed_at, path, job, "incomplete_timer_data"
