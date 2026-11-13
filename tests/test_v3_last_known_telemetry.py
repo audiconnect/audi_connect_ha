@@ -131,9 +131,14 @@ def test_identity_refinement_retains_same_vehicle_measurements():
     vehicle.model_family = "q8"
     seen = []
     profile = NS(rebind_context=seen.append)
-    engine = NS(status=NS(_trip_poll_at={}))
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    status = object.__new__(StatusEngine)
+    status._trip_poll_at = {vehicle.vin.lower(): 10}
+    engine = NS(status=status)
     V3Engine._rebind_identity_context(engine, vehicle, profile, old_context)
     assert seen == [vehicle.context]
+    assert not status._trip_poll_at
     assert vehicle.readings["stateOfCharge"]["captured"] == stamp.isoformat()
     old_context = vehicle.context
     vehicle.country = "GB"

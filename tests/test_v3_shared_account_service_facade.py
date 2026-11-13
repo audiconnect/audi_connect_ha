@@ -125,3 +125,18 @@ def test_v3_command_rejection_is_surfaced_as_ha_error():
     )
     with pytest.raises(HomeAssistantError, match="not activated"):
         asyncio.run(_v3_service_command(engine, "TESTVIN", "lock"))
+
+
+@pytest.mark.parametrize(
+    "action, data",
+    [
+        ("set_charge_mode", {"charge_mode": "timer", "unexpected": True}),
+        ("set_charge_mode", {}),
+        ("start_timed_charger", {"unexpected": True}),
+    ],
+)
+def test_service_translation_never_discards_parameters(action, data):
+    engine = SimpleNamespace(send_control=AsyncMock())
+    with pytest.raises(HomeAssistantError):
+        asyncio.run(_v3_service_command(engine, "TESTVIN", action, data))
+    engine.send_control.assert_not_awaited()

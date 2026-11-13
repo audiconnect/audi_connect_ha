@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 from typing import Any
-from .registry import read_json_path
-from .command_parameters import SOC, DURATION, validate_parameter, temperature_celsius
+from .registry import read_json_path, selective_status_path
+from .command_parameters import (
+    SOC,
+    DURATION,
+    CLIMATE_INPUTS,
+    validate_inputs,
+    validate_parameter,
+    temperature_celsius,
+)
 
 CHARGE_FIELDS = frozenset(
     {
@@ -54,7 +61,7 @@ async def settings(transport: Any, vin: str, job: str, path: str) -> dict:
     reply = await transport.request(
         "cariad",
         "GET",
-        f"/vehicle/v1/vehicles/{vin}/selectivestatus?jobs={job}",
+        selective_status_path(vin, job),
     )
     value = read_json_path(reply.data, path)
     if not 200 <= reply.status < 300 or not isinstance(value, dict) or not value:
@@ -82,6 +89,8 @@ _SETTINGS_PATCHES = {
 
 async def patch_settings(transport, vin, mode, params):
     job, path, allowed, strict = _SETTINGS_PATCHES[mode]
+    if strict:
+        validate_inputs(params, {"value": SOC})
     updates = {"targetSOC_pct": target_soc(params.get("value"))} if strict else params
     current = await settings(transport, vin, job, path)
     if not updates or set(updates) - allowed:
@@ -106,6 +115,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
     if mode in _SETTINGS_PATCHES:
         return await patch_settings(transport, vin, mode, params)
     if mode == "charging_profile_update":
+        validate_inputs(params, {"value": SOC, "profile_id": {"type": "integer"}})
         value = target_soc(params.get("value"))
         current = await settings(
             transport,
@@ -126,11 +136,10 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
             raise ValueError("Audi charging profile not found")
         return {"profile": {**profile, "targetSOC_pct": value}}
     if mode == "climate_start_settings":
+        validate_inputs(params, CLIMATE_INPUTS)
         current = await settings(
             transport, vin, "climatisation", "climatisation.climatisationSettings.value"
         )
-        if set(params) - set(OVERRIDES) - {"temp_c", "temp_f", "climatisation_mode"}:
-            raise ValueError("Unknown climate start parameter")
         target = temperature_celsius(params, current.get("targetTemperature_C"))
         body = {k: current[k] for k in PASSTHROUGH if k in current}
         body.update(
@@ -147,6 +156,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
                 body[field] = params[name]
         return body
     if mode == "flash":
+        validate_inputs(params, {})
         point = car.position
         if not isinstance(point, dict) or not all(
             isinstance(point.get(k), (int, float)) for k in ("latitude", "longitude")
@@ -191,6 +201,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
             )
         return {"securedActivationData": proof, "spin": spin}
     if mode == "auxiliary_start":
+        validate_inputs(params, {"duration": DURATION})
         spin = getattr(engine.auth.service, "_spin", None)
         if not spin:
             raise ValueError("Auxiliary heating needs S-PIN")
