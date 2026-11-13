@@ -42,6 +42,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ..const import DOMAIN
 from .auth import configured_spin
+from .freshness import reading_freshness_attributes
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
 from .command_readback import last_known_climate, projected_state
@@ -520,8 +521,7 @@ class V3ChargingReady(V3BaseEntity, BinarySensorEntity):
     def extra_state_attributes(self):
         return {
             "source_attribute": "chargingState",
-            "vehicle_captured": self._reading.get("captured"),
-            "age_minutes": _reading_age_minutes(self._reading.get("captured")),
+            **reading_freshness_attributes(self._reading),
             "semantics": "explicit_readiness_not_charging_active_or_permission",
         }
 
@@ -1057,16 +1057,6 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             }
         source, reading = projection_reading(self.vehicle, self.attribute)
         reading = reading or {}
-        captured_age = _reading_age_minutes(reading.get("captured"))
-        freshness = (
-            "unknown"
-            if captured_age is None
-            else "fresh"
-            if captured_age <= 60
-            else "stale_last_known"
-            if self._allow_last_known
-            else "stale"
-        )
         from .structured_details import details_for
 
         detail_keys = {
@@ -1135,12 +1125,10 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             "v2_attribute": self.attribute["id"],
             "observed_source": source,
             "api_family": reading.get("family", "cariad"),
-            "vehicle_freshness": freshness,
-            "cloud_age_minutes": _reading_age_minutes(reading.get("observed")),
             "response_mapping": reading.get("path"),
-            "vehicle_captured": reading.get("captured"),
-            "age_minutes": _reading_age_minutes(reading.get("captured")),
-            "verification": reading.get("status", "unknown"),
+            **reading_freshness_attributes(
+                reading, allow_last_known=self._allow_last_known
+            ),
         }
 
 
@@ -1349,22 +1337,12 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         reading = self.vehicle.readings.get(self.attribute["id"]) or {}
-        age = _reading_age_minutes(reading.get("captured"))
         return {
             "v3_capability": self.attribute["capability"],
             "response_mapping": reading.get("path"),
-            "vehicle_captured": reading.get("captured"),
-            "age_minutes": age,
-            "vehicle_freshness": (
-                "unknown"
-                if age is None
-                else "fresh"
-                if age <= 60
-                else "stale_last_known"
-                if self._allow_last_known
-                else "stale"
+            **reading_freshness_attributes(
+                reading, allow_last_known=self._allow_last_known
             ),
-            "verification": reading.get("status", "unknown"),
         }
 
 
@@ -1482,7 +1460,7 @@ class V3OperationalSwitch(V3BaseEntity, SwitchEntity):
         row, state = stateful_reading(self.vehicle, self.key)
         return {
             "last_reported_state": state,
-            "vehicle_captured": row.get("captured"),
+            **reading_freshness_attributes(row),
             "state_source": self._projection()[1],
             "on_enabled": self._enabled("on"),
             "off_enabled": self._enabled("off"),
