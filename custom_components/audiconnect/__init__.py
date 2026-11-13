@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import homeassistant.helpers.config_validation as cv
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.const import Platform
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
@@ -156,56 +156,59 @@ class AudiRuntimeData:
     data_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
-def _resolve_device_to_vin(hass: HomeAssistant, device_id: str) -> str | None:
-    """Resolve a Home Assistant device registry ID to the vehicle VIN."""
-    device_registry = dr.async_get(hass)
-    device_entry = device_registry.async_get(device_id)
-    if device_entry is None:
-        return None
-    for domain, identifier in device_entry.identifiers:
-        if domain == DOMAIN:
-            return identifier
-    return None
-
-
-def _get_account_for_vin(hass: HomeAssistant, vin: str) -> AudiAccount | None:
-    """Find the AudiAccount that owns a given VIN across all config entries."""
-    vin_lower = vin.lower()
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
-        if runtime_data is None or runtime_data.account is None:
-            continue
-        for vehicle_data in runtime_data.account.config_vehicles:
-            if vehicle_data.vehicle and vehicle_data.vehicle.vin.lower() == vin_lower:
-                return runtime_data.account
-    return None
-
-
 def _resolve_service_call(
     hass: HomeAssistant, service: ServiceCall
-) -> tuple[str, AudiAccount | V3Engine] | None:
-    """Resolve device_id from a service call to (vin, account).
+) -> tuple[str, AudiAccount | V3Engine]:
+    """Resolve a device to its one owning config entry and active runtime.
 
-    Returns None and logs an error if resolution fails.
+    Never select an account by scanning other accounts for a matching VIN.
+    A shared or unavailable device must fail before any vehicle action.
     """
-    device_id = service.data[CONF_DEVICE_ID]
-    vin = _resolve_device_to_vin(hass, device_id)
-    if vin is None:
-        _LOGGER.error("No VIN found for device %s", device_id)
-        return None
-    # When V3 is active its AudiAccount is deliberately not polled; its
-    # config_vehicles list stays empty. Use the independent V3 VIN inventory
-    # instead of resolving to a V2 business-command adapter.
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
-        engine = getattr(runtime_data, "v3", None)
-        if isinstance(engine, V3Engine) and vin.lower() in engine.vehicles:
-            return vin, engine
-    account = _get_account_for_vin(hass, vin)
-    if account is None:
-        _LOGGER.error("No account found for VIN associated with device %s", device_id)
-        return None
-    return vin, account
+    device = dr.async_get(hass).async_get(service.data[CONF_DEVICE_ID])
+    if device is None:
+        raise HomeAssistantError("Audi Connect device was not found")
+
+    vins = {
+        identifier.lower()
+        for domain, identifier in device.identifiers
+        if domain == DOMAIN
+    }
+    if len(vins) != 1:
+        raise HomeAssistantError("Audi Connect device has no unambiguous vehicle identity")
+    vin = next(iter(vins))
+
+    owners = [
+        entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.entry_id in device.config_entries
+    ]
+    if len(owners) != 1:
+        raise HomeAssistantError(
+            "Audi Connect device has no unambiguous owning account"
+        )
+    entry = owners[0]
+    runtime = getattr(entry, "runtime_data", None)
+    if entry.state is not ConfigEntryState.LOADED or runtime is None:
+        raise HomeAssistantError("Audi Connect owning account is not loaded")
+
+    if isinstance(runtime.v3, V3Engine):
+        try:
+            runtime.v3.require_vehicle(vin)
+        except ValueError as err:
+            raise HomeAssistantError(
+                "Audi Connect vehicle is not present in its owning account"
+            ) from err
+        return vin, runtime.v3
+
+    account = runtime.account
+    if account is not None and any(
+        data.vehicle and data.vehicle.vin.lower() == vin
+        for data in account.config_vehicles
+    ):
+        return vin, account
+    raise HomeAssistantError(
+        "Audi Connect vehicle is not present in its owning account"
+    )
 
 
 def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator]:
@@ -257,10 +260,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await coordinator.async_request_refresh()
 
     async def _handle_refresh_vehicle_data(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(account, vin, "refresh_vehicle_data")
         else:
@@ -268,10 +268,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     async def _handle_probe_api_paths(service: ServiceCall) -> None:
         """Retain the upstream V2 probe service without invoking V2 from V3."""
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             raise HomeAssistantError(
                 "V3 uses its own read discovery. Use the Engineering Workbench "
@@ -283,10 +280,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     async def _handle_set_local_dealer(service: ServiceCall) -> None:
         """Opt-in local metadata only; no Audi network calls."""
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         fields = {
             key: service.data[key] for key in DEALER_FIELDS if key in service.data
         }
@@ -299,10 +293,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             hass.config_entries.async_update_entry(entry, options=options)
 
     async def _handle_execute_vehicle_action(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(
                 account, vin, str(service.data.get("action", "")), dict(service.data)
@@ -311,10 +302,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await account.execute_vehicle_action(vin, service)
 
     async def _handle_start_climate_control(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(
                 account, vin, "start_climatisation", dict(service.data)
@@ -323,10 +311,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await account.start_climate_control(vin, service)
 
     async def _handle_start_auxiliary_heating(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(
                 account, vin, "start_auxiliary_heating", dict(service.data)
@@ -335,10 +320,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await account.start_auxiliary_heating(vin, service)
 
     async def _handle_set_location_charge_target(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(
                 account, vin, "set_location_charge_target", dict(service.data)
@@ -347,40 +329,28 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await account.set_location_charge_target(vin, service)
 
     async def _handle_set_charge_mode(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(account, vin, "set_charge_mode", dict(service.data))
         else:
             await account.set_charge_mode(vin, service)
 
     async def _handle_set_target_soc(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(account, vin, "set_target_soc", dict(service.data))
         else:
             await account.set_target_soc(vin, service)
 
     async def _handle_start_engine(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(account, vin, "start_engine")
         else:
             await account.start_engine(vin)
 
     async def _handle_stop_engine(service: ServiceCall) -> None:
-        result = _resolve_service_call(hass, service)
-        if result is None:
-            return
-        vin, account = result
+        vin, account = _resolve_service_call(hass, service)
         if isinstance(account, V3Engine):
             await v3_execute_action(account, vin, "stop_engine")
         else:

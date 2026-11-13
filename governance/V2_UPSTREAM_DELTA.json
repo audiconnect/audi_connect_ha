@@ -48,7 +48,7 @@
     {
       "path": "custom_components/audiconnect/__init__.py",
       "upstream_blob": "83fa70fb02b0ef7df822c6f9c3bc3a8ad49c9926",
-      "development_blob": "bf5b07575d1bc527f0351b13cc80f6f5cf57f7b5"
+      "development_blob": "ad4ce8cdbd2a2c2da481c6f20700dae7acf22120"
     },
     {
       "path": "custom_components/audiconnect/audi_api.py",
