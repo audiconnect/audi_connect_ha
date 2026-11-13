@@ -367,3 +367,122 @@ def test_sparse_q8_shape_maps_known_information_only():
         assert "UTC_TIME_AND_KILOMETER_STATUS" not in data_act_observations(
             payload, now, registry
         )
+
+
+@pytest.mark.asyncio
+async def test_slow_optional_family_does_not_delay_native_publish():
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "", "", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    started, finish = asyncio.Event(), asyncio.Event()
+    notify = Mock()
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=object()),
+        transport=lambda: SimpleNamespace(remaining_calls=50),
+        storage=None,
+        vehicles={VIN.lower(): car},
+        profiles={VIN.lower(): profile},
+        discover=None,
+        known_inventory=lambda: True,
+        operation_request=None,
+        api_record=None,
+        notify=notify,
+    )
+
+    async def optional():
+        started.set()
+        await finish.wait()
+        now = datetime.now(UTC)
+        return [
+            (
+                car,
+                profile,
+                {"vin": VIN, "Data": [sample("53", now.isoformat())]},
+                now,
+                now.isoformat(),
+            )
+        ]
+
+    async def native():
+        status.last_cloud_poll_succeeded = True
+
+    status._poll_data_act = optional
+    status._poll_native_status = native
+    await asyncio.wait_for(status.poll(), timeout=1)
+    await asyncio.wait_for(started.wait(), timeout=1)
+    task = status._data_act_task
+    assert not task.done()
+    await status.poll()
+    assert status._data_act_task is task
+    assert status.last_cloud_poll_succeeded
+    assert "stateOfCharge" not in car.readings
+    finish.set()
+    await asyncio.wait_for(task, timeout=1)
+    assert car.readings["stateOfCharge"]["value"] == 53
+    notify.assert_called_once()
+    await status.async_stop_data_act()
+
+
+@pytest.mark.asyncio
+async def test_portal_auth_rejection_is_terminal_and_no_native_reauth():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import (
+        DataActAuthorizationRequired,
+        DataActClient,
+    )
+
+    login = AsyncMock(side_effect=DataActAuthorizationRequired("denied"))
+    client = DataActClient(None, login=login)
+    for _ in range(2):
+        with pytest.raises(DataActUnavailable):
+            await client.latest(VIN)
+    login.assert_awaited_once()
+    assert client.authorization_required
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "https://untrusted.invalid/login/authenticate",
+        "/signin-service/v1/oauth/consent",
+        "https://eu-data-act.drivesomethinggreater.com/login",
+    ],
+)
+def test_portal_credentials_never_submit_to_other_destinations(action):
+    from custom_components.audiconnect.v3.data_act_auth import _form
+
+    html = (
+        f'<form action="{action}">'
+        '<input type="hidden" name="hmac" value="fake">'
+        '<input type="hidden" name="_csrf" value="fake">'
+        "</form>"
+    )
+    with pytest.raises(DataActUnavailable):
+        _form(html, "https://identity.vwgroup.io/signin-service/v1/login", "authenticate")
+
+
+def test_portal_password_form_uses_only_reviewed_fields():
+    from custom_components.audiconnect.v3.data_act_auth import _form
+
+    html = (
+        '<form action="/signin-service/v1/audi/login/authenticate">'
+        '<input type="hidden" name="hmac" value="example">'
+        '<input type="hidden" name="_csrf" value="example">'
+        '<input type="hidden" name="consent" value="accept">'
+        "</form>"
+    )
+    target, fields = _form(
+        html, "https://identity.vwgroup.io/signin-service/v1/login", "authenticate"
+    )
+    assert target.endswith("/login/authenticate")
+    assert fields == {"hmac": "example", "_csrf": "example"}

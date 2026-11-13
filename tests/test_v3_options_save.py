@@ -158,3 +158,35 @@ async def test_user_discovery_never_dispatches_without_exact_single_action_conse
     assert flow._discovery_candidate is None
     await flow.async_step_discovery_consent({"accept": True})
     assert engine.approved_control_discovery.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_optional_data_act_credentials_retained_only_for_same_email():
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    flow._test_entry = SimpleNamespace(
+        data={"scan_interval": 15},
+        options={
+            "runtime_version": "v3_climate",
+            "v3_data_act_enabled": True,
+            "v3_data_act_email": "example@invalid.test",
+            "v3_data_act_password": "synthetic-password",
+        },
+    )
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    result = await flow.async_step_init(
+        {"v3_data_act_enabled": True, "v3_data_act_password": ""}
+    )
+    assert result["data"]["v3_data_act_password"] == "synthetic-password"
+    result = await flow.async_step_init(
+        {"v3_data_act_enabled": True, "v3_data_act_email": "other@invalid.test"}
+    )
+    assert not result["data"]["v3_data_act_password"]
+    result = await flow.async_step_init({"v3_data_act_enabled": False})
+    assert not result["data"]["v3_data_act_enabled"]
+    assert "v3_data_act_password" not in result["data"]
+    assert "v3_data_act_email" not in result["data"]
