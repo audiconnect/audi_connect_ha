@@ -346,9 +346,7 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
                 else "error_only"
                 if any("error" in path for path in parts)
                 else "request_only"
-                if any(
-                    "requests" in path or "requests[]" in path for path in parts
-                )
+                if any("requests" in path or "requests[]" in path for path in parts)
                 else "no_value"
                 if fields
                 else "not_captured"
