@@ -234,10 +234,6 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         if key == "lock.lock":
             controls = [("access", "lock"), ("access", "unlock")]
         elif key == "select.charge_mode":
-            from .command_policy import supported_charge_modes
-
-            if not supported_charge_modes(car):
-                return "no_reviewed_charge_modes_advertised"
             controls = [("charging", "set_charge_mode")]
         elif key == "number.target_state_of_charge":
             if car.readings.get("targetstateOfCharge", {}).get("value") is None:
