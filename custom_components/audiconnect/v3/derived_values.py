@@ -580,7 +580,9 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                     datetime.fromisoformat(clock).tzinfo
                 ).replace(tzinfo=None)
                 starts = [
-                    value for value in starts if datetime.fromisoformat(value) > local_now
+                    value
+                    for value in starts
+                    if datetime.fromisoformat(value) > local_now
                 ]
             else:
                 # Without a local clock, do not skip a potentially earlier
@@ -589,11 +591,15 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 earliest = utc_now - timedelta(hours=14)
                 latest = utc_now + timedelta(hours=14)
                 candidates = [
-                    value for value in starts if datetime.fromisoformat(value) > earliest
+                    value
+                    for value in starts
+                    if datetime.fromisoformat(value) > earliest
                 ]
                 starts = (
                     candidates
-                    if all(datetime.fromisoformat(value) > latest for value in candidates)
+                    if all(
+                        datetime.fromisoformat(value) > latest for value in candidates
+                    )
                     else []
                 )
             if complete and starts:
