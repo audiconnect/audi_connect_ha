@@ -68,6 +68,7 @@ class AudiConnectAccount:
         self._loggedin = False
         self._support_vehicle_refresh = True
         self._logintime: float = 0
+        self._session_lock = asyncio.Lock()
 
         self._connect_retries = 3
         self._connect_delay = 10
@@ -184,6 +185,12 @@ class AudiConnectAccount:
         return not self._refresh_token and bool(self._username and self._password)
 
     async def login(self):
+        """Serialize login requests from legacy callers."""
+        async with self._session_lock:
+            if not self._loggedin:
+                await self._login()
+
+    async def _login(self):
         if not self._refresh_token and not self.uses_password_login:
             raise AudiAuthError("No stored authorization; reauthentication is required")
         for i in range(self._connect_retries):
@@ -239,18 +246,32 @@ class AudiConnectAccount:
                 )
             return False
 
+    @property
+    def authentication_service(self) -> AudiService:
+        """Expose the shared credential service, not vehicle polling."""
+        return self._audi_service
+
+    @property
+    def session_generation(self) -> float:
+        """Local marker of the latest login or token renewal."""
+        return self._logintime
+
+    async def ensure_session(self) -> bool:
+        """Own login and token renewal for both runtime polling paths."""
+        async with self._session_lock:
+            if not self._loggedin:
+                await self._login()
+            if not self._loggedin:
+                return False
+            elapsed_sec = time.time() - self._logintime
+            if await self._audi_service.refresh_token_if_necessary(elapsed_sec):
+                self._logintime = time.time()
+                self._sync_refresh_token()
+            return True
+
     async def update(self, vinlist):
-        if not self._loggedin:
-            await self.login()
-
-        if not self._loggedin:
+        if not await self.ensure_session():
             return False
-
-        elapsed_sec = time.time() - self._logintime
-        if await self._audi_service.refresh_token_if_necessary(elapsed_sec):
-            # Store current timestamp when refresh was performed and successful
-            self._logintime = time.time()
-            self._sync_refresh_token()
 
         """Update the state of all vehicles."""
         try:

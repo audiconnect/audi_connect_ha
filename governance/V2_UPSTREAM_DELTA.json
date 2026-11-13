@@ -58,7 +58,7 @@
     {
       "path": "custom_components/audiconnect/audi_connect_account.py",
       "upstream_blob": "f570b2f701a1ad510459f76d0f1ed50b3be000ed",
-      "development_blob": "a7a5f8784a8e1998271f1643cc1537e6a4789779"
+      "development_blob": "d71287a6f1a5f28ec052219d0a3e159e63f50fd3"
     },
     {
       "path": "custom_components/audiconnect/audi_services.py",
