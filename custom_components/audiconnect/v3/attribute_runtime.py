@@ -102,8 +102,14 @@ def _commit_observation(vehicle, ident, row, registry, now):
     """Keep one sample per family; choose from the same set in either arrival order."""
     previous = vehicle.readings.get(ident)
     candidates = vehicle.family_readings.setdefault(ident, {})
-    if previous is not None and previous.get("family") not in candidates:
-        candidates[previous.get("family", "")] = previous
+    if previous is None:
+        candidates.clear()
+    else:
+        # A few existing derived projections still write directly. Preserve a
+        # newer direct sample instead of reviving an older cached observation.
+        source = previous.get("family", "")
+        if _accept_observation(candidates.get(source), previous.get("captured")):
+            candidates[source] = previous
     family = row["family"]
     if not _accept_observation(candidates.get(family), row.get("captured")):
         return False
