@@ -610,7 +610,9 @@ def test_b13_observed_timer_windows_service_codes_and_access_requests():
 
 def test_timer_projection_reuses_typed_data_and_rejects_older_cache():
     car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
-    now = datetime.now(UTC)
+    # Without a vehicle clock the candidate must be beyond all plausible local
+    # timezones. Keep this historical fixture independent of the CI wall clock.
+    now = datetime(2026, 11, 13, 12, tzinfo=UTC)
     count = "climatisation_timer_enabled_count"
     next_timer = "next_climatisation_timer_local"
 

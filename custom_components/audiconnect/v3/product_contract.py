@@ -144,6 +144,8 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
         previous = by_family.get(family)
         if previous is None or score(item) > score(previous):
             by_family[family] = item
+    if len(by_family) == 1 or registry is None:
+        return max(valid, key=score)
     reference = now or datetime.now(UTC)
     return max(
         by_family.values(),

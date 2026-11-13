@@ -977,6 +977,13 @@ def _reading_available(
     )
 
 
+def _sensor_projection(sensor):
+    registry = getattr(
+        getattr(getattr(sensor, "coordinator", None), "engine", None), "registry", None
+    )
+    return projection_reading(sensor.vehicle, sensor.attribute, registry=registry)
+
+
 class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
     """Read-only V3 entity reusing a historical V2 unique ID where mapped."""
 
@@ -1011,10 +1018,6 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
         if contract.get("category") == "diagnostic":
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def _projected_reading(self):
-        registry = getattr(getattr(self.coordinator, "engine", None), "registry", None)
-        return projection_reading(self.vehicle, self.attribute, registry=registry)
-
     @property
     def available(self) -> bool:
         if not getattr(self.vehicle, "inventory_present", True):
@@ -1036,7 +1039,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             not profile or self.attribute["id"] not in profile.attribute_routes
         ):
             return False
-        reading = self._projected_reading()[1]
+        reading = _sensor_projection(self)[1]
         return _reading_available(
             reading, allow_last_known=self._allow_last_known
         ) and not semantic_value_issue(
@@ -1051,7 +1054,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             from .vehicle import powertrain_identity
 
             return powertrain_identity(self.vehicle)["value"]
-        reading = self._projected_reading()[1]
+        reading = _sensor_projection(self)[1]
         value = reading.get("value") if reading else None
         if semantic_value_issue(
             self.attribute["entity_key"], value, self._semantic_contract
@@ -1091,7 +1094,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
                 "classification_conflict": evidence["conflict"],
                 **details_for(self.vehicle, "connected_services_detail"),
             }
-        source, reading = self._projected_reading()
+        source, reading = _sensor_projection(self)
         reading = reading or {}
         from .structured_details import details_for
 
