@@ -292,10 +292,7 @@ class CommandRecord:
             )
         ):
             raise ValueError("Invalid stored command context")
-        if (
-            record.state == "uncertain"
-            and record.known_access_acceptance
-        ):
+        if record.state == "uncertain" and record.known_access_acceptance:
             record.state = "accepted_unconfirmed"
         if (
             recover_pending
