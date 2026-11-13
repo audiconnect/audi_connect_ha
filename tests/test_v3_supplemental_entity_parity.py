@@ -237,6 +237,17 @@ def test_native_controls_share_reported_capture_attributes():
         assert attrs["age_minutes"] >= 120
         assert attrs["vehicle_freshness"] in ("stale", "stale_last_known")
         assert attrs["verification"] == "readable_but_stale"
+        assert {
+            "state_source",
+            "last_reported_state",
+            "command_status",
+            "command_action",
+            "command_backend_result",
+            "command_http_status",
+            "control_actions",
+        } <= attrs.keys()
+        assert attrs["command_status"] is None
+        assert attrs["control_actions"]
 
 
 def test_derived_alias_and_eta_keep_original_observation_and_invalidity():
@@ -287,3 +298,35 @@ def test_lock_remains_visible_while_command_is_accepted():
     assert entity.extra_state_attributes["command_status"] == "accepted_unconfirmed"
     assert entity.extra_state_attributes["last_reported_state"] == "unlocked"
     assert entity.extra_state_attributes["lock_enabled"] is False
+
+
+def test_control_metadata_scopes_commands_to_relevant_field_and_action():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.entities import (
+        V3ClimateEntity,
+        V3ChargeTargetNumber,
+        V3OperationalSwitch,
+    )
+
+    car, co, now = context()
+    car.readings["climatisationState"] = {"value": "off"}
+    car.readings["chargingState"] = {"value": "off"}
+    climate = CommandRecord.begin("climate", "start", "route", now.timestamp() - 2)
+    configure_readback(climate, {})
+    climate.observe_http(200)
+    charging = CommandRecord.begin("charging", "start", "route", now.timestamp() - 1)
+    configure_readback(charging, {})
+    charging.observe_http(403)
+    co.engine.profiles = {VIN.lower(): NS(command_journal=[climate, charging])}
+    for entity in (V3ClimateEntity(co, car), V3ClimateQuickSwitch(co, car)):
+        attrs = entity.extra_state_attributes
+        assert attrs["command_status"] == "accepted_unconfirmed"
+        assert attrs["command_action"] == "start"
+        assert attrs["command_http_status"] == 200
+    attrs = V3OperationalSwitch(co, car, "charging").extra_state_attributes
+    assert attrs["command_status"] == "rejected"
+    assert attrs["command_http_status"] == 403
+    assert (
+        V3ChargeTargetNumber(co, car).extra_state_attributes["command_status"] is None
+    )
