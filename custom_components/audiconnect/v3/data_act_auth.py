@@ -97,7 +97,9 @@ class DataActPortalLogin:
             if method == "POST" and (
                 host != "identity.vwgroup.io"
                 or not parsed.path.startswith("/signin-service/")
-                or not parsed.path.endswith(("/login/identifier", "/login/authenticate"))
+                or not parsed.path.endswith(
+                    ("/login/identifier", "/login/authenticate")
+                )
             ):
                 raise DataActAuthorizationRequired("Unexpected credential destination")
             if host == "eu-data-act.drivesomethinggreater.com" and parsed.path not in (

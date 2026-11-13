@@ -468,7 +468,9 @@ def test_portal_credentials_never_submit_to_other_destinations(action):
         "</form>"
     )
     with pytest.raises(DataActUnavailable):
-        _form(html, "https://identity.vwgroup.io/signin-service/v1/login", "authenticate")
+        _form(
+            html, "https://identity.vwgroup.io/signin-service/v1/login", "authenticate"
+        )
 
 
 def test_portal_password_form_uses_only_reviewed_fields():
