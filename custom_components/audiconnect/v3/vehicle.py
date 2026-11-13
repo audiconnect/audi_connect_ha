@@ -206,6 +206,8 @@ class V3Vehicle:
     legacy_api_level: int = 0
     last_command_result: str | None = None
     readings: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Latest normalized sample per family, in memory only; no raw payload cache.
+    family_readings: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
     capability_readings: dict[str, dict[str, Any]] = field(default_factory=dict)
     position: dict[str, Any] | None = None  # V3-owned, in-memory parked GPS
     charging_profiles: list[dict[str, Any]] = field(default_factory=list)

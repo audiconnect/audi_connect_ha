@@ -168,6 +168,7 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 path,
                 "climatisation",
                 "unknown_window_heating_state",
+                profile=profile,
             )
         else:
             record("windowHeatingActive", active, stamp, "climatisation", path)
@@ -229,6 +230,7 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 path,
                 "access",
                 "partial_or_unknown_component_state",
+                profile=profile,
             )
 
         def record_component(ident, value):
@@ -382,6 +384,7 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 path,
                 "vehicleLights",
                 "unknown_parking_light_state",
+                profile=profile,
             )
     oil = read_json_path(payload, "oilLevel.oilLevelStatus.value")
     if isinstance(oil, dict) and type(oil.get("value")) is bool:
@@ -407,6 +410,7 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             "oilLevel.oilLevelStatus.value",
             "oilLevel",
             "numeric_oil_level_no_binary_warning",
+            profile=profile,
         )
     path = "chargingProfiles.chargingProfilesStatus.value"
     block = read_json_path(payload, path)
@@ -561,7 +565,14 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             record(count, sum(t["enabled"] for t in entries), captured, job, path)
         else:
             record_invalid_observation(
-                car, count, captured, observed_at, path, job, "incomplete_timer_data"
+                car,
+                count,
+                captured,
+                observed_at,
+                path,
+                job,
+                "incomplete_timer_data",
+                profile=profile,
             )
         if job == "climatisationTimers":
             ident = "next_climatisation_timer_local"

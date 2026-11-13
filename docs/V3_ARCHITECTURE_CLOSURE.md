@@ -64,6 +64,14 @@ See [V3 review](V3_REVIEW.md) and [V2 parity baseline](V2_V3_PARITY_BASELINE.jso
 
 See [the feature closure review](V3_FEATURE_CLOSURE.md). It separates source inventory, implementation, automated evidence and real vehicle acceptance. Do not use an entity-count or a passing unit suite as a feature-completeness claim.
 
+### Deterministic observation selection
+
+Use the existing Status writer, not a second resolver. Keep one normalized in-memory sample per known family and semantic field; never persist this cache. Valid fresh observations use family priority, then capture time and a stable tie-break. If no fresh observation exists, use the newest valid captured sample, then family priority; unknown capture ranks below known capture. Older samples never overwrite a newer sample within the same family. Explicit invalidation affects its own family. No separate priority matrix or change to command authorization. The selected projection may legitimately move to a slightly older but still fresh higher-priority family; freshness provenance remains visible.
+
+### Passive discovery in the shared batch
+
+Keep the fixed reviewed CARIAD job list in the existing selective-status request even when a job was previously reported unsupported. This does not increase the number of requests and lets the normal response correct old negative evidence. Explicit negatives still suppress separate targeted probes. Reuse an already fetched identical family/VIN/path response for targeted discovery. Preserve the bounded probe budget and explicit manual scan; do not treat missing data as permanent non-support. Verify the full batch continues to return usable responses on the live vehicle before release.
+
 ### Family polling ownership
 
 Keep the existing HA coordinator and Status owner. Family cadence and source priority are independent. Poll only compatible authorized families when due, respecting the family restrictions AND any shared authentication/account quota. Do not split the native VCF budget into artificial independent counters: its scope is conservatively shared until proven otherwise. Data Act uses an isolated authorized portal session and its own existing QuotaBudget implementation, never the native command reserve. Optional absence, no new delivery, or a family failure must not invalidate another family's successful poll. No extra coordinator, consent creation or implicit auth downgrade.

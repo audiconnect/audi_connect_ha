@@ -145,7 +145,7 @@ def test_standalone_discovery_progress_survives_snapshot_and_transient_failure()
     assert disabled["read_assessment_percent"] == round(200 / 27, 1)
 
 
-def test_unknown_jobs_remain_in_normal_batch_only_explicit_job_negative_excludes():
+def test_known_jobs_remain_in_normal_batch_even_after_explicit_negative():
     from custom_components.audiconnect.v3.attribute_runtime import planned_jobs
 
     profile = blank_profile()
@@ -162,7 +162,7 @@ def test_unknown_jobs_remain_in_normal_batch_only_explicit_job_negative_excludes
         },
     )
     reserve_group(profile, ("lvBattery",))
-    assert set(planned_jobs(car, profile)) == set(V2_JOBS) - {"batterySupport"}
+    assert tuple(planned_jobs(car, profile)) == tuple(V2_JOBS)
     assert "batterySupport" not in {
         job for group in pending_groups(profile, max_groups=23) for job in group
     }
