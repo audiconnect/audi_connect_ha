@@ -156,9 +156,7 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
 
     def notify():
         notifications.append(
-            projected_state(
-                profile, "climate", car.climate_state, car.climate_captured
-            )
+            projected_state(profile, "climate", car.climate_state, car.climate_captured)
         )
 
     async def confirm(*args):
