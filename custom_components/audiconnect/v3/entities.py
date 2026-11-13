@@ -41,6 +41,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ..const import DOMAIN
+from .auth import configured_spin
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
 from .command_readback import projected_state
@@ -1589,7 +1590,7 @@ class V3LockEntity(V3BaseEntity, LockEntity):
         if not getattr(self.vehicle, "inventory_present", True):
             return False
         engine = self.coordinator.engine
-        pin = getattr(getattr(engine.auth, "service", None), "_spin", None)
+        pin = configured_spin(engine.auth)
         # Do not hide an authorized explicit command just because the car
         # is sleeping. is_locked still returns None for stale/unknown status.
         return (
