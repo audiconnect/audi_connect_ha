@@ -329,6 +329,27 @@ def test_read_discovery_distinguishes_exhaustion_from_success():
     profile.job_discovery["chargingProfiles"] = "observed"
     assert user_progress(car, profile, auth)["read_state"] == "complete"
 
+    profile.job_schema = {
+        "readiness": {
+            "fields": [{"path": "readiness.readinessStatus.error.code"}],
+        },
+        "chargingProfiles": {
+            "fields": [{"path": "chargingProfiles.chargingProfilesStatus.error.retry"}],
+        },
+        "honkAndFlash": {
+            "fields": [{"path": "honkAndFlash.honkAndFlashStatus.requests"}],
+        },
+        "charging": {
+            "fields": [{"path": "charging.chargingStatus.value.chargingState"}],
+        },
+    }
+    progress = user_progress(car, profile, auth)
+    assert progress["jobs"]["readiness"]["schema_inventory"] == "error_only"
+    assert progress["jobs"]["chargingProfiles"]["schema_inventory"] == "error_only"
+    assert progress["jobs"]["honkAndFlash"]["schema_inventory"] == "request_only"
+    assert progress["jobs"]["charging"]["schema_inventory"] == "captured"
+    assert progress["schema_inventory_captured_jobs"] == 1
+
 
 @pytest.mark.asyncio
 async def test_recovery_resets_only_unresolved_read_attempts():

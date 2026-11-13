@@ -5,7 +5,7 @@ timezone, no fabricated defaults, and no extra cloud request.
 """
 
 from __future__ import annotations
-from datetime import timedelta
+from datetime import datetime, timedelta
 from .registry import read_json_path
 from .freshness import timestamp_is_fresh
 
@@ -69,6 +69,14 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             "charging",
             remaining.get("path"),
         )
+    elif (
+        stamp
+        and type(minutes) in (int, float)
+        and accepts(car.readings.get("charging_complete_time"), remaining["captured"])
+    ):
+        # A valid zero duration has no future ETA. Do not leave a previous
+        # estimate visible after charging finishes or an out-of-range sample.
+        car.readings.pop("charging_complete_time", None)
 
     # Complementary identity fields are present even if manufacturer media is null.
     from .vehicle import normalize_powertrain
@@ -566,19 +574,37 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
         if not isinstance(block, dict) or not isinstance(block.get("timers"), list):
             continue
         captured = block.get("carCapturedTimestamp")
-        entries = [t for t in block["timers"][:30] if isinstance(t, dict)]
-        record(
-            count, sum(t.get("enabled") is True for t in entries), captured, job, path
+        # The count retains the capture boundary even if the next single
+        # timer disappears. Older responses must not resurrect removed timers.
+        if not accepts(car.readings.get(count), captured):
+            continue
+        from .structured_details import _array, _timer
+
+        timers = _array(block["timers"], _timer, 30)
+        entries = timers["items"]
+        complete = timers["all_items_recognized"] and all(
+            "enabled" in timer for timer in entries
         )
-        if job == "climatisationTimers":
-            starts = sorted(
-                v
-                for t in entries
-                if t.get("enabled") is True
-                and isinstance(t.get("singleTimer"), dict)
-                and isinstance(v := t["singleTimer"].get("startDateTimeLocal"), str)
+        if complete:
+            record(count, sum(t["enabled"] for t in entries), captured, job, path)
+        else:
+            record_invalid_observation(
+                car, count, captured, observed_at, path, job, "incomplete_timer_data"
             )
-            if starts:
-                record("next_climatisation_timer_local", starts[0], captured, job, path)
-            elif accepts(car.readings.get("next_climatisation_timer_local"), captured):
-                car.readings.pop("next_climatisation_timer_local", None)
+        if job == "climatisationTimers":
+            ident = "next_climatisation_timer_local"
+            starts = [
+                t["start_datetime_local"]
+                for t in entries
+                if t.get("enabled") is True and "start_datetime_local" in t
+            ]
+            if complete and starts:
+                record(
+                    ident,
+                    min(starts, key=datetime.fromisoformat),
+                    captured,
+                    job,
+                    path,
+                )
+            elif accepts(car.readings.get(ident), captured):
+                car.readings.pop(ident, None)
