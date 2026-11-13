@@ -27,7 +27,7 @@ from .response_preview import (
 from .api_observations import record_for, save_record, save_execution_review
 from .registry import CapabilityRegistry, selective_status_path
 from .product_contract import entity_projection_report
-from .transport import V3Response, V3Transport, INVENTORY_OPERATION
+from .transport import GARAGE_OPERATION, V3Response, V3Transport, INVENTORY_OPERATION
 from .vehicle import V3Vehicle
 from .attribute_runtime import planned_jobs
 from .custom_attributes import (
@@ -196,6 +196,10 @@ class V3Engine:
     async def discover(self) -> None:
         """Own vehicle discovery. No V2 vehicle updates or extra poll task."""
         found = await self.transport.discover_vehicles()
+        inventory_operation = getattr(
+            self.transport, "last_inventory_operation", INVENTORY_OPERATION
+        )
+        garage = inventory_operation == GARAGE_OPERATION
         options = getattr(self.entry, "options", {})
         data = getattr(self.entry, "data", {})
         excluded = {
@@ -212,7 +216,8 @@ class V3Engine:
         )
         for item in found:
             try:
-                parsed = V3Vehicle.from_graphql(item, self.auth.country)
+                parser = V3Vehicle.from_garage if garage else V3Vehicle.from_graphql
+                parsed = parser(item, self.auth.country)
             except (ValueError, TypeError, AttributeError):
                 complete = False
                 continue
@@ -235,7 +240,7 @@ class V3Engine:
                 vehicle.identity_restored = False
                 vehicle.identity_observed_at = datetime.now(UTC).isoformat()
                 vehicle.identity_operation = (
-                    parsed.identity_operation or INVENTORY_OPERATION
+                    parsed.identity_operation or inventory_operation
                 )
                 vehicle.model = parsed.model
                 vehicle.model_source = parsed.model_source
@@ -249,7 +254,7 @@ class V3Engine:
                 vehicle.year_operation = (
                     parsed.year_operation
                     or parsed.identity_operation
-                    or INVENTORY_OPERATION
+                    or inventory_operation
                 )
             vehicle.country = parsed.country
             if not vehicle.model and self.trip_archive is not None:
@@ -321,21 +326,27 @@ class V3Engine:
                 )
                 response = V3Response(
                     metadata.status,
-                    {"data": {"userVehicles": [item]}, "errors": errors},
+                    {"data": [item]}
+                    if garage
+                    else {"data": {"userVehicles": [item]}, "errors": errors},
                     metadata.observed_at,
                     metadata.remaining_calls,
                     metadata.request,
                 )
+                if garage:
+                    from .transport import selected_garage_response
+
+                    response = selected_garage_response(response, known[vin].vin)
                 self._api_record(
                     self.profiles[vin],
-                    INVENTORY_OPERATION,
-                    "graphql",
-                    "POST",
+                    inventory_operation,
+                    "cariad" if garage else "graphql",
+                    "GET" if garage else "POST",
                     response,
                     known[vin].vin,
                 )
-        # Save fresh identity before the optional image request. The only
-        # unattended source is the standard inventory; old experiments are evidence.
+        # Save fresh identity before optional image discovery. A garage fallback
+        # is not proof that the GraphQL media endpoint is authorized.
         fresh = {
             key: car
             for key, car in known.items()
@@ -348,6 +359,7 @@ class V3Engine:
         targets = {key: car for key, car in fresh.items() if not car.image_url}
         if (
             targets
+            and not garage
             and image_reader is not None
             and (remaining is None or remaining > 12)
         ):
@@ -1656,6 +1668,12 @@ class V3Engine:
             "privacy_scope": "structural_evidence_only_no_response_previews",
             "polling_owner": "independent_v3_discovery_engine",
             "requests": self.transport.request_count,
+            "inventory_source": getattr(
+                self.transport, "last_inventory_operation", INVENTORY_OPERATION
+            ),
+            "inventory_fallback_reason": getattr(
+                self.transport, "last_inventory_fallback_reason", None
+            ),
             "identity_auth_context": {
                 family: self.auth.identity_auth_evidence(family)
                 for family in ("cariad", "graphql")

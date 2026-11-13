@@ -134,6 +134,11 @@ class IntegrationHealth:
             self._record(key, "vehicle_identity", "vehicle_identity_missing")
         elif car.model:
             self._recover(key, "vehicle_identity")
+        if getattr(engine.transport, "last_inventory_fallback_reason", None):
+            if "inventory_fallback" not in self.findings.get(key, {}):
+                self._record(key, "inventory_fallback", "graphql_inventory_unavailable")
+        else:
+            self._recover(key, "inventory_fallback")
         findings = list(self.findings.get(key, {}).values())
         remaining = getattr(engine.transport, "remaining_calls", None)
         quota = getattr(engine.transport, "quota", None)

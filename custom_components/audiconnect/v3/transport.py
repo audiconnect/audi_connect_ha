@@ -14,7 +14,7 @@ from typing import Any
 
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .auth import V3Auth
+from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
 from .quota import QuotaBudget
 
@@ -474,6 +474,8 @@ class V3Transport:
         self.last_inventory_metadata: V3Response | None = None
         self.last_inventory_errors: dict[str, list] = {}
         self.last_inventory_complete = False
+        self.last_inventory_operation = INVENTORY_OPERATION
+        self.last_inventory_fallback_reason: str | None = None
 
     @property
     def remaining_calls(self) -> int | None:
@@ -575,28 +577,57 @@ class V3Transport:
         self.last_inventory_metadata = None
         self.last_inventory_errors = {}
         self.last_inventory_complete = False
-        response = await self.request(
-            "graphql",
-            "POST",
-            "/vgql/v1/graphql",
-            body={"query": _GRAPHQL_QUERY},
-            explicit_action=True,
-        )
-        if not 200 <= response.status < 300 or not isinstance(response.data, dict):
+        self.last_inventory_operation = INVENTORY_OPERATION
+        self.last_inventory_fallback_reason = None
+        try:
+            response = await self.request(
+                "graphql",
+                "POST",
+                "/vgql/v1/graphql",
+                body={"query": _GRAPHQL_QUERY},
+                explicit_action=True,
+            )
+        except FamilyAuthUnavailable:
+            reason = "graphql_token_unavailable"
+        else:
+            data = (
+                response.data.get("data") if isinstance(response.data, dict) else None
+            )
+            vehicles = data.get("userVehicles") if isinstance(data, dict) else None
+            if 200 <= response.status < 300 and isinstance(vehicles, list):
+                self.last_inventory_complete = inventory_membership_complete(
+                    response.data
+                )
+                self.last_inventory_errors = {
+                    row["vin"].lower(): identity_errors(response.data, row["vin"])
+                    for row in vehicles
+                    if isinstance(row, dict) and isinstance(row.get("vin"), str)
+                }
+                self.last_inventory_metadata = replace(response, data=None)
+                return [car for car in vehicles if isinstance(car, dict)]
+            if (
+                response.status not in (401, 403, 404)
+                and not 200 <= response.status < 300
+            ):
+                raise RuntimeError("Audi vehicle discovery request failed")
+            reason = (
+                "graphql_inventory_unavailable"
+                if 200 <= response.status < 300
+                else "graphql_inventory_rejected"
+            )
+        # Only on unusable inventory, not missing model/media fields or quota
+        # failure. The same authorized account owns both native families.
+        if self.remaining_calls is not None and self.remaining_calls <= 12:
+            raise RuntimeError("Audi vehicle discovery unavailable; quota too low")
+        response = await self.request("cariad", "GET", GARAGE_PATH)
+        vehicles = garage_rows(response.data)
+        if not 200 <= response.status < 300 or not vehicles:
             raise RuntimeError("Audi vehicle discovery request failed")
-        data = response.data.get("data")
-        vehicles = data.get("userVehicles") if isinstance(data, dict) else None
-        if not isinstance(vehicles, list):
-            raise RuntimeError("Audi vehicle list unavailable (not an empty account)")
-        self.last_inventory_complete = inventory_membership_complete(response.data)
-        # Only request metadata is retained here, not an account-wide raw response.
-        self.last_inventory_errors = {
-            row["vin"].lower(): identity_errors(response.data, row["vin"])
-            for row in vehicles
-            if isinstance(row, dict) and isinstance(row.get("vin"), str)
-        }
+        self.last_inventory_operation = GARAGE_OPERATION
+        self.last_inventory_fallback_reason = reason
         self.last_inventory_metadata = replace(response, data=None)
-        return [car for car in vehicles if isinstance(car, dict)]
+        # A fallback list may add known vehicles, but never revoke membership.
+        return vehicles
 
     async def test_identity_query(self, operation: str) -> V3Response:
         if operation == GARAGE_OPERATION:
