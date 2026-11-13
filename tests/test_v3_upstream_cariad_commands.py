@@ -188,3 +188,138 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
         assert notifications[-1] == ("on", "command_pending")
     assert car.climate_state == "off"
     assert car.climate_captured == stamp
+
+
+def test_empty_charge_modes_require_local_route_verification():
+    from custom_components.audiconnect.v3.command_policy import (
+        charge_mode_evidence,
+        supported_charge_modes,
+    )
+    from custom_components.audiconnect.v3.control_resolution import control_decision
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.readings.update(
+        availableChargeModes={"value": []},
+        preferredChargeMode={"value": "manual"},
+        chargingState={"value": "off"},
+    )
+    route = "cariad.charging.mode"
+    assert not supported_charge_modes(car, profile)
+    result = control_decision(car, profile, engine.auth, "charging", "set_charge_mode")
+    assert result["reason"] == "charge_mode_fallback_requires_verification"
+    assert result["operation"] is None
+    profile.control_results[route] = "worked"
+    profile.choose_working("charging", "set_charge_mode", route)
+    assert supported_charge_modes(car, profile) == []
+    assert charge_mode_evidence(car, profile) == {
+        "locally_verified_modes": [],
+        "writable_modes": [],
+        "empty_list_fallback": True,
+    }
+    candidate = control_decision(
+        car, profile, engine.auth, "charging", "set_charge_mode", for_discovery=True
+    )
+    assert candidate["operation"] == route
+    assert candidate["dispatch_ready"] is False
+    for sequence, mode in enumerate(("manual", "timer"), start=1):
+        attempt = profile.begin_test(
+            "charging", "set_charge_mode", route, now=sequence * 100
+        )
+        profile.engineering_record(attempt.sequence).requested_charge_mode = mode
+        profile.observe_http(attempt.sequence, 200)
+        profile.confirm(
+            attempt.sequence,
+            worked=True,
+            inspected_vehicle=True,
+            now=sequence * 100 + 1,
+        )
+        profile.choose_working("charging", "set_charge_mode", route)
+        assert supported_charge_modes(car, profile) == ["manual", "timer"][:sequence]
+        assert (
+            charge_mode_evidence(car, profile)["locally_verified_modes"]
+            == [
+                "manual",
+                "timer",
+            ][:sequence]
+        )
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.registry import VehicleContext
+
+    restored = restore_profile(profile.registry, car.context, profile.snapshot())
+    assert supported_charge_modes(car, restored) == ["manual", "timer"]
+    restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert supported_charge_modes(car, restored) == []
+    assert engine.control_enabled(VIN, "set_charge_mode", "charging")
+    attempt = profile.begin_test("charging", "set_charge_mode", route, now=400)
+    pending = control_decision(car, profile, engine.auth, "charging", "set_charge_mode")
+    assert pending["route_available"] is True
+    assert pending["route_status"] == "local_verified"
+    assert pending["operation"] is None
+    assert pending["dispatch_ready"] is False
+    assert pending["dispatch_reason"] == "engineering_command_awaiting_review"
+    profile.observe_http(attempt.sequence, 200)
+    profile.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=401)
+    car.readings["availableChargeModes"] = {"value": ["manual"]}
+    assert supported_charge_modes(car, profile) == ["manual"]
+    car.readings["availableChargeModes"] = {"value": None, "status": "invalid_value"}
+    assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
+
+
+def test_next_climate_timer_excludes_expired_and_ambiguous_times():
+    from custom_components.audiconnect.v3.derived_values import observe_derived
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    now = datetime(2026, 11, 13, 12, tzinfo=UTC)
+    block = {
+        "carCapturedTimestamp": now.isoformat(),
+        "timeInCar": "2026-11-13T13:00:00+01:00",
+        "timers": [
+            {
+                "id": 1,
+                "enabled": True,
+                "singleTimer": {"startDateTimeLocal": "2026-11-13T12:00:00"},
+            },
+            {
+                "id": 2,
+                "enabled": True,
+                "singleTimer": {"startDateTimeLocal": "2026-11-13T14:00:00"},
+            },
+            {
+                "id": 3,
+                "enabled": True,
+                "singleTimer": {"startDateTimeLocal": "2026-11-15T14:00:00"},
+            },
+        ],
+    }
+    payload = {"climatisationTimers": {"climatisationTimersStatus": {"value": block}}}
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    key = "next_climatisation_timer_local"
+    assert car.readings[key]["value"] == "2026-11-13T14:00:00"
+    assert car.readings["climatisation_timer_enabled_count"]["value"] == 3
+    block.pop("timeInCar")
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert key not in car.readings
+    block["timers"] = block["timers"][2:]
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert car.readings[key]["value"] == "2026-11-15T14:00:00"
+    block["timers"].append({"id": 4, "enabled": True, "singleTimer": {}})
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert key not in car.readings
+    block["timers"].pop()
+    block["timers"].append(
+        {"id": 5, "enabled": True, "recurringTimer": {"startTime": "07:00"}}
+    )
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert car.readings[key]["value"] == "2026-11-15T14:00:00"
+    block["timeInCar"] = "2026-11-12T13:00:00+01:00"
+    block["timers"].append(
+        {
+            "id": 6,
+            "enabled": True,
+            "singleTimer": {"startDateTimeLocal": "2026-11-13T14:00:00"},
+        }
+    )
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert key not in car.readings

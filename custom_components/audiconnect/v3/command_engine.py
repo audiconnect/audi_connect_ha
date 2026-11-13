@@ -15,6 +15,7 @@ from .auth import configured_spin
 from .command_journal import (
     CommandRecord,
     check_command_sequence,
+    dispatch_block_reason,
     ENGINEERING_COMMAND_COOLDOWN_SECONDS,
     unresolved_normal_commands,
     blocking_normal_command,
@@ -496,6 +497,12 @@ class CommandEngine:
             record = profile.engineering_record(attempt.sequence)
             if record is None:
                 raise RuntimeError("Missing durable engineering command record")
+            if (
+                capability == "charging"
+                and aspect == "set_charge_mode"
+                and operation == "cariad.charging.mode"
+            ):
+                record.requested_charge_mode = (params or {}).get("value")
             if guided:
                 configure_discovery_readback(record, vehicle, params)
             await self.storage.async_save(self.profiles)
@@ -640,12 +647,15 @@ class CommandEngine:
                     raise RuntimeError(
                         "No eligible completed parent command for vehicle refresh"
                     )
-            elif p.last_command is not None:
-                check_command_sequence(
-                    p, time.time(), capability=capability, action=aspect
-                )
-            if p.discovery.history and time.time() < (
-                p.discovery.history[-1].started_at + p.discovery.cooldown_seconds
+            else:
+                blocked = dispatch_block_reason(p, capability, aspect)
+                if blocked:
+                    raise RuntimeError(blocked)
+            if (
+                _follow_up_to is not None
+                and p.discovery.history
+                and time.time()
+                < (p.discovery.history[-1].started_at + p.discovery.cooldown_seconds)
             ):
                 raise RuntimeError(
                     "Vehicle command cooldown active after engineering test"
@@ -653,7 +663,7 @@ class CommandEngine:
             if (
                 capability == "charging"
                 and aspect == "set_charge_mode"
-                and (params or {}).get("value") not in supported_charge_modes(car)
+                and (params or {}).get("value") not in supported_charge_modes(car, p)
             ):
                 raise ValueError("Charge mode not advertised by this vehicle")
             ident = self.command_route(vin, aspect, capability)

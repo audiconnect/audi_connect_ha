@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from .action_discovery import approval_group
 from .auth import configured_spin
-from .command_policy import eligible_operation
+from .command_policy import (
+    charge_mode_fallback_candidate,
+    eligible_operation,
+    supported_charge_modes,
+)
 from .operation_revision import operation_revision
 from .command_parameters import runtime_ready
 
@@ -28,9 +32,26 @@ def control_decision(
     car, profile, auth, capability: str, aspect: str, *, for_discovery=False
 ) -> dict:
     key = f"{capability}.{aspect}"
+    pending_reason = None
 
     def decision(status, operation=None, reason=None):
+        from .command_journal import dispatch_block_reason
+
+        route_available = operation is not None and status != "candidate_unverified"
+        route_status = status
+        if pending_reason:
+            operation = None
+            status, reason = "pending_review", pending_reason
+        blocked = (
+            dispatch_block_reason(profile, capability, aspect)
+            if operation and route_available
+            else reason or status
+        )
         return {
+            "route_available": route_available,
+            "route_status": route_status,
+            "dispatch_ready": operation is not None and blocked is None,
+            "dispatch_reason": blocked,
             "status": status,
             "reason": reason,
             "operation": operation,
@@ -45,17 +66,21 @@ def control_decision(
 
     active = profile.discovery.active_attempt
     if active is not None and active.capability == capability:
-        return decision("pending_review", reason="engineering_command_awaiting_review")
-    blocker = blocking_normal_command(profile, capability)
-    if blocker is not None:
-        return decision(
-            "pending_review",
-            reason="previous_vehicle_command_uncertain"
-            if blocker.state == "uncertain"
-            else "vehicle_command_in_progress",
-        )
+        pending_reason = "engineering_command_awaiting_review"
+    else:
+        blocker = blocking_normal_command(profile, capability)
+        if blocker is not None:
+            pending_reason = (
+                "previous_vehicle_command_uncertain"
+                if blocker.state == "uncertain"
+                else "vehicle_command_in_progress"
+            )
     restricted = capability == "remote" and aspect in ("engine_start", "engine_stop")
-    allowed = eligible_operation(car, auth, capability, aspect) if restricted else None
+    allowed = (
+        eligible_operation(car, auth, capability, aspect, profile=profile)
+        if restricted
+        else None
+    )
     if restricted and not allowed:
         return decision("ineligible")
     try:
@@ -96,6 +121,34 @@ def control_decision(
             relevant = {"auxiliaryHeating", "hybridCarAuxiliaryHeating"}
         return not (relevant and relevant & impaired)
 
+    if (
+        capability == "charging"
+        and aspect == "set_charge_mode"
+        and not supported_charge_modes(car, profile)
+    ):
+        route = "cariad.charging.mode"
+        if (
+            charge_mode_fallback_candidate(car)
+            and currently_safe(route)
+            and profile.control_results.get(route) != "failed"
+        ):
+            return decision(
+                "candidate_unverified",
+                route if for_discovery else None,
+                "charge_mode_fallback_requires_verification",
+            )
+        # Do not let a previously active route bypass invalid options.
+        options = car.readings.get("availableChargeModes", {})
+        if options.get("status") == "invalid_value":
+            reason = "charge_mode_options_invalid"
+        elif options.get("value") == []:
+            reason = "charge_mode_options_empty"
+        elif options.get("value") is None:
+            reason = "charge_mode_options_not_observed"
+        else:
+            reason = "charge_mode_options_unrecognized"
+        return decision("unknown", reason=reason)
+
     ident = profile.active.get(key)
     if (
         ident
@@ -103,11 +156,12 @@ def control_decision(
         and runtime_ready(profile.custom.get(ident, {}))
         and (
             not profile.custom.get(ident, {}).get("parameter_bindings")
-            or eligible_operation(car, auth, capability, aspect) is not None
+            or eligible_operation(car, auth, capability, aspect, profile=profile)
+            is not None
         )
         and (
             not profile.custom.get(ident, {}).get("handler")
-            or eligible_operation(car, auth, capability, aspect)
+            or eligible_operation(car, auth, capability, aspect, profile=profile)
             == profile.custom[ident]["handler"]
         )
         and (not restricted or ident == allowed)
@@ -118,7 +172,7 @@ def control_decision(
             return decision("local_verified", ident)
     if len(profile.registry.capabilities) <= 1:
         return decision("unknown")
-    ident = eligible_operation(car, auth, capability, aspect)
+    ident = eligible_operation(car, auth, capability, aspect, profile=profile)
     if ident and currently_safe(ident):
         if profile.control_results.get(ident) != "failed":
             return decision("catalog_matched", ident)
@@ -136,20 +190,6 @@ def control_decision(
                 "alternative_requires_verification",
             )
         return decision("no_working_route", reason="reviewed_candidates_failed")
-    if capability == "charging" and aspect == "set_charge_mode":
-        from .command_policy import supported_charge_modes
-
-        if not supported_charge_modes(car):
-            options = car.readings.get("availableChargeModes", {})
-            if options.get("status") == "invalid_value":
-                reason = "charge_mode_options_invalid"
-            elif options.get("value") == []:
-                reason = "charge_mode_options_empty"
-            elif options.get("value") is None:
-                reason = "charge_mode_options_not_observed"
-            else:
-                reason = "charge_mode_options_unrecognized"
-            return decision("unknown", reason=reason)
     return decision("unknown")
 
 

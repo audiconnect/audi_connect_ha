@@ -104,6 +104,29 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
                 for action in actions
             },
         }
+        if profile is not None and getattr(engine, "auth", None) is not None:
+            from .control_resolution import control_decision
+
+            decisions = (
+                {
+                    action: control_decision(
+                        self.vehicle, profile, engine.auth, capability, action
+                    )
+                    for action in actions
+                }
+                if hasattr(profile, "registry")
+                else {}
+            )
+            if decisions:
+                result["control_dispatch"] = {
+                    action: {
+                        "route_available": decision["route_available"],
+                        "route_status": decision["route_status"],
+                        "ready": decision["dispatch_ready"],
+                        "reason": decision["dispatch_reason"],
+                    }
+                    for action, decision in decisions.items()
+                }
         if reading is not None or attribute is not None:
             row = (
                 reading if reading is not None else self.vehicle.readings.get(attribute)
@@ -2117,7 +2140,8 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
                 self.vehicle.readings.get("preferredChargeMode"), allow_last_known=True
             )
             and bool(self.options)
-            and self.current_option in self.options
+            and self.vehicle.readings["preferredChargeMode"]["value"]
+            in ("manual", "timer")
             and self.coordinator.engine.control_enabled(
                 self.vehicle.vin, "set_charge_mode", "charging"
             )
@@ -2125,21 +2149,19 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        return supported_charge_modes(self.vehicle)
+        profile = getattr(self.coordinator.engine, "profiles", {}).get(
+            self.vehicle.vin.lower()
+        )
+        return supported_charge_modes(self.vehicle, profile)
 
     @property
     def current_option(self) -> str | None:
         value, _ = _reading_projection(
             self.coordinator, self.vehicle, "preferredChargeMode", allow_last_known=True
         )
-        if not isinstance(value, str) or value.lower() in {
-            "",
-            "invalid",
-            "unknown",
-            "unsupported",
-        }:
-            return None
-        return value
+        # HA select state must be one of its executable options. Retain the
+        # independently observed mode in last_reported_state, not in options.
+        return value if isinstance(value, str) and value in self.options else None
 
     @property
     def extra_state_attributes(self):

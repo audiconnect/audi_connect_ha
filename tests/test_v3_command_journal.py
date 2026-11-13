@@ -232,3 +232,14 @@ def test_known_access_acceptance_has_bounded_cooldown_not_permanent_review():
     assert row.requires_review
     with pytest.raises(RuntimeError, match="uncertain"):
         check_command_sequence(p, 1100, capability="access", action="lock")
+
+
+def test_dispatch_readiness_matches_existing_cooldown_guard():
+    from custom_components.audiconnect.v3.command_journal import dispatch_block_reason
+
+    p = DevelopmentProfile(model(), VehicleContext(auth="auth0", region="DE"))
+    row = CommandRecord.begin("access", "lock", "cariad.access.lock", 1000)
+    row.observe_http(200)
+    p.track_command(row)
+    assert "cooldown" in dispatch_block_reason(p, "access", "unlock", now=1010)
+    assert dispatch_block_reason(p, "access", "unlock", now=1031) is None

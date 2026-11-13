@@ -5,7 +5,7 @@ timezone, no fabricated defaults, and no extra cloud request.
 """
 
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from .registry import read_json_path
 from .freshness import timestamp_is_fresh
 
@@ -570,7 +570,56 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 for t in entries
                 if t.get("enabled") is True and "start_datetime_local" in t
             ]
-            if complete and starts:
+            # An enabled single timer with an unknown start could precede
+            # every known candidate. Recurring schedules are not single starts.
+            single_starts_complete = complete and all(
+                timer.get("enabled") is not True
+                or "start_datetime_local" in timer
+                or (
+                    isinstance(raw.get("recurringTimer"), dict)
+                    and raw.get("singleTimer") is None
+                )
+                for raw, timer in zip(block["timers"], entries, strict=True)
+            )
+            # Local wall-clock timestamps require a vehicle clock anchor.
+            # Never infer its timezone from the HA host or API market.
+            from .structured_details import _zoned_datetime
+
+            clock = _zoned_datetime(block.get("timeInCar"))
+            if (
+                clock is not None
+                and timestamp_is_fresh(clock, observed_at)
+                and timestamp_is_fresh(captured, observed_at)
+            ):
+                local_now = observed_at.astimezone(
+                    datetime.fromisoformat(clock).tzinfo
+                ).replace(tzinfo=None)
+                starts = [
+                    value
+                    for value in starts
+                    if datetime.fromisoformat(value) > local_now
+                ]
+            elif observed_at.tzinfo is not None:
+                # Without a local clock, do not skip a potentially earlier
+                # future timer. Preserve all schedule details independently.
+                utc_now = observed_at.astimezone(UTC).replace(tzinfo=None)
+                earliest = utc_now - timedelta(hours=14)
+                latest = utc_now + timedelta(hours=14)
+                candidates = [
+                    value
+                    for value in starts
+                    if datetime.fromisoformat(value) > earliest
+                ]
+                starts = (
+                    candidates
+                    if all(
+                        datetime.fromisoformat(value) > latest for value in candidates
+                    )
+                    else []
+                )
+            else:
+                starts = []
+            if single_starts_complete and starts:
                 record(
                     ident,
                     min(starts, key=datetime.fromisoformat),

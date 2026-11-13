@@ -1126,6 +1126,7 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
     from .control_resolution import control_decision
     from .command_journal import unresolved_normal_commands
     from .read_discovery import physical_control_evidence
+    from .command_policy import charge_mode_evidence
 
     report = build_status_report(vehicle, profile)
     known = base_registry.capabilities
@@ -1149,18 +1150,31 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                     "binding_status": decision["status"],
                     "reason": decision.get("reason"),
                     "eligible": operation is not None,
+                    "route_available": decision["route_available"],
+                    "route_status": decision["route_status"],
+                    "dispatch_ready": decision["dispatch_ready"],
+                    "dispatch_reason": decision["dispatch_reason"],
                     "operation": diagnostic_route_label(operation, base_registry)
                     if operation
                     else None,
                     "physical_evidence": physical_control_evidence(profile, candidates),
+                    **(
+                        {"charge_mode_evidence": charge_mode_evidence(vehicle, profile)}
+                        if capability == "charging" and action == "set_charge_mode"
+                        else {}
+                    ),
                 }
             )
     for row in summaries:
         actions = [item for item in controls if item["capability"] == row["capability"]]
         row["enabled_controls"] = sum(item["eligible"] for item in actions)
         row["locally_verified_controls"] = sum(
-            item["binding_status"] == "local_verified" for item in actions
+            item["route_status"] == "local_verified" for item in actions
         )
+        row["route_available_controls"] = sum(
+            item["route_available"] for item in actions
+        )
+        row["dispatch_ready_controls"] = sum(item["dispatch_ready"] for item in actions)
     operations = [
         {
             key: item.get(key)

@@ -366,6 +366,8 @@ class DevelopmentProfile:
         # evidence, never physical action evidence.
         self.read_results: dict[str, dict[str, Any]] = {}
         self.control_results: dict[str, str] = {}
+        # Parameter-specific physical proof, scoped to this vehicle context.
+        self.verified_charge_modes: dict[str, str] = {}
         # Historical physical reviews are evidence only, never authorization.
         self.historical_control_evidence: list[dict[str, Any]] = []
         self.manufacturer_identity: dict[str, Any] = {}
@@ -680,6 +682,7 @@ class DevelopmentProfile:
             self.draft_selected,
             self.read_results,
             self.control_results,
+            self.verified_charge_modes,
             self.attribute_routes,
             self.attribute_evidence,
             self.attribute_drafts,
@@ -735,6 +738,19 @@ class DevelopmentProfile:
             if worked is not None:
                 self.invalidated_attempt_sequence = None
             return  # A review of an old vehicle context is not proof for the new one.
+        if (
+            record is not None
+            and record.operation == "cariad.charging.mode"
+            and record.requested_charge_mode in ("manual", "timer")
+            and record.operation_revision
+            == operation_revision(self.registry.operations[record.operation])
+        ):
+            if worked is True:
+                self.verified_charge_modes[record.requested_charge_mode] = (
+                    record.operation_revision
+                )
+            elif worked is False:
+                self.verified_charge_modes.pop(record.requested_charge_mode, None)
         if attempted.result in ("worked", "failed"):
             self.control_results[attempted.operation] = attempted.result
         if attempted.result != "worked" and self.active.get(key) == attempted.operation:
@@ -752,6 +768,8 @@ class DevelopmentProfile:
             self.invalidated_attempt_sequence = None
             return
         self.control_results[attempt.operation] = "failed"
+        if attempt.operation == "cariad.charging.mode":
+            self.verified_charge_modes.clear()
         key = f"{attempt.capability}.{attempt.action}"
         if self.active.get(key) == attempt.operation:
             self.active.pop(key)
@@ -882,6 +900,7 @@ class DevelopmentProfile:
             "draft_selected": dict(self.draft_selected),
             "read_evidence": deepcopy(self.read_results),
             "control_evidence": dict(self.control_results),
+            "verified_charge_modes": dict(self.verified_charge_modes),
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),
             "last_known_climate": deepcopy(self.last_known_climate),
