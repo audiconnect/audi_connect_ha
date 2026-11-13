@@ -67,3 +67,28 @@ def test_newest_capture_ignores_derived_summary_and_invalid_readings():
     assert newest_vehicle_reading(car, now)[1] == "stateOfCharge"
     car.readings.pop("stateOfCharge")
     assert newest_vehicle_capture(car, now) is None
+
+
+def test_reading_attributes_distinguish_vehicle_capture_from_cloud_refresh():
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+
+    now = datetime.now(UTC)
+    captured = (now - timedelta(hours=2)).isoformat()
+    reading = {
+        "value": 80,
+        "captured": captured,
+        "observed": now.isoformat(),
+        "status": "readable_but_stale",
+    }
+    attrs = reading_freshness_attributes(reading, allow_last_known=True, now=now)
+    assert attrs["vehicle_captured"] == captured
+    assert attrs["age_minutes"] == 120
+    assert attrs["cloud_observed"] == now.isoformat()
+    assert attrs["cloud_age_minutes"] == 0
+    assert attrs["vehicle_freshness"] == "stale_last_known"
+    reading.update(value=None, status="invalid_value")
+    assert (
+        reading_freshness_attributes(reading, now=now)["vehicle_freshness"] == "unknown"
+    )
+    reading.update(value=80, captured=None)
+    assert reading_freshness_attributes(reading, now=now)["age_minutes"] is None
