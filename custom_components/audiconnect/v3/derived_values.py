@@ -5,7 +5,7 @@ timezone, no fabricated defaults, and no extra cloud request.
 """
 
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from .registry import read_json_path
 from .freshness import timestamp_is_fresh
 
@@ -580,22 +580,22 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                     datetime.fromisoformat(clock).tzinfo
                 ).replace(tzinfo=None)
                 starts = [
-                    value for value in starts
-                    if datetime.fromisoformat(value) > local_now
+                    value for value in starts if datetime.fromisoformat(value) > local_now
                 ]
             else:
-                # A date beyond every plausible UTC offset is unambiguously
-                # future even when Audi omitted its local clock.
-                from datetime import UTC
-
-                boundary = (
-                    observed_at.astimezone(UTC).replace(tzinfo=None)
-                    + timedelta(hours=14)
-                )
-                starts = [
-                    value for value in starts
-                    if datetime.fromisoformat(value) > boundary
+                # Without a local clock, do not skip a potentially earlier
+                # future timer. Preserve all schedule details independently.
+                utc_now = observed_at.astimezone(UTC).replace(tzinfo=None)
+                earliest = utc_now - timedelta(hours=14)
+                latest = utc_now + timedelta(hours=14)
+                candidates = [
+                    value for value in starts if datetime.fromisoformat(value) > earliest
                 ]
+                starts = (
+                    candidates
+                    if all(datetime.fromisoformat(value) > latest for value in candidates)
+                    else []
+                )
             if complete and starts:
                 record(
                     ident,

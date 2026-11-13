@@ -214,3 +214,43 @@ def test_empty_charge_modes_require_local_route_verification():
     assert supported_charge_modes(car, profile) == ["manual"]
     car.readings["availableChargeModes"] = {"value": None, "status": "invalid_value"}
     assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
+
+
+def test_next_climate_timer_excludes_expired_and_ambiguous_times():
+    from custom_components.audiconnect.v3.derived_values import observe_derived
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    now = datetime(2026, 11, 13, 12, tzinfo=UTC)
+    block = {
+        "carCapturedTimestamp": now.isoformat(),
+        "timeInCar": "2026-11-13T13:00:00+01:00",
+        "timers": [
+            {
+                "id": 1,
+                "enabled": True,
+                "singleTimer": {"startDateTimeLocal": "2026-11-13T12:00:00"},
+            },
+            {
+                "id": 2,
+                "enabled": True,
+                "singleTimer": {"startDateTimeLocal": "2026-11-13T14:00:00"},
+            },
+            {
+                "id": 3,
+                "enabled": True,
+                "singleTimer": {"startDateTimeLocal": "2026-11-15T14:00:00"},
+            },
+        ],
+    }
+    payload = {"climatisationTimers": {"climatisationTimersStatus": {"value": block}}}
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    key = "next_climatisation_timer_local"
+    assert car.readings[key]["value"] == "2026-11-13T14:00:00"
+    assert car.readings["climatisation_timer_enabled_count"]["value"] == 3
+    block.pop("timeInCar")
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert key not in car.readings
+    block["timers"] = block["timers"][2:]
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert car.readings[key]["value"] == "2026-11-15T14:00:00"

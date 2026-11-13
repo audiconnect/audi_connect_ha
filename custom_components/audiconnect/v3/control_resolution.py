@@ -68,7 +68,11 @@ def control_decision(
             else "vehicle_command_in_progress",
         )
     restricted = capability == "remote" and aspect in ("engine_start", "engine_stop")
-    allowed = eligible_operation(car, auth, capability, aspect, profile=profile) if restricted else None
+    allowed = (
+        eligible_operation(car, auth, capability, aspect, profile=profile)
+        if restricted
+        else None
+    )
     if restricted and not allowed:
         return decision("ineligible")
     try:
@@ -109,30 +113,33 @@ def control_decision(
             relevant = {"auxiliaryHeating", "hybridCarAuxiliaryHeating"}
         return not (relevant and relevant & impaired)
 
-    if capability == "charging" and aspect == "set_charge_mode":
-        if not supported_charge_modes(car, profile):
-            route = "cariad.charging.mode"
-            if (
-                charge_mode_fallback_candidate(car)
-                and currently_safe(route)
-                and profile.control_results.get(route) != "failed"
-            ):
-                return decision(
-                    "candidate_unverified",
-                    route if for_discovery else None,
-                    "charge_mode_fallback_requires_verification",
-                )
-            # Do not let a previously active route bypass invalid options.
-            options = car.readings.get("availableChargeModes", {})
-            if options.get("status") == "invalid_value":
-                reason = "charge_mode_options_invalid"
-            elif options.get("value") == []:
-                reason = "charge_mode_options_empty"
-            elif options.get("value") is None:
-                reason = "charge_mode_options_not_observed"
-            else:
-                reason = "charge_mode_options_unrecognized"
-            return decision("unknown", reason=reason)
+    if (
+        capability == "charging"
+        and aspect == "set_charge_mode"
+        and not supported_charge_modes(car, profile)
+    ):
+        route = "cariad.charging.mode"
+        if (
+            charge_mode_fallback_candidate(car)
+            and currently_safe(route)
+            and profile.control_results.get(route) != "failed"
+        ):
+            return decision(
+                "candidate_unverified",
+                route if for_discovery else None,
+                "charge_mode_fallback_requires_verification",
+            )
+        # Do not let a previously active route bypass invalid options.
+        options = car.readings.get("availableChargeModes", {})
+        if options.get("status") == "invalid_value":
+            reason = "charge_mode_options_invalid"
+        elif options.get("value") == []:
+            reason = "charge_mode_options_empty"
+        elif options.get("value") is None:
+            reason = "charge_mode_options_not_observed"
+        else:
+            reason = "charge_mode_options_unrecognized"
+        return decision("unknown", reason=reason)
 
     ident = profile.active.get(key)
     if (
@@ -141,7 +148,8 @@ def control_decision(
         and runtime_ready(profile.custom.get(ident, {}))
         and (
             not profile.custom.get(ident, {}).get("parameter_bindings")
-            or eligible_operation(car, auth, capability, aspect, profile=profile) is not None
+            or eligible_operation(car, auth, capability, aspect, profile=profile)
+            is not None
         )
         and (
             not profile.custom.get(ident, {}).get("handler")

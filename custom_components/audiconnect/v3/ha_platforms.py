@@ -147,8 +147,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 and (
                     car.readings.get("availableChargeModes", {}).get("value")
                     or (
-                        car.readings.get("availableChargeModes", {}).get("value")
-                        == []
+                        car.readings.get("availableChargeModes", {}).get("value") == []
                         and car.readings.get("preferredChargeMode", {}).get("value")
                         in ("manual", "timer")
                     )
