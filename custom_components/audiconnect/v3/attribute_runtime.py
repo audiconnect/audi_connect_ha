@@ -345,17 +345,23 @@ def data_act_observations(payload, now, registry):
         raw = item.get("value")
         if type(raw) not in (str, int, float):
             continue
-        try:
-            value = float(raw)
-        except (ValueError, OverflowError):
-            continue
-        if not mapping["min"] <= value <= mapping["max"]:
-            continue
         ident = mapping["attribute"]
-        # The OEM mileage field is unsignedInt, not a bounded uint16 signal.
-        # 65,535 km is a legitimate odometer reading.
-        if ident == "UTC_TIME_AND_KILOMETER_STATUS" and not value.is_integer():
-            continue
+        if "values" in mapping:
+            value = mapping["values"].get(str(raw))
+            if value is None:
+                continue
+        else:
+            try:
+                value = float(raw)
+            except (ValueError, OverflowError):
+                continue
+            if not mapping["min"] <= value <= mapping["max"]:
+                continue
+            # The OEM mileage field is unsignedInt, not a bounded uint16 signal.
+            if ident == "UTC_TIME_AND_KILOMETER_STATUS" and not value.is_integer():
+                continue
+            if "scale" in mapping:
+                value = round(value * mapping["scale"] + mapping["offset"], 2)
         value, _ = normalize_attribute_value(ATTRIBUTES[ident], value, None)
         if value is None:
             continue

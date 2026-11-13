@@ -1378,6 +1378,7 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
         reading = self.vehicle.readings.get(self.attribute["id"]) or {}
         return {
             "v3_capability": self.attribute["capability"],
+            "api_family": reading.get("family"),
             "response_mapping": reading.get("path"),
             **reading_freshness_attributes(
                 reading, allow_last_known=self._allow_last_known

@@ -70,6 +70,102 @@
           "attribute": "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
           "min": 0,
           "max": 100
+        },
+        "6810b781-e54a-35e8-af98-fcdefb54bac6": {
+          "field": "outside_temperature",
+          "attribute": "outdoor_temperature",
+          "min": 1732,
+          "max": 3532,
+          "scale": 0.1,
+          "offset": -273.15
+        },
+        "bc9bbc65-8461-30eb-88db-f94148552a20": {
+          "field": "open_state_front_left_door",
+          "attribute": "left_front_door_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "bf62dd10-b184-3425-a64c-c50b09420bc3": {
+          "field": "open_state_rear_left_door",
+          "attribute": "left_rear_door_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "60a4f436-5534-32f4-b4cc-b5a88a9d4b91": {
+          "field": "state_front_left_door_window_lifter",
+          "attribute": "left_front_window_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "5fcf7d27-6b76-3de0-9ce9-f207370cdaff": {
+          "field": "state_front_right_door_window_lifter",
+          "attribute": "right_front_window_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "5fb120bb-ab59-38fc-8e03-9ae197c7a1ae": {
+          "field": "state_rear_left_door_window_lifter",
+          "attribute": "left_rear_window_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "3ef13c1d-7e08-3cf4-b501-a8bda80cff78": {
+          "field": "state_rear_right_door_window_lifter",
+          "attribute": "right_rear_window_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "dbb8f3b1-2bc9-3afc-a1d5-61f1eb04d1c4": {
+          "field": "open_state_tailgate",
+          "attribute": "trunk_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "e1c6d420-b439-3de6-a5b7-d0b474cc2752": {
+          "field": "open_state_front_engine_bonnet",
+          "attribute": "hood_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "95380872-847c-39d7-857f-17cdea1579ce": {
+          "field": "locked_state_tailgate",
+          "attribute": "trunk_unlocked",
+          "values": {
+            "2": false,
+            "3": true
+          }
+        },
+        "c111830c-f959-30d2-859a-ea996190d864": {
+          "field": "plug_state",
+          "attribute": "plugState",
+          "values": {
+            "connected": "connected",
+            "disconnected": "disconnected"
+          }
+        },
+        "60bc0937-f5a7-3809-9535-9a7942e5dd94": {
+          "field": "lock_state",
+          "attribute": "plugLockState",
+          "values": {
+            "locked": "locked",
+            "unlocked": "unlocked"
+          }
         }
       }
     },

@@ -352,6 +352,7 @@ def test_sparse_q8_shape_maps_known_information_only():
         "primaryEngineRange": 590,
         "secondaryEngineRange": 30,
         "OIL_LEVEL_DIPSTICKS_PERCENTAGE": 95,
+        "plugLockState": "unlocked",
     }
     assert all(row["captured"] == stamp for row in car.readings.values())
     assert not profile.attribute_evidence and not profile.attribute_routes
@@ -488,3 +489,51 @@ def test_portal_password_form_uses_only_reviewed_fields():
     )
     assert target.endswith("/login/authenticate")
     assert fields == {"hmac": "example", "_csrf": "example"}
+
+
+def test_data_act_enum_and_temperature_mappings_do_not_invent_state():
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    stamp = (now - timedelta(hours=35)).isoformat()
+
+    def item(key, name, value):
+        return {
+            "key": key,
+            "dataFieldName": name,
+            "value": value,
+            "timestampUtc": stamp,
+        }
+
+    payload = {
+        "vin": VIN,
+        "Data": [
+            item(
+                "6810b781-e54a-35e8-af98-fcdefb54bac6",
+                "outside_temperature",
+                "2812",
+            ),
+            item(
+                "60a4f436-5534-32f4-b4cc-b5a88a9d4b91",
+                "state_front_left_door_window_lifter",
+                "3",
+            ),
+            item(
+                "5fcf7d27-6b76-3de0-9ce9-f207370cdaff",
+                "state_front_right_door_window_lifter",
+                "1",
+            ),
+            item(
+                "60bc0937-f5a7-3809-9535-9a7942e5dd94",
+                "lock_state",
+                "locked",
+            ),
+        ],
+    }
+    rows = data_act_observations(payload, now, registry)
+    assert rows["outdoor_temperature"]["value"] == 8.05
+    assert rows["left_front_window_open"]["value"] is False
+    assert "right_front_window_open" not in rows
+    assert rows["plugLockState"]["value"] == "locked"
+    assert "doorLockStatus" not in rows
+    assert "any_door_unlocked" not in rows
+    assert all(row["captured"] == stamp for row in rows.values())
