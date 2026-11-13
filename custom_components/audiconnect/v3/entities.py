@@ -45,7 +45,7 @@ from .auth import configured_spin
 from .freshness import reading_freshness_attributes
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
-from .command_readback import last_known_climate, projected_state
+from .command_readback import command_attributes, last_known_climate, projected_state
 from .command_policy import supported_charge_modes
 from .attribute_contracts import contract_for, binary_contract_for, semantic_value_issue
 from .product_contract import (
@@ -79,6 +79,39 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
     @property
     def available(self) -> bool:
         return getattr(self.vehicle, "inventory_present", True) and super().available
+
+    def _control_attributes(
+        self,
+        capability,
+        actions,
+        *,
+        attribute=None,
+        reading=None,
+        source=None,
+        allow_last_known=False,
+        correlate=True,
+    ):
+        """One metadata contract for all native vehicle controls."""
+        engine = self.coordinator.engine
+        profile = getattr(engine, "profiles", {}).get(self.vehicle.vin.lower())
+        result = {
+            "v3_capability": capability,
+            **command_attributes(
+                profile if correlate else None, capability, actions, attribute=attribute
+            ),
+            "control_actions": {
+                action: engine.control_enabled(self.vehicle.vin, action, capability)
+                for action in actions
+            },
+        }
+        if reading is not None or attribute is not None:
+            row = reading if reading is not None else self.vehicle.readings.get(attribute)
+            result.update(
+                reading_freshness_attributes(row, allow_last_known=allow_last_known),
+                last_reported_state=(row or {}).get("value"),
+                state_source=source or "unknown",
+            )
+        return result
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -315,8 +348,13 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
             ),
             "v3_capability": "climate",
             "api_route": self.vehicle.climate_source,
-            **reading_freshness_attributes(
-                self.vehicle.readings.get("climatisationState"), allow_last_known=True
+            **self._control_attributes(
+                "climate",
+                ("start", "stop", "start_with_settings"),
+                attribute="climate",
+                reading=self.vehicle.readings.get("climatisationState") or {},
+                source=source,
+                allow_last_known=True,
             ),
             "start_enabled": bool(
                 self.supported_features & ClimateEntityFeature.TURN_ON
@@ -1353,7 +1391,7 @@ class V3ControlButton(V3BaseEntity, ButtonEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         profile = self.coordinator.engine.profiles.get(self.vehicle.vin.lower())
         return {
-            "v3_capability": self.capability,
+            **self._control_attributes(self.capability, (self.action,)),
             "api_route": (
                 getattr(profile, "fast_bindings", {})
                 .get(f"{self.capability}.{self.action}", {})
@@ -1429,9 +1467,14 @@ class V3OperationalSwitch(V3BaseEntity, SwitchEntity):
     def extra_state_attributes(self):
         row, state = stateful_reading(self.vehicle, self.key)
         return {
+            **self._control_attributes(
+                self.definition["capability"],
+                (self.definition["on"], self.definition["off"]),
+                attribute=self.definition["attribute"],
+                reading=row or {},
+                source=self._projection()[1],
+            ),
             "last_reported_state": state,
-            **reading_freshness_attributes(row),
-            "state_source": self._projection()[1],
             "on_enabled": self._enabled("on"),
             "off_enabled": self._enabled("off"),
         }
@@ -1557,8 +1600,13 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(
-            self.vehicle.readings.get("climatisationState"), allow_last_known=True
+        return self._control_attributes(
+            "climate",
+            ("start", "stop", "start_with_settings"),
+            attribute="climate",
+            reading=self.vehicle.readings.get("climatisationState") or {},
+            source=_climate_projection(self.coordinator, self.vehicle)[1],
+            allow_last_known=True,
         )
 
     async def async_turn_on(self, **kwargs) -> None:
@@ -1627,24 +1675,16 @@ class V3LockEntity(V3BaseEntity, LockEntity):
 
     @property
     def extra_state_attributes(self):
-        from .command_readback import latest_readback_command
-
-        engine = self.coordinator.engine
-        profile = getattr(engine, "profiles", {}).get(self.vehicle.vin.lower())
-        record = latest_readback_command(profile, "doorLockStatus")
-        row = self.vehicle.readings.get("doorLockStatus")
         _, source = _reading_projection(
             self.coordinator, self.vehicle, "doorLockStatus", optimistic=False
         )
+        attrs = self._control_attributes(
+            "access", ("lock", "unlock"), attribute="doorLockStatus", source=source
+        )
         return {
-            **reading_freshness_attributes(row),
-            "state_source": source,
-            "last_reported_state": (row or {}).get("value"),
-            "command_status": record.state if record else None,
-            "lock_enabled": engine.control_enabled(self.vehicle.vin, "lock", "access"),
-            "unlock_enabled": engine.control_enabled(
-                self.vehicle.vin, "unlock", "access"
-            ),
+            **attrs,
+            "lock_enabled": attrs["control_actions"]["lock"],
+            "unlock_enabled": attrs["control_actions"]["unlock"],
         }
 
     def _pending_action(self, action):
@@ -1802,8 +1842,14 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(
-            self.vehicle.readings.get("targetstateOfCharge"), allow_last_known=True
+        return self._control_attributes(
+            "charging",
+            ("set_target_soc",),
+            attribute="targetstateOfCharge",
+            source=_reading_projection(
+                self.coordinator, self.vehicle, "targetstateOfCharge", allow_last_known=True
+            )[1],
+            allow_last_known=True,
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -1865,14 +1911,18 @@ class V3LocationChargeTargetNumber(V3ChargeTargetNumber):
     def extra_state_attributes(self):
         # The profile target belongs to the profile snapshot, not global SoC.
         row = self.vehicle.readings.get("charging_profile_context_detail", {})
-        return reading_freshness_attributes(
-            {
+        return self._control_attributes(
+            "charging",
+            ("set_location_charge_target",),
+            reading={
                 "value": self.native_value,
                 "captured": self.vehicle.charging_profiles_captured,
                 "observed": row.get("observed"),
                 "status": row.get("status", "unknown"),
             },
+            source="vehicle" if self.native_value is not None else "unknown",
             allow_last_known=True,
+            correlate=False,
         )
 
     async def async_set_native_value(self, value):
@@ -1915,8 +1965,13 @@ class V3PreheaterSwitch(V3BaseEntity, SwitchEntity):
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(
-            self.vehicle.readings.get("preheater_active")
+        return self._control_attributes(
+            "climate",
+            ("preheater_start", "preheater_stop"),
+            attribute="preheater_active",
+            source=_reading_projection(
+                self.coordinator, self.vehicle, "preheater_active"
+            )[1],
         )
 
     async def _send(self, aspect):
@@ -1961,8 +2016,14 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(
-            self.vehicle.readings.get(self.reading), allow_last_known=True
+        return self._control_attributes(
+            "climate",
+            ("set_settings",),
+            attribute=self.reading,
+            source=_reading_projection(
+                self.coordinator, self.vehicle, self.reading, allow_last_known=True
+            )[1],
+            allow_last_known=True,
         )
 
     async def _write(self, value):
@@ -2031,8 +2092,14 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(
-            self.vehicle.readings.get("preferredChargeMode"), allow_last_known=True
+        return self._control_attributes(
+            "charging",
+            ("set_charge_mode",),
+            attribute="preferredChargeMode",
+            source=_reading_projection(
+                self.coordinator, self.vehicle, "preferredChargeMode", allow_last_known=True
+            )[1],
+            allow_last_known=True,
         )
 
     async def async_select_option(self, option: str) -> None:
