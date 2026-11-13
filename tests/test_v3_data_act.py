@@ -356,6 +356,11 @@ def test_sparse_q8_shape_maps_known_information_only():
     assert all(row["captured"] == stamp for row in car.readings.values())
     assert not profile.attribute_evidence and not profile.attribute_routes
     payload["Data"][1]["value"] = "65535"
-    assert "UTC_TIME_AND_KILOMETER_STATUS" not in data_act_observations(
-        payload, now, registry
-    )
+    assert data_act_observations(payload, now, registry)[
+        "UTC_TIME_AND_KILOMETER_STATUS"
+    ]["value"] == 65535
+    for invalid in ("4294967295", "2147483647", "-1", "123.5"):
+        payload["Data"][1]["value"] = invalid
+        assert "UTC_TIME_AND_KILOMETER_STATUS" not in data_act_observations(
+            payload, now, registry
+        )

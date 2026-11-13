@@ -351,10 +351,11 @@ def data_act_observations(payload, now, registry):
             continue
         if not mapping["min"] <= value <= mapping["max"]:
             continue
-        # An all-bits-set odometer is not a vehicle measurement.
-        if mapping["attribute"] == "UTC_TIME_AND_KILOMETER_STATUS" and value == 65535:
-            continue
         ident = mapping["attribute"]
+        # The OEM mileage field is unsignedInt, not a bounded uint16 signal.
+        # 65,535 km is a legitimate odometer reading.
+        if ident == "UTC_TIME_AND_KILOMETER_STATUS" and not value.is_integer():
+            continue
         value, _ = normalize_attribute_value(ATTRIBUTES[ident], value, None)
         if value is None:
             continue
