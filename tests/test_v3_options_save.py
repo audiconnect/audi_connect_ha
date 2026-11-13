@@ -92,6 +92,10 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
     )
     fields = [key.schema for key in schema.schema]
     assert "v3_development_workbench" in fields
+    assert "scan_initial" not in fields
+    assert "scan_initial" in [
+        key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
+    ]
     assert "climate_quick_start" not in fields
     assert "experimental_commands" not in fields
     assert "edit_local_dealer" in fields
@@ -190,3 +194,49 @@ async def test_optional_data_act_credentials_retained_only_for_same_email():
     assert not result["data"]["v3_data_act_enabled"]
     assert "v3_data_act_password" not in result["data"]
     assert "v3_data_act_email" not in result["data"]
+
+
+@pytest.mark.parametrize("language", ["en", "nl", "de", "fr"])
+def test_v3_options_have_localized_labels_and_descriptions(language):
+    import json
+    from pathlib import Path
+
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    flow._test_entry = SimpleNamespace(
+        data={}, options={"runtime_version": "v3_climate"}
+    )
+    fields = {
+        key.schema for key in flow._options_schema(flow._test_entry.options).schema
+    }
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "custom_components/audiconnect/translations"
+        / f"{language}.json"
+    )
+    form = json.loads(path.read_text())["options"]["step"]["init"]
+    assert fields <= form["data"].keys()
+    assert fields <= form["data_description"].keys()
+
+
+@pytest.mark.asyncio
+async def test_v3_save_preserves_hidden_v2_startup_preference():
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    flow._test_entry = SimpleNamespace(
+        data={"scan_interval": 15},
+        options={"runtime_version": "v3_climate", "scan_initial": False},
+    )
+    result = await flow.async_step_init({"scan_interval": 20})
+    assert result["data"]["scan_initial"] is False
+    assert result["data"]["scan_interval"] == 20

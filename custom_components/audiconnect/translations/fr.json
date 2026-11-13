@@ -72,13 +72,27 @@
         "data": {
           "scan_initial": "Mise à jour du cloud au démarrage",
           "scan_interval": "Intervalle de mises à jour",
-          "v3_development_workbench": "Activer l'atelier de développement V3"
+          "v3_development_workbench": "Activer l'atelier de développement V3",
+          "filter_vins": "VIN exclus",
+          "edit_local_dealer": "Modifier les données du concessionnaire et d’entretien",
+          "runtime_version": "Version d’exécution",
+          "run_vehicle_discovery": "Détection du véhicule et tests des commandes",
+          "v3_data_act_enabled": "Activer la source de données EU Data Act (expérimentale)",
+          "v3_data_act_email": "Adresse e-mail Data Act (facultative)",
+          "v3_data_act_password": "Mot de passe Data Act (facultatif)"
         },
         "title": "Options Audi Connect",
         "data_description": {
           "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
           "scan_interval": "Minutes entre les mises à jour du cloud.",
-          "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés."
+          "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés.",
+          "filter_vins": "Liste des VIN séparés par des virgules à exclure de la configuration et des mises à jour.",
+          "edit_local_dealer": "Ouvrir le formulaire pour enregistrer localement les informations du concessionnaire, de l’entretien et de la garantie, sans appel à l’API Audi.",
+          "runtime_version": "V2 reste la version par défaut et de secours. V3 est expérimental, avec sa propre détection, ses mises à jour et ses entités Home Assistant. Le retour à V2 reste possible.",
+          "run_vehicle_discovery": "Examiner la détection automatique et tester explicitement les commandes disponibles. Aucune action sur le véhicule sans consentement à cette action précise.",
+          "v3_data_act_enabled": "Lecture uniquement d’une demande Data Act déjà autorisée. Désactivé par défaut. Les données peuvent dater de plusieurs jours.",
+          "v3_data_act_email": "Laisser vide pour utiliser l’adresse myAudi enregistrée, si disponible. Aucun compte ni consentement n’est créé.",
+          "v3_data_act_password": "Laisser vide pour conserver le mot de passe du portail ou utiliser le mot de passe myAudi enregistré, si disponible. La désactivation supprime les identifiants distincts du portail."
         }
       }
     }

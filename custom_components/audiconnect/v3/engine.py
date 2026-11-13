@@ -1673,6 +1673,10 @@ class V3Engine:
             "polling_owner": "independent_v3_discovery_engine",
             "data_act_polling": self.status.data_act_poll_status(),
             "requests": self.transport.request_count,
+            "requests_scope": "current_transport_runtime",
+            "poll_attempt_count": self.status.poll_attempt_count,
+            "last_poll_scope": "native_cloud_reachability",
+            "api_evidence_scope": "latest_per_operation_including_restored_evidence",
             "inventory_source": getattr(
                 self.transport, "last_inventory_operation", INVENTORY_OPERATION
             ),
@@ -1693,7 +1697,11 @@ class V3Engine:
             if self.last_cloud_poll_attempt
             else None,
             "quota_remaining": self.transport.remaining_calls,
-            "quota_scope": "conservative_estimate_since_last_header",
+            "quota_scope": (
+                "unknown_no_header"
+                if self.transport.remaining_calls is None
+                else "conservative_estimate_since_last_header"
+            ),
             "quota_observed_at": (
                 stamp.isoformat()
                 if (

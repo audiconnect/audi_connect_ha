@@ -1428,15 +1428,14 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     assert restarted.profiles[VIN.lower()].last_command.state == "verified"
 
 
-def test_identity_refresh_is_periodic_quota_aware_and_session_aware():
+def test_identity_refresh_is_periodic_and_quota_aware():
     from custom_components.audiconnect.v3.status_engine import identity_refresh_due
 
     car = V3Vehicle(VIN, "Audi", "", "", "DE")
     cars = {VIN.lower(): car}
-    assert not identity_refresh_due(cars, 1799, 100)
-    assert identity_refresh_due(cars, 1800, 100)
-    assert identity_refresh_due(cars, 1, 100, token_renewed=True)
-    assert not identity_refresh_due(cars, 3600, 12, token_renewed=True)
+    assert not identity_refresh_due(cars, 3599, 100)
+    assert identity_refresh_due(cars, 3600, 100)
+    assert not identity_refresh_due(cars, 3600, 12)
     car.model, car.model_family, car.model_year, car.car_type = (
         "Audi Q8",
         "q8",
@@ -1444,10 +1443,10 @@ def test_identity_refresh_is_periodic_quota_aware_and_session_aware():
         "phev",
     )
     car.image_url = "https://mediaservice.audi.com/render/example.png"
-    assert not identity_refresh_due(cars, 86399, 100, token_renewed=True)
+    assert not identity_refresh_due(cars, 86399, 100)
     assert identity_refresh_due(cars, 86400, 100)
     car.identity_restored = True
-    assert identity_refresh_due(cars, 1800, 100)
+    assert identity_refresh_due(cars, 3600, 100)
 
 
 @pytest.mark.asyncio
@@ -1499,3 +1498,24 @@ async def test_identity_image_waits_for_real_model_then_caches_across_restart():
     assert restored_car.identity_restored
     assert restored_car.model == car.model and restored_car.image_url == url
     transport.discover_vehicle_images.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_diagnostics_distinguish_poll_attempts_quota_and_operation_evidence():
+    engine, transport, _ = engine_for(status())
+    transport.remaining_calls = None
+    await engine.poll()
+    snapshot = engine.diagnostics()
+    assert snapshot["poll_attempt_count"] == 1
+    assert snapshot["requests"] == transport.request_count
+    assert snapshot["requests_scope"] == "current_transport_runtime"
+    assert snapshot["last_poll_scope"] == "native_cloud_reachability"
+    assert snapshot["api_evidence_scope"] == (
+        "latest_per_operation_including_restored_evidence"
+    )
+    assert snapshot["quota_remaining"] is None
+    assert snapshot["quota_scope"] == "unknown_no_header"
+    transport.remaining_calls = 40
+    assert (
+        engine.diagnostics()["quota_scope"] == "conservative_estimate_since_last_header"
+    )

@@ -76,17 +76,21 @@
           "v3_development_workbench": "V3 Development Workbench inschakelen",
           "v3_data_act_enabled": "EU Data Act-fallback inschakelen (experimenteel)",
           "v3_data_act_email": "Data Act-e-mailadres (optioneel)",
-          "v3_data_act_password": "Data Act-wachtwoord (optioneel)"
+          "v3_data_act_password": "Data Act-wachtwoord (optioneel)",
+          "filter_vins": "Uitgesloten VIN's",
+          "run_vehicle_discovery": "Voertuigdetectie en bediening testen"
         },
         "title": "Audi Connect-opties",
         "data_description": {
-          "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden.",
+          "scan_interval": "Minuten tussen cloudupdates.",
           "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
-          "runtime_version": "V2 behoudt de historische stabiele functionaliteit. V3 — Experimental heeft eigen discovery, polling, API-configuratie en Home Assistant-entities. Omschakelen blijft mogelijk.",
+          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen.",
           "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard.",
-          "v3_data_act_enabled": "Alleen lezen uit een bestaande, geautoriseerde Data Act-aanvraag. Uitgeschakeld standaard. De gegevens kunnen dagen oud zijn.",
+          "v3_data_act_enabled": "Alleen lezen uit een bestaande, geautoriseerde Data Act-aanvraag. Standaard uit. De gegevens kunnen dagen oud zijn.",
           "v3_data_act_email": "Leeg gebruikt het bestaande myAudi-e-mailadres indien aanwezig. Geen nieuw account of toestemming wordt aangemaakt.",
-          "v3_data_act_password": "Leeg behoudt het eerder opgegeven wachtwoord of gebruikt het bestaande myAudi-wachtwoord indien aanwezig. Uitschakelen verwijdert de afzonderlijke portalgegevens."
+          "v3_data_act_password": "Leeg behoudt het eerder opgegeven wachtwoord of gebruikt het bestaande myAudi-wachtwoord indien aanwezig. Uitschakelen verwijdert de afzonderlijke portalgegevens.",
+          "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
+          "run_vehicle_discovery": "Bekijk automatische detectie en test beschikbare bediening expliciet. Zonder toestemming voor de specifieke actie wordt geen voertuigactie uitgevoerd."
         }
       },
       "dealer_vehicle": {

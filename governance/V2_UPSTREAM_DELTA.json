@@ -83,7 +83,7 @@
     {
       "path": "custom_components/audiconnect/config_flow.py",
       "upstream_blob": "a53844c689bbca85f11f05c1f9a1727b0d828e54",
-      "development_blob": "14262b7c819a7123266112176e01b33bbdf8df65"
+      "development_blob": "2527c8134782fd713f2ea15f718e0b8311e66305"
     },
     {
       "path": "custom_components/audiconnect/device_tracker.py",
@@ -138,7 +138,7 @@
     {
       "path": "custom_components/audiconnect/translations/de.json",
       "upstream_blob": "5966797c9b391cb63a5304d095c6b7ae45148726",
-      "development_blob": "5f70b90b00115af10b4ec8033bd35c799aa3fc77"
+      "development_blob": "04f450fba3e28533179847e5a41f77c2f6adbb88"
     },
     {
       "path": "custom_components/audiconnect/translations/en.json",
@@ -148,12 +148,12 @@
     {
       "path": "custom_components/audiconnect/translations/fr.json",
       "upstream_blob": "0a282e073671f34cea7d2002c5865b2a585a4855",
-      "development_blob": "ca1f1a8df4f8400a5b7f9d4abfe5b732123299a6"
+      "development_blob": "6f0e7749e3e43903b43a556ba2278c872830351a"
     },
     {
       "path": "custom_components/audiconnect/translations/nl.json",
       "upstream_blob": "125b1002d7779c52500131af5d1e1e80ced6a7f4",
-      "development_blob": "f5771e67071dcdbd0fb35f624c67c9c3facc6245"
+      "development_blob": "e84735c99e266a950a3ddeeb927c0272261685dd"
     }
   ]
 }

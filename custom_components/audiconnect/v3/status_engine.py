@@ -36,10 +36,8 @@ from .read_discovery import (
 from .status_planner import status_groups
 
 
-def identity_refresh_due(
-    vehicles, elapsed_seconds, remaining_calls, *, token_renewed=False
-):
-    """Account-wide read-only inventory recovery; no extra scheduler."""
+def identity_refresh_due(vehicles, elapsed_seconds, remaining_calls):
+    """Bound inventory recovery independently of routine bearer renewal."""
     if remaining_calls is not None and remaining_calls <= 12:
         return False
     present = [car for car in vehicles.values() if car.inventory_present]
@@ -49,9 +47,7 @@ def identity_refresh_due(
         or not all((car.model, car.model_family, car.model_year, car.car_type))
         for car in present
     )
-    return elapsed_seconds >= (1800 if incomplete else 86400) or (
-        incomplete and token_renewed
-    )
+    return elapsed_seconds >= (3600 if incomplete else 86400)
 
 
 class StatusEngine:
@@ -89,7 +85,6 @@ class StatusEngine:
         self.last_cloud_poll_succeeded = None
         self._poll_cycles = 0
         self._identity_attempt_at = None
-        self._identity_session = None
         self._trip_poll_at = {}
         self._legacy_route_backoff = {}
         self._data_act_attempt_at = None
@@ -99,6 +94,11 @@ class StatusEngine:
     @property
     def transport(self):
         return self._transport()
+
+    @property
+    def poll_attempt_count(self) -> int:
+        """Current runtime coordinator attempts, including failed cycles."""
+        return self._poll_cycles
 
     def data_act_poll_status(self):
         """Safe account-level scheduler status; no dataset or session contents."""
@@ -332,16 +332,13 @@ class StatusEngine:
         self._poll_cycles += 1
         now = time.monotonic()
         initial = not self._inventory_ready()
-        session = getattr(self.auth, "session_generation", None)
         if self._identity_attempt_at is None:
             self._identity_attempt_at = now
-            self._identity_session = session
         elapsed = now - self._identity_attempt_at
         if initial or identity_refresh_due(
             self.vehicles,
             elapsed,
             self.transport.remaining_calls,
-            token_renewed=session is not None and session != self._identity_session,
         ):
             self._identity_attempt_at = now
             try:
@@ -349,8 +346,6 @@ class StatusEngine:
             except (RuntimeError, ValueError, OSError, TimeoutError):
                 if initial:
                     raise
-            finally:
-                self._identity_session = getattr(self.auth, "session_generation", None)
         # One optional family task, owned by the same status lifecycle. A slow
         # portal read must not delay the native coordinator's publication.
         self._start_data_act()
@@ -868,7 +863,7 @@ class StatusEngine:
         """
         if not hasattr(self.hass, "data"):
             return  # synthetic test engines without the HA registry
-        from .parking import parse_parked_position, keep_newest_position
+        from .parking import observe_parking
 
         for car in self.vehicles.values():
             if not car.inventory_present:
@@ -897,45 +892,7 @@ class StatusEngine:
             self._api_record(profile, ident, family, method, reply, car.vin)
             if reply.status in (401, 403, 429) or reply.status >= 500:
                 return
-            if reply.status == 204:
-                # Match historical V2 movement indication, explicitly a
-                # parking endpoint signal, not a live location fix.
-                car.readings["is_moving"] = {
-                    "value": True,
-                    "captured": None,
-                    "observed": reply.observed_at.isoformat(),
-                    "status": "readable_but_stale",
-                    "family": "cariad",
-                    "path": "parkingposition HTTP 204",
-                    "job": None,
-                }
-                continue
-            if not 200 <= reply.status < 300:
-                continue
-            point = parse_parked_position(reply.data)
-            if point and keep_newest_position(car.position, point):
-                car.position = point
-                stamp = point.get("timestamp")
-                car.readings["is_moving"] = {
-                    "value": False,
-                    "captured": None,
-                    "observed": reply.observed_at.isoformat(),
-                    "status": "readable_but_stale",
-                    "family": "cariad",
-                    "path": "parkingposition parked sample",
-                    "job": None,
-                }
-                if stamp:
-                    for ident in ("position_last_updated", "park_time"):
-                        car.readings[ident] = {
-                            "value": stamp,
-                            "captured": stamp,
-                            "observed": reply.observed_at.isoformat(),
-                            "status": "readable_but_stale",
-                            "family": "cariad",
-                            "path": "parkingposition.data.carCapturedTimestamp",
-                            "job": None,
-                        }
+            observe_parking(car, profile, reply, ident)
 
     async def test_attribute_route(self, car, attribute, route) -> dict[str, Any]:
         """Isolated engineering GET; never publish a test reading to HA."""

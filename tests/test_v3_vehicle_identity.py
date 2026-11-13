@@ -122,10 +122,10 @@ def test_incomplete_identity_retries_are_bounded_and_quota_aware():
     )
     complete.image_url = "https://mediaservice.audi.com/render/example.png"
     vehicles = {"a": incomplete, "b": complete}
-    assert not identity_refresh_due(vehicles, 1799, 50)
-    assert identity_refresh_due(vehicles, 1800, 50)
-    assert not identity_refresh_due(vehicles, 1800, 12)
-    assert identity_refresh_due(vehicles, 1800, None)
+    assert not identity_refresh_due(vehicles, 3599, 50)
+    assert identity_refresh_due(vehicles, 3600, 50)
+    assert not identity_refresh_due(vehicles, 3600, 12)
+    assert identity_refresh_due(vehicles, 3600, None)
     incomplete.inventory_present = False
     assert not identity_refresh_due(vehicles, 1800, 50)
     assert identity_refresh_due(vehicles, 86400, 50)

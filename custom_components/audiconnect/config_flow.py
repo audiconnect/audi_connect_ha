@@ -899,10 +899,6 @@ class OptionsFlowHandler(OptionsFlow):
                 default=values.get("runtime_version", "v2"),
             ): vol.In({"v2": "V2 — Stable", "v3_climate": "V3 — Experimental"}),
             vol.Required(
-                CONF_SCAN_INITIAL,
-                default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
-            ): bool,
-            vol.Required(
                 CONF_SCAN_INTERVAL,
                 default=self.config_entry.options.get(
                     CONF_SCAN_INTERVAL,
@@ -952,6 +948,10 @@ class OptionsFlowHandler(OptionsFlow):
             # API route editing is reserved for the opt-in V3 Workbench.
             schema.update(
                 {
+                    vol.Required(
+                        CONF_SCAN_INITIAL,
+                        default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
+                    ): bool,
                     vol.Required(
                         CONF_REFRESH_AFTER_ACTION,
                         default=self.config_entry.options.get(

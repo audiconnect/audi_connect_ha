@@ -619,3 +619,51 @@ def test_data_act_vehicle_capture_provenance_uses_real_observation_clock():
     assert summary["source_observed_at"] == now.isoformat()
     assert summary["vehicle_age_minutes"] == 2100
     assert summary["vehicle_freshness"] == "stale"
+
+
+@pytest.mark.asyncio
+async def test_intermediate_success_does_not_reset_portal_reauthentication_guard():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    session = MagicMock()
+    response = SimpleNamespace(status=200, headers={}, content_length=2)
+    response.content = MagicMock()
+
+    async def chunks(_size):
+        yield b"{}"
+
+    response.content.iter_chunked = chunks
+    session.get.return_value.__aenter__.return_value = response
+    login = AsyncMock()
+    client = DataActClient(session, login=login)
+    client._logged_in = True
+    other = "WAUZZZ4M0MD123457"
+    client._identifiers = {VIN: "existing", other: "other"}
+
+    async def listing(path, **kwargs):
+        response.status = 200
+        assert await client._get(path, limit=100) == b"{}"
+        if other in path:
+            return []
+        response.status = 401
+        return [{"name": "new.zip", "createdOn": datetime.now(UTC).isoformat()}]
+
+    client._json = listing
+    # The established session expires at the final delivery request.
+    with pytest.raises(DataActUnavailable):
+        await client.latest(VIN)
+    assert not client.authorization_required
+    assert not client._logged_in
+    client.quota.retry_at = None
+    # Renew once, even if another VIN happens to succeed before the failed VIN.
+    assert await client.latest(other) is None
+    with pytest.raises(DataActUnavailable):
+        await client.latest(VIN)
+    assert client.authorization_required
+    login.assert_awaited_once()
+    with pytest.raises(DataActUnavailable):
+        await client.latest(VIN)
+    login.assert_awaited_once()

@@ -108,7 +108,7 @@ class DataActClient:
         self.session = session
         self._login = login
         self._logged_in = login is None
-        self._renewed = False
+        self._reauth_path = None
         self.quota = QuotaBudget(reserve=0)
         self.authorization_required = False
         self._request_lock = asyncio.Lock()
@@ -134,19 +134,21 @@ class DataActClient:
                     )
                     if response.status == 401:
                         self.authorization_required = (
-                            self._login is None or self._renewed
+                            self._login is None or self._reauth_path is not None
                         )
+                        self._reauth_path = path
                         self._logged_in = False
                         self.quota.retry_at = datetime.now(UTC) + timedelta(minutes=30)
                     elif response.status == 403:
                         raise DataActVehicleDenied("Data Act vehicle access denied")
-                    elif response.status == 200:
-                        self._renewed = False
                     if response.status == 404 and allow_empty:
                         return None
                     if response.status != 200:
                         raise DataActUnavailable("Data Act read unavailable")
-                    return await read_bounded(response, limit)
+                    raw = await read_bounded(response, limit)
+                    if path == self._reauth_path:
+                        self._reauth_path = None
+                    return raw
             except (ClientError, OSError, TimeoutError, RuntimeError) as err:
                 if isinstance(err, DataActUnavailable):
                     raise
@@ -169,12 +171,17 @@ class DataActClient:
         if vin in self.denied_vins:
             return None
         try:
-            return await self._latest(vin)
+            result = await self._latest(vin)
         except DataActVehicleDenied:
             self.denied_vins.add(vin)
             self._identifiers.pop(vin, None)
             self._last_file.pop(vin, None)
             raise
+        # Initial sign-in is proven only after a complete VIN read. A renewed
+        # session must recover the actual failed resource, not another VIN.
+        if self._reauth_path == "":
+            self._reauth_path = None
+        return result
 
     async def _latest(self, vin):
         if not self._logged_in:
@@ -186,7 +193,8 @@ class DataActClient:
                 self.authorization_required = True
                 raise
             self._logged_in = True
-            self._renewed = True
+            if self._reauth_path is None:
+                self._reauth_path = ""
         prefix = "/proxy_api/euda-apim/"
         identifier = self._identifiers.get(vin)
         if identifier is None:

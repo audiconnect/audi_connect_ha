@@ -146,3 +146,54 @@ def test_all_nine_ha_platforms_have_independent_v3_code():
         assert f'"{kind}"' in code
     assert "AudiAccount" not in code
     assert "AudiConnectVehicle" not in code
+
+
+def test_parking_uses_shared_observations_without_inventing_motion_capture():
+    from custom_components.audiconnect.v3.parking import observe_parking
+
+    vehicle = car()
+    profile = SimpleNamespace(registry=None)
+    now = datetime.now(UTC)
+    stamp = (now - timedelta(minutes=10)).isoformat()
+    reply = SimpleNamespace(
+        status=200,
+        observed_at=now,
+        data={"data": {"lat": 50.0, "lon": 4.0, "carCapturedTimestamp": stamp}},
+    )
+    operation = "cariad.mobility.status.parkingPosition"
+    observe_parking(vehicle, profile, reply, operation)
+    assert vehicle.readings["park_time"]["captured"] == stamp
+    assert vehicle.readings["position_last_updated"]["status"] == "verified"
+    assert vehicle.readings["is_moving"]["value"] is False
+    assert vehicle.readings["is_moving"]["captured"] is None
+    assert vehicle.readings["is_moving"]["status"] == "readable_but_stale"
+    assert (
+        vehicle.family_readings["park_time"]["cariad"] is vehicle.readings["park_time"]
+    )
+    position = vehicle.position
+    reply.status = 204
+    observe_parking(vehicle, profile, reply, operation)
+    assert vehicle.position is position
+    assert vehicle.readings["is_moving"]["value"] is True
+    assert vehicle.readings["is_moving"]["captured"] is None
+    reply.status = 200
+    reply.data["data"]["carCapturedTimestamp"] = (now - timedelta(hours=2)).isoformat()
+    observe_parking(vehicle, profile, reply, operation)
+    assert vehicle.position is position
+    assert vehicle.readings["park_time"]["captured"] == stamp
+    assert vehicle.readings["is_moving"]["value"] is True
+
+
+@pytest.mark.parametrize("invalid", ["2026-01-01T00:00:00", "2099-01-01T00:00:00Z"])
+def test_parking_invalid_capture_cannot_poison_position_recovery(invalid):
+    now = datetime.now(UTC)
+    stamp = (now - timedelta(minutes=5)).isoformat()
+    point = parse_parked_position(
+        {"data": {"lat": 50, "lon": 4, "carCapturedTimestamp": invalid}}, now
+    )
+    assert point["timestamp"] is None
+    good = parse_parked_position(
+        {"data": {"lat": 51, "lon": 4, "carCapturedTimestamp": stamp}}, now
+    )
+    assert keep_newest_position({"timestamp": invalid}, good, now)
+    assert not keep_newest_position(good, point, now)

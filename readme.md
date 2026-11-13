@@ -15,6 +15,8 @@ Due to API changes, **currently not all functionality is available**. Please ope
 > [!Caution]
 > Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
 
+> **Experimental V3 (only in builds that include it):** V2 remains the default. See [V3 setup, known limitations and review](docs/V3_REVIEW.md) before opting in. A review branch or passing CI is not a stable release.
+
 ## Maintainers Wanted
 
 - Looking for maintainers for Translation documents.

@@ -112,3 +112,19 @@ freshness and no extra native requests are acceptance tasks. The 91-row dataset
 is evidence of actual schema and delivery lag, not a successful V3 login.
 Full stable release remains **NO GO**. Issue #44 remains open for evidence and
 the final product release decision.
+
+## B33 — B32 live follow-up (2026-11-13, issue #44)
+
+Three snapshots of the same B32 runtime show recovery from 0 to 49 verified attributes, 90 to 93 known HA states, and vehicle capture age from 111 to 13 minutes. Registry remains 124 entries, 96 offers, 62 normalized attributes, and 393 trip records. Seven expected 15-minute native cycles plus three inventory reads are consistent with the ten additional requests over 105 minutes; this is not a complete request trace. Climate state and charging-ready recovered without a code change. Do not relax freshness, change native polling, or add a second coordinator to fix these transient differences. Four identical partial GraphQL inventory responses persisted through bearer renewal, with no successful identity recovery. Bound automatic incomplete inventory retries to one hour, complete inventory to 24 hours, and remove the independent routine token-renewal trigger. Initial enumeration and explicit reviewed identity experiments remain unchanged; slower automatic identity recovery is the deliberate tradeoff. Existing quota reserve remains authoritative. No new requests, auth owners, scheduler, or persisted state. Live candidate verification remains required.
+
+Open: quota visibility/scope, movement evidence without capture time, operational mobility versus archive cadence, remaining charging time during active charging, charging commands/timers, real Data Act authorization, identity issue #35, and final audit #44. Preserve truthful unknown states and physical-command verification. No raw owner diagnostics committed.
+
+### B33 follow-up: user, engineer and maintainer closure
+
+- User: preserve existing entities and last-known parked position. Do not turn a parking response (including HTTP 204) into a fresh motion measurement. Explain optional portal setup, stale data, unavailable controls and V2 rollback in the existing V3 review guide.
+- Engineer: route parking timestamps and undated movement indications through the shared observation writer instead of direct state assignments; do not change normal request cadence. The diagnostics reuse the existing coordinator counter and distinguish native reachability, current transport request count, latest-per-operation evidence and unknown OEM quota. No added polling history, persisted state or parallel diagnostics model. Regression tests cover older parked samples, undated movement and diagnostic scope.
+- Maintainer: one focused PR to dev, existing upstream review and immutable HACS candidates. Review the exact final head and the remaining acceptance gates above. No claim of live acceptance or stable release from CI alone.
+
+Movement remains deliberately unavailable without reliable vehicle capture. Operational parking/last-trip cadence is still an optimization candidate, not a completed fix: measure native quota scope and prioritize essential status reads before increasing request volume. The missing vehicle model, charge-mode and charging-control proof, active charging duration, Data Act authorization and representative live lifecycle acceptance remain open.
+
+The V3 options form no longer exposes the V2-only startup update toggle: V3 must enumerate vehicles during setup. The stored V2 preference survives editing and rollback. Active V3 option labels and help now cover English, Dutch, German and French, with schema-driven regression coverage and synchronized upstream-delta blobs. Other locale and discovery-dialog translation coverage is not claimed.
