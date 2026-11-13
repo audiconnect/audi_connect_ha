@@ -5,6 +5,16 @@ from __future__ import annotations
 from .auth import configured_spin
 
 
+def supported_charge_modes(car):
+    """Only reviewed modes actually advertised by the vehicle."""
+    values = car.readings.get("availableChargeModes", {}).get("value")
+    return (
+        [mode for mode in ("manual", "timer") if mode in values]
+        if isinstance(values, list)
+        else []
+    )
+
+
 def eligible_operation(car, auth, capability, aspect):
     reported = car.advertised_capabilities
     impaired = car.impaired_capabilities
@@ -93,10 +103,7 @@ def eligible_operation(car, auth, capability, aspect):
             if type(value) not in (int, float) or not 0 <= value <= 100:
                 return None
         elif aspect == "set_charge_mode":
-            modes = car.readings.get("availableChargeModes", {}).get("value")
-            if not isinstance(modes, list) or not any(
-                mode in ("manual", "timer") for mode in modes
-            ):
+            if not supported_charge_modes(car):
                 return None
         elif aspect == "set_location_charge_target" and not any(
             type(row.get("id")) is int

@@ -1769,3 +1769,17 @@ test("Share saved route copies backend-approved definition without execution", a
   assert.deepEqual(calls, ["share_definition"]);
   assert.deepEqual(JSON.parse(clipboard.at(-1)), definition);
 });
+
+
+test("Backend portable local definition imports into the new attribute editor", () => {
+  const p = new Panel();
+  const shared = JSON.parse(
+    fs.readFileSync("tests/fixtures/v3_shared_read.json", "utf8"),
+  );
+  const template = p.initialNewAttribute;
+  p.loadDefinitionJSON("new-attribute", template, JSON.stringify(shared));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(p.definitionValue("new-attribute", template))),
+    shared,
+  );
+});

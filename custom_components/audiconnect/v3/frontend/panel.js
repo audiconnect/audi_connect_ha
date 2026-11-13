@@ -1047,7 +1047,7 @@ class AudiConnectV3Panel extends HTMLElement {
         const definition = this.definitionValue(
           "new-attribute",
           newAttributeTemplate,
-          { conversion: null },
+          { capture_path: null, conversion: null },
         );
         this.lastResult = await this.api("attribute_add", {
           ...this.selection,
@@ -1175,7 +1175,7 @@ class AudiConnectV3Panel extends HTMLElement {
     return (
       {
         read: { capture_path: null, conversion: null },
-        "new-attribute": { conversion: null },
+        "new-attribute": { capture_path: null, conversion: null },
         control: {
           parameter_bindings: null,
           scope: null,
@@ -2208,7 +2208,7 @@ class AudiConnectV3Panel extends HTMLElement {
             <h2>Vehicle data <span class="muted" style="font-size:14px">· ${visibleAttributes.length} functions</span></h2>
             <details><summary>Add a vehicle-local sensor / capability group</summary>
               <p>Illustrative JSON only: replace the example job and paths with an observed Audi response. Save creates a draft, not an active sensor. Test and activate explicitly.</p>
-              ${this.definitionFields("new-attribute", this.initialNewAttribute, { conversion: null })}
+              ${this.definitionFields("new-attribute", this.initialNewAttribute, { capture_path: null, conversion: null })}
               <button data-action="read-new" ${this.loading ? "disabled" : ""}>Save local attribute</button>
             </details>
             ${

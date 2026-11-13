@@ -118,3 +118,22 @@ async def test_charge_mode_template_renders_exact_oem_request_without_preflight(
         f"/vehicle/v1/vehicles/{VIN}/charging/mode",
         {"preferredChargeMode": "timer"},
     )
+
+
+@pytest.mark.asyncio
+async def test_charge_mode_service_rejects_unadvertised_mode_before_dispatch():
+    from unittest.mock import AsyncMock
+    from homeassistant.exceptions import HomeAssistantError
+    from custom_components.audiconnect.v3.service_commands import execute
+
+    engine, car = make_engine()
+    car.readings["availableChargeModes"] = {"value": ["manual"]}
+    engine.transport = SimpleNamespace(request=AsyncMock())
+    for action, params in (
+        ("set_charge_mode", {"charge_mode": "timer"}),
+        ("start_timed_charger", {}),
+    ):
+        with pytest.raises(HomeAssistantError, match="not advertised"):
+            await execute(engine, VIN, action, params)
+    engine.transport.request.assert_not_awaited()
+    assert not engine.profiles[VIN.lower()].command_journal

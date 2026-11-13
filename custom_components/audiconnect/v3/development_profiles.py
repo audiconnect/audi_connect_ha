@@ -490,7 +490,7 @@ class DevelopmentProfile:
 
     def share_definition(self, ident: str, *, vin="", spin=None, secrets=()):
         """Export only a portable local definition; never evidence or bindings."""
-        from .response_preview import engineering_response
+        from .response_preview import portable_definition
 
         if ident in self.custom:
             definition = deepcopy(self.custom[ident])
@@ -502,10 +502,9 @@ class DevelopmentProfile:
         else:
             raise DevelopmentProfileError("Only saved local definitions can be shared")
         # Refuse rather than rewrite a route into a different executable template.
-        checked = engineering_response(
+        if not portable_definition(
             definition, vehicle_vin=vin, spin=spin, secrets=secrets
-        )
-        if checked["truncated"] or checked["payload"] != definition:
+        ):
             raise DevelopmentProfileError(
                 "Definition contains potentially private values; remove them before sharing"
             )

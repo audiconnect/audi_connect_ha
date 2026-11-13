@@ -45,6 +45,7 @@ from .auth import configured_spin
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
 from .command_readback import projected_state
+from .command_policy import supported_charge_modes
 from .attribute_contracts import contract_for, binary_contract_for, semantic_value_issue
 from .product_contract import (
     projection_reading,
@@ -1927,21 +1928,7 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        observed = self.vehicle.readings.get("availableChargeModes") or {}
-        values = observed.get("value")
-        modes = (
-            [
-                x
-                for x in values
-                if isinstance(x, str)
-                and x.lower() not in {"", "invalid", "unsupported", "unknown"}
-            ]
-            if isinstance(values, list)
-            else []
-        )
-        # Only the vehicle-advertised choices may be written.
-        # A reported current option is not evidence of other supported choices.
-        return modes
+        return supported_charge_modes(self.vehicle)
 
     @property
     def current_option(self) -> str | None:

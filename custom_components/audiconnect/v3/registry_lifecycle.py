@@ -12,7 +12,10 @@ Preserve registry history, user choices and account ownership.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+from weakref import WeakValueDictionary
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 from .product_contract import (
@@ -28,18 +31,45 @@ from .product_contract import (
 from homeassistant.const import EntityCategory
 
 
+# Weak values keep locks alive only while a transaction or waiter owns them.
+# Entry identity is shared across reload and rollback, not runtime-instance scoped.
+_VISIBILITY_LOCKS = WeakValueDictionary()
+
+
+def _visibility_lock(hass, entry_id):
+    key = (id(hass), entry_id)
+    lock = _VISIBILITY_LOCKS.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _VISIBILITY_LOCKS[key] = lock
+    return lock
+
+
 def _visibility_store(hass, entry_id):
     return Store(hass, 1, f"audiconnect_v3_{entry_id}_hidden_entities")
 
 
 async def async_remove_visibility(hass, entry_id):
     """Remove entry-owned migration state only on explicit entry removal."""
-    await _visibility_store(hass, entry_id).async_remove()
+    async with _visibility_lock(hass, entry_id):
+        await _visibility_store(hass, entry_id).async_remove()
 
 
 async def async_apply_v3_entity_visibility(
-    hass: Any, entry: Any, enabled: bool
+    hass: Any, entry: Any, enabled: bool, *, expected_engine=None
 ) -> None:
+    """Serialize changes and reject notifications from unloaded runtimes."""
+    async with _visibility_lock(hass, entry.entry_id):
+        if expected_engine is not None and (
+            entry.state is not ConfigEntryState.LOADED
+            or getattr(getattr(entry, "runtime_data", None), "v3", None)
+            is not expected_engine
+        ):
+            return
+        await _apply_visibility(hass, entry, enabled)
+
+
+async def _apply_visibility(hass, entry, enabled):
     """Restore owned historical changes and apply reversible V3 presentation.
 
     Keep stable registry IDs and never override user names or visibility.

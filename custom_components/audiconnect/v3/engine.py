@@ -1395,7 +1395,9 @@ class V3Engine:
             from .registry_lifecycle import async_apply_v3_entity_visibility
 
             self.hass.async_create_task(
-                async_apply_v3_entity_visibility(self.hass, self.entry, True),
+                async_apply_v3_entity_visibility(
+                    self.hass, self.entry, True, expected_engine=self
+                ),
                 eager_start=False,
             )
 

@@ -1,0 +1,19 @@
+{
+  "id": "user.read.shared_pressure",
+  "attribute": "user.attribute.shared_pressure",
+  "family": "cariad",
+  "method": "GET",
+  "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=example",
+  "response_path": "/example/value",
+  "attribute_definition": {
+    "id": "user.attribute.shared_pressure",
+    "capability": "test_group",
+    "name": "Shared pressure",
+    "type": "number",
+    "unit": "bar",
+    "device_class": "pressure",
+    "state_class": "measurement",
+    "precision": 1,
+    "display_last_known": false
+  }
+}

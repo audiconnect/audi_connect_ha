@@ -34,6 +34,7 @@ from .command_readback import (
     latest_readback_command,
 )
 from .control_resolution import control_decision, resolve_control
+from .command_policy import supported_charge_modes
 from .response_preview import safe_response_preview
 from .vehicle import V3Vehicle
 
@@ -643,6 +644,9 @@ class CommandEngine:
                 raise RuntimeError(
                     "Vehicle command cooldown active after engineering test"
                 )
+            if capability == "charging" and aspect == "set_charge_mode":
+                if (params or {}).get("value") not in supported_charge_modes(car):
+                    raise ValueError("Charge mode not advertised by this vehicle")
             ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")

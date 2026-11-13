@@ -119,3 +119,35 @@ async def test_new_local_sensor_needs_evidence_and_survives_restart():
 def test_invalid_local_contract_is_rejected(override):
     with pytest.raises(ValueError):
         validate_definition({**DEFINITION, **override})
+
+
+@pytest.mark.asyncio
+async def test_portable_local_definition_roundtrip_through_runtime():
+    import json
+
+    shared = json.loads(
+        (ROOT.parents[2] / "tests/fixtures/v3_shared_read.json").read_text()
+    )
+    catalog = CapabilityRegistry.from_json_file(ROOT / "full_catalog.json")
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE")
+    request = AsyncMock()
+    engine = V3Engine(
+        SimpleNamespace(),
+        SimpleNamespace(entry_id="test", data={}),
+        catalog,
+        auth=SimpleNamespace(),
+        transport=SimpleNamespace(request=request),
+        storage=SimpleNamespace(async_save=AsyncMock()),
+    )
+    key = car.vin.lower()
+    engine.vehicles[key] = car
+    source = DevelopmentProfile(catalog, car.context)
+    engine.profiles[key] = source
+    route = await engine.add_attribute_route(car.vin, shared)
+    exported = engine.share_definition(car.vin, route)
+    assert exported == shared
+    target = DevelopmentProfile(catalog, car.context)
+    engine.profiles[key] = target
+    assert await engine.add_attribute_route(car.vin, exported) == route
+    assert not target.attribute_routes and not target.attribute_route_evidence
+    request.assert_not_awaited()
