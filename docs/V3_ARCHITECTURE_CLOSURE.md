@@ -42,13 +42,13 @@ Every change must state its existing owner, what complexity is removed, remainin
 
 Use one active development line and one upstream delivery line in the fork. Reuse the existing branches and review history; do not create a new long-lived branch or a new upstream PR for every beta.
 
-| Branch | Responsibility |
-| --- | --- |
-| `dev` | Canonical V3 development and integration; focused fix PRs target this branch. |
+| Branch                       | Responsibility                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `dev`                        | Canonical V3 development and integration; focused fix PRs target this branch.                                     |
 | `feature/v3-upstream-review` | Curated delivery to upstream `dev` through existing PR #918; only reviewed, validated, upstream-relevant changes. |
-| `master` | Unmodified upstream master mirror. |
-| `main` | Historical fork baseline; no parallel V3 development. |
-| `release/*` | Pinned HACS test candidates; published tags and their contents are immutable. |
+| `master`                     | Unmodified upstream master mirror.                                                                                |
+| `main`                       | Historical fork baseline; no parallel V3 development.                                                             |
+| `release/*`                  | Pinned HACS test candidates; published tags and their contents are immutable.                                     |
 
 Keep the delivery branch an ancestor of development wherever practical. Sync reviewed upstream changes back into `dev` before additional development. Promote a coherent, validated delta from `dev` to the existing upstream review branch; exclude fork-only release packaging, experimental evidence, private diagnostics and unrelated research. Do not force-push the active upstream review branch or replace its PR. Use a short-lived fix branch only when review or CI needs it; retire it after integration when no release or review depends on it.
 
