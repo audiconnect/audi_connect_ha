@@ -225,3 +225,24 @@ def test_staged_target_does_not_block_stored_start_when_settings_disabled():
     enabled.remove("start_with_settings")
     asyncio.run(entity.async_turn_on())
     engine.send_control.assert_awaited_once_with(VIN, "start", "climate")
+
+
+def test_native_q8_setpoint_does_not_start_climate_or_claim_unread_temperature():
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    car.readings["climatisationTargetTemperatureC"] = {"value": 20}
+    engine = NS(
+        control_enabled=lambda vin, action, capability: action == "set_settings",
+        profiles={},
+        send_control=AsyncMock(),
+    )
+    entity = V3ClimateEntity(NS(engine=engine, last_update_success=True), car)
+    entity.async_write_ha_state = lambda: None
+    asyncio.run(entity.async_set_temperature(temperature=22))
+    engine.send_control.assert_awaited_once_with(
+        VIN, "set_settings", "climate", params={"temp_c": 22}
+    )
+    assert entity.target_temperature == 20
+    assert entity.hvac_mode is None

@@ -43,3 +43,5 @@ Audit baseline: published b22, `a22dce6c7398cb797b2510a2f2c5cc721dbfec7b`. b22 p
 ## Climate continuity follow-up
 
 Preserve only validated, timestamped last-known climate state in the existing private VIN-scoped profile. Restore as display-only evidence, never as fresh telemetry or command permission. A normal command with verified physical readback can supply historical fallback for older profiles. HTTP acceptance alone is not persisted as actual state. No additional vehicle requests. HA HVAC action remains unknown for historical display; automatic climate expiry or external actions require a newer observation. Physical restart acceptance remains open.
+
+The sparse Q8 climate settings shape is handled by the existing settings PUT handler, using only the reported Celsius/Fahrenheit fields and preserving unrelated settings. Native setpoint-only requests do not start climatization when a settings route is enabled. A temperature-bearing start requires both fresh climate-on and requested temperature readback to be verified. The sparse payload is a tested candidate, not proof of physical OEM support; live Q8 confirmation is required.

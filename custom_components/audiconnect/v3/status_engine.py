@@ -407,20 +407,20 @@ class StatusEngine:
                             and chosen == ident
                             and profile.attribute_routes.get("climatisationState")
                             in (None, "cariad.selectivestatus.batch")
-                        ):
-                            if vehicle.set_climate(
+                            and vehicle.set_climate(
                                 value,
                                 captured,
                                 route=ident,
                                 path=field,
                                 observed_at=response.observed_at,
                                 http_status=response.status,
-                            ):
-                                remember_climate(
-                                    profile,
-                                    vehicle.readings["climatisationState"],
-                                    response.observed_at,
-                                )
+                            )
+                        ):
+                            remember_climate(
+                                profile,
+                                vehicle.readings["climatisationState"],
+                                response.observed_at,
+                            )
                     elif valid:
                         if (
                             isinstance(value, str)

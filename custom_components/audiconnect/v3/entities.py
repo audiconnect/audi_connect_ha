@@ -238,7 +238,7 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
     @property
     def supported_features(self) -> ClimateEntityFeature:
         value = ClimateEntityFeature(0)
-        if self._enabled("start_with_settings"):
+        if self._enabled("start_with_settings") or self._can_set_temperature():
             value |= ClimateEntityFeature.TARGET_TEMPERATURE
         if self._enabled("start") or (
             self._enabled("start_with_settings")
@@ -347,6 +347,12 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
             "active_paths": len(getattr(profile, "active", {})),
         }
 
+    def _can_set_temperature(self):
+        return (
+            self.reported_target_temperature is not None
+            and self._enabled("set_settings")
+        )
+
     async def async_set_temperature(self, **kwargs):
         value = kwargs.get("temperature")
         mode = kwargs.get("hvac_mode")
@@ -354,6 +360,16 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
             raise HomeAssistantError("Climate temperature must be 15..30 C")
         if mode not in (None, HVACMode.OFF, HVACMode.HEAT_COOL):
             raise HomeAssistantError("Unsupported climate mode")
+        if mode is None and self._can_set_temperature():
+            # A setpoint write is not a request to start the cabin heater.
+            await _send_climate(
+                self.coordinator, self.vehicle, "set_settings", {"temp_c": value}
+            )
+            self._requested_temperature = None
+            self._dispatched_temperature = None
+            self._dispatched_at = None
+            self.async_write_ha_state()
+            return
         if not self._enabled("start_with_settings"):
             raise HomeAssistantError("Temperature-bearing start is not enabled")
         # Off/unknown: stage locally; do not implicitly start. Commit a
@@ -361,7 +377,10 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
         if mode == HVACMode.OFF:
             await self.async_turn_off()
             self._requested_temperature = float(value)
-        elif mode == HVACMode.HEAT_COOL or self.hvac_mode == HVACMode.HEAT_COOL:
+        elif mode == HVACMode.HEAT_COOL or (
+            self.hvac_mode == HVACMode.HEAT_COOL
+            and _climate_projection(self.coordinator, self.vehicle)[1] == "vehicle"
+        ):
             await self._send_target(float(value))
         else:
             self._requested_temperature = float(value)
@@ -1569,7 +1588,8 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             raise HomeAssistantError(
                 "Climate ON/OFF requires available verified controls"
             )
-        if self.is_on is not True:
+        state, source = _climate_projection(self.coordinator, self.vehicle)
+        if source not in ("vehicle", "command_pending") or state not in _CLIMATE_ON:
             await _send_climate(self.coordinator, self.vehicle, "start")
         self.async_write_ha_state()
 
@@ -1578,7 +1598,8 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             raise HomeAssistantError(
                 "Climate ON/OFF requires available verified controls"
             )
-        if self.is_on is not False:
+        state, source = _climate_projection(self.coordinator, self.vehicle)
+        if source not in ("vehicle", "command_pending") or state not in _CLIMATE_OFF:
             await _send_climate(self.coordinator, self.vehicle, "stop")
         self.async_write_ha_state()
 

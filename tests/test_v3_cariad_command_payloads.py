@@ -176,3 +176,58 @@ def test_invalid_climate_patch_rejected_before_any_request(params):
     with pytest.raises(ValueError):
         asyncio.run(build(obj, car(), "climate_settings_update", params))
     obj.transport.request.assert_not_awaited()
+
+
+def test_q8_sparse_climate_settings_use_observed_fields_only():
+    obj = engine(
+        {
+            "climatisation": {
+                "climatisationSettings": {
+                    "value": {
+                        "targetTemperature_C": 20,
+                        "targetTemperature_F": 68,
+                        "climatisationWithoutExternalPower": True,
+                        "carCapturedTimestamp": "old",
+                    }
+                }
+            }
+        }
+    )
+    body = asyncio.run(build(obj, car(), "climate_settings_update", {"temp_c": 22}))
+    assert body == {
+        "targetTemperature_C": 22,
+        "targetTemperature_F": 72,
+        "climatisationWithoutExternalPower": True,
+    }
+    obj.transport.request.assert_awaited_once()
+
+
+def test_climate_start_readback_requires_requested_temperature_not_only_on():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import (
+        configure_readback,
+        reconcile_readback,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    record = CommandRecord.begin(
+        "climate",
+        "start_with_settings",
+        "route",
+        (now - timedelta(minutes=1)).timestamp(),
+    )
+    configure_readback(record, {"temp_c": 22.5})
+    record.observe_http(200)
+    vehicle.set_climate(
+        "heating", now.isoformat(), route="test", observed_at=now, http_status=200
+    )
+    vehicle.readings["climatisationTargetTemperatureC"] = {
+        "value": 20,
+        "captured": now.isoformat(),
+    }
+    assert not reconcile_readback(record, vehicle, now)
+    vehicle.readings["climatisationTargetTemperatureC"]["value"] = 22.5
+    assert reconcile_readback(record, vehicle, now)
+    assert CommandRecord.restore(record.snapshot()).readback_values == [22.5]
