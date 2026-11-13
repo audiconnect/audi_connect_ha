@@ -35,8 +35,7 @@ def supported_charge_modes(car, profile=None):
         operation is not None
         and profile.active.get(key) == route
         and profile.control_results.get(route) == "worked"
-        and profile.active_revisions.get(key)
-        == operation_revision(operation)
+        and profile.active_revisions.get(key) == operation_revision(operation)
     ):
         revision = operation_revision(operation)
         return [

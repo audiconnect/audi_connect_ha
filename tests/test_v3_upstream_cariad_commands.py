@@ -221,7 +221,10 @@ def test_empty_charge_modes_require_local_route_verification():
         profile.engineering_record(attempt.sequence).requested_charge_mode = mode
         profile.observe_http(attempt.sequence, 200)
         profile.confirm(
-            attempt.sequence, worked=True, inspected_vehicle=True, now=sequence * 100 + 1
+            attempt.sequence,
+            worked=True,
+            inspected_vehicle=True,
+            now=sequence * 100 + 1,
         )
         profile.choose_working("charging", "set_charge_mode", route)
         assert supported_charge_modes(car, profile) == ["manual", "timer"][:sequence]
