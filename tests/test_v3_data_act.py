@@ -242,3 +242,64 @@ async def test_optional_family_uses_existing_status_cadence_and_auth():
     await status._poll_data_act(now + timedelta(hours=4))
     assert status.data_act_poll_status()["result"] == "authorization_required"
     assert client.latest.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_independent_family_reads_overlap_and_publish_through_shared_writer():
+    import asyncio
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(),
+        transport=lambda: SimpleNamespace(remaining_calls=50),
+        storage=None,
+        vehicles={VIN.lower(): car},
+        profiles={VIN.lower(): profile},
+        discover=None,
+        known_inventory=lambda: True,
+        operation_request=None,
+        api_record=None,
+    )
+    native_started = asyncio.Event()
+    optional_started = asyncio.Event()
+    now = datetime.now(UTC)
+
+    async def native():
+        native_started.set()
+        await optional_started.wait()
+        record_observation(
+            car,
+            profile,
+            "stateOfCharge",
+            80,
+            now.isoformat(),
+            now,
+            "native",
+            "charging",
+            "cariad",
+            fresh=True,
+            operation="cariad.climate.status.batch",
+            persist_evidence=False,
+        )
+        status.last_cloud_poll_succeeded = True
+
+    async def optional():
+        optional_started.set()
+        await native_started.wait()
+        payload = {"vin": VIN, "Data": [sample("52", now.isoformat())]}
+        return [(car, profile, payload, now, now.isoformat())]
+
+    status._poll_native_status = native
+    status._poll_data_act = optional
+    await asyncio.wait_for(status.poll(), timeout=2)
+    assert car.readings["stateOfCharge"]["family"] == "cariad"
+    assert car.readings["stateOfCharge"]["value"] == 80
+    assert status.last_cloud_poll_succeeded

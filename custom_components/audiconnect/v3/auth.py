@@ -74,7 +74,12 @@ class V3Auth:
     """V3 credential adapter; the shared account owns the session lifecycle."""
 
     def __init__(
-        self, hass: Any, entry: Any, *, shared_account: Any = None, data_act_session=None
+        self,
+        hass: Any,
+        entry: Any,
+        *,
+        shared_account: Any = None,
+        data_act_session=None,
     ):
         self.hass = hass
         self.entry = entry

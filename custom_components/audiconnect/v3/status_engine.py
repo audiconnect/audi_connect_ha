@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 import time
 from typing import Any
@@ -112,35 +113,36 @@ class StatusEngine:
         }
 
     async def _poll_data_act(self, now=None):
-        """Optional family cadence on the existing coordinator; native quota is separate."""
-        from .attribute_runtime import observe_data_act
+        """Fetch due optional family data; native quota is separate."""
         from .data_act import DataActUnavailable
+
+        samples = []
 
         client = getattr(self.auth, "data_act_client", None)
         if client is None:
             self._data_act_result = "not_configured"
-            return
+            return samples
         if client.authorization_required:
             self._data_act_result = "authorization_required"
-            return
+            return samples
         now = now or datetime.now(UTC)
         if client.quota.retry_at and now < client.quota.retry_at:
             self._data_act_result = "rate_limited"
-            return
+            return samples
         profiles = [
             (car, self.profiles[key])
             for key, car in self.vehicles.items()
             if car.inventory_present and key in self.profiles
         ]
         if not profiles:
-            return
+            return samples
         interval = profiles[0][1].registry.families["eu_data_act"][
             "poll_interval_minutes"
         ]
         if self._data_act_attempt_at and now < self._data_act_attempt_at + timedelta(
             minutes=interval
         ):
-            return
+            return samples
         self._data_act_attempt_at = now
         self._data_act_result = "no_new_dataset"
         for car, profile in profiles:
@@ -158,8 +160,9 @@ class StatusEngine:
             self._data_act_success_at = now
             if result is not None:
                 payload, delivered = result
-                observe_data_act(car, profile, payload, datetime.now(UTC), delivered)
+                samples.append((car, profile, payload, datetime.now(UTC), delivered))
                 self._data_act_result = "dataset_received"
+        return samples
 
     def invalidate_trip_poll(self, vin: str) -> None:
         """Re-evaluate trip polling after the vehicle context changes."""
@@ -332,6 +335,52 @@ class StatusEngine:
                     raise
             finally:
                 self._identity_session = getattr(self.auth, "session_generation", None)
+        # Independent sessions may read concurrently. Shared native auth and
+        # quota remain protected by the existing transport lock.
+        from .attribute_runtime import observe_data_act
+
+        native_result, samples = await asyncio.gather(
+            self._poll_native_status(), self._poll_data_act(), return_exceptions=True
+        )
+        if isinstance(native_result, BaseException):
+            raise native_result
+        if isinstance(samples, asyncio.CancelledError):
+            raise samples
+        if isinstance(samples, Exception):
+            self._data_act_result = "unavailable"
+        else:
+            for car, profile, payload, observed, delivered in samples:
+                observe_data_act(car, profile, payload, observed, delivered)
+        for car in self.vehicles.values():
+            if not car.inventory_present:
+                continue
+            from .freshness import newest_vehicle_capture
+
+            newest = newest_vehicle_capture(car)
+            captured = newest.isoformat() if newest else None
+            if captured is None:
+                car.readings.pop("last_update_time", None)
+            for ident, value, stamp in (
+                ("last_update_time", captured, captured),
+                ("model", car.model or None, None),
+            ):
+                if value is not None:
+                    car.readings[ident] = {
+                        "value": value,
+                        "captured": stamp,
+                        "observed": datetime.now(UTC).isoformat(),
+                        "status": "readable_but_stale",
+                        "family": "cariad",
+                        "path": "vehicle_capture"
+                        if ident == "last_update_time"
+                        else "graphql.vehicle.media",
+                        "job": None,
+                    }
+        # The composition root persists status and control bindings together.
+        return list(self.vehicles.values())
+
+    async def _poll_native_status(self):
+        """Existing native family reads; preserve shared request deduplication."""
         cloud_reachable = False
         # Reuse identical GET responses across capabilities on the same car.
         # API family + VIN + exact path is the request identity; a route change
@@ -722,34 +771,6 @@ class StatusEngine:
                         or car.context.auth in ("auth0", "legacy")
                     ):
                         await self._poll_trips(car)
-        await self._poll_data_act()
-        for car in self.vehicles.values():
-            if not car.inventory_present:
-                continue
-            from .freshness import newest_vehicle_capture
-
-            newest = newest_vehicle_capture(car)
-            captured = newest.isoformat() if newest else None
-            if captured is None:
-                car.readings.pop("last_update_time", None)
-            for ident, value, stamp in (
-                ("last_update_time", captured, captured),
-                ("model", car.model or None, None),
-            ):
-                if value is not None:
-                    car.readings[ident] = {
-                        "value": value,
-                        "captured": stamp,
-                        "observed": datetime.now(UTC).isoformat(),
-                        "status": "readable_but_stale",
-                        "family": "cariad",
-                        "path": "vehicle_capture"
-                        if ident == "last_update_time"
-                        else "graphql.vehicle.media",
-                        "job": None,
-                    }
-        # The composition root persists status and control bindings together.
-        return list(self.vehicles.values())
 
     def parking_read_allowed(self, car):
         """Same explicit tracker policy for discovery planning and coverage."""
