@@ -190,13 +190,12 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         return "state_unknown"
     if status == "disabled":
         return "registry_disabled"
-    if status == "registered_not_projected":
-        return "not_offered_by_runtime"
-    if not state_present:
+    not_offered = status == "registered_not_projected"
+    if not state_present and not not_offered:
         return "state_not_created"
     car = getattr(engine, "vehicles", {}).get(uid.split("_", 1)[0].lower())
     if car is None or key is None:
-        return "runtime_state_unavailable"
+        return "not_offered_by_runtime" if not_offered else "runtime_state_unavailable"
     if not getattr(car, "inventory_present", True):
         return "vehicle_not_in_inventory"
     if key == "sensor.model" and not car.model:
@@ -218,7 +217,7 @@ def entity_availability_reason(engine, uid, key, status, state_present):
     # independent permission model. Never export a custom route name.
     profile = getattr(engine, "profiles", {}).get(car.vin.lower())
     if profile is not None and key.startswith(
-        ("button.", "climate.", "switch.", "lock.")
+        ("button.", "climate.", "switch.", "lock.", "number.", "select.")
     ):
         from .control_resolution import control_decision
 
@@ -234,6 +233,17 @@ def entity_availability_reason(engine, uid, key, status, state_present):
             ]
         if key == "lock.lock":
             controls = [("access", "lock"), ("access", "unlock")]
+        elif key == "select.charge_mode":
+            controls = [("charging", "set_charge_mode")]
+        elif key == "number.target_state_of_charge":
+            if car.readings.get("targetstateOfCharge", {}).get("value") is None:
+                return "target_soc_not_observed"
+            controls = [("charging", "set_target_soc")]
+        elif key == "switch.preheater_active":
+            controls = [
+                ("climate", "preheater_start"),
+                ("climate", "preheater_stop"),
+            ]
         stateful = (
             stateful_controls().get(key.removeprefix("switch."))
             if key.startswith("switch.")
@@ -278,21 +288,33 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         return "trip_metric_missing"
     from .freshness import capture_age_minutes
 
-    for ident in definition.get("source_attributes", ()):
+    sources = definition.get("source_attributes", ())
+    found = False
+    for ident in sources:
         attribute = ATTRIBUTES.get(ident)
         if not attribute:
             continue
         _, reading = projection_reading(car, attribute)
         if not reading:
             continue
+        found = True
         if reading.get("status") == "invalid_value":
+            reason = reading.get("reason")
+            if not_offered and reason in (
+                "boolean_oil_level_use_binary",
+                "negative_duration",
+                "incomplete_timer_data",
+            ):
+                return reason
             return "invalid_vehicle_value"
         age = capture_age_minutes(reading.get("captured"))
         if age is not None and age > 60:
             return "vehicle_capture_stale"
         if reading.get("captured") is None:
             return "vehicle_capture_unknown"
-    return "runtime_state_unavailable"
+    if not_offered and sources and not found:
+        return "source_not_observed"
+    return "not_offered_by_runtime" if not_offered else "runtime_state_unavailable"
 
 
 def entity_projection_report(engine):

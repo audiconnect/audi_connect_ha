@@ -1662,6 +1662,14 @@ def capture_time(payload: Any, dotted_path: str) -> str | None:
         stamp = node.get("carCapturedTimestamp") or node.get("timestamp")
         if isinstance(stamp, str):
             return stamp
+    # The preferred-mode block can omit its own clock. Use only the
+    # charging status timestamp from the same response, never receipt time.
+    if dotted_path.startswith("charging.chargeMode.value."):
+        sibling = read_path(payload, "charging.chargingStatus.value")
+        if isinstance(sibling, dict):
+            stamp = sibling.get("carCapturedTimestamp")
+            if isinstance(stamp, str):
+                return stamp
     return None
 
 

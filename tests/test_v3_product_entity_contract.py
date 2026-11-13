@@ -259,3 +259,27 @@ def test_historical_aliases_are_covered_by_product_sources():
         key = f"{attribute['platform']}.{attribute['entity_key']}"
         sources = product_inventory()["entities"][key]["source_attributes"]
         assert alias in sources and canonical in sources
+
+
+def test_missing_entity_reason_uses_native_sources_without_private_values():
+    from custom_components.audiconnect.v3.product_contract import (
+        entity_availability_reason,
+    )
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle(VIN, "Audi", "Test", "q8", "DE")
+    engine = NS(vehicles={VIN.lower(): car})
+
+    def reason(key):
+        return entity_availability_reason(
+            engine, VIN + "_example", key, "registered_not_projected", False
+        )
+
+    assert reason("sensor.shortterm_reset") == "trip_snapshot_missing"
+    assert reason("sensor.remaining_charging_time") == "source_not_observed"
+    car.readings["remainingClimatisationTime"] = {
+        "value": None,
+        "status": "invalid_value",
+        "reason": "negative_duration",
+    }
+    assert reason("sensor.remaining_climatisation_time") == "negative_duration"

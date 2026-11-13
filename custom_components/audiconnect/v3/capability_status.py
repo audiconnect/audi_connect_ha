@@ -94,20 +94,52 @@ def _v2_additional_get():
     }
 
 
+_NATIVE_TRIP_ATTRIBUTES = frozenset(
+    (
+        "shortterm_current",
+        "shortterm_reset",
+        "longterm_current",
+        "longterm_reset",
+    )
+)
+
+
+def attribute_reading(vehicle, ident):
+    """Use the native trip snapshot owner rather than duplicating trip state."""
+    if ident in _NATIVE_TRIP_ATTRIBUTES:
+        trip = vehicle.trips.get(ident, {})
+        stamp = trip.get("timestamp")
+        from .attribute_runtime import _capture_in_utc
+
+        if _capture_in_utc(stamp) is not None:
+            return {
+                "value": stamp,
+                "captured": stamp,
+                "path": "trip." + ident,
+                "family": "mbb" if trip.get("source") == "mbb_legacy" else "cariad",
+            }
+    return vehicle.readings.get(ident, {})
+
+
 def attribute_status(vehicle, profile, definition, now):
     """Canonical attribute status shared by coverage and detailed projections."""
     ident = definition["id"]
     evidence = profile.attribute_evidence.get(ident, {})
-    reading = vehicle.readings.get(ident, {})
+    reading = attribute_reading(vehicle, ident)
     legacy = legacy_variant_for(ident) if vehicle.context.auth == "legacy" else None
-    known = bool(definition["paths"] or legacy)
+    native_trip = ident in _NATIVE_TRIP_ATTRIBUTES
+    known = bool(definition["paths"] or legacy or native_trip or ident == "model")
     fallback = (
         "not_tested"
         if definition.get("local")
         else "not_observed"
-        if known
-        and definition["paths"]
-        and profile.job_discovery.get(definition["job"]) == "not_observed"
+        if native_trip
+        or ident == "model"
+        or (
+            known
+            and definition["paths"]
+            and profile.job_discovery.get(definition["job"]) == "not_observed"
+        )
         else "not_tested"
         if known
         else "mapping_pending"
@@ -470,7 +502,7 @@ def _cockpit(vehicle, profile, rows, controls):
         if not row.get("entity_key"):
             continue
         ident = row["attribute"]
-        reading = vehicle.readings.get(ident, {})
+        reading = attribute_reading(vehicle, ident)
         definition = definitions.get(ident, {})
         status, issue, contract = attribute_status(vehicle, profile, definition, now)
         row["status"] = status
