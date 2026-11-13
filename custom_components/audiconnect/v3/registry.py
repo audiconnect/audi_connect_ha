@@ -170,6 +170,17 @@ class CapabilityRegistry:
             raise RegistryError("Unrecognized CARIAD family executor")
         if self.families.get("mbb", {}).get("executor") not in (None, "mbb_legacy_v1"):
             raise RegistryError("Unrecognized legacy MBB executor")
+        if self.families.get("graphql", {}).get("executor") not in (
+            None,
+            "graphql_v1",
+        ):
+            raise RegistryError("Unrecognized GraphQL family executor")
+        for family in self.families.values():
+            if not isinstance(family, dict) or (
+                type(family.get("priority", 100)) is not int
+                or not 0 <= family.get("priority", 100) <= 1000
+            ):
+                raise RegistryError("Invalid API family priority")
         for op in self.operations.values():
             if not isinstance(op, dict):
                 raise RegistryError("Malformed operation")
@@ -253,6 +264,10 @@ class CapabilityRegistry:
             _builtin_read_paths()
         return registry
 
+    def family_priority(self, family: str) -> int:
+        """One read-source preference per family, not per capability."""
+        return self.families[family].get("priority", 100)
+
     def operations_for(self, capability: str, aspect: str) -> list[str]:
         definition = self.capabilities.get(capability)
         if definition is None or (
@@ -322,6 +337,13 @@ class CapabilityRegistry:
             else:
                 candidates.append(ident)
 
+        if aspect == "status":
+            # Preserve declared route order within a family. Commands retain their
+            # independent verification and operation selection contract.
+            candidates.sort(
+                key=lambda ident: self.family_priority(self.operations[ident]["family"])
+            )
+
         if preferred and preferred not in candidates:
             raise RegistryError("Selected operation does not match vehicle context")
         chosen = preferred
@@ -337,6 +359,7 @@ class CapabilityRegistry:
                     chosen = min(
                         passive,
                         key=lambda ident: (
+                            self.family_priority(self.operations[ident]["family"]),
                             -evidence.get(ident, RouteEvidence()).readable,
                             self.operations[ident].get("priority", 100),
                         ),

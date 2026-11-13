@@ -91,3 +91,26 @@ def test_runtime_read_templates_are_owned_by_the_builtin_catalog():
     # A mutable local registry must not change the reviewed built-in template.
     model.operations["cariad.climate.status.batch"]["path"] = "/local"
     assert builtin_read_path("cariad.climate.status.batch") == variants[0]["path"]
+
+
+def test_read_family_priority_is_central_and_command_routes_are_unchanged():
+    from custom_components.audiconnect.v3.registry import RouteEvidence
+
+    model = CapabilityRegistry.from_json_file(FULL)
+    assert model.family_priority("cariad") == model.family_priority("graphql") == 10
+    assert model.family_priority("mbb") == 20
+    context = VehicleContext(auth="legacy", legacy_cariad=True, legacy_api_level=1)
+    batch = "cariad.climate.status.batch"
+    legacy = "mbb.climate.status"
+    evidence = {legacy: RouteEvidence(readable=99)}
+    result = model.resolve("climate", "status", context, evidence)
+    assert result["operation"] == batch
+    assert result["available_operations"].index(batch) < result[
+        "available_operations"
+    ].index(legacy)
+    evidence[batch] = RouteEvidence(suspended_until=100)
+    assert model.resolve("climate", "status", context, evidence)["operation"] == legacy
+    assert (
+        model.resolve("access", "lock", VehicleContext(auth="auth0"))["operation"]
+        == "cariad.access.lock"
+    )
