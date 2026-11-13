@@ -32,6 +32,7 @@ from .command_readback import (
     configure_readback,
     configure_discovery_readback,
     reconcile_readback,
+    reconcile_access_mismatch,
     observe_command_response,
     latest_readback_command,
 )
@@ -280,10 +281,13 @@ class CommandEngine:
                 record = latest_readback_command(profile, attribute)
                 if (
                     record
-                    and reconcile_readback(record, car)
+                    and (
+                        reconcile_readback(record, car)
+                        or reconcile_access_mismatch(record, car)
+                    )
                     and record is profile.last_command
                 ):
-                    car.last_command_result = "verified"
+                    car.last_command_result = record.state
 
     def refresh_bindings(self) -> None:
         """Pure local matching; no request per control and no physical tests."""
