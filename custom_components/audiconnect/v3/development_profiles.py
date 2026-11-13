@@ -370,6 +370,7 @@ class DevelopmentProfile:
         self.historical_control_evidence: list[dict[str, Any]] = []
         self.manufacturer_identity: dict[str, Any] = {}
         self.identity_drafts: dict[str, dict[str, Any]] = {}
+        self.last_known_climate: dict[str, Any] | None = None
         self.last_command: CommandRecord | None = None
         self.command_journal: list[CommandRecord] = []
         self.invalidated_attempt_sequence: int | None = None
@@ -640,6 +641,9 @@ class DevelopmentProfile:
         """Preserve local definitions and unresolved commands, invalidate old applicability evidence."""
         if context == self.discovery.context:
             return
+        previous = self.discovery.context
+        if context.auth != previous.auth or context.region != previous.region:
+            self.last_known_climate = None
         if self.discovery.active_attempt is not None:
             self.invalidated_attempt_sequence = self.discovery.active_attempt.sequence
         # Preserve reviewed built-in outcomes before invalidating the current
@@ -880,6 +884,7 @@ class DevelopmentProfile:
             "control_evidence": dict(self.control_results),
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),
+            "last_known_climate": deepcopy(self.last_known_climate),
             "identity_drafts": deepcopy(self.identity_drafts),
             "last_command": legacy_snapshot(self.last_command)
             if self.last_command

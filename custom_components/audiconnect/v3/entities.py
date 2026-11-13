@@ -44,7 +44,7 @@ from ..const import DOMAIN
 from .auth import configured_spin
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
-from .command_readback import projected_state
+from .command_readback import last_known_climate, projected_state
 from .command_policy import supported_charge_modes
 from .attribute_contracts import contract_for, binary_contract_for, semantic_value_issue
 from .product_contract import (
@@ -138,9 +138,21 @@ def _climate_projection(coordinator, vehicle):
         or (age is not None and age > 60)
     ):
         state = None
-    return _command_projection(
+    profile = getattr(getattr(coordinator, "engine", None), "profiles", {}).get(
+        vehicle.vin.lower()
+    )
+    known, stamp, known_source = last_known_climate(profile)
+    if stamp and vehicle.climate_captured:
+        from .attribute_runtime import _capture_in_utc
+
+        if vehicle.climate_captured < _capture_in_utc(stamp):
+            state = None
+    effective, source = _command_projection(
         coordinator, vehicle, "climate", state, vehicle.climate_captured
     )
+    if effective is not None:
+        return effective, source
+    return known, known_source
 
 
 def _climate_reported_state(coordinator, vehicle):
@@ -259,7 +271,9 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        state = _climate_reported_state(self.coordinator, self.vehicle)
+        state, source = _climate_projection(self.coordinator, self.vehicle)
+        if source != "vehicle":
+            return None
         if state in _CLIMATE_OFF:
             return HVACAction.OFF
         # A requested ON is not proof of heating rather than cooling.
@@ -275,6 +289,8 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
         profile = getattr(engine, "profiles", {}).get(self.vehicle.vin.lower())
         from .structured_details import details_for
 
+        known, stamp, known_source = last_known_climate(profile)
+        _, source = _climate_projection(self.coordinator, self.vehicle)
         return {
             **details_for(
                 self.vehicle,
@@ -323,7 +339,11 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
                 else "unknown"
             ),
             "last_reported_climate_state": self.vehicle.climate_state,
-            "state_source": _climate_projection(self.coordinator, self.vehicle)[1],
+            "state_source": source,
+            "state_is_current": source == "vehicle",
+            "last_known_climate_state": known,
+            "last_known_climate_at": stamp,
+            "last_known_climate_source": known_source,
             "active_paths": len(getattr(profile, "active", {})),
         }
 

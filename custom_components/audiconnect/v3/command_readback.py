@@ -144,6 +144,41 @@ def latest_readback_command(profile, attribute):
     )
 
 
+def last_known_climate(profile):
+    """Return (value, timestamp, source) without promoting historical evidence."""
+    from .attribute_runtime import validate_last_known_climate
+
+    row = validate_last_known_climate(getattr(profile, "last_known_climate", None))
+    if row:
+        return row["value"], row["captured"], "last_known_vehicle"
+    # Compatibility with profiles saved before the observation cache existed.
+    # Normal verified commands have actual readback; HTTP acceptance is not enough.
+    record = next(
+        (
+            record
+            for record in reversed(getattr(profile, "command_journal", ()))
+            if record.origin == "home_assistant"
+            and record.readback_attribute == "climate"
+            and record.state == "verified"
+            and record.completed_at is not None
+            and record.action in ("start", "start_with_settings", "stop")
+        ),
+        None,
+    )
+    if record is not None:
+        try:
+            stamp = datetime.fromtimestamp(record.completed_at, UTC)
+        except (ValueError, OverflowError, OSError):
+            return None, None, "unknown"
+        if stamp.year >= 2020 and stamp <= datetime.now(UTC):
+            return (
+                "off" if record.action == "stop" else "on",
+                stamp.isoformat(),
+                "last_verified_command",
+            )
+    return None, None, "unknown"
+
+
 def projected_state(
     profile, attribute, reported, captured, *, now=None, optimistic=True
 ):

@@ -39,3 +39,7 @@ Saved local read/control definitions can be copied via the backend privacy check
 ## b23 corrective development
 
 Audit baseline: published b22, `a22dce6c7398cb797b2510a2f2c5cc721dbfec7b`. b22 passed 1,102 Python tests on HA 2026.7.0 and 2026.11.1, 37 frontend tests and all package gates. PR #24 addresses the audit findings without expanding the vehicle-operation catalog. Charge mode, registry transactions, portable definition privacy, typed climate settings, discovery state ownership and minimum HA metadata have focused corrections. Shared fixtures cover backend export/import and frontend editor shape; full websocket-to-vehicle acceptance remains open. Remaining engine orchestration, protocol-specific route exceptions, full requirement-to-test traceability and real vehicle evidence remain explicit closure gates. Stable release remains NO GO.
+
+## Climate continuity follow-up
+
+Preserve only validated, timestamped last-known climate state in the existing private VIN-scoped profile. Restore as display-only evidence, never as fresh telemetry or command permission. A normal command with verified physical readback can supply historical fallback for older profiles. HTTP acceptance alone is not persisted as actual state. No additional vehicle requests. HA HVAC action remains unknown for historical display; automatic climate expiry or external actions require a newer observation. Physical restart acceptance remains open.
