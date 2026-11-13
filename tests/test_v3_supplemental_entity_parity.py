@@ -263,3 +263,27 @@ def test_derived_alias_and_eta_keep_original_observation_and_invalidity():
     observe_derived(car, NS(), {}, now + timedelta(minutes=31), _accept_observation)
     assert car.readings["charging_type"]["status"] == "invalid_value"
     assert car.readings["charging_type"]["value"] is None
+
+
+def test_lock_remains_visible_while_command_is_accepted():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+
+    car, co, now = context()
+    car.readings["doorLockStatus"] = {
+        "value": "unlocked",
+        "captured": (now - timedelta(minutes=2)).isoformat(),
+        "status": "verified",
+    }
+    row = CommandRecord.begin("access", "lock", "route", now.timestamp() - 1)
+    configure_readback(row, {})
+    row.observe_http(200)
+    co.engine.profiles = {VIN.lower(): NS(command_journal=[row])}
+    co.engine.control_enabled = lambda *args: False
+    entity = V3LockEntity(co, car)
+    assert entity.available
+    assert entity.is_locking
+    assert entity.is_locked is None
+    assert entity.extra_state_attributes["command_status"] == "accepted_unconfirmed"
+    assert entity.extra_state_attributes["last_reported_state"] == "unlocked"
+    assert entity.extra_state_attributes["lock_enabled"] is False
