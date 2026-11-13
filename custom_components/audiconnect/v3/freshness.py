@@ -43,21 +43,29 @@ def capture_age_minutes(captured: Any, now: datetime | None = None) -> float | N
     return max(0.0, delta / 60) if delta >= -300 else None
 
 
-def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | None:
-    """Newest real, valid vehicle measurement; never cloud receipt time."""
+def newest_vehicle_reading(vehicle, now: datetime | None = None):
+    """Return the capture and its source, excluding the derived summary itself."""
     reference = now or datetime.now(UTC)
-    stamps = []
+    newest = None
     for ident, row in vehicle.readings.items():
         if (
-            ident == "model"
+            ident in ("last_update_time", "model")
             or row.get("status") == "invalid_value"
             or row.get("value") is None
         ):
             continue
         captured = row.get("captured")
         if capture_age_minutes(captured, reference) is not None:
-            stamps.append(datetime.fromisoformat(captured.replace("Z", "+00:00")))
-    return max(stamps, default=None)
+            stamp = datetime.fromisoformat(captured.replace("Z", "+00:00"))
+            if newest is None or (stamp, ident) > newest[:2]:
+                newest = (stamp, ident, row)
+    return newest
+
+
+def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | None:
+    """Newest real, valid vehicle measurement; never cloud receipt time."""
+    newest = newest_vehicle_reading(vehicle, now)
+    return newest[0] if newest else None
 
 
 def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
