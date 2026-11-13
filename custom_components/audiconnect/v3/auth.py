@@ -122,7 +122,9 @@ class V3Auth:
 
             options = entry.options
             email = options.get("v3_data_act_email") or entry.data.get(CONF_USERNAME)
-            password = options.get("v3_data_act_password") or entry.data.get(CONF_PASSWORD)
+            password = options.get("v3_data_act_password")
+            if not password and not options.get("v3_data_act_email"):
+                password = entry.data.get(CONF_PASSWORD)
             if email and password:
                 self._data_act_owned_session = ClientSession(cookie_jar=CookieJar())
                 login = DataActPortalLogin(

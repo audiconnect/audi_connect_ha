@@ -34,6 +34,10 @@ class DataActUnavailable(RuntimeError):
     """Bounded optional provider failure; never shared-account reauthentication."""
 
 
+class DataActAuthorizationRequired(DataActUnavailable):
+    """User interaction required; never retry credentials automatically."""
+
+
 def _timestamp(value):
     if not isinstance(value, str):
         return None
@@ -153,7 +157,11 @@ class DataActClient:
         if not self._logged_in:
             if self.authorization_required or self._login is None:
                 raise DataActUnavailable("Data Act authorization required")
-            await self._login(self.quota)
+            try:
+                await self._login(self.quota)
+            except DataActAuthorizationRequired:
+                self.authorization_required = True
+                raise
             self._logged_in = True
             self._renewed = True
         prefix = "/proxy_api/euda-apim/"

@@ -361,7 +361,13 @@ class StatusEngine:
                 else "not_configured"
             )
             return
-        self._data_act_task = asyncio.create_task(self._collect_data_act())
+        create_task = getattr(self.entry, "async_create_background_task", None)
+        if create_task is not None and self.hass is not None:
+            self._data_act_task = create_task(
+                self.hass, self._collect_data_act(), "Audi Data Act read"
+            )
+        else:
+            self._data_act_task = asyncio.create_task(self._collect_data_act())
 
     async def _collect_data_act(self):
         from .attribute_runtime import observe_data_act
