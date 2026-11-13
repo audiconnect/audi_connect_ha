@@ -40,7 +40,21 @@ Every change must state its existing owner, what complexity is removed, remainin
 
 ### Release authority
 
-Develop against the current upstream review head; use short-lived review branches and derive HACS candidates from a pinned, validated runtime snapshot. No release promotion, version reuse for changed published code, or upstream merge based only on static tests. Keep upstream release ownership intact. Separate implementation, automated evidence and live acceptance in all status reporting.
+Use one active development line and one upstream delivery line in the fork. Reuse the existing branches and review history; do not create a new long-lived branch or a new upstream PR for every beta.
+
+| Branch                       | Responsibility                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `dev`                        | Canonical V3 development and integration; focused fix PRs target this branch.                                     |
+| `feature/v3-upstream-review` | Curated delivery to upstream `dev` through existing PR #918; only reviewed, validated, upstream-relevant changes. |
+| `master`                     | Unmodified upstream master mirror.                                                                                |
+| `main`                       | Historical fork baseline; no parallel V3 development.                                                             |
+| `release/*`                  | Pinned HACS test candidates; published tags and their contents are immutable.                                     |
+
+Keep the delivery branch an ancestor of development wherever practical. Sync reviewed upstream changes back into `dev` before additional development. Promote a coherent, validated delta from `dev` to the existing upstream review branch; exclude fork-only release packaging, experimental evidence, private diagnostics and unrelated research. Do not force-push the active upstream review branch or replace its PR. Use a short-lived fix branch only when review or CI needs it; retire it after integration when no release or review depends on it.
+
+Merge focused PRs promptly once review, exact-head CI and relevant acceptance gates pass. Do not accumulate green fixes in parallel branches or wait for an unrelated beta. Review open PRs and branch drift at each release checkpoint; record the owner and concrete blocker for any deferred merge. Promote small coherent upstream-ready deltas regularly, without bypassing upstream maintainers or live acceptance gates. Sync the accepted delivery head back to development before the next promotion.
+
+Derive HACS candidates from a pinned, validated `dev` runtime snapshot. Keep fork versioning and publication out of the upstream contribution. No release promotion, version reuse for changed published code, or upstream merge based only on static tests. Keep upstream release ownership intact. Separate implementation, automated evidence and live acceptance in all status reporting.
 
 See [V3 review](V3_REVIEW.md) and [V2 parity baseline](V2_V3_PARITY_BASELINE.json). These inventories are not proof of full functional or physical acceptance.
 
