@@ -318,3 +318,91 @@ def test_charge_mode_has_one_capture_aware_normalization_path():
     observe_read_only(vehicle, profile, sample(now, "manual", ["manual"]), later)
     assert vehicle.readings["preferredChargeMode"]["value"] is None
     assert vehicle.readings["availableChargeModes"]["value"] == []
+
+
+def test_family_preference_preserves_fresh_primary_and_accepts_newer_fallback():
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle = car()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
+    )
+    now = datetime.now(UTC)
+
+    def sample(family, value, captured, observed):
+        return record_observation(
+            vehicle,
+            profile,
+            "stateOfCharge",
+            value,
+            captured.isoformat() if captured else None,
+            observed,
+            "test",
+            "charging",
+            family,
+            fresh=captured is not None and observed - captured <= timedelta(hours=1),
+            operation=family + ".test",
+            persist_evidence=False,
+        )
+
+    assert sample("cariad", 80, now, now)
+    newer = now + timedelta(minutes=5)
+    assert not sample("mbb", 81, newer, newer)
+    assert vehicle.readings["stateOfCharge"]["value"] == 80
+    later = now + timedelta(hours=2)
+    assert not sample("mbb", 70, now - timedelta(hours=1), later)
+    assert not sample("mbb", 70, None, later)
+    assert sample("mbb", 81, newer, later)
+    assert vehicle.readings["stateOfCharge"]["family"] == "mbb"
+    assert not sample("cariad", 79, now, later)
+    assert sample("cariad", 82, newer, later)
+    assert vehicle.readings["stateOfCharge"]["family"] == "cariad"
+
+
+def test_invalid_secondary_sample_cannot_erase_other_family():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        record_invalid_observation,
+        record_observation,
+    )
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    assert record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        80,
+        now.isoformat(),
+        now,
+        "test",
+        "charging",
+        "cariad",
+        fresh=True,
+        operation="cariad.test",
+        persist_evidence=False,
+    )
+    newer = now + timedelta(minutes=1)
+    record_invalid_observation(
+        vehicle,
+        "stateOfCharge",
+        newer.isoformat(),
+        newer,
+        "test",
+        "charging",
+        "invalid",
+        "mbb",
+    )
+    assert vehicle.readings["stateOfCharge"]["value"] == 80
+    record_invalid_observation(
+        vehicle,
+        "stateOfCharge",
+        newer.isoformat(),
+        newer,
+        "test",
+        "charging",
+        "invalid",
+        "cariad",
+    )
+    assert vehicle.readings["stateOfCharge"]["status"] == "invalid_value"

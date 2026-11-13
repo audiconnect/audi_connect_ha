@@ -123,7 +123,8 @@ def observe_legacy(car, profile, kind, response):
             ("secondary_engine_type", "engineTypeSecondEngine"),
         ):
             row = car.readings.get(source, {})
-            record(ident, row.get("value"), row.get("captured"), row.get("path"))
+            if row.get("family") == "mbb":
+                record(ident, row.get("value"), row.get("captured"), row.get("path"))
     if kind == "preheater":
         path = "statusResponse.climatisationStateReport"
         block = read_json_path(payload, path)
