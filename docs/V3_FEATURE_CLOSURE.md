@@ -54,7 +54,10 @@ Individual telemetry sensors and binary sensors share the same capture/observati
 
 Diagnostics reuse the same global capture provenance and individual freshness classification. The existing per-job report remains the only diagnostic coverage table. Custom source identifiers are not exported.
 
-
 ## B28 live evidence follow-up
 
 Global age and job capture coverage consider usable normalized scalar readings only; structural detail envelopes do not qualify as measurements. The global freshness entity adds `partial` when an observed scalar is within 60 minutes and another is older than 60 minutes. The historical fresh/delayed/stale thresholds otherwise remain unchanged. Missing or invalid evidence is not proof of an actual measurement. Individual entity freshness is authoritative for automation; old automations using the global enum must account for `partial`. Aliases and completion estimates preserve source observation time, and schema coverage excludes empty value objects and request-only envelopes. Derived references are marked as implemented without claiming unavailable OEM values. Persisted normalization evidence without a current reading is separately identified in diagnostics.
+
+## User-first control feedback
+
+An accepted climate or charging command immediately publishes the existing effective state via the shared command projection, after durable acceptance and before read-only confirmation. A missing status response or quota-limited follow-up does not undo an accepted mutation; its backend outcome remains visible in the journal. Newer valid vehicle readback wins, explicit rejection removes optimism, and the existing bounded projection expiry applies. No synthetic readings, extra requests or retries. Lock and security-sensitive operations retain conservative confirmation semantics. The user must be able to see requested state immediately after API acceptance, independent of the actual telemetry timestamp. Physical Q8 response time and UI acceptance remain release validation items.
