@@ -277,7 +277,7 @@ class StatusEngine:
                 vehicle.context.auth == "legacy"
                 and len(profile.registry.capabilities) > 1
             ):
-                if vehicle.legacy_cariad and planned_jobs(vehicle, profile):
+                if vehicle.legacy_cariad:
                     # V2 reads selective-status even on its legacy IDK session.
                     path = selective_status_path(
                         vehicle.vin, ",".join(planned_jobs(vehicle, profile))
@@ -314,8 +314,6 @@ class StatusEngine:
                         continue
                     op = profile.registry.operations[ident]
                     if read_excluded(profile, ident):
-                        continue
-                    if "{JOBS}" in op["path"] and not planned_jobs(vehicle, profile):
                         continue
                     if (
                         "selectivestatus?jobs=" in op["path"]
@@ -518,10 +516,12 @@ class StatusEngine:
                 ):
                     break
                 path = selective_status_path(car.vin, ",".join(jobs))
-                try:
-                    response = await self.transport.request("cariad", "GET", path)
-                except (TimeoutError, OSError, RuntimeError, ValueError):
-                    break
+                response = polled_responses.get((key, "cariad", path))
+                if response is None:
+                    try:
+                        response = await self.transport.request("cariad", "GET", path)
+                    except (TimeoutError, OSError, RuntimeError, ValueError):
+                        break
                 self._api_record(
                     profile,
                     "cariad.discovery." + "_".join(jobs),
@@ -806,11 +806,7 @@ class StatusEngine:
         route = get_read_variant(
             attribute, operation, profile.attribute_custom, attributes_for(profile)
         )
-        jobs = list(planned_jobs(car, profile))
-        required = attributes_for(profile)[attribute]["job"]
-        # Manual discovery must include its own job even when pruned from polling.
-        if required and required not in jobs:
-            jobs.append(required)
+        jobs = planned_jobs(car, profile)
         request = render_request(
             route,
             vehicle_values={

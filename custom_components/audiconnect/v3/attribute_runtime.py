@@ -18,13 +18,12 @@ from .attribute_contracts import semantic_value_issue
 
 
 def planned_jobs(vehicle: Any, profile: Any) -> tuple[str, ...]:
-    """Always poll every reviewed job except explicit vehicle-scoped negatives.
+    """One reviewed batch; negative evidence only suppresses extra probes.
 
-    Missing/stale/unmapped/unadvertised data is not non-support. One shared
-    GET keeps unknown jobs under observation without extra per-job calls.
+    Including known jobs in this existing GET costs no additional request and
+    allows a previously unsupported job to recover through normal polling.
     """
-    states = getattr(profile, "job_discovery", {})
-    return tuple(job for job in V2_JOBS if states.get(job) != "unsupported")
+    return tuple(V2_JOBS)
 
 
 def _capture_in_utc(value: Any) -> datetime | None:
