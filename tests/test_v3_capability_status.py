@@ -326,3 +326,27 @@ def test_retired_identity_experiments_are_historical_only():
         assert not operations[key]["active"]
     assert not operations["graphql.inventory.vehicleList"].get("retired_experiment")
     assert not operations["graphql.inventory.images"].get("retired_experiment")
+
+
+def test_native_trip_coverage_matches_existing_snapshot_not_mapping_backlog():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.capability_status import attribute_status
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    stamp = (now - timedelta(hours=2)).isoformat()
+    car.trips["shortterm_current"] = {"timestamp": stamp, "source": "cariad_modern"}
+    for ident, expected in (
+        ("shortterm_current", "readable_but_stale"),
+        ("longterm_current", "not_observed"),
+        ("shortterm_reset", "not_observed"),
+    ):
+        assert attribute_status(car, profile, ATTRIBUTES[ident], now)[0] == expected
+    row = next(
+        r
+        for r in build_status_report(car, profile)["rows"]
+        if r.get("attribute") == "shortterm_current"
+    )
+    assert row["observed"] and row["captured"] == stamp
+    assert row["status"] == "readable_but_stale"
