@@ -43,3 +43,7 @@ Every change must state its existing owner, what complexity is removed, remainin
 Develop against the current upstream review head; use short-lived review branches and derive HACS candidates from a pinned, validated runtime snapshot. No release promotion, version reuse for changed published code, or upstream merge based only on static tests. Keep upstream release ownership intact. Separate implementation, automated evidence and live acceptance in all status reporting.
 
 See [V3 review](V3_REVIEW.md) and [V2 parity baseline](V2_V3_PARITY_BASELINE.json). These inventories are not proof of full functional or physical acceptance.
+
+## Feature closure status
+
+See [the feature closure review](V3_FEATURE_CLOSURE.md). It separates source inventory, implementation, automated evidence and real vehicle acceptance. Do not use an entity-count or a passing unit suite as a feature-completeness claim.

@@ -800,8 +800,7 @@ def _cockpit(vehicle, profile, rows, controls):
                         "active": selected,
                     }
                 )
-            from .entities import CONTROL_BUTTONS
-            from .product_contract import stateful_controls
+            from .product_contract import control_buttons, stateful_controls
 
             for row in matching:
                 if row["aspect"] == "status":
@@ -809,7 +808,7 @@ def _cockpit(vehicle, profile, rows, controls):
                 cap, action = row["capability"], row["aspect"]
                 targets = {
                     f"button.{key}"
-                    for key, _, _, capability, command_action in CONTROL_BUTTONS
+                    for key, _, _, capability, command_action in control_buttons()
                     if (capability, command_action) == (cap, action)
                 }
                 for key, definition in stateful_controls().items():

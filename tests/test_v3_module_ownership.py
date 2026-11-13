@@ -61,3 +61,14 @@ def test_canonical_policy_link_resolves():
         if line.startswith("#")
     }
     assert anchor in headings
+
+
+def test_diagnostics_never_import_native_entity_classes():
+    """Reporting consumes the product contract, not concrete HA projections."""
+    config = json.loads((ROOT / "governance/OWNERSHIP.json").read_text())
+    for file in config["owners"]["diagnostics"]["paths"]:
+        if not file.endswith(".py"):
+            continue
+        for node in ast.walk(ast.parse((V3 / file).read_text())):
+            if isinstance(node, ast.ImportFrom):
+                assert node.module not in ("entities", "ha_platforms"), file

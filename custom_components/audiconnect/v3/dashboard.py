@@ -12,28 +12,34 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.config_entries import ConfigEntryState
 
 from ..const import DOMAIN
 from .engine import V3Engine
+from .runtime import V3_DEFAULT, V3_ENABLED, V3_RUNTIME_OPTION
 
 _PANEL = "audiconnect-v3"
 _READY_KEY = "audiconnect_v3_dashboard_registered"
 _HANDLERS_KEY = "audiconnect_v3_dashboard_commands_registered"
 
 
-def _engine(hass: Any, entry_id: str) -> V3Engine:
-    entry = hass.config_entries.async_get_entry(entry_id)
+def _workbench_engine(entry: Any) -> V3Engine:
+    """Only a loaded, opted-in integration can expose engineering operations."""
     if entry is None or entry.domain != DOMAIN:
         raise ValueError("Unknown Audi integration")
     if entry.options.get(
-        "runtime_version", "v2"
-    ) != "v3_climate" or not entry.options.get("v3_development_workbench", False):
+        V3_RUNTIME_OPTION, V3_DEFAULT
+    ) != V3_ENABLED or not entry.options.get("v3_development_workbench", False):
         raise ValueError("V3 Development Workbench is not enabled")
     runtime = getattr(entry, "runtime_data", None)
     engine = getattr(runtime, "v3", None)
-    if not isinstance(engine, V3Engine):
-        raise ValueError("Enable V3 in this Audi integration first")
+    if entry.state is not ConfigEntryState.LOADED or not isinstance(engine, V3Engine):
+        raise ValueError("V3 integration is not loaded")
     return engine
+
+
+def _engine(hass: Any, entry_id: str) -> V3Engine:
+    return _workbench_engine(hass.config_entries.async_get_entry(entry_id))
 
 
 @websocket_api.require_admin
@@ -42,12 +48,9 @@ def _engine(hass: Any, entry_id: str) -> V3Engine:
 async def ws_list(hass, connection, msg):
     records = []
     for entry in hass.config_entries.async_entries(DOMAIN):
-        engine = getattr(getattr(entry, "runtime_data", None), "v3", None)
-        if (
-            not isinstance(engine, V3Engine)
-            or entry.options.get("runtime_version", "v2") != "v3_climate"
-            or not entry.options.get("v3_development_workbench", False)
-        ):
+        try:
+            engine = _workbench_engine(entry)
+        except ValueError:
             continue
         records.append(
             {
@@ -67,6 +70,7 @@ async def ws_list(hass, connection, msg):
                         "stop_enabled": engine.control_enabled(car.vin, "stop"),
                     }
                     for car in engine.vehicles.values()
+                    if car.inventory_present
                 ],
                 "poll_success": engine.last_cloud_poll_success.isoformat()
                 if engine.last_cloud_poll_success
