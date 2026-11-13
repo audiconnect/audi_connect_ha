@@ -6,7 +6,7 @@ No V2 runtime imports, no automatic vehicle commands or position requests.
 from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
-from .freshness import timestamp_is_fresh
+from .freshness import capture_age_minutes, timestamp_is_fresh
 from .historical_catalog import (
     ATTRIBUTES,
     V2_JOBS,
@@ -87,8 +87,15 @@ def record_invalid_observation(
     reason: str,
     family: str = "cariad",
 ) -> None:
-    """Invalidate a contradictory newer sample without accepting old cache."""
-    if _accept_observation(vehicle.readings.get(ident), captured):
+    """Invalidate a newer contradictory sample only from its own source family."""
+    previous = vehicle.readings.get(ident)
+    if (
+        previous
+        and previous.get("value") is not None
+        and previous.get("family") not in (None, family)
+    ):
+        return
+    if _accept_observation(previous, captured):
         vehicle.readings[ident] = {
             "value": None,
             "captured": captured,
@@ -100,6 +107,32 @@ def record_invalid_observation(
             "family": family,
             "reason": reason,
         }
+
+
+def _accept_family_observation(previous, captured, family, registry, now):
+    """Prefer an eligible fresh primary source; never regress vehicle capture."""
+    if not previous or previous.get("family") in (None, family):
+        return _accept_observation(previous, captured)
+    if registry is None:
+        return _accept_observation(previous, captured)
+    prior_family = previous["family"]
+    if family not in registry.families or prior_family not in registry.families:
+        return _accept_observation(previous, captured)
+    prior_age = capture_age_minutes(previous.get("captured"), now)
+    incoming_age = capture_age_minutes(captured, now)
+    if prior_age is not None and (
+        incoming_age is None or not _accept_observation(previous, captured)
+    ):
+        return False
+    if previous.get("status") == "invalid_value" or previous.get("value") is None:
+        return True
+    prior_priority = (registry.family_priority(prior_family), prior_family)
+    incoming_priority = (registry.family_priority(family), family)
+    if prior_age is not None and prior_age <= 60 and prior_priority < incoming_priority:
+        return False
+    if prior_age == incoming_age:
+        return incoming_priority < prior_priority
+    return True
 
 
 def record_observation(
@@ -118,7 +151,13 @@ def record_observation(
     persist_evidence=True,
 ):
     """Commit one normalized observation; persist only reviewed mapping evidence."""
-    if not _accept_observation(vehicle.readings.get(ident), captured):
+    if not _accept_family_observation(
+        vehicle.readings.get(ident),
+        captured,
+        family,
+        getattr(profile, "registry", None),
+        observed_at,
+    ):
         return False
     status = "verified" if fresh else "readable_but_stale"
     vehicle.readings[ident] = {
