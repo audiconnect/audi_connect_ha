@@ -318,10 +318,47 @@ def observe_read_only(
     return {"mapped": mapped, "fresh": fresh_count}
 
 
+def data_act_soc(payload, now, registry):
+    """Only exact reviewed SOC field IDs; charging-start SOC is not current SOC."""
+    fields = registry.families["eu_data_act"]["observations"]
+    candidates = []
+    for item in payload["Data"]:
+        if not isinstance(item, dict) or not isinstance(item.get("key"), str):
+            continue
+        key = item["key"]
+        mapping = fields.get(key, {})
+        if (
+            mapping.get("attribute") != "stateOfCharge"
+            or item.get("dataFieldName") != mapping.get("field")
+        ):
+            continue
+        raw = item.get("value")
+        if type(raw) not in (str, int, float):
+            continue
+        try:
+            value = float(raw)
+        except (ValueError, OverflowError):
+            continue
+        value, _ = normalize_attribute_value(ATTRIBUTES["stateOfCharge"], value, None)
+        if value is None:
+            continue
+        captured = item.get("timestampUtc")
+        if capture_age_minutes(captured, now) is None:
+            captured = None
+        candidates.append((captured, value, key))
+    if not candidates:
+        return None
+    # Flat capture-time rows and delivery clocks never date another field.
+    latest = max((_capture_in_utc(row[0]) for row in candidates if row[0]), default=None)
+    matching = [row for row in candidates if _capture_in_utc(row[0]) == latest]
+    if len({row[1] for row in matching}) != 1:
+        return None
+    captured, value, key = min(matching, key=lambda row: row[2])
+    return {"value": value, "captured": captured, "path": key}
+
+
 def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
     """Map only proven informational fields; never alter command evidence."""
-    from .data_act import soc_observation
-
     if (
         not isinstance(payload, dict)
         or not isinstance(payload.get("vin"), str)
@@ -330,7 +367,7 @@ def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
         or "stateOfCharge" in getattr(profile, "attribute_disabled", ())
     ):
         return False
-    sample = soc_observation(payload, observed_at)
+    sample = data_act_soc(payload, observed_at, profile.registry)
     if sample is None:
         return False
     # The existing native route remains bound. No Data Act profile activation.

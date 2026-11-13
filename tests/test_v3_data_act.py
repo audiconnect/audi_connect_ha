@@ -8,13 +8,13 @@ import zipfile
 import pytest
 
 from custom_components.audiconnect.v3.attribute_runtime import (
+    data_act_soc,
     observe_data_act,
     record_observation,
 )
 from custom_components.audiconnect.v3.data_act import (
     DataActUnavailable,
     decode_dataset,
-    soc_observation,
 )
 from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
 from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
@@ -53,13 +53,14 @@ def test_exact_soc_field_and_no_inherited_capture_time():
         ],
     }
     decoded = decode_dataset(archive(payload), VIN)
-    assert soc_observation(decoded, now) == {
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    assert data_act_soc(decoded, now, registry) == {
         "value": 52,
         "captured": None,
         "path": SOC,
     }
     payload["Data"].append(sample("40"))
-    assert soc_observation(payload, now) is None
+    assert data_act_soc(payload, now, registry) is None
 
 
 @pytest.mark.parametrize("name", ["../vehicle.json", "/vehicle.json", "vehicle.txt"])
@@ -89,6 +90,15 @@ def test_data_act_fallback_reuses_same_vehicle_reading_and_freshness():
     assert attributes["age_minutes"] == 2880
     assert attributes["delivered_at"] == now.isoformat()
     assert not profile.attribute_evidence and not profile.attribute_routes
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.entities import V3ReadOnlySensor
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+
+    entity = V3ReadOnlySensor(SimpleNamespace(), car, ATTRIBUTES["stateOfCharge"])
+    unique_id = entity.unique_id
+    assert entity.native_value == 52
+    assert entity.available
     assert record_observation(
         car,
         profile,
@@ -106,6 +116,8 @@ def test_data_act_fallback_reuses_same_vehicle_reading_and_freshness():
     assert not observe_data_act(car, profile, payload, now, now.isoformat())
     assert car.readings["stateOfCharge"]["family"] == "cariad"
     assert car.readings["stateOfCharge"]["value"] == 80
+    assert entity.unique_id == unique_id
+    assert entity.native_value == 80
 
 
 @pytest.mark.asyncio

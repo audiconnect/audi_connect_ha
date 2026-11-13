@@ -17,7 +17,6 @@ from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import Any
 
-from .freshness import capture_age_minutes
 
 PORTAL = "https://eu-data-act.drivesomethinggreater.com"
 MAX_ZIP_BYTES = 5_000_000
@@ -77,43 +76,6 @@ def decode_dataset(raw: bytes, vin: str) -> dict[str, Any]:
     ):
         raise DataActUnavailable("Invalid Data Act VIN or dataset schema")
     return payload
-
-
-def soc_observation(payload, now):
-    """Only exact reviewed SOC field IDs; charging-start SOC is not current SOC."""
-    fields = {
-        "506cb83e-f99f-3af3-bbeb-0429b69a78d9": "battery_state_report.soc",
-        "ae0294b4-1286-3e98-a818-1485b8d88430": "state_of_charge",
-    }
-    candidates = []
-    for item in payload["Data"]:
-        if not isinstance(item, dict) or not isinstance(item.get("key"), str):
-            continue
-        key = item["key"]
-        if key not in fields or item.get("dataFieldName") != fields[key]:
-            continue
-        raw = item.get("value")
-        if type(raw) not in (str, int, float):
-            continue
-        try:
-            value = float(raw)
-        except (ValueError, OverflowError):
-            continue
-        if not 0 <= value <= 100:
-            continue
-        captured = item.get("timestampUtc")
-        if capture_age_minutes(captured, now) is None:
-            captured = None
-        candidates.append((captured, value, key))
-    if not candidates:
-        return None
-    # Flat capture-time rows and delivery clocks never date another field.
-    latest = max((_timestamp(row[0]) for row in candidates if row[0]), default=None)
-    matching = [row for row in candidates if _timestamp(row[0]) == latest]
-    if len({row[1] for row in matching}) != 1:
-        return None
-    captured, value, key = min(matching, key=lambda row: row[2])
-    return {"value": value, "captured": captured, "path": key}
 
 
 class DataActClient:

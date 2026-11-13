@@ -20,7 +20,17 @@
       "auth": "eu_data_act",
       "priority": 30,
       "host_owner": "authorized_data_act_portal_session",
-      "notes": "Read-only dataset provider; no control or generic request executor."
+      "notes": "Read-only dataset provider; no control or generic request executor.",
+      "observations": {
+        "506cb83e-f99f-3af3-bbeb-0429b69a78d9": {
+          "field": "battery_state_report.soc",
+          "attribute": "stateOfCharge"
+        },
+        "ae0294b4-1286-3e98-a818-1485b8d88430": {
+          "field": "state_of_charge",
+          "attribute": "stateOfCharge"
+        }
+      }
     },
     "mbb": {
       "auth": "legacy",
