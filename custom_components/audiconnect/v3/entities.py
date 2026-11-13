@@ -105,7 +105,9 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
             },
         }
         if reading is not None or attribute is not None:
-            row = reading if reading is not None else self.vehicle.readings.get(attribute)
+            row = (
+                reading if reading is not None else self.vehicle.readings.get(attribute)
+            )
             result.update(
                 reading_freshness_attributes(row, allow_last_known=allow_last_known),
                 last_reported_state=(row or {}).get("value"),
@@ -346,7 +348,6 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
                 is bool
                 else None
             ),
-            "v3_capability": "climate",
             "api_route": self.vehicle.climate_source,
             **self._control_attributes(
                 "climate",
@@ -1847,7 +1848,10 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
             ("set_target_soc",),
             attribute="targetstateOfCharge",
             source=_reading_projection(
-                self.coordinator, self.vehicle, "targetstateOfCharge", allow_last_known=True
+                self.coordinator,
+                self.vehicle,
+                "targetstateOfCharge",
+                allow_last_known=True,
             )[1],
             allow_last_known=True,
         )
@@ -2097,7 +2101,10 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
             ("set_charge_mode",),
             attribute="preferredChargeMode",
             source=_reading_projection(
-                self.coordinator, self.vehicle, "preferredChargeMode", allow_last_known=True
+                self.coordinator,
+                self.vehicle,
+                "preferredChargeMode",
+                allow_last_known=True,
             )[1],
             allow_last_known=True,
         )
