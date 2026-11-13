@@ -41,3 +41,29 @@ def test_new_sample_without_capture_does_not_inherit_timestamp():
         "heating", "not-a-timestamp", route="c", observed_at=now, http_status=200
     )
     assert car.climate_captured == now
+
+
+def test_newest_capture_ignores_derived_summary_and_invalid_readings():
+    from types import SimpleNamespace
+    from custom_components.audiconnect.v3.freshness import (
+        newest_vehicle_capture,
+        newest_vehicle_reading,
+    )
+
+    now = datetime.now(UTC)
+    older = now - timedelta(hours=2)
+    car = SimpleNamespace(
+        readings={
+            "last_update_time": {"value": now.isoformat(), "captured": now.isoformat()},
+            "stateOfCharge": {"value": 80, "captured": older.isoformat()},
+            "climatisationState": {
+                "value": None,
+                "captured": now.isoformat(),
+                "status": "invalid_value",
+            },
+        }
+    )
+    assert newest_vehicle_capture(car, now) == older
+    assert newest_vehicle_reading(car, now)[1] == "stateOfCharge"
+    car.readings.pop("stateOfCharge")
+    assert newest_vehicle_capture(car, now) is None
