@@ -288,3 +288,33 @@ def test_shared_scalar_mapping_preserves_meaningful_values_and_rejects_error_env
             None,
             None,
         )
+
+
+def test_charge_mode_has_one_capture_aware_normalization_path():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(stamp, preferred, options):
+        return {
+            "charging": {
+                "chargingStatus": {
+                    "value": {"carCapturedTimestamp": stamp.isoformat()}
+                },
+                "chargeMode": {
+                    "value": {
+                        "preferredChargeMode": preferred,
+                        "availableChargeModes": options,
+                    }
+                },
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(now, "manual", ["manual", "timer"]), now)
+    assert vehicle.readings["preferredChargeMode"]["captured"] == now.isoformat()
+    assert profile.attribute_evidence["preferredChargeMode"]["timestamp_present"]
+    later = now + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(later, "invalid", []), later)
+    assert vehicle.readings["preferredChargeMode"]["status"] == "invalid_value"
+    assert vehicle.readings["availableChargeModes"]["value"] == []
+    observe_read_only(vehicle, profile, sample(now, "manual", ["manual"]), later)
+    assert vehicle.readings["preferredChargeMode"]["value"] is None
+    assert vehicle.readings["availableChargeModes"]["value"] == []
