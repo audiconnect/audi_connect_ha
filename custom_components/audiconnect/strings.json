@@ -97,7 +97,10 @@
           "edit_local_dealer": "Edit dealer and local service details",
           "runtime_version": "Runtime",
           "v3_development_workbench": "Enable V3 Development Workbench",
-          "run_vehicle_discovery": "Vehicle discovery and control acceptance"
+          "run_vehicle_discovery": "Vehicle discovery and control acceptance",
+          "v3_data_act_enabled": "Enable EU Data Act fallback (experimental)",
+          "v3_data_act_email": "Data Act email (optional)",
+          "v3_data_act_password": "Data Act password (optional)"
         },
         "title": "Audi Connect Options",
         "data_description": {
@@ -109,7 +112,10 @@
           "edit_local_dealer": "Open the form to save dealership, service appointment and warranty details locally, without any Audi API requests.",
           "runtime_version": "V2 retains historical stable functionality. V3 — Experimental uses independent capability discovery, polling, API configuration and Home Assistant entities. Switch back here at any time.",
           "v3_development_workbench": "Show the administrator-only API Development Workbench in the Home Assistant sidebar. Available in V3 only. Off by default; disabling does not delete saved API profiles.",
-          "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action."
+          "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action.",
+          "v3_data_act_enabled": "Read only from an existing authorized Data Act request. Off by default. Vehicle measurements can be days old.",
+          "v3_data_act_email": "Leave empty to reuse the existing myAudi email, if stored. No new account or consent is created.",
+          "v3_data_act_password": "Leave empty to keep the stored portal password or reuse the existing myAudi password, if stored. Disabling removes separate portal credentials."
         }
       },
       "dealer_vehicle": {

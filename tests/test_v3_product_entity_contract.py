@@ -283,3 +283,69 @@ def test_missing_entity_reason_uses_native_sources_without_private_values():
         "reason": "negative_duration",
     }
     assert reason("sensor.remaining_climatisation_time") == "negative_duration"
+
+
+def test_alias_projection_uses_same_family_preference_as_observation_writer():
+    from datetime import UTC, datetime, timedelta
+
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = NS(
+        readings={
+            "TOTAL_RANGE": {
+                "family": "eu_data_act",
+                "value": 700,
+                "captured": now.isoformat(),
+            },
+            "measuredTotalRange": {
+                "family": "cariad",
+                "value": 690,
+                "captured": (now - timedelta(minutes=10)).isoformat(),
+            },
+        }
+    )
+    descriptor = ATTRIBUTES["TOTAL_RANGE"]
+    assert projection_reading(car, descriptor, registry=registry, now=now)[0] == (
+        "measuredTotalRange"
+    )
+    car.readings["measuredTotalRange"]["captured"] = (
+        now - timedelta(hours=3)
+    ).isoformat()
+    assert projection_reading(car, descriptor, registry=registry, now=now)[0] == (
+        "TOTAL_RANGE"
+    )
+
+
+def test_alias_projection_considers_all_cached_families_and_ignores_removed():
+    from datetime import UTC, datetime, timedelta
+
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    older = (now - timedelta(hours=2)).isoformat()
+    native = {"family": "cariad", "value": 690, "captured": older}
+    fallback = {"family": "eu_data_act", "value": 700, "captured": now.isoformat()}
+    invalid = {
+        "family": "eu_data_act",
+        "value": None,
+        "captured": now.isoformat(),
+        "status": "invalid_value",
+    }
+    car = NS(
+        readings={"TOTAL_RANGE": fallback, "measuredTotalRange": invalid},
+        family_readings={"TOTAL_RANGE": {"cariad": native, "eu_data_act": fallback}},
+    )
+    # Canonical wins the equal-time alias tie within Data Act.
+    descriptor = ATTRIBUTES["TOTAL_RANGE"]
+    assert (
+        projection_reading(car, descriptor, registry=registry, now=now)[1] == fallback
+    )
+    invalid["captured"] = (now + timedelta(seconds=1)).isoformat()
+    assert projection_reading(car, descriptor, registry=registry, now=now)[1] == native
+    car.readings.pop("TOTAL_RANGE")
+    assert projection_reading(car, descriptor, registry=registry, now=now)[1] == invalid

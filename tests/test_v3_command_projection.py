@@ -238,3 +238,34 @@ def test_lock_transition_expires_without_fabricating_physical_state():
         now=NOW + timedelta(seconds=31),
         optimistic=False,
     ) == (None, "unknown")
+
+
+@pytest.mark.parametrize(
+    "cap,action,attribute,value",
+    [
+        ("charging", "start", "chargingState", "charging"),
+        ("access", "lock", "doorLockStatus", "locked"),
+        ("climate", "start", "climatisationState", "heating"),
+    ],
+)
+def test_data_act_never_verifies_command_even_with_fresh_capture(
+    cap, action, attribute, value
+):
+    from custom_components.audiconnect.v3.command_readback import reconcile_readback
+
+    row = record(cap, action)
+    car = NS(
+        readings={
+            attribute: {
+                "value": value,
+                "captured": NOW.isoformat(),
+                "family": "eu_data_act",
+            }
+        },
+        climate_state=value,
+        climate_captured=NOW,
+    )
+    assert not reconcile_readback(row, car, NOW)
+    assert row.state == "accepted_unconfirmed"
+    car.readings[attribute]["family"] = "cariad"
+    assert reconcile_readback(row, car, NOW)

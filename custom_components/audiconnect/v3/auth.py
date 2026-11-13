@@ -53,6 +53,10 @@ def redaction_context(entry, auth):
     known = [
         settings.get(key) for key in (CONF_USERNAME, CONF_PASSWORD, CONF_REFRESH_TOKEN)
     ]
+    options = getattr(entry, "options", {})
+    known.extend(
+        options.get(key) for key in ("v3_data_act_email", "v3_data_act_password")
+    )
     service = getattr(auth, "service", None)
     for family in _TOKEN_SLOTS:
         token = _token_record(service, family)
@@ -73,7 +77,14 @@ class FamilyAuthUnavailable(RuntimeError):
 class V3Auth:
     """V3 credential adapter; the shared account owns the session lifecycle."""
 
-    def __init__(self, hass: Any, entry: Any, *, shared_account: Any = None):
+    def __init__(
+        self,
+        hass: Any,
+        entry: Any,
+        *,
+        shared_account: Any = None,
+        data_act_session=None,
+    ):
         self.hass = hass
         self.entry = entry
         self.country = (entry.data.get(CONF_REGION) or "DE").upper()
@@ -95,6 +106,40 @@ class V3Auth:
         if shared_account is None:
             self._connection.set_refresh_token_listener(self._save_refresh)
         self.service = self._connection.authentication_service
+        # The optional session must already be authorized by its own auth owner.
+        # Never reuse the native CARIAD session or import browser credentials.
+        self.data_act_client = None
+        self._data_act_owned_session = None
+        self.data_act_configured = bool(
+            getattr(entry, "options", {}).get("v3_data_act_enabled", False)
+        )
+        if data_act_session is not None:
+            from .data_act import DataActClient
+
+            self.data_act_client = DataActClient(data_act_session)
+        elif self.data_act_configured:
+            from .data_act_auth import DataActPortalLogin
+            from .data_act import DataActClient
+            from aiohttp import ClientSession, CookieJar
+
+            options = entry.options
+            email = options.get("v3_data_act_email") or entry.data.get(CONF_USERNAME)
+            password = options.get("v3_data_act_password")
+            if not password and not options.get("v3_data_act_email"):
+                password = entry.data.get(CONF_PASSWORD)
+            if email and password:
+                self._data_act_owned_session = ClientSession(cookie_jar=CookieJar())
+                login = DataActPortalLogin(
+                    self._data_act_owned_session, email, password, self.country
+                )
+                self.data_act_client = DataActClient(
+                    self._data_act_owned_session, login=login.authenticate
+                )
+
+    async def async_close_data_act(self):
+        if self._data_act_owned_session is not None:
+            await self._data_act_owned_session.close()
+            self._data_act_owned_session = None
 
     async def ensure_ready(self) -> None:
         """Delegate session management to the single account owner."""

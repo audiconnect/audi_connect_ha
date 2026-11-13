@@ -61,6 +61,7 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
             else "stale"
         ),
         "verification": row.get("status", "unknown"),
+        **({"delivered_at": row["delivered_at"]} if row.get("delivered_at") else {}),
     }
 
 
@@ -129,6 +130,8 @@ def vehicle_capture_summary(vehicle, now: datetime | None = None):
         "vehicle_age_minutes": int(age) if age is not None else None,
         "source_attribute": ident,
         "source_job": row.get("job"),
+        "source_family": row.get("family"),
+        "source_delivered_at": row.get("delivered_at"),
         "source_observed_at": row.get("observed"),
         "source_clock_ahead_seconds": (
             max(0, int((stamp - now).total_seconds())) if stamp else None

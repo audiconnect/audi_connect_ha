@@ -977,6 +977,13 @@ def _reading_available(
     )
 
 
+def _sensor_projection(sensor):
+    registry = getattr(
+        getattr(getattr(sensor, "coordinator", None), "engine", None), "registry", None
+    )
+    return projection_reading(sensor.vehicle, sensor.attribute, registry=registry)
+
+
 class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
     """Read-only V3 entity reusing a historical V2 unique ID where mapped."""
 
@@ -1032,7 +1039,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             not profile or self.attribute["id"] not in profile.attribute_routes
         ):
             return False
-        reading = projection_reading(self.vehicle, self.attribute)[1]
+        reading = _sensor_projection(self)[1]
         return _reading_available(
             reading, allow_last_known=self._allow_last_known
         ) and not semantic_value_issue(
@@ -1047,7 +1054,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             from .vehicle import powertrain_identity
 
             return powertrain_identity(self.vehicle)["value"]
-        reading = projection_reading(self.vehicle, self.attribute)[1]
+        reading = _sensor_projection(self)[1]
         value = reading.get("value") if reading else None
         if semantic_value_issue(
             self.attribute["entity_key"], value, self._semantic_contract
@@ -1087,7 +1094,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
                 "classification_conflict": evidence["conflict"],
                 **details_for(self.vehicle, "connected_services_detail"),
             }
-        source, reading = projection_reading(self.vehicle, self.attribute)
+        source, reading = _sensor_projection(self)
         reading = reading or {}
         from .structured_details import details_for
 
@@ -1371,6 +1378,7 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
         reading = self.vehicle.readings.get(self.attribute["id"]) or {}
         return {
             "v3_capability": self.attribute["capability"],
+            "api_family": reading.get("family"),
             "response_mapping": reading.get("path"),
             **reading_freshness_attributes(
                 reading, allow_last_known=self._allow_last_known

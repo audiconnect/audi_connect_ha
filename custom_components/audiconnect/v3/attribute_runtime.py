@@ -97,26 +97,63 @@ def _observation_rank(row, registry, now):
     return (0, captured, -priority, family)
 
 
-def _commit_observation(vehicle, ident, row, registry, now):
-    """Keep one sample per family; choose from the same set in either arrival order."""
+def _current_candidates(vehicle, ident):
     previous = vehicle.readings.get(ident)
     candidates = vehicle.family_readings.setdefault(ident, {})
     if previous is None:
         candidates.clear()
     else:
-        # A few existing derived projections still write directly. Preserve a
-        # newer direct sample instead of reviving an older cached observation.
+        # Preserve a newer existing direct projection rather than reviving cache.
         source = previous.get("family", "")
         if _accept_observation(candidates.get(source), previous.get("captured")):
             candidates[source] = previous
+    return candidates
+
+
+def _select_observation(vehicle, ident, candidates, registry, now):
+    vehicle.readings[ident] = max(
+        candidates.values(), key=lambda sample: _observation_rank(sample, registry, now)
+    )
+
+
+def _commit_observation(vehicle, ident, row, registry, now):
+    """Keep one sample per family; choose from the same set in either arrival order."""
+    candidates = _current_candidates(vehicle, ident)
     family = row["family"]
     if not _accept_observation(candidates.get(family), row.get("captured")):
         return False
     candidates[family] = row
-    vehicle.readings[ident] = max(
-        candidates.values(), key=lambda sample: _observation_rank(sample, registry, now)
-    )
+    _select_observation(vehicle, ident, candidates, registry, now)
     return vehicle.readings[ident] is row
+
+
+def refresh_family_observations(vehicle, profile, now):
+    """Re-evaluate cached competing observations at the existing publish boundary."""
+    for ident in vehicle.family_readings:
+        candidates = _current_candidates(vehicle, ident)
+        if len(candidates) > 1:
+            _select_observation(vehicle, ident, candidates, profile.registry, now)
+
+
+def remove_family_observations(vehicle, profile, family, now):
+    """Remove explicitly revoked read access without losing other observations."""
+    changed = False
+    for ident in set(vehicle.readings) | set(vehicle.family_readings):
+        current = vehicle.readings.get(ident)
+        if (current or {}).get("family") != family and family not in (
+            vehicle.family_readings.get(ident, {})
+        ):
+            continue
+        candidates = _current_candidates(vehicle, ident)
+        candidates.pop(family, None)
+        if current is None or current.get("family") != family:
+            continue
+        if candidates:
+            _select_observation(vehicle, ident, candidates, profile.registry, now)
+        else:
+            vehicle.readings.pop(ident, None)
+        changed = True
+    return changed
 
 
 def record_invalid_observation(
@@ -165,6 +202,7 @@ def record_observation(
     fresh,
     operation,
     persist_evidence=True,
+    delivered_at=None,
 ):
     """Commit one normalized observation; persist only reviewed mapping evidence."""
     status = "verified" if fresh else "readable_but_stale"
@@ -179,6 +217,8 @@ def record_observation(
         "family": family,
         "operation": operation,
     }
+    if delivered_at is not None:
+        row["delivered_at"] = delivered_at
     if not _commit_observation(
         vehicle, ident, row, getattr(profile, "registry", None), observed_at
     ):
@@ -326,3 +366,85 @@ def observe_read_only(
     observe_structured(vehicle, payload, observed_at, _accept_observation)
     vehicle.v2_initial_discovery_completed = True
     return {"mapped": mapped, "fresh": fresh_count}
+
+
+def data_act_observations(payload, now, registry):
+    """Exact UUID + field-name mappings; one best timestamp per semantic field."""
+    fields = registry.families["eu_data_act"]["observations"]
+    candidates = {}
+    for item in payload["Data"]:
+        if not isinstance(item, dict) or not isinstance(item.get("key"), str):
+            continue
+        key = item["key"]
+        mapping = fields.get(key)
+        if not mapping or item.get("dataFieldName") != mapping["field"]:
+            continue
+        raw = item.get("value")
+        if type(raw) not in (str, int, float):
+            continue
+        ident = mapping["attribute"]
+        if "values" in mapping:
+            value = mapping["values"].get(str(raw))
+            if value is None:
+                continue
+        else:
+            try:
+                value = float(raw)
+            except (ValueError, OverflowError):
+                continue
+            if not mapping["min"] <= value <= mapping["max"]:
+                continue
+            # The OEM mileage field is unsignedInt, not a bounded uint16 signal.
+            if ident == "UTC_TIME_AND_KILOMETER_STATUS" and not value.is_integer():
+                continue
+            if "scale" in mapping:
+                value = round(value * mapping["scale"] + mapping["offset"], 2)
+        value, _ = normalize_attribute_value(ATTRIBUTES[ident], value, None)
+        if value is None:
+            continue
+        captured = item.get("timestampUtc")
+        if capture_age_minutes(captured, now) is None:
+            captured = None
+        candidates.setdefault(ident, []).append((captured, value, key))
+    result = {}
+    for ident, rows in candidates.items():
+        latest = max((_capture_in_utc(row[0]) for row in rows if row[0]), default=None)
+        matching = [row for row in rows if _capture_in_utc(row[0]) == latest]
+        if len({row[1] for row in matching}) != 1:
+            continue
+        captured, value, key = min(matching, key=lambda row: row[2])
+        result[ident] = {"value": value, "captured": captured, "path": key}
+    return result
+
+
+def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
+    """Reuse canonical informational readings; never activate control evidence."""
+    if (
+        not isinstance(payload, dict)
+        or not isinstance(payload.get("vin"), str)
+        or payload["vin"].upper() != vehicle.vin.upper()
+        or not isinstance(payload.get("Data"), list)
+    ):
+        return False
+    accepted = False
+    for ident, sample in data_act_observations(
+        payload, observed_at, profile.registry
+    ).items():
+        if ident in getattr(profile, "attribute_disabled", ()):
+            continue
+        accepted |= record_observation(
+            vehicle,
+            profile,
+            ident,
+            sample["value"],
+            sample["captured"],
+            observed_at,
+            sample["path"],
+            ATTRIBUTES[ident]["job"],
+            "eu_data_act",
+            fresh=timestamp_is_fresh(sample["captured"], observed_at),
+            operation="eu_data_act.dataset",
+            persist_evidence=False,
+            delivered_at=delivered_at,
+        )
+    return accepted

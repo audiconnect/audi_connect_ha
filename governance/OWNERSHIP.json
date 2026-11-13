@@ -40,7 +40,14 @@
       "responsibility": "fast control resolution, explicit tests, execution and confirmation"
     },
     "api": {
-      "paths": ["auth.py", "transport.py", "quota.py", "family_executors.py"],
+      "paths": [
+        "auth.py",
+        "transport.py",
+        "quota.py",
+        "family_executors.py",
+        "data_act.py",
+        "data_act_auth.py"
+      ],
       "responsibility": "authentication, transport, quota and protocols"
     },
     "catalog": {

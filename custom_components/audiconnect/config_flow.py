@@ -821,8 +821,26 @@ class OptionsFlowHandler(OptionsFlow):
             # Keep historical V2 options while the clean V3 form only
             # exposes integration-level runtime, interval and vehicle filter.
             # A switch back to V2 must recover those V2 preferences.
-            user_input = {**self.config_entry.options, **user_input}
+            submitted = user_input
+            user_input = {**self.config_entry.options, **submitted}
             user_input.setdefault("runtime_version", "v2")
+            if user_input["runtime_version"] != "v3_climate":
+                user_input.pop("v3_data_act_enabled", None)
+            if user_input.get("v3_data_act_enabled", False):
+                # Blank password retains the current portal credential. It is
+                # never sent back as a default to the browser.
+                if not submitted.get("v3_data_act_password"):
+                    same_email = user_input.get("v3_data_act_email", "") == (
+                        self.config_entry.options.get("v3_data_act_email", "")
+                    )
+                    user_input["v3_data_act_password"] = (
+                        self.config_entry.options.get("v3_data_act_password", "")
+                        if same_email
+                        else ""
+                    )
+            else:
+                user_input.pop("v3_data_act_email", None)
+                user_input.pop("v3_data_act_password", None)
             # Workbench is opt-in and belongs only to the V3 runtime. Leave
             # existing custom API profiles untouched when it is turned off.
             if user_input["runtime_version"] != "v3_climate":
@@ -906,6 +924,20 @@ class OptionsFlowHandler(OptionsFlow):
 
         if values.get("runtime_version", "v2") == "v3_climate":
             schema[vol.Optional("edit_local_dealer", default=False)] = bool
+            schema[
+                vol.Optional(
+                    "v3_data_act_enabled",
+                    default=values.get("v3_data_act_enabled", False),
+                )
+            ] = bool
+            schema[
+                vol.Optional(
+                    "v3_data_act_email", default=values.get("v3_data_act_email", "")
+                )
+            ] = TextSelector()
+            schema[vol.Optional("v3_data_act_password", default="")] = TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            )
             schema[vol.Optional("run_vehicle_discovery", default=False)] = bool
             schema[
                 vol.Required(

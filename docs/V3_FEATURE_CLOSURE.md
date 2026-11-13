@@ -85,3 +85,30 @@ The structural diagnostic snapshot on HA 2026.11.1 / B30 confirms successful clo
 B31 Workbench exposes current-revision per-mode proof separately from writable options and route/temporal readiness. A mode test must demonstrate an actual change, not merely an HTTP success or the existing setting. HA unknown select state outside executable options is explicitly classified. No new polling, requests or endpoints are introduced.
 
 The native next-climate-timer diagnostic now distinguishes an absent source, incomplete schedule, zero enabled timers, and an observed schedule without a safely determined next single start. This is an explanation of missing projection, not a claim of timer capability or a fabricated timestamp.
+
+## B32 — experimental candidate audit (issue #44)
+
+Scope: the B31 published source, the merged family priority, shared observation,
+auth isolation, deterministic selection and passive discovery changes, and PR
+#41 (optional EU Data Act). This is the code/evidence audit for a HACS test
+candidate; it does not close the stable product acceptance gate.
+
+| Objective                   | Audit evidence and remaining gate                                                                                                                                                                                                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Correctness and consistency | One normalized observation per family, shared priority and aging selection; same-family alias handling; exact UUID/name mapping, units, enum validation and per-field capture. Regression tests in test_v3_attribute_runtime, test_v3_data_act and test_v3_product_entity_contract.                                                 |
+| Completeness                | Nineteen mapped semantic attributes from the owner-supplied Q8 dataset; 91 rows with per-field timestamps, about 35h delivery lag. No claim of full Data Act coverage or 100% V2/V3 parity. Right-door metadata conflicts, service signs, charging/timer semantics and other variants remain open. Identity issue #35 remains open. |
+| Simplicity and ownership    | Existing API, Catalog, Status, Vehicle and HA owners, two bounded provider modules; one coordinator and one normalized writer. No per-model routing or parallel entity model. Existing native direct writes and capability-level compatibility paths remain audit/cleanup subjects, not a claim of zero technical debt.             |
+| UX and lifecycle            | Existing entity IDs, opt-in options and password masking, independent background read, source/age attributes; mocked setup, disable, failure and cancellation coverage. Live HA registry/history, Workbench and V2 rollback acceptance remain open.                                                                                 |
+| Security and privacy        | Fixed reviewed sign-in destinations, isolated session and quota, no consent creation, bounded ZIP/JSON, VIN match, explicit command evidence guard and per-VIN denial. No owner raw ZIP, VIN or user identifiers committed. Live authorization, credential rejection and revocation still require acceptance.                       |
+| Efficiency and resilience   | Existing native polling/budget retained; passive full batch and request reuse; optional 30-minute due interval and independent backoff; no native publication wait. Live request counts, portal protocol and quota behavior remain unverified.                                                                                      |
+| Engineering and governance  | Exact-head CI required before merge; dual HA version, Workbench, lint, hassfest, HACS and checksum required by the existing candidate workflow. B31 product source offered in existing PR #918; no stable version or upstream merge.                                                                                                |
+
+Audit corrections included command readback isolation (even with fresh portal
+capture), aliases considering cached candidates, re-selection on aging, explicit
+revocation removing only that family's observations, and aggregate source
+provenance. Experimental opt-in only; the portal protocol is not a documented
+consumer API contract. Real Q8 portal sign-in, restart, disable, VIN isolation,
+freshness and no extra native requests are acceptance tasks. The 91-row dataset
+is evidence of actual schema and delivery lag, not a successful V3 login.
+Full stable release remains **NO GO**. Issue #44 remains open for evidence and
+the final product release decision.

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import asyncio
+from datetime import UTC, datetime, timedelta
 import time
 from typing import Any
 
@@ -68,6 +69,7 @@ class StatusEngine:
         known_inventory,
         operation_request,
         api_record,
+        notify=None,
     ):
         self.hass = hass
         self.entry = entry
@@ -80,6 +82,8 @@ class StatusEngine:
         self._inventory_ready = known_inventory
         self._operation_request = operation_request
         self._api_record = api_record
+        self._notify = notify
+        self._data_act_task = None
         self.last_cloud_poll_success = None
         self.last_cloud_poll_attempt = None
         self.last_cloud_poll_succeeded = None
@@ -88,10 +92,93 @@ class StatusEngine:
         self._identity_session = None
         self._trip_poll_at = {}
         self._legacy_route_backoff = {}
+        self._data_act_attempt_at = None
+        self._data_act_success_at = None
+        self._data_act_result = "not_configured"
 
     @property
     def transport(self):
         return self._transport()
+
+    def data_act_poll_status(self):
+        """Safe account-level scheduler status; no dataset or session contents."""
+        client = getattr(self.auth, "data_act_client", None)
+        retry = client.quota.retry_at if client is not None else None
+        return {
+            "result": self._data_act_result,
+            "last_attempt": self._data_act_attempt_at.isoformat()
+            if self._data_act_attempt_at
+            else None,
+            "last_success": self._data_act_success_at.isoformat()
+            if self._data_act_success_at
+            else None,
+            "retry_at": retry.isoformat() if retry else None,
+        }
+
+    async def _poll_data_act(self, now=None):
+        """Fetch due optional family data; native quota is separate."""
+        from .data_act import DataActUnavailable, DataActVehicleDenied
+
+        samples = []
+
+        client = getattr(self.auth, "data_act_client", None)
+        if client is None:
+            self._data_act_result = (
+                "credentials_required"
+                if getattr(self.auth, "data_act_configured", False) is True
+                else "not_configured"
+            )
+            return samples
+        if client.authorization_required:
+            self._data_act_result = "authorization_required"
+            return samples
+        now = now or datetime.now(UTC)
+        if client.quota.retry_at and now < client.quota.retry_at:
+            self._data_act_result = "rate_limited"
+            return samples
+        profiles = [
+            (car, self.profiles[key])
+            for key, car in self.vehicles.items()
+            if car.inventory_present and key in self.profiles
+        ]
+        if not profiles:
+            return samples
+        interval = profiles[0][1].registry.families["eu_data_act"][
+            "poll_interval_minutes"
+        ]
+        if self._data_act_attempt_at and now < self._data_act_attempt_at + timedelta(
+            minutes=interval
+        ):
+            return samples
+        self._data_act_attempt_at = now
+        self._data_act_result = "no_new_dataset"
+        for car, profile in profiles:
+            if car.vin.upper() in getattr(client, "denied_vins", ()):
+                if self._data_act_result == "no_new_dataset":
+                    self._data_act_result = "vehicle_access_denied"
+                continue
+            try:
+                result = await client.latest(car.vin)
+            except DataActVehicleDenied:
+                self._data_act_result = "vehicle_access_denied"
+                continue
+            except DataActUnavailable:
+                self._data_act_result = (
+                    "authorization_required"
+                    if client.authorization_required
+                    else "rate_limited"
+                    if client.quota.retry_at
+                    else "unavailable"
+                )
+                if client.authorization_required or client.quota.retry_at:
+                    break
+                continue
+            self._data_act_success_at = now
+            if result is not None:
+                payload, delivered = result
+                samples.append((car, profile, payload, datetime.now(UTC), delivered))
+                self._data_act_result = "dataset_received"
+        return samples
 
     def invalidate_trip_poll(self, vin: str) -> None:
         """Re-evaluate trip polling after the vehicle context changes."""
@@ -264,6 +351,108 @@ class StatusEngine:
                     raise
             finally:
                 self._identity_session = getattr(self.auth, "session_generation", None)
+        # One optional family task, owned by the same status lifecycle. A slow
+        # portal read must not delay the native coordinator's publication.
+        self._start_data_act()
+        await self._poll_native_status()
+        self._update_capture_projection()
+        return list(self.vehicles.values())
+
+    def _start_data_act(self):
+        if self._data_act_task is not None and not self._data_act_task.done():
+            return
+        if getattr(self.auth, "data_act_client", None) is None:
+            self._data_act_result = (
+                "credentials_required"
+                if getattr(self.auth, "data_act_configured", False) is True
+                else "not_configured"
+            )
+            return
+        create_task = getattr(self.entry, "async_create_background_task", None)
+        if create_task is not None and self.hass is not None:
+            self._data_act_task = create_task(
+                self.hass, self._collect_data_act(), "Audi Data Act read"
+            )
+        else:
+            self._data_act_task = asyncio.create_task(self._collect_data_act())
+
+    async def _collect_data_act(self):
+        from .attribute_runtime import observe_data_act, remove_family_observations
+
+        try:
+            samples = await self._poll_data_act()
+            changed = False
+            client = getattr(self.auth, "data_act_client", None)
+            denied = getattr(client, "denied_vins", ())
+            revoked = getattr(client, "authorization_required", False) is True
+            for key, car in self.vehicles.items():
+                if key in self.profiles and (revoked or car.vin.upper() in denied):
+                    changed |= remove_family_observations(
+                        car, self.profiles[key], "eu_data_act", datetime.now(UTC)
+                    )
+            for car, profile, payload, observed, delivered in samples:
+                key = car.vin.lower()
+                if (
+                    self.vehicles.get(key) is car
+                    and self.profiles.get(key) is profile
+                    and car.inventory_present
+                    and not revoked
+                    and car.vin.upper() not in denied
+                ):
+                    changed |= observe_data_act(
+                        car, profile, payload, observed, delivered
+                    )
+            if changed:
+                self._update_capture_projection()
+                if self._notify is not None:
+                    self._notify()
+        except Exception:
+            # Optional provider errors must not invalidate native data or expose
+            # response content and credentials in logs.
+            self._data_act_result = "unavailable"
+
+    async def async_stop_data_act(self):
+        task = self._data_act_task
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        self._data_act_task = None
+
+    def _update_capture_projection(self):
+        from .attribute_runtime import refresh_family_observations
+        from .freshness import newest_vehicle_reading
+
+        now = datetime.now(UTC)
+        for car in self.vehicles.values():
+            if not car.inventory_present:
+                continue
+            profile = self.profiles.get(car.vin.lower())
+            if profile is not None:
+                refresh_family_observations(car, profile, now)
+            newest = newest_vehicle_reading(car, now)
+            if newest is None:
+                car.readings.pop("last_update_time", None)
+            else:
+                stamp, _ident, source = newest
+                car.readings["last_update_time"] = {
+                    **source,
+                    "value": stamp.isoformat(),
+                    "captured": stamp.isoformat(),
+                    "path": "vehicle_capture",
+                }
+            if car.model:
+                car.readings["model"] = {
+                    "value": car.model,
+                    "captured": None,
+                    "observed": now.isoformat(),
+                    "status": "readable_but_stale",
+                    "family": "cariad",
+                    "path": "graphql.vehicle.media",
+                    "job": None,
+                }
+
+    async def _poll_native_status(self):
+        """Existing native family reads; preserve shared request deduplication."""
         cloud_reachable = False
         # Reuse identical GET responses across capabilities on the same car.
         # API family + VIN + exact path is the request identity; a route change
@@ -654,33 +843,6 @@ class StatusEngine:
                         or car.context.auth in ("auth0", "legacy")
                     ):
                         await self._poll_trips(car)
-        for car in self.vehicles.values():
-            if not car.inventory_present:
-                continue
-            from .freshness import newest_vehicle_capture
-
-            newest = newest_vehicle_capture(car)
-            captured = newest.isoformat() if newest else None
-            if captured is None:
-                car.readings.pop("last_update_time", None)
-            for ident, value, stamp in (
-                ("last_update_time", captured, captured),
-                ("model", car.model or None, None),
-            ):
-                if value is not None:
-                    car.readings[ident] = {
-                        "value": value,
-                        "captured": stamp,
-                        "observed": datetime.now(UTC).isoformat(),
-                        "status": "readable_but_stale",
-                        "family": "cariad",
-                        "path": "vehicle_capture"
-                        if ident == "last_update_time"
-                        else "graphql.vehicle.media",
-                        "job": None,
-                    }
-        # The composition root persists status and control bindings together.
-        return list(self.vehicles.values())
 
     def parking_read_allowed(self, car):
         """Same explicit tracker policy for discovery planning and coverage."""
