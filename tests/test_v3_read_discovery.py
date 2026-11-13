@@ -349,8 +349,10 @@ def test_read_discovery_distinguishes_exhaustion_from_success():
         },
         "chargingTimers": {
             "fields": [
-                {"path": "chargingTimers.chargingTimersStatus.requests[].body.value",
-                 "type": "integer"},
+                {
+                    "path": "chargingTimers.chargingTimersStatus.requests[].body.value",
+                    "type": "integer",
+                },
             ],
         },
     }
