@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorDeviceClass,
@@ -1638,6 +1638,50 @@ class V3LockEntity(V3BaseEntity, LockEntity):
     def __init__(self, coordinator: V3CleanCoordinator, vehicle: V3Vehicle):
         super().__init__(coordinator, vehicle)
         self._attr_unique_id = f"{vehicle.vin.lower()}_lock_lock"
+        self._pending_refresh = None
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        self.async_on_remove(self._cancel_pending_refresh)
+        self._schedule_pending_refresh()
+
+    @callback
+    def _cancel_pending_refresh(self):
+        if self._pending_refresh is not None:
+            self._pending_refresh()
+            self._pending_refresh = None
+
+    @callback
+    def _schedule_pending_refresh(self):
+        from .command_journal import TEMPORARY_ERROR_COOLDOWN_SECONDS
+        from .command_readback import latest_readback_command
+
+        self._cancel_pending_refresh()
+        if self.hass is None or not (self.is_locking or self.is_unlocking):
+            return
+        profile = getattr(self.coordinator.engine, "profiles", {}).get(
+            self.vehicle.vin.lower()
+        )
+        record = latest_readback_command(profile, "doorLockStatus")
+        if record is None:
+            return
+        delay = record.started_at + TEMPORARY_ERROR_COOLDOWN_SECONDS
+        delay -= datetime.now(UTC).timestamp()
+        if delay > 0:
+            self._pending_refresh = async_call_later(
+                self.hass, delay, self._pending_expired
+            )
+
+    @callback
+    def _pending_expired(self, _now):
+        self._pending_refresh = None
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_coordinator_update(self):
+        super()._handle_coordinator_update()
+        self._schedule_pending_refresh()
+
 
     @property
     def is_locked(self) -> bool | None:
@@ -1711,6 +1755,12 @@ class V3LockEntity(V3BaseEntity, LockEntity):
     async def _send_access(self, action):
         # Dispatch uses the same authoritative guard as Workbench. Do not
         # turn a pending review or cooldown into a false authorization error.
+        if not getattr(self.vehicle, "inventory_present", True):
+            raise HomeAssistantError("Audi vehicle is not present in inventory")
+        if not self.coordinator.last_update_success:
+            raise HomeAssistantError("Audi connection unavailable")
+        if not configured_spin(self.coordinator.engine.auth):
+            raise HomeAssistantError("Audi S-PIN is not configured")
         try:
             await self.coordinator.engine.send_control(
                 self.vehicle.vin, action, "access"
@@ -1718,6 +1768,7 @@ class V3LockEntity(V3BaseEntity, LockEntity):
         except (ValueError, RuntimeError) as err:
             raise HomeAssistantError(str(err)) from err
         self.async_write_ha_state()
+        self._schedule_pending_refresh()
 
     async def async_lock(self, **kwargs) -> None:
         if self.is_locked is not True:
