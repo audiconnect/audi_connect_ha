@@ -669,14 +669,35 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
         engine = self.coordinator.engine
         if self.kind == "discovery":
             return self._discovery_progress()
-        if self.kind == "freshness":
-            from .freshness import capture_coverage
+        if self.kind in ("age", "freshness"):
+            from .freshness import (
+                capture_age_minutes,
+                capture_coverage,
+                newest_vehicle_reading,
+            )
             from .structured_details import details_for
 
-            last = self.vehicle.readings.get("last_update_time", {}).get("value")
-            return {
+            now = datetime.now(UTC)
+            newest = newest_vehicle_reading(self.vehicle, now)
+            stamp, ident, row = newest if newest else (None, None, {})
+            last = stamp.isoformat() if stamp else None
+            age = capture_age_minutes(last, now)
+            coverage = capture_coverage(self.vehicle, now)
+            oldest = [
+                job["oldest_minutes"]
+                for job in coverage.values()
+                if job["oldest_minutes"] is not None
+            ]
+            result = {
                 "vehicle_last_update": last,
-                "vehicle_age_minutes": self._vehicle_age(),
+                "vehicle_age_minutes": int(age) if age is not None else None,
+                "source_attribute": ident,
+                "source_job": row.get("job"),
+                "source_observed_at": row.get("observed"),
+                "source_clock_ahead_seconds": (
+                    max(0, int((stamp - now).total_seconds())) if stamp else None
+                ),
+                "oldest_observed_age_minutes": max(oldest, default=None),
                 "cloud_last_successful_poll": (
                     engine.last_cloud_poll_success.isoformat()
                     if engine.last_cloud_poll_success
@@ -693,10 +714,14 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
                     self.coordinator.last_update_success,
                 ),
                 "freshness_basis": "newest_valid_vehicle_capture",
-                **details_for(self.vehicle, "readiness_detail"),
-                "job_capture_coverage": capture_coverage(self.vehicle),
-                "discovery": self._discovery_progress(),
+                "job_capture_coverage": coverage,
             }
+            if self.kind == "freshness":
+                result.update(
+                    details_for(self.vehicle, "readiness_detail"),
+                    discovery=self._discovery_progress(),
+                )
+            return result
         if self.kind == "cloud":
             return {
                 "cloud_poll_succeeded": getattr(
