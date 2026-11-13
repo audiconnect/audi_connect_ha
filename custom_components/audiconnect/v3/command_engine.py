@@ -645,8 +645,11 @@ class CommandEngine:
                 blocked = dispatch_block_reason(p, capability, aspect)
                 if blocked:
                     raise RuntimeError(blocked)
-            if _follow_up_to is not None and p.discovery.history and time.time() < (
-                p.discovery.history[-1].started_at + p.discovery.cooldown_seconds
+            if (
+                _follow_up_to is not None
+                and p.discovery.history
+                and time.time()
+                < (p.discovery.history[-1].started_at + p.discovery.cooldown_seconds)
             ):
                 raise RuntimeError(
                     "Vehicle command cooldown active after engineering test"
