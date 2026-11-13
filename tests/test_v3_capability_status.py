@@ -350,3 +350,24 @@ def test_native_trip_coverage_matches_existing_snapshot_not_mapping_backlog():
     )
     assert row["observed"] and row["captured"] == stamp
     assert row["status"] == "readable_but_stale"
+
+
+def test_implemented_derived_fields_and_history_are_not_missing_mappings():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.capability_status import attribute_status
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    for ident in (
+        "charging_type",
+        "charging_complete_time",
+        "active_charging_profile_target_soc",
+        "next_climatisation_timer_local",
+    ):
+        assert attribute_status(car, profile, ATTRIBUTES[ident], now)[0] == "not_observed"
+    assert attribute_status(car, profile, ATTRIBUTES["energy_flow"], now)[0] == "mapping_pending"
+    profile.attribute_evidence["remainingChargingTime"] = {"status": "verified"}
+    assert attribute_status(
+        car, profile, ATTRIBUTES["remainingChargingTime"], now
+    )[0] == "not_observed"
