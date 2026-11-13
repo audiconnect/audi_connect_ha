@@ -77,6 +77,9 @@ def test_diagnostics_never_import_native_entity_classes():
 def test_engine_does_not_reach_into_status_or_command_private_state():
     tree = ast.parse((V3 / "engine.py").read_text())
     for node in ast.walk(tree):
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Attribute):
-            if node.value.attr in ("status", "commands"):
-                assert not node.attr.startswith("_"), node.attr
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Attribute)
+            and node.value.attr in ("status", "commands")
+        ):
+            assert not node.attr.startswith("_"), node.attr
