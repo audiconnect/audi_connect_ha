@@ -120,6 +120,8 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
             if decisions:
                 result["control_dispatch"] = {
                     action: {
+                        "route_available": decision["route_available"],
+                        "route_status": decision["route_status"],
                         "ready": decision["dispatch_ready"],
                         "reason": decision["dispatch_reason"],
                     }

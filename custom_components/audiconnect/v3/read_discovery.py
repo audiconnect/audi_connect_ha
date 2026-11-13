@@ -422,6 +422,8 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
                     "action": action,
                     "catalog_applicable": bool(available),
                     "eligible": bool(decision["operation"]),
+                    "route_available": decision["route_available"],
+                    "route_status": decision["route_status"],
                     "dispatch_ready": decision["dispatch_ready"],
                     "dispatch_reason": decision["dispatch_reason"],
                     "status": decision["status"],

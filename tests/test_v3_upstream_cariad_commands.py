@@ -236,6 +236,15 @@ def test_empty_charge_modes_require_local_route_verification():
     restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
     assert supported_charge_modes(car, restored) == []
     assert engine.control_enabled(VIN, "set_charge_mode", "charging")
+    attempt = profile.begin_test("charging", "set_charge_mode", route, now=400)
+    pending = control_decision(car, profile, engine.auth, "charging", "set_charge_mode")
+    assert pending["route_available"] is True
+    assert pending["route_status"] == "local_verified"
+    assert pending["operation"] is None
+    assert pending["dispatch_ready"] is False
+    assert pending["dispatch_reason"] == "engineering_command_awaiting_review"
+    profile.observe_http(attempt.sequence, 200)
+    profile.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=401)
     car.readings["availableChargeModes"] = {"value": ["manual"]}
     assert supported_charge_modes(car, profile) == ["manual"]
     car.readings["availableChargeModes"] = {"value": None, "status": "invalid_value"}
@@ -280,3 +289,22 @@ def test_next_climate_timer_excludes_expired_and_ambiguous_times():
     block["timers"] = block["timers"][2:]
     observe_derived(car, profile, payload, now, lambda *_: True)
     assert car.readings[key]["value"] == "2026-11-15T14:00:00"
+    block["timers"].append({"id": 4, "enabled": True, "singleTimer": {}})
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert key not in car.readings
+    block["timers"].pop()
+    block["timers"].append(
+        {"id": 5, "enabled": True, "recurringTimer": {"startTime": "07:00"}}
+    )
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert car.readings[key]["value"] == "2026-11-15T14:00:00"
+    block["timeInCar"] = "2026-11-12T13:00:00+01:00"
+    block["timers"].append(
+        {
+            "id": 6,
+            "enabled": True,
+            "singleTimer": {"startDateTimeLocal": "2026-11-13T14:00:00"},
+        }
+    )
+    observe_derived(car, profile, payload, now, lambda *_: True)
+    assert key not in car.readings
