@@ -261,6 +261,12 @@ def test_charging_eta_follows_valid_and_invalid_source_capture():
         vehicle.readings["charging_complete_time"]["value"]
         == (newest + timedelta(minutes=30)).isoformat()
     )
+    finished = newest + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(0, finished), finished)
+    assert vehicle.readings["remainingChargingTime"]["value"] == 0
+    assert "charging_complete_time" not in vehicle.readings
+    observe_read_only(vehicle, profile, sample(30, newest), finished)
+    assert "charging_complete_time" not in vehicle.readings
 
 
 def test_shared_scalar_mapping_preserves_meaningful_values_and_rejects_error_envelopes():
