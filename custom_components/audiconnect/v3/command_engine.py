@@ -678,12 +678,14 @@ class CommandEngine:
                     car.last_command_result = f"request_failed_{response.status}"
                 else:
                     car.last_command_result = record.state
+                    # Persist acceptance before publishing the effective control
+                    # state. Do not wait for the optional read-only confirmation.
+                    await self.storage.async_save(self.profiles)
+                    self._notify_discovery_change()
                     if family == "cariad":
                         from .request_status import confirm
 
                         request_id = record.request_id
-                        # Persist backend acceptance/ID before a cancellable follow-up.
-                        await self.storage.async_save(self.profiles)
                         if request_id is not None:
                             car.last_command_result = await confirm(
                                 self.transport, car.vin, request_id
@@ -703,7 +705,12 @@ class CommandEngine:
                         "quota_limited",
                         "pending",
                     ):
-                        record.state = "uncertain"
+                        # A failed status GET cannot undo a successful POST/PUT.
+                        # Keep security-sensitive outcomes conservative.
+                        if capability not in ("climate", "charging"):
+                            record.state = "uncertain"
+                        else:
+                            car.last_command_result = record.state
             except asyncio.CancelledError:
                 # The pre-dispatch journal is already durable; restart restores uncertainty.
                 record.state = "uncertain"
