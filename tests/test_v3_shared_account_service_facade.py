@@ -157,3 +157,27 @@ def test_auth_redaction_includes_live_token_slots_and_active_pin():
     )
     assert pin == "1234"
     assert {"9876", "cariad-token", "identity-token", "legacy-token"} <= set(secrets)
+
+
+def test_optional_family_token_does_not_require_account_reauthentication():
+    from custom_components.audiconnect.v3.auth import FamilyAuthUnavailable
+
+    service = SimpleNamespace(
+        uses_auth0=True,
+        _bearer_token_json={"access_token": "shared"},
+        audiToken={"access_token": "shared"},
+    )
+    auth = V3Auth(
+        SimpleNamespace(),
+        SimpleNamespace(data={"region": "DE"}),
+        shared_account=SimpleNamespace(
+            connection=SimpleNamespace(authentication_service=service)
+        ),
+    )
+    assert auth.has_family_token("cariad") and auth.has_family_token("graphql")
+    assert auth.identity_auth_evidence("graphql")["role"] == "cariad_bearer"
+    service.audiToken = {}
+    assert not auth.has_family_token("graphql")
+    with pytest.raises(FamilyAuthUnavailable):
+        auth.access_token("graphql")
+    assert auth.access_token("cariad") == "shared"

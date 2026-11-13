@@ -181,3 +181,56 @@ def test_inventory_absence_requires_complete_membership(rows, errors, expected):
         )
         is expected
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [401, 403, 404, "missing_token", "malformed"])
+async def test_native_inventory_fallback_is_bounded_and_does_not_revoke(failure):
+    from unittest.mock import AsyncMock
+    from custom_components.audiconnect.v3.auth import FamilyAuthUnavailable
+    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.transport import V3Transport
+
+    transport = object.__new__(V3Transport)
+    transport.quota = QuotaBudget(remaining=50)
+    now = datetime.now(UTC)
+    primary = (
+        FamilyAuthUnavailable("missing")
+        if failure == "missing_token"
+        else V3Response(200 if failure == "malformed" else failure, {}, now)
+    )
+    transport.request = AsyncMock(
+        side_effect=[primary, V3Response(200, {"data": [{"vin": VIN}]}, now)]
+    )
+    assert await transport.discover_vehicles() == [{"vin": VIN}]
+    assert transport.last_inventory_operation == GARAGE_OPERATION
+    assert not transport.last_inventory_complete
+    assert transport.last_inventory_fallback_reason
+    assert transport.request.await_count == 2
+    assert transport.request.await_args.args == (
+        "cariad", "GET", "/vehicle/v1/vehicles"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [200, 429, 503])
+async def test_inventory_never_falls_back_for_valid_vin_or_rate_limit(status):
+    from unittest.mock import AsyncMock
+    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.transport import V3Transport
+
+    transport = object.__new__(V3Transport)
+    transport.quota = QuotaBudget(remaining=50)
+    rows = [{"vin": VIN, "vehicle": None}]
+    transport.request = AsyncMock(
+        return_value=V3Response(
+            status, {"data": {"userVehicles": rows}}, datetime.now(UTC)
+        )
+    )
+    if status == 200:
+        assert await transport.discover_vehicles() == rows
+    else:
+        with pytest.raises(RuntimeError):
+            await transport.discover_vehicles()
+    assert transport.request.await_count == 1
+    assert not transport.last_inventory_fallback_reason

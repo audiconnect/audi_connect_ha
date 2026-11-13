@@ -66,6 +66,10 @@ def redaction_context(entry, auth):
     return pin if pin is not None else active_pin, tuple(known)
 
 
+class FamilyAuthUnavailable(RuntimeError):
+    """A service credential is absent, not a failed shared account login."""
+
+
 class V3Auth:
     """V3 credential adapter; the shared account owns the session lifecycle."""
 
@@ -118,7 +122,11 @@ class V3Auth:
 
     @property
     def has_cariad_bearer(self) -> bool:
-        token = _token_record(self.service, "cariad").get("access_token")
+        return self.has_family_token("cariad")
+
+    def has_family_token(self, family: str) -> bool:
+        """Credential presence only; operation authorization remains independent."""
+        token = _token_record(self.service, family).get("access_token")
         return isinstance(token, str) and bool(token)
 
     @property
@@ -136,6 +144,7 @@ class V3Auth:
             "provider": "auth0" if self.uses_auth0 else "legacy",
             "role": "cariad_bearer"
             if family == "cariad"
+            or (family == "graphql" and access and access == primary)
             else "audi_azs_slot"
             if family == "graphql"
             else "legacy_slot",
@@ -189,5 +198,5 @@ class V3Auth:
             raise ValueError("V3 family is not enabled")
         value = _token_record(self.service, family).get("access_token")
         if not isinstance(value, str) or not value:
-            raise ConfigEntryAuthFailed("Audi authentication token unavailable")
+            raise FamilyAuthUnavailable("Audi API family token unavailable")
         return value
