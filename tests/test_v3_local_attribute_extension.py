@@ -80,7 +80,7 @@ async def test_new_local_sensor_needs_evidence_and_survives_restart():
     restored = restore_profile(catalog, car.context, profile.snapshot())
     assert restored.attribute_routes[IDENT] == ROUTE
     # The next scheduled read publishes the selected mapping, not the test.
-    engine._record_attribute_response(
+    engine.status.record_attribute_response(
         car, profile, IDENT, ROUTE, [CANDIDATE["response_path"]], request.return_value
     )
     field = attributes_for(restored)[IDENT]

@@ -6,14 +6,13 @@ The V3 API transport, discovery, request budget and parsing are independent.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ..audi_api import AudiAPI
-from ..audi_services import AudiAuthError, AudiService
+from ..audi_connect_account import AudiConnectAccount
+from ..audi_services import AudiAuthError
 from ..const import (
     CONF_API_LEVEL,
     CONF_PASSWORD,
@@ -25,94 +24,93 @@ from ..const import (
 )
 
 
+# Only this boundary knows the historical credential slots.
+_TOKEN_SLOTS = {
+    "graphql": "audiToken",
+    "cariad": "_bearer_token_json",
+    "mbb": "vwToken",
+}
+
+
+def _token_record(service, family):
+    name = _TOKEN_SLOTS.get(family)
+    record = getattr(service, name, None) if name else None
+    return record if isinstance(record, dict) else {}
+
+
+def configured_spin(auth):
+    """Internal credential access; callers must never expose the returned value."""
+    return getattr(getattr(auth, "service", None), "_spin", None)
+
+
+def service_api_level(auth):
+    return getattr(getattr(auth, "service", None), "_api_level", None)
+
+
+def redaction_context(entry, auth):
+    """Collect known credentials only for local, in-memory masking."""
+    settings = getattr(entry, "data", {})
+    known = [
+        settings.get(key) for key in (CONF_USERNAME, CONF_PASSWORD, CONF_REFRESH_TOKEN)
+    ]
+    service = getattr(auth, "service", None)
+    for family in _TOKEN_SLOTS:
+        token = _token_record(service, family)
+        known.extend(
+            token.get(k) for k in ("access_token", "refresh_token", "id_token")
+        )
+    pin = settings.get(CONF_SPIN)
+    active_pin = configured_spin(auth)
+    if active_pin is not None and str(active_pin) != str(pin):
+        known.append(str(active_pin))
+    return pin if pin is not None else active_pin, tuple(known)
+
+
 class V3Auth:
-    """Per-config-entry token owner; never poll via AudiConnectAccount."""
+    """V3 credential adapter; the shared account owns the session lifecycle."""
 
     def __init__(self, hass: Any, entry: Any, *, shared_account: Any = None):
         self.hass = hass
         self.entry = entry
         self.country = (entry.data.get(CONF_REGION) or "DE").upper()
-        # The HA runtime passes the SAME AudiAccount as V2. Reuse the already
-        # configured transport/auth service and its single refresh token owner.
-        # The fallback exists for isolated V3 unit tests and CLI discovery.
-        self._shared_connection = (
-            shared_account.connection if shared_account is not None else None
-        )
-        self.service = (
-            self._shared_connection._audi_service
-            if self._shared_connection is not None
-            else AudiService(
-                AudiAPI(async_get_clientsession(hass)),
-                self.country,
-                entry.data.get(CONF_SPIN),
-                entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL),
+        # Both production and standalone callers use the same account session
+        # implementation. Only the active runtime performs vehicle polling.
+        self._connection = (
+            shared_account.connection
+            if shared_account is not None
+            else AudiConnectAccount(
+                session=async_get_clientsession(hass),
+                country=self.country,
+                spin=entry.data.get(CONF_SPIN),
+                api_level=entry.data.get(CONF_API_LEVEL, DEFAULT_API_LEVEL),
+                refresh_token=entry.data.get(CONF_REFRESH_TOKEN),
+                username=entry.data.get(CONF_USERNAME),
+                password=entry.data.get(CONF_PASSWORD),
             )
         )
-        self._last_login: float | None = None
-        self._refresh_lock = asyncio.Lock()
+        if shared_account is None:
+            self._connection.set_refresh_token_listener(self._save_refresh)
+        self.service = self._connection.authentication_service
 
     async def ensure_ready(self) -> None:
-        """Serialize the shared account's login and token rotation."""
-        async with self._refresh_lock:
-            await self._ensure_ready_locked()
-
-    async def _ensure_ready_locked(self) -> None:
-        if self._shared_connection is not None:
-            # Never invoke AudiAccount.async_refresh_data or connection.update:
-            # those own the V2 vehicle poll. Only authentication is shared.
-            if not self._shared_connection._loggedin:
-                try:
-                    await self._shared_connection.login()
-                except AudiAuthError as err:
-                    raise ConfigEntryAuthFailed(str(err)) from err
-                if not self._shared_connection._loggedin:
-                    raise RuntimeError("Audi account login temporarily unavailable")
-            elapsed = int(time.time() - self._shared_connection._logintime)
-            try:
-                refreshed = await self.service.refresh_token_if_necessary(elapsed)
-            except AudiAuthError as err:
-                raise ConfigEntryAuthFailed(str(err)) from err
-            if refreshed:
-                self._shared_connection._logintime = time.time()
-                self._shared_connection._sync_refresh_token()
-            return
-        if self._last_login is None:
-            try:
-                refresh = self.entry.data.get(CONF_REFRESH_TOKEN)
-                if refresh:
-                    rotated = await self.service.login_with_refresh_token(refresh)
-                    self._save_refresh(rotated)
-                else:
-                    username = self.entry.data.get(CONF_USERNAME)
-                    password = self.entry.data.get(CONF_PASSWORD)
-                    if not username or not password:
-                        raise ConfigEntryAuthFailed("Audi login is required")
-                    await self.service.login(username, password)
-            except AudiAuthError as err:
-                raise ConfigEntryAuthFailed(str(err)) from err
-            self._last_login = time.monotonic()
-            return
-        elapsed = int(time.monotonic() - self._last_login)
+        """Delegate session management to the single account owner."""
         try:
-            refreshed = await self.service.refresh_token_if_necessary(elapsed)
+            ready = await self._connection.ensure_session()
         except AudiAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
-        if refreshed:
-            self._last_login = time.monotonic()
-            self._save_refresh(self.service.current_refresh_token())
+        if not ready:
+            raise RuntimeError("Audi account login temporarily unavailable")
 
-    def _save_refresh(self, refresh: str | None) -> None:
-        if refresh and self.entry.data.get(CONF_REFRESH_TOKEN) != refresh:
+    def _save_refresh(self, refresh: str) -> None:
+        if self.entry.data.get(CONF_REFRESH_TOKEN) != refresh:
             self.hass.config_entries.async_update_entry(
                 self.entry, data={**self.entry.data, CONF_REFRESH_TOKEN: refresh}
             )
 
     @property
-    def session_generation(self):
+    def session_generation(self) -> float:
         """Local login/renewal marker, never a credential or exported claim."""
-        if self._shared_connection is not None:
-            return self._shared_connection._logintime
-        return self._last_login
+        return self._connection.session_generation
 
     @property
     def uses_auth0(self) -> bool:
@@ -120,31 +118,20 @@ class V3Auth:
 
     @property
     def has_cariad_bearer(self) -> bool:
-        token = getattr(self.service, "_bearer_token_json", None)
-        return (
-            isinstance(token, dict)
-            and isinstance(token.get("access_token"), str)
-            and bool(token["access_token"])
-        )
+        token = _token_record(self.service, "cariad").get("access_token")
+        return isinstance(token, str) and bool(token)
 
     @property
     def legacy_api_level(self) -> int:
-        return int(getattr(self.service, "_api_level", 0) or 0)
+        return int(service_api_level(self) or 0)
 
     def identity_auth_evidence(self, family: str = "graphql") -> dict:
         """Coarse unverified JWT metadata for diagnosis only. Never export a token or subject."""
         import base64
         import json
 
-        name = {
-            "graphql": "audiToken",
-            "cariad": "_bearer_token_json",
-            "mbb": "vwToken",
-        }.get(family)
-        token = getattr(self.service, name, None) if name else None
-        bearer = getattr(self.service, "_bearer_token_json", None)
-        access = token.get("access_token") if isinstance(token, dict) else None
-        primary = bearer.get("access_token") if isinstance(bearer, dict) else None
+        access = _token_record(self.service, family).get("access_token")
+        primary = _token_record(self.service, "cariad").get("access_token")
         result = {
             "provider": "auth0" if self.uses_auth0 else "legacy",
             "role": "cariad_bearer"
@@ -198,15 +185,9 @@ class V3Auth:
 
     def access_token(self, family: str) -> str:
         """Only reviewed family tokens; never expose in diagnostics."""
-        if family == "cariad":
-            token = getattr(self.service, "_bearer_token_json", None)
-        elif family == "graphql":
-            token = getattr(self.service, "audiToken", None)
-        elif family == "mbb":
-            token = getattr(self.service, "vwToken", None)
-        else:
+        if family not in _TOKEN_SLOTS:
             raise ValueError("V3 family is not enabled")
-        value = token.get("access_token") if isinstance(token, dict) else None
+        value = _token_record(self.service, family).get("access_token")
         if not isinstance(value, str) or not value:
             raise ConfigEntryAuthFailed("Audi authentication token unavailable")
         return value

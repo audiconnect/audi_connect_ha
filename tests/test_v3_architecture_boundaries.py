@@ -63,3 +63,18 @@ def test_v3_runtime_owns_business_behavior_and_all_nine_platforms():
     # The explicit shared-session seam is limited to authentication.
     assert "shared_account" in auth
     assert ".async_refresh_data(" not in auth
+
+
+def test_shared_account_owns_session_lifecycle():
+    auth = (ROOT / "v3/auth.py").read_text()
+    account = (ROOT / "audi_connect_account.py").read_text()
+    assert "await self._connection.ensure_session()" in auth
+    assert "await self.ensure_session()" in account
+    for private in (
+        "._loggedin",
+        "._logintime",
+        "._sync_refresh_token",
+        "._audi_service",
+    ):
+        assert private not in auth
+    assert ".refresh_token_if_necessary(" not in auth

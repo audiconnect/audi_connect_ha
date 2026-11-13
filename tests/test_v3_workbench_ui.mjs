@@ -1747,3 +1747,25 @@ test("Copy API evidence uses displayed masked JSON only and never calls Audi", a
   assert.match(p.responseInspector("old"), /Copy response/);
   assert.doesNotMatch(p.responseInspector("old"), /Copy request/);
 });
+
+test("Share saved route copies backend-approved definition without execution", async () => {
+  const panel = new Panel();
+  panel.selected = "entry";
+  panel.vin = "TESTVIN";
+  const definition = { id: "user.read.example", method: "GET" };
+  const calls = [];
+  panel.api = async (name, data) => {
+    calls.push(name);
+    assert.equal(data.operation, definition.id);
+    return definition;
+  };
+  await panel._click({
+    target: {
+      closest: () => ({
+        dataset: { action: "share-definition", operation: definition.id },
+      }),
+    },
+  });
+  assert.deepEqual(calls, ["share_definition"]);
+  assert.deepEqual(JSON.parse(clipboard.at(-1)), definition);
+});

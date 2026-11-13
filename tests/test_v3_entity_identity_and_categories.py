@@ -379,6 +379,13 @@ def test_registry_product_names_clean_unavailable_and_preserve_user_name(monkeyp
     ]
     assert rows[2].name == "My custom range"
     assert rows[2].entity_id == "sensor.hybrid_range"
+    asyncio.run(lifecycle.async_apply_v3_entity_visibility(None, entry, False))
+    assert [row.original_name for row in rows] == [
+        "Last trip (CARIAD)",
+        "Next Climate Timer (Car Local Time)",
+        "Combined range (compatibility)",
+    ]
+    assert rows[2].name == "My custom range"
 
 
 def test_stateful_button_visibility_is_reversible_without_disabling_automations(

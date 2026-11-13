@@ -11,7 +11,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from .auth import V3Auth
+from .auth import V3Auth, configured_spin, redaction_context
 from .action_discovery import validate_approval
 from .command_engine import CommandEngine
 from .command_parameters import runtime_ready
@@ -25,7 +25,7 @@ from .response_preview import (
     MAX_ENGINEERING_HISTORY,
 )
 from .api_observations import record_for, save_record, save_execution_review
-from .registry import CapabilityRegistry
+from .registry import CapabilityRegistry, selective_status_path
 from .product_contract import entity_projection_report
 from .transport import V3Response, V3Transport, INVENTORY_OPERATION
 from .vehicle import V3Vehicle
@@ -41,7 +41,7 @@ from .attribute_routes import (
     read_variants,
     validate_custom_read_route,
 )
-from .legacy_read_mappings import ROUTES as MBB_ROUTES
+from .legacy_read_mappings import read_routes
 from .historical_catalog import V2_JOBS
 from .read_discovery import (
     record_jobs,
@@ -54,10 +54,6 @@ from ..const import (
     CONF_FILTER_VINS,
     CONF_REFRESH_AFTER_ACTION,
     CONF_UPDATE_SLEEP,
-    CONF_SPIN,
-    CONF_USERNAME,
-    CONF_PASSWORD,
-    CONF_REFRESH_TOKEN,
     DOMAIN,
     REFRESH_VEHICLE_DATA_COMPLETED_EVENT,
     REFRESH_VEHICLE_DATA_FAILED_EVENT,
@@ -157,7 +153,7 @@ class V3Engine:
             vehicle.charging_profiles_captured = None
             # Completed trip snapshots are VIN-scoped historical facts.
             # A refined model/auth context invalidates control evidence, not trips.
-            self.status._trip_poll_at.pop(vehicle.vin.lower(), None)
+            self.status.invalidate_trip_poll(vehicle.vin)
 
     def _apply_identity_candidate(
         self, car, profile, candidate, operation, observed_at
@@ -439,7 +435,7 @@ class V3Engine:
             or body != {"spin": "{SPIN}"}
         ):
             raise ValueError("Secure S-PIN template is not permitted for this command")
-        spin = getattr(getattr(self.auth, "service", None), "_spin", None)
+        spin = configured_spin(self.auth)
         if not isinstance(spin, str) or not spin:
             raise ValueError("Configure an Audi S-PIN to use remote door controls")
         return {"spin": spin}
@@ -493,26 +489,17 @@ class V3Engine:
         )
 
     async def _command_request(self, car, ident, params=None):
-        return await self.commands._command_request(car, ident, params)
+        return await self.commands.command_request(car, ident, params)
 
     async def _dispatch_command(self, car, family, method, path, body):
-        return await self.commands._dispatch_command(car, family, method, path, body)
+        return await self.commands.dispatch_command(car, family, method, path, body)
 
-    def _evidence_credentials(self):
-        """One redaction context for reviewed and experimental API evidence."""
-        settings = getattr(self.entry, "data", {})
-        known = [
-            settings.get(key)
-            for key in (CONF_USERNAME, CONF_PASSWORD, CONF_REFRESH_TOKEN)
-        ]
-        service = getattr(self.auth, "service", None)
-        for name in ("_bearer_token_json", "audiToken", "vwToken"):
-            token = getattr(service, name, None)
-            if isinstance(token, dict):
-                known.extend(
-                    token.get(k) for k in ("access_token", "refresh_token", "id_token")
-                )
-        return settings.get(CONF_SPIN), tuple(known)
+    def redact_evidence(self, payload, vin):
+        """Return masked evidence, never the credentials used to mask it."""
+        spin, secrets = redaction_context(self.entry, self.auth)
+        return engineering_response(
+            payload, vehicle_vin=vin, spin=spin, secrets=secrets
+        )
 
     def _api_record(
         self,
@@ -529,7 +516,7 @@ class V3Engine:
         detail = None
         request = None
         if response is not None:
-            spin, known = self._evidence_credentials()
+            spin, known = redaction_context(self.entry, self.auth)
             try:
                 detail = engineering_response(
                     response.data, vehicle_vin=vin, spin=spin, secrets=known
@@ -709,7 +696,7 @@ class V3Engine:
             and isinstance(row.get("vin"), str)
             and row["vin"].lower() == car.vin.lower()
         ]
-        spin, known = self._evidence_credentials()
+        spin, known = redaction_context(self.entry, self.auth)
         # Unknown field names/types only. Never return raw unknown account values.
         fields, truncated = safe_schema_inventory(
             {"data": {"userVehicles": rows}},
@@ -766,7 +753,7 @@ class V3Engine:
         )
         activated = False
         if activate:
-            async with self.commands._actions:
+            async with self.commands.exclusive():
                 if (
                     not can_activate
                     or self.require_vehicle(vin) is not car
@@ -864,10 +851,7 @@ class V3Engine:
             plans = [
                 (
                     "cariad.discovery.full",
-                    "/vehicle/v1/vehicles/"
-                    + vehicle.vin
-                    + "/selectivestatus?jobs="
-                    + ",".join(V2_JOBS),
+                    selective_status_path(vehicle.vin, ",".join(V2_JOBS)),
                     tuple(V2_JOBS),
                 )
             ]
@@ -880,7 +864,7 @@ class V3Engine:
                     ),
                     (),
                 )
-                for kind, template in MBB_ROUTES.items()
+                for kind, template in read_routes().items()
             ]
 
         async def run_one(route_id: str, path: str, jobs: tuple[str, ...]) -> bool:
@@ -922,10 +906,7 @@ class V3Engine:
                 break
         if family == "cariad" and outcomes and outcomes[0]["result"] == "http_ok":
             for group in pending_groups(profile, max_groups=2):
-                path = (
-                    f"/vehicle/v1/vehicles/{vehicle.vin}/selectivestatus?jobs="
-                    + ",".join(group)
-                )
+                path = selective_status_path(vehicle.vin, ",".join(group))
                 if not await run_one(
                     "cariad.discovery." + "_".join(group), path, group
                 ):
@@ -1066,7 +1047,7 @@ class V3Engine:
             raise ValueError("Execution evidence is no longer retained")
         if not isinstance(comment, str) or len(comment) > 500:
             raise ValueError("Comment must be at most 500 characters")
-        spin, secrets = self._evidence_credentials()
+        spin, secrets = redaction_context(self.entry, self.auth)
         masked = engineering_response(
             comment, vehicle_vin=car.vin, spin=spin, secrets=secrets
         )["payload"]
@@ -1117,7 +1098,7 @@ class V3Engine:
         await self.commands.disable_control(vin, capability, action, disabled=disabled)
 
     def _command_route(self, vin: str, aspect: str, capability: str) -> str | None:
-        return self.commands._command_route(vin, aspect, capability)
+        return self.commands.command_route(vin, aspect, capability)
 
     def control_enabled(
         self, vin: str, aspect: str, capability: str = "climate"
@@ -1154,7 +1135,7 @@ class V3Engine:
             aspect,
             op,
             approval,
-            has_spin=bool(getattr(getattr(self.auth, "service", None), "_spin", None)),
+            has_spin=bool(configured_spin(self.auth)),
         )
         if guided:
             return await self.commands.test_action(
@@ -1188,7 +1169,7 @@ class V3Engine:
         return await self.commands.review_action(vin, sequence, outcome)
 
     async def add_route(self, vin: str, route: dict[str, Any]) -> str:
-        async with self.commands._actions:
+        async with self.commands.exclusive():
             if route.get("aspect") == "status":
                 raise ValueError("Use an attribute read template")
             profile = self.profiles[self.require_vehicle(vin).vin.lower()]
@@ -1196,8 +1177,15 @@ class V3Engine:
             await self.storage.async_save(self.profiles)
             return op
 
+    def share_definition(self, vin: str, operation: str) -> dict[str, Any]:
+        car = self.require_vehicle(vin)
+        spin, secrets = redaction_context(self.entry, self.auth)
+        return self.profiles[car.vin.lower()].share_definition(
+            operation, vin=car.vin, spin=spin, secrets=secrets
+        )
+
     async def discard_unused_route(self, vin: str, operation: str) -> None:
-        async with self.commands._actions:
+        async with self.commands.exclusive():
             profile = self.profiles[self.require_vehicle(vin).vin.lower()]
             profile.discard_unused_route(operation)
             await self.storage.async_save(self.profiles)
@@ -1207,7 +1195,7 @@ class V3Engine:
         self, vin: str, aspect: str, operation: str, capability: str = "climate"
     ) -> None:
         """Admin activates a verified control; reads use attribute activation."""
-        async with self.commands._actions:
+        async with self.commands.exclusive():
             if aspect == "status":
                 raise ValueError("Use attribute mapping activation for read routes")
             car = self.require_vehicle(vin)
@@ -1378,43 +1366,12 @@ class V3Engine:
         await self.storage.async_save(self.profiles)
         return route["id"]
 
-    def _attribute_request(self, car, profile, attribute, route):
-        return self.status._attribute_request(car, profile, attribute, route)
-
-    def _record_attribute_response(
-        self, car, profile, attribute, route, mappings, response, *, publish=True
-    ):
-        return self.status._record_attribute_response(
-            car, profile, attribute, route, mappings, response, publish=publish
-        )
-
     async def test_attribute_route(
         self, vin: str, attribute: str, route: str
     ) -> dict[str, Any]:
-        async with self.commands._actions:
+        async with self.commands.exclusive():
             car = self.require_vehicle(vin)
-            profile = self.profiles[car.vin.lower()]
-            family, path, mappings = self._attribute_request(
-                car, profile, attribute, route
-            )
-            if family != ("mbb" if car.context.auth == "legacy" else "cariad") and not (
-                family == "cariad" and car.legacy_cariad
-            ):
-                raise ValueError(
-                    "Read route is not applicable to this vehicle API family"
-                )
-            response = await self.transport.request(family, "GET", path)
-            variant = get_read_variant(
-                attribute, route, profile.attribute_custom, attributes_for(profile)
-            )
-            self._api_record(
-                profile, variant["evidence_operation"], family, "GET", response, car.vin
-            )
-            result = self._record_attribute_response(
-                car, profile, attribute, route, mappings, response, publish=False
-            )
-            await self.storage.async_save(self.profiles)
-            return result
+            return await self.status.test_attribute_route(car, attribute, route)
 
     async def save_attribute_candidate(
         self, vin: str, attribute: str, route: str

@@ -19,7 +19,7 @@ from .attribute_runtime import (
     normalize_attribute_value,
 )
 from .custom_attributes import attributes_for
-from .registry import extract_first
+from .registry import extract_first, selective_status_path
 from .attribute_routes import get_read_variant
 from .historical_catalog import ATTRIBUTES, capture_time, read_path
 from .legacy_read_mappings import FIELDS as MBB_FIELDS
@@ -92,16 +92,20 @@ class StatusEngine:
     def transport(self):
         return self._transport()
 
+    def invalidate_trip_poll(self, vin: str) -> None:
+        """Re-evaluate trip polling after the vehicle context changes."""
+        self._trip_poll_at.pop(vin.lower(), None)
+
     async def _poll_legacy(self, car, profile, cache) -> bool:
         """Normal MBB polling, one GET per resource, with no mutations."""
-        from .legacy_read_mappings import ROUTES
+        from .legacy_read_mappings import read_routes
         from .legacy_values import observe_legacy
         from .legacy_commands import configure_home_region
 
         if hasattr(self.transport, "executors"):
             await configure_home_region(self.transport, self.auth, car)
         reachable = False
-        for kind, template in ROUTES.items():
+        for kind, template in read_routes().items():
             key = (car.vin.lower(), kind)
             if read_excluded(profile, "mbb.discovery." + kind):
                 continue
@@ -274,7 +278,9 @@ class StatusEngine:
             ):
                 if vehicle.legacy_cariad and planned_jobs(vehicle, profile):
                     # V2 reads selective-status even on its legacy IDK session.
-                    path = f"/vehicle/v1/vehicles/{vehicle.vin}/selectivestatus?jobs={','.join(planned_jobs(vehicle, profile))}"
+                    path = selective_status_path(
+                        vehicle.vin, ",".join(planned_jobs(vehicle, profile))
+                    )
                     try:
                         reply = await self.transport.request("cariad", "GET", path)
                     except (RuntimeError, ValueError, OSError, TimeoutError):
@@ -375,7 +381,7 @@ class StatusEngine:
                             # remains explicit because MBB timestamps may be absent.
                             for attr, (kind, _field) in MBB_FIELDS.items():
                                 if kind == "climater":
-                                    self._record_attribute_response(
+                                    self.record_attribute_response(
                                         vehicle,
                                         profile,
                                         attr,
@@ -505,7 +511,7 @@ class StatusEngine:
                     and self.transport.remaining_calls <= 12
                 ):
                     break
-                path = f"/vehicle/v1/vehicles/{car.vin}/selectivestatus?jobs={','.join(jobs)}"
+                path = selective_status_path(car.vin, ",".join(jobs))
                 try:
                     response = await self.transport.request("cariad", "GET", path)
                 except (TimeoutError, OSError, RuntimeError, ValueError):
@@ -542,7 +548,7 @@ class StatusEngine:
             for ident, route in profile.attribute_routes.items():
                 if route == "cariad.selectivestatus.batch":
                     continue
-                family, path, mappings = self._attribute_request(
+                family, path, mappings = self.attribute_request(
                     car, profile, ident, route
                 )
                 if "selectivestatus?jobs=" in path:
@@ -579,7 +585,7 @@ class StatusEngine:
                         profile, operation, family, "GET", response, car.vin
                     )
                 for ident, route, mappings in selected:
-                    self._record_attribute_response(
+                    self.record_attribute_response(
                         car, profile, ident, route, mappings, response
                     )
                 if 200 <= response.status < 300:
@@ -761,7 +767,28 @@ class StatusEngine:
                             "job": None,
                         }
 
-    def _attribute_request(
+    async def test_attribute_route(self, car, attribute, route) -> dict[str, Any]:
+        """Isolated engineering GET; never publish a test reading to HA."""
+        profile = self.profiles[car.vin.lower()]
+        family, path, mappings = self.attribute_request(car, profile, attribute, route)
+        if family != ("mbb" if car.context.auth == "legacy" else "cariad") and not (
+            family == "cariad" and car.legacy_cariad
+        ):
+            raise ValueError("Read route is not applicable to this vehicle API family")
+        response = await self.transport.request(family, "GET", path)
+        variant = get_read_variant(
+            attribute, route, profile.attribute_custom, attributes_for(profile)
+        )
+        self._api_record(
+            profile, variant["evidence_operation"], family, "GET", response, car.vin
+        )
+        result = self.record_attribute_response(
+            car, profile, attribute, route, mappings, response, publish=False
+        )
+        await self.storage.async_save(self.profiles)
+        return result
+
+    def attribute_request(
         self,
         car: V3Vehicle,
         profile: DevelopmentProfile,
@@ -788,7 +815,7 @@ class StatusEngine:
         )
         return request["family"], request["relative_path"], route["response_paths"]
 
-    def _record_attribute_response(
+    def record_attribute_response(
         self,
         car: V3Vehicle,
         profile: DevelopmentProfile,

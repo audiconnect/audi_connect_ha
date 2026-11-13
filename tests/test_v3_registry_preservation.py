@@ -37,3 +37,29 @@ def test_v2_empty_initial_inventory_is_not_a_delete_signal(monkeypatch):
         entry_id="entry",
     )
     _async_cleanup_orphaned_devices(None, entry)
+
+
+def test_explicit_entry_removal_cleans_only_owned_storage(monkeypatch):
+    import asyncio
+
+    from homeassistant.helpers import storage
+    from custom_components.audiconnect import async_remove_entry
+    from custom_components.audiconnect.v3 import registry_lifecycle
+
+    removed = []
+
+    class MemoryStore:
+        def __init__(self, hass, version, key, **kwargs):
+            self.key = key
+
+        async def async_remove(self):
+            removed.append(self.key)
+
+    monkeypatch.setattr(storage, "Store", MemoryStore)
+    monkeypatch.setattr(registry_lifecycle, "Store", MemoryStore)
+    asyncio.run(async_remove_entry(None, NS(entry_id="entry")))
+    assert set(removed) == {
+        "audiconnect_v3_entry_profiles",
+        "audiconnect_v3_entry_trips",
+        "audiconnect_v3_entry_hidden_entities",
+    }

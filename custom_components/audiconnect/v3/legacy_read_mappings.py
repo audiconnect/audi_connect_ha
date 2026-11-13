@@ -6,13 +6,26 @@ readable, not that the car has recently refreshed it. Controls are excluded.
 
 from __future__ import annotations
 
-ROUTES = {
-    "charger": "/fs-car/bs/batterycharge/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/charger",
-    "climater": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater",
-    "vehicle_data": "/fs-car/vehicleMgmt/vehicledata/v2/{TYPE}/{COUNTRY}/vehicles/{VIN}/",
-    "preheater": "/fs-car/bs/rs/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/status",
-    "timer": "/fs-car/bs/departuretimer/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/timer",
+from .registry import builtin_read_path
+
+# These names are persisted evidence identifiers, not endpoint definitions.
+_ROUTE_OPERATIONS = {
+    "charger": "mbb.charging.status.charger",
+    "climater": "mbb.climate.status",
+    "vehicle_data": "mbb.vehicle_status.status.vehicle_data",
+    "preheater": "mbb.climate.status.preheater",
+    "timer": "mbb.charging.status.departure_timer",
 }
+
+
+def read_routes() -> dict[str, str]:
+    """Resolve historical resource names through the authoritative catalog."""
+    return {
+        kind: builtin_read_path(operation)
+        for kind, operation in _ROUTE_OPERATIONS.items()
+    }
+
+
 FIELDS: dict[str, tuple[str, str]] = {
     "stateOfCharge": (
         "charger",
@@ -85,7 +98,7 @@ def variant_for(attribute: str) -> dict | None:
         "id": "mbb." + name + ".readonly",
         "family": "mbb",
         "method": "GET",
-        "path": ROUTES[name],
+        "path": builtin_read_path(_ROUTE_OPERATIONS[name]),
         "response_paths": [mapping],
         "kind": "legacy",
     }

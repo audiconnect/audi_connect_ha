@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from string import Formatter
 from typing import Any
@@ -16,6 +17,30 @@ from collections.abc import Mapping
 _ALLOWED_FIELDS = frozenset({"VIN", "COUNTRY", "TYPE", "JOBS"})
 _ALLOWED_SCOPE = frozenset({"auth", "region", "vehicle_type", "model_family"})
 _ALLOWED_METHODS = frozenset({"GET", "POST", "PUT"})
+
+
+@lru_cache(maxsize=1)
+def _builtin_read_paths() -> dict[str, str]:
+    """Cache immutable path strings, never a mutable per-vehicle registry."""
+    raw = json.loads(
+        Path(__file__).with_name("full_catalog.json").read_text(encoding="utf-8")
+    )
+    catalog = CapabilityRegistry(raw)
+    return {
+        ident: operation["path"]
+        for ident, operation in catalog.operations.items()
+        if operation["method"] == "GET"
+    }
+
+
+def builtin_read_path(operation: str) -> str:
+    """Return the reviewed built-in GET template, never a local override."""
+    return _builtin_read_paths()[operation]
+
+
+def selective_status_path(vin: str = "{VIN}", jobs: str = "{JOBS}") -> str:
+    """One CARIAD selective-status template for polling, discovery and evidence."""
+    return builtin_read_path("cariad.climate.status.batch").format(VIN=vin, JOBS=jobs)
 
 
 def read_json_path(payload: Any, path: str) -> Any:
@@ -222,7 +247,11 @@ class CapabilityRegistry:
     @classmethod
     def from_json_file(cls, path: Path) -> CapabilityRegistry:
         """File read must run in HA's executor, never on the event loop."""
-        return cls(json.loads(path.read_text(encoding="utf-8")))
+        registry = cls(json.loads(path.read_text(encoding="utf-8")))
+        if path == Path(__file__).with_name("full_catalog.json"):
+            # Warm the shared route strings in the same HA executor as the catalog.
+            _builtin_read_paths()
+        return registry
 
     def operations_for(self, capability: str, aspect: str) -> list[str]:
         definition = self.capabilities.get(capability)

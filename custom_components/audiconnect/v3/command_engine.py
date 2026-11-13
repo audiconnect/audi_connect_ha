@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from .action_discovery import approval_group
+from .auth import configured_spin
 from .command_journal import (
     CommandRecord,
     check_command_sequence,
@@ -19,7 +20,12 @@ from .command_journal import (
     blocking_normal_command,
 )
 from .operation_revision import operation_revision
-from .command_parameters import map_parameters, runtime_ready, parameter_schema
+from .command_parameters import (
+    map_parameters,
+    runtime_ready,
+    parameter_schema,
+    validate_inputs,
+)
 from .command_readback import (
     configure_readback,
     configure_discovery_readback,
@@ -55,16 +61,28 @@ class CommandEngine:
         self._notify_discovery_change = notify
         self._actions = asyncio.Lock()
 
+    def exclusive(self):
+        """Serialize engineering transactions with physical command execution."""
+        return self._actions
+
     @property
     def transport(self):
         return self._transport()
 
-    async def _command_request(
+    async def command_request(
         self, car: V3Vehicle, ident: str, params: dict[str, Any] | None = None
     ):
         profile = self.profiles[car.vin.lower()]
         route = profile.custom.get(ident, {})
         op = profile.registry.operations[ident]
+        # Fixed-body controls cannot silently discard caller-supplied parameters.
+        if op.get("request_mode") in (
+            "bodyless",
+            "json",
+            "secure_spin",
+            "mbb_rlu",
+        ) and not op.get("request_variables"):
+            validate_inputs(params or {}, {})
         rendered = map_parameters(op if op.get("input_schema") else route, params)
         family, method, path, body = self._operation_request(car, ident, rendered)
         mode = op.get("request_mode")
@@ -97,10 +115,10 @@ class CommandEngine:
                 raise ValueError("Unexpected engine start parameters")
             request = self._operation_request(car, operation, params)
         else:
-            request = await self._command_request(car, operation, params)
+            request = await self.command_request(car, operation, params)
         return proof_required, request
 
-    async def _dispatch_command(self, car, family, method, path, body):
+    async def dispatch_command(self, car, family, method, path, body):
         if family == "mbb" and hasattr(self.transport, "executors"):
             from .legacy_commands import configure_home_region
 
@@ -112,7 +130,7 @@ class CommandEngine:
                 self.transport,
                 car.vin,
                 path.rsplit("/", 1)[-1],
-                getattr(self.auth.service, "_spin", None),
+                configured_spin(self.auth),
             )
             return await self.transport.request(
                 family,
@@ -138,10 +156,10 @@ class CommandEngine:
 
         try:
             if proof_required:
-                family, method, path, body = await self._command_request(
+                family, method, path, body = await self.command_request(
                     car, record.operation, params
                 )
-            response = await self._dispatch_command(car, family, method, path, body)
+            response = await self.dispatch_command(car, family, method, path, body)
         except (TimeoutError, OSError, RuntimeError, ValueError):
             observe(None)
             self._api_record(profile, record.operation, family, method, None, car.vin)
@@ -209,9 +227,7 @@ class CommandEngine:
             "binding": match,
             "pending": in_progress.public() if in_progress else None,
             "requires": "Explicit per-action consent and physical verification",
-            "spin_configured": bool(
-                getattr(getattr(self.auth, "service", None), "_spin", None)
-            ),
+            "spin_configured": bool(configured_spin(self.auth)),
         }
 
     async def disable_control(
@@ -281,7 +297,7 @@ class CommandEngine:
                 for action in (definition.get("control") or {})
             }
 
-    def _command_route(self, vin: str, aspect: str, capability: str) -> str | None:
+    def command_route(self, vin: str, aspect: str, capability: str) -> str | None:
         try:
             car = self.require_vehicle(vin)
         except ValueError:
@@ -293,7 +309,7 @@ class CommandEngine:
     def control_enabled(
         self, vin: str, aspect: str, capability: str = "climate"
     ) -> bool:
-        return self._command_route(vin, aspect, capability) is not None
+        return self.command_route(vin, aspect, capability) is not None
 
     def _reserve_wake(self, vin: str, operation: str) -> None:
         if operation not in ("cariad.remote.wake", "cariad.remote.refresh"):
@@ -627,7 +643,7 @@ class CommandEngine:
                 raise RuntimeError(
                     "Vehicle command cooldown active after engineering test"
                 )
-            ident = self._command_route(vin, aspect, capability)
+            ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")
             prepared = await self._prepare_command(car, ident, params)

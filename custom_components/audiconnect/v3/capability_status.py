@@ -26,6 +26,7 @@ from .historical_catalog import INVENTORY, ALIAS_OF, CANONICAL_ATTRIBUTES
 from .custom_attributes import attributes_for
 from .attribute_routes import get_read_variant, read_variants
 from .legacy_read_mappings import variant_for as legacy_variant_for
+from .registry import selective_status_path
 from .read_discovery import summary as discovery_summary
 from .transport import (
     INVENTORY_OPERATION,
@@ -208,7 +209,7 @@ def build_status_report(
                     seen_paths.add((op["family"], op["path"]))
 
     for job, family_group in _V2_SELECTIVE_JOBS.items():
-        path = f"/vehicle/v1/vehicles/{{VIN}}/selectivestatus?jobs={job}"
+        path = selective_status_path(jobs=job)
         if ("cariad", path) in seen_paths:
             continue
         rows.append(
@@ -799,8 +800,7 @@ def _cockpit(vehicle, profile, rows, controls):
                         "active": selected,
                     }
                 )
-            from .entities import CONTROL_BUTTONS
-            from .product_contract import stateful_controls
+            from .product_contract import control_buttons, stateful_controls
 
             for row in matching:
                 if row["aspect"] == "status":
@@ -808,7 +808,7 @@ def _cockpit(vehicle, profile, rows, controls):
                 cap, action = row["capability"], row["aspect"]
                 targets = {
                     f"button.{key}"
-                    for key, _, _, capability, command_action in CONTROL_BUTTONS
+                    for key, _, _, capability, command_action in control_buttons()
                     if (capability, command_action) == (cap, action)
                 }
                 for key, definition in stateful_controls().items():
@@ -1063,9 +1063,9 @@ def diagnostic_route_label(ident, registry):
         if jobs and all(job in _V2_SELECTIVE_JOBS for job in jobs):
             return ident
     if ident.startswith("mbb.discovery."):
-        from .legacy_read_mappings import ROUTES
+        from .legacy_read_mappings import read_routes
 
-        if ident.removeprefix("mbb.discovery.") in ROUTES:
+        if ident.removeprefix("mbb.discovery.") in read_routes():
             return ident
     return "custom_or_discovery_route"
 

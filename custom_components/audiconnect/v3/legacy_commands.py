@@ -8,8 +8,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from .auth import service_api_level
 from .registry import read_json_path
-from .command_parameters import temperature_celsius
+from .command_parameters import CLIMATE_INPUTS, temperature_celsius, validate_inputs
 
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 
@@ -19,26 +20,14 @@ def climate_body(mode, params):
         if params:
             raise ValueError("Legacy climate stop has no parameters")
         return {"action": {"type": "stopClimatisation"}}
-    allowed = {
-        "temp_c",
-        "temp_f",
-        "glass_heating",
-        "climatisation_at_unlock",
-        "seat_fl",
-        "seat_fr",
-        "seat_rl",
-        "seat_rr",
-        "climatisation_mode",
-    }
-    if set(params) - allowed or params.get("climatisation_mode") not in (
-        None,
-        "comfort",
-    ):
-        raise ValueError("Unsupported legacy climate parameter")
+    validate_inputs(
+        params,
+        {
+            **CLIMATE_INPUTS,
+            "climatisation_mode": {"type": "string", "enum": ["comfort"]},
+        },
+    )
     temp = temperature_celsius(params, 21)
-    for key in allowed - {"temp_c", "temp_f", "climatisation_mode"}:
-        if key in params and type(params[key]) is not bool:
-            raise ValueError("Legacy climate flags must be boolean")
     return {
         "action": {
             "type": "startClimatisation",
@@ -169,7 +158,7 @@ async def configure_home_region(transport, auth, car):
     executor = transport.executors["mbb"]
     if car.vin.upper() in executor._trusted_hosts:
         return
-    level = getattr(getattr(auth, "service", None), "_api_level", None)
+    level = service_api_level(auth)
     if car.country != "US" and level == 1:
         executor.set_vehicle_home_region(
             car.vin, "https://mal-3a.prd.eu.dp.vwg-connect.com"

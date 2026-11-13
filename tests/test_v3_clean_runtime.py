@@ -329,7 +329,7 @@ async def test_manual_batch_probe_includes_requested_job_even_if_unobserved():
     profile = engine.profiles[VIN.lower()]
     profile.attribute_routes.pop("stateOfCharge", None)
     profile.attribute_evidence.pop("stateOfCharge", None)
-    family, path, mappings = engine._attribute_request(
+    family, path, mappings = engine.status.attribute_request(
         car, profile, "stateOfCharge", "cariad.selectivestatus.batch"
     )
     assert family == "cariad"
@@ -858,7 +858,7 @@ async def test_older_targeted_read_keeps_current_attribute_and_evidence_aligned(
     observe_read_only(car, profile, fresh_payload, now)
     original = dict(profile.attribute_evidence["stateOfCharge"])
     response = V3Response(200, stale_payload, now, 50)
-    result = engine._record_attribute_response(
+    result = engine.status.record_attribute_response(
         car,
         profile,
         "stateOfCharge",
@@ -895,7 +895,7 @@ async def test_targeted_external_power_uses_same_meaningful_unavailable_state_as
         node = node[name]
     node[path.split(".")[-1]] = "unavailable"
     node["carCapturedTimestamp"] = now.isoformat()
-    result = engine._record_attribute_response(
+    result = engine.status.record_attribute_response(
         car,
         profile,
         "externalPower",
@@ -1005,7 +1005,7 @@ async def test_queued_engineering_command_rechecks_vehicle_after_lock():
     def unavailable(vin):
         raise ValueError("Vehicle no longer available")
 
-    async with engine.commands._actions:
+    async with engine.commands.exclusive():
         task = asyncio.create_task(
             engine.test_action(VIN, "start", "cariad.climate.start.stored")
         )

@@ -109,7 +109,7 @@ async def test_guided_action_sends_exactly_one_post_and_requires_confirmation(
 @pytest.mark.asyncio
 async def test_charge_mode_template_renders_exact_oem_request_without_preflight():
     engine, car = make_engine()
-    family, method, path, body = await engine.commands._command_request(
+    family, method, path, body = await engine.commands.command_request(
         car, "cariad.charging.mode", {"value": "timer"}
     )
     assert (family, method, path, body) == (

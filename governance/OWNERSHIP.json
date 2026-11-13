@@ -101,7 +101,7 @@
   "status": "partial closure; remaining generic catalog/status work tracked",
   "change_policy": {
     "principle": "simplify_before_adding",
-    "canonical_policy": "docs/V3_ARCHITECTURE_CLOSURE.md#mandatory-engineering-principle--simplify-before-adding",
+    "canonical_policy": "docs/V3_ARCHITECTURE_CLOSURE.md#mandatory-engineering-principle-simplify-before-adding",
     "review_required": true,
     "review_evidence": [
       "existing_owner_and_contract",

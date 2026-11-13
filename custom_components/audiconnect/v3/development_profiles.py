@@ -488,6 +488,29 @@ class DevelopmentProfile:
         self.custom = routes
         self.discovery.registry = self.registry
 
+    def share_definition(self, ident: str, *, vin="", spin=None, secrets=()):
+        """Export only a portable local definition; never evidence or bindings."""
+        from .response_preview import engineering_response
+
+        if ident in self.custom:
+            definition = deepcopy(self.custom[ident])
+        elif ident in self.attribute_custom:
+            definition = deepcopy(self.attribute_custom[ident])
+            attribute = self.attribute_definitions.get(definition["attribute"])
+            if attribute is not None:
+                definition["attribute_definition"] = deepcopy(attribute)
+        else:
+            raise DevelopmentProfileError("Only saved local definitions can be shared")
+        # Refuse rather than rewrite a route into a different executable template.
+        checked = engineering_response(
+            definition, vehicle_vin=vin, spin=spin, secrets=secrets
+        )
+        if checked["truncated"] or checked["payload"] != definition:
+            raise DevelopmentProfileError(
+                "Definition contains potentially private values; remove them before sharing"
+            )
+        return definition
+
     def discard_unused_route(self, ident: str) -> None:
         """Discard only a local unused draft; never delete a tested revision."""
         if ident not in self.custom and ident not in self.attribute_custom:

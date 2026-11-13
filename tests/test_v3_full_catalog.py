@@ -59,3 +59,35 @@ def test_legacy_host_routes_never_selected_for_auth0():
     assert all(
         reg.operations[op]["family"] == "cariad" for op in q["available_operations"]
     )
+
+
+def test_runtime_read_templates_are_owned_by_the_builtin_catalog():
+    from custom_components.audiconnect.v3.attribute_routes import read_variants
+    from custom_components.audiconnect.v3.legacy_read_mappings import read_routes
+    from custom_components.audiconnect.v3.registry import (
+        builtin_read_path,
+        selective_status_path,
+    )
+
+    model = CapabilityRegistry.from_json_file(FULL)
+    routes = read_routes()
+    assert list(routes) == [
+        "charger",
+        "climater",
+        "vehicle_data",
+        "preheater",
+        "timer",
+    ]
+    assert set(routes.values()) == {
+        op["path"]
+        for op in model.operations.values()
+        if op["family"] == "mbb" and op["method"] == "GET"
+    }
+    assert routes["climater"] == model.operations["mbb.climate.status.climater"]["path"]
+    variants = read_variants("stateOfCharge", {})
+    assert variants[0]["path"] == selective_status_path()
+    assert variants[1]["path"] == model.operations["cariad.status.charging"]["path"]
+    assert variants[2]["path"] == routes["charger"]
+    # A mutable local registry must not change the reviewed built-in template.
+    model.operations["cariad.climate.status.batch"]["path"] = "/local"
+    assert builtin_read_path("cariad.climate.status.batch") == variants[0]["path"]

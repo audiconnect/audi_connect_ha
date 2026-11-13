@@ -46,6 +46,7 @@ async def execute(
 
     Never discard unknown service parameters or fall back to V2 actions.
     """
+    action = action.lower()
     values = {
         k: v
         for k, v in (data or {}).items()
@@ -55,11 +56,20 @@ async def execute(
     if action == "start_climatisation" and values:
         mapped = ("climate", "start_with_settings")
     if action == "start_timed_charger":
+        if values:
+            raise HomeAssistantError("Timed charging does not accept parameters")
         values = {"value": "timer"}
     elif action == "set_charge_mode":
-        values = {"value": values.get("charge_mode")}
+        if set(values) != {"charge_mode"}:
+            raise HomeAssistantError("Supply only charge_mode")
+        values = {"value": values["charge_mode"]}
     elif action in ("set_target_soc", "set_location_charge_target"):
-        values["value"] = values.pop("target_soc", None)
+        allowed = {"target_soc"}
+        if action == "set_location_charge_target":
+            allowed.add("profile_id")
+        if "target_soc" not in values or set(values) - allowed:
+            raise HomeAssistantError("Invalid charge target parameters")
+        values["value"] = values.pop("target_soc")
     if mapped is None:
         raise HomeAssistantError(
             f"Audi action '{action}' is not yet V3-verified; "

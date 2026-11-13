@@ -142,3 +142,11 @@ def test_charge_mode_is_a_declarative_template_and_put_alias_inherits_it():
     assert map_parameters(p.registry.operations[ident], {"value": "manual"}) == {
         "VALUE": "manual"
     }
+
+
+@pytest.mark.parametrize("params", [{"temp_c": 22, "temp_f": 72}, {"temp_f": 90}])
+def test_temperature_contract_refuses_ambiguous_or_out_of_range_inputs(params):
+    from custom_components.audiconnect.v3.command_parameters import temperature_celsius
+
+    with pytest.raises(ValueError):
+        temperature_celsius(params, 21)

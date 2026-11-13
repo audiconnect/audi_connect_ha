@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .auth import configured_spin
+
 
 def eligible_operation(car, auth, capability, aspect):
     reported = car.advertised_capabilities
@@ -17,7 +19,7 @@ def eligible_operation(car, auth, capability, aspect):
         if capability == "access" and aspect in ("lock", "unlock"):
             if (
                 readable("doorLockStatus") or readable("any_door_unlocked")
-            ) and getattr(auth.service, "_spin", None):
+            ) and configured_spin(auth):
                 return "mbb.access." + aspect
             return None
         if (
@@ -50,7 +52,7 @@ def eligible_operation(car, auth, capability, aspect):
             or (car.car_type or "").strip().lower()
             in {"electric", "hybrid", "phev", "plug-in hybrid", "plug_in_hybrid"}
             or not supports("remoteEngineStart")
-            or not getattr(auth.service, "_spin", None)
+            or not configured_spin(auth)
         ):
             return None
         return "cariad.remote." + aspect
@@ -61,13 +63,13 @@ def eligible_operation(car, auth, capability, aspect):
             supports("access", "remoteLockUnlock")
             or (readable("doorLockStatus") and "access" not in impaired)
         )
-        and getattr(auth.service, "_spin", None)
+        and configured_spin(auth)
     ):
         return "cariad.access." + aspect
     if capability == "climate":
         if aspect.startswith("preheater_"):
             if supports("auxiliaryHeating", "hybridCarAuxiliaryHeating") and (
-                aspect == "preheater_stop" or getattr(auth.service, "_spin", None)
+                aspect == "preheater_stop" or configured_spin(auth)
             ):
                 return "cariad.climate." + aspect
         elif supports("climatisation") or (

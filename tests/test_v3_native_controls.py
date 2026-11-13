@@ -3,17 +3,17 @@
 from pathlib import Path
 from types import SimpleNamespace
 from custom_components.audiconnect.v3.entities import (
-    CONTROL_BUTTONS,
     V3ClimateQuickSwitch,
     V3LockEntity,
 )
 from custom_components.audiconnect.v3.vehicle import V3Vehicle
+from custom_components.audiconnect.v3.product_contract import control_buttons
 
 ROOT = Path(__file__).resolve().parents[1] / "custom_components/audiconnect"
 
 
 def test_control_button_keys_retain_historical_ids():
-    ids = {item[0] for item in CONTROL_BUTTONS}
+    ids = {item[0] for item in control_buttons()}
     assert ids >= {
         "wake_vehicle_modern",
         "start_charging_modern",

@@ -234,7 +234,7 @@
   "reviewed_ref": "87b127c3908fde97d749d57ee1fe8f82551119a4",
   "unchanged_v2_business_blob_sha1": {
     "audi_services": "c6093e79edd2bc7aa49e6513ec515cd34961064d",
-    "audi_connect_account": "a7a5f8784a8e1998271f1643cc1537e6a4789779",
+    "audi_connect_account": "d71287a6f1a5f28ec052219d0a3e159e63f50fd3",
     "audi_account": "b7516b1e50d414a7936d3055848ebc76f8d45dcf",
     "audi_models": "c02252e54504e5c4fde3ed08e832eb5d3f7608cb",
     "audi_api": "2e535cb6b9617307afb3883302727325c50fa0d3",
@@ -265,5 +265,10 @@
     "base": "da0a3e8f3639d30103970de7cc25b305e3f8fa7d",
     "description": "Remove retired V2 probes from production and diagnostics, preserve active product contracts. Updated pinned hashes after intentional review.",
     "remaining_deltas": 32
+  },
+  "shared_account_session_closure": {
+    "base": "1472cccdc8848f924d56f235a7442facdc526d02",
+    "previous_blob": "a7a5f8784a8e1998271f1643cc1537e6a4789779",
+    "description": "Consolidate V2/V3 login and token renewal in the shared account; no change to V2 vehicle polling or command business operations."
   }
 }

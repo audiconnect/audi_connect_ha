@@ -12,28 +12,34 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.config_entries import ConfigEntryState
 
 from ..const import DOMAIN
 from .engine import V3Engine
+from .runtime import V3_DEFAULT, V3_ENABLED, V3_RUNTIME_OPTION
 
 _PANEL = "audiconnect-v3"
 _READY_KEY = "audiconnect_v3_dashboard_registered"
 _HANDLERS_KEY = "audiconnect_v3_dashboard_commands_registered"
 
 
-def _engine(hass: Any, entry_id: str) -> V3Engine:
-    entry = hass.config_entries.async_get_entry(entry_id)
+def _workbench_engine(entry: Any) -> V3Engine:
+    """Only a loaded, opted-in integration can expose engineering operations."""
     if entry is None or entry.domain != DOMAIN:
         raise ValueError("Unknown Audi integration")
     if entry.options.get(
-        "runtime_version", "v2"
-    ) != "v3_climate" or not entry.options.get("v3_development_workbench", False):
+        V3_RUNTIME_OPTION, V3_DEFAULT
+    ) != V3_ENABLED or not entry.options.get("v3_development_workbench", False):
         raise ValueError("V3 Development Workbench is not enabled")
     runtime = getattr(entry, "runtime_data", None)
     engine = getattr(runtime, "v3", None)
-    if not isinstance(engine, V3Engine):
-        raise ValueError("Enable V3 in this Audi integration first")
+    if entry.state is not ConfigEntryState.LOADED or not isinstance(engine, V3Engine):
+        raise ValueError("V3 integration is not loaded")
     return engine
+
+
+def _engine(hass: Any, entry_id: str) -> V3Engine:
+    return _workbench_engine(hass.config_entries.async_get_entry(entry_id))
 
 
 @websocket_api.require_admin
@@ -42,12 +48,9 @@ def _engine(hass: Any, entry_id: str) -> V3Engine:
 async def ws_list(hass, connection, msg):
     records = []
     for entry in hass.config_entries.async_entries(DOMAIN):
-        engine = getattr(getattr(entry, "runtime_data", None), "v3", None)
-        if (
-            not isinstance(engine, V3Engine)
-            or entry.options.get("runtime_version", "v2") != "v3_climate"
-            or not entry.options.get("v3_development_workbench", False)
-        ):
+        try:
+            engine = _workbench_engine(entry)
+        except ValueError:
             continue
         records.append(
             {
@@ -67,6 +70,7 @@ async def ws_list(hass, connection, msg):
                         "stop_enabled": engine.control_enabled(car.vin, "stop"),
                     }
                     for car in engine.vehicles.values()
+                    if car.inventory_present
                 ],
                 "poll_success": engine.last_cloud_poll_success.isoformat()
                 if engine.last_cloud_poll_success
@@ -169,15 +173,12 @@ async def ws_status(hass, connection, msg):
             link_entities(report, actual)
             # Admin-only scalar observation trace; never add private values
             # to the shared capability report or exported diagnostics.
-            from .response_preview import engineering_response
-
-            spin, secrets = engine._evidence_credentials()
             for row in report["rows"]:
                 reading = vehicle.readings.get(row.get("attribute"), {})
                 value = reading.get("value")
                 if row.get("entity_key") and type(value) in (str, int, float, bool):
-                    row["normalized_value"] = engineering_response(
-                        value, vehicle_vin=vehicle.vin, spin=spin, secrets=secrets
+                    row["normalized_value"] = engine.redact_evidence(
+                        value, vehicle.vin
                     )["payload"]
         if hasattr(engine, "health"):
             report["integration_health"] = engine.health.snapshot(engine, vehicle)
@@ -263,6 +264,31 @@ async def ws_add_route(hass, connection, msg):
         connection.send_result(msg["id"], {"operation": result})
     except (ValueError, KeyError, TypeError) as exc:
         connection.send_error(msg["id"], "v3_invalid_route", str(exc))
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "audiconnect/v3/share_definition",
+        vol.Required("entry_id"): str,
+        vol.Required("vin"): str,
+        vol.Required("operation"): vol.All(str, vol.Length(min=1, max=120)),
+    }
+)
+@websocket_api.async_response
+async def ws_share_definition(hass, connection, msg):
+    """Return only the saved definition after the backend privacy check."""
+    try:
+        definition = _engine(hass, msg["entry_id"]).share_definition(
+            msg["vin"], msg["operation"]
+        )
+        connection.send_result(msg["id"], definition)
+    except (ValueError, KeyError, TypeError):
+        connection.send_error(
+            msg["id"],
+            "v3_share_definition_failed",
+            "Definition unavailable or contains potentially private values",
+        )
 
 
 @websocket_api.require_admin
@@ -784,6 +810,7 @@ async def async_setup_dashboard(hass) -> None:
             ws_resume_discovery,
             ws_add_route,
             ws_discard_route,
+            ws_share_definition,
             ws_review,
             ws_review_normal_command,
             ws_select,

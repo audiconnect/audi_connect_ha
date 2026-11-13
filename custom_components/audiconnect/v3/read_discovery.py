@@ -371,10 +371,10 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
                     profile.api_observations.get(operation, {}).get("http_status"),
                 )
     if car.context.auth == "legacy":
-        from .legacy_read_mappings import ROUTES
+        from .legacy_read_mappings import read_routes
 
         for operation in [
-            *("mbb.discovery." + kind for kind in ROUTES),
+            *("mbb.discovery." + kind for kind in read_routes()),
             "mbb.trip.shortTerm",
             "mbb.trip.longTerm",
         ]:

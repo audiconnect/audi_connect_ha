@@ -9,16 +9,6 @@ from __future__ import annotations
 import math
 
 
-# The raw-template path is deliberately narrow. Settings PUTs use a reviewed
-# read-modify-write handler, rather than an arbitrary replacement body.
-_BINDABLE = {
-    ("climate", "start_with_settings"): {
-        "temp_c": ("number", 15, 30),
-        "temp_f": ("number", 59, 86),
-    },
-}
-
-
 # Shared input contracts for built-in command preparation and Workbench fields.
 # Settings updates with heterogeneous OEM field types retain their reviewed handler.
 SOC = {"type": "integer", "minimum": 20, "maximum": 100, "step": 5, "required": True}
@@ -27,6 +17,10 @@ TEMPERATURE = {
     "temp_c": {"type": "number", "minimum": 15, "maximum": 30},
     "temp_f": {"type": "number", "minimum": 59, "maximum": 86},
 }
+# Only these semantic parameters may bind to a raw template. Settings PUTs
+# retain their reviewed read-modify-write handlers.
+_BINDABLE = {("climate", "start_with_settings"): TEMPERATURE}
+
 CLIMATE_FLAGS = {
     key: {"type": "boolean"}
     for key in (
@@ -66,13 +60,27 @@ def validate_parameter(value, schema):
     return value
 
 
+def validate_inputs(params, schema):
+    """Validate only supplied, declared parameters; never discard extra inputs."""
+    if set(params) - set(schema):
+        raise ValueError("Unknown command parameter")
+    for name, contract in schema.items():
+        if name in params:
+            validate_parameter(params[name], contract)
+        elif contract.get("required"):
+            raise ValueError("Missing required command parameter")
+
+
 def temperature_celsius(params, default):
     value = params.get("temp_c")
     if params.get("temp_f") is not None:
+        if value is not None:
+            raise ValueError("Supply only one temperature unit")
         from .api_value_mappings import normalize_api_value
 
         value = normalize_api_value(
-            params["temp_f"], {"unit_class": "temperature", "from": "°F", "to": "°C"}
+            validate_parameter(params["temp_f"], TEMPERATURE["temp_f"]),
+            {"unit_class": "temperature", "from": "°F", "to": "°C"},
         )
     if value is None:
         value = default
@@ -92,8 +100,8 @@ def parameter_schema(operation, route):
             return {
                 name: {
                     "type": variables[var],
-                    "minimum": schema[name][1],
-                    "maximum": schema[name][2],
+                    "minimum": schema[name]["minimum"],
+                    "maximum": schema[name]["maximum"],
                     "required": True,
                 }
                 for var, name in bindings.items()
@@ -131,10 +139,9 @@ def map_parameters(route, supplied):
     bindings = route.get("parameter_bindings", {})
     if not bindings:
         return supplied
-    schema = route.get("input_schema") or {
-        name: {"type": "number", "minimum": limits[1], "maximum": limits[2]}
-        for name, limits in _BINDABLE[(route["capability"], route["aspect"])].items()
-    }
+    schema = (
+        route.get("input_schema") or _BINDABLE[(route["capability"], route["aspect"])]
+    )
     variables = route.get("request_variables", route.get("variables", {}))
     supplied = supplied or {}
     if set(supplied) != set(bindings.values()):
