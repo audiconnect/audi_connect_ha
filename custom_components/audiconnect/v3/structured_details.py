@@ -266,6 +266,8 @@ def _array(rows, normalizer, limit):
 def observe_structured(vehicle, payload, observed_at, accepts):
     """Keep capture-aware structured readings alongside the native scalars."""
 
+    from .vehicle import window_heating_active
+
     def put(key, value, captured, path, *, invalid=False):
         if value is not None and accepts(vehicle.readings.get(key), captured):
             vehicle.readings[key] = {
@@ -334,8 +336,6 @@ def observe_structured(vehicle, payload, observed_at, accepts):
             data = _array(block.get(field), normalizer, limit)
             if data is not None and normalizer is _timer:
                 data["vehicle_time"] = _zoned_datetime(block.get("timeInCar"))
-            from .vehicle import window_heating_active
-
             put(
                 key,
                 data,
