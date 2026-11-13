@@ -1708,27 +1708,24 @@ class V3LockEntity(V3BaseEntity, LockEntity):
     def is_unlocking(self):
         return self._pending_action("unlock")
 
-    async def async_lock(self, **kwargs) -> None:
-        if not self.available or not self.coordinator.engine.control_enabled(
-            self.vehicle.vin, "lock", "access"
-        ):
-            raise HomeAssistantError("Lock route or authorization not available")
-        if self.is_locked is not True:
+    async def _send_access(self, action):
+        # Dispatch uses the same authoritative guard as Workbench. Do not
+        # turn a pending review or cooldown into a false authorization error.
+        try:
             await self.coordinator.engine.send_control(
-                self.vehicle.vin, "lock", "access"
+                self.vehicle.vin, action, "access"
             )
+        except (ValueError, RuntimeError) as err:
+            raise HomeAssistantError(str(err)) from err
         self.async_write_ha_state()
 
+    async def async_lock(self, **kwargs) -> None:
+        if self.is_locked is not True:
+            await self._send_access("lock")
+
     async def async_unlock(self, **kwargs) -> None:
-        if not self.available or not self.coordinator.engine.control_enabled(
-            self.vehicle.vin, "unlock", "access"
-        ):
-            raise HomeAssistantError("Unlock route or authorization not available")
         if self.is_locked is not False:
-            await self.coordinator.engine.send_control(
-                self.vehicle.vin, "unlock", "access"
-            )
-        self.async_write_ha_state()
+            await self._send_access("unlock")
 
 
 class V3ParkedTracker(V3BaseEntity, TrackerEntity):
