@@ -145,6 +145,7 @@ def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
     Multiple fields may share a timestamp. The oldest valid field in a job
     determines its conservative age. Invalid observations remain visible.
     """
+    now = now or datetime.now(UTC)
     groups = {}
     for _, row in _measurement_readings(vehicle):
         job = row.get("job") or "unclassified"
