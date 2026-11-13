@@ -92,6 +92,26 @@ def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | N
     return newest[0] if newest else None
 
 
+def vehicle_capture_summary(vehicle, now: datetime | None = None):
+    """Shared global capture provenance for HA and diagnostics."""
+    now = now or datetime.now(UTC)
+    newest = newest_vehicle_reading(vehicle, now)
+    stamp, ident, row = newest if newest else (None, None, {})
+    last = stamp.isoformat() if stamp else None
+    age = capture_age_minutes(last, now)
+    return {
+        "vehicle_last_update": last,
+        "vehicle_age_minutes": int(age) if age is not None else None,
+        "source_attribute": ident,
+        "source_job": row.get("job"),
+        "source_observed_at": row.get("observed"),
+        "source_clock_ahead_seconds": (
+            max(0, int((stamp - now).total_seconds())) if stamp else None
+        ),
+        "freshness_basis": "newest_valid_vehicle_capture",
+    }
+
+
 def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
     """Summarize observed job captures, not unobserved capability support.
 
