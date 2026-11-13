@@ -97,3 +97,40 @@ def test_reading_attributes_distinguish_vehicle_capture_from_cloud_refresh():
     )
     reading.update(value=80, captured=None)
     assert reading_freshness_attributes(reading, now=now)["age_minutes"] is None
+
+
+def test_b28_window_envelope_cannot_make_older_vehicle_data_fresh():
+    from custom_components.audiconnect.v3.freshness import (
+        capture_coverage,
+        vehicle_capture_summary,
+    )
+
+    now = datetime.now(UTC)
+    old = (now - timedelta(minutes=69)).isoformat()
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE")
+    car.readings.update(
+        stateOfCharge={"value": 80, "captured": old, "job": "charging"},
+        window_heating_detail={
+            "value": {"items": [{"location": "front", "state": "unsupported"}]},
+            "captured": now.isoformat(),
+            "status": "verified",
+            "job": "climatisation",
+        },
+        windowHeatingActive={
+            "value": None,
+            "captured": now.isoformat(),
+            "status": "invalid_value",
+            "job": "climatisation",
+        },
+    )
+    summary = vehicle_capture_summary(car, now)
+    assert summary["vehicle_age_minutes"] == 69
+    assert summary["vehicle_freshness"] == "delayed"
+    assert summary["source_attribute"] == "stateOfCharge"
+    assert capture_coverage(car, now)["climatisation"]["newest_minutes"] is None
+    car.readings["climatisationState"] = {
+        "value": "off",
+        "captured": now.isoformat(),
+        "job": "climatisation",
+    }
+    assert vehicle_capture_summary(car, now)["vehicle_freshness"] == "partial"
