@@ -106,3 +106,57 @@ def test_data_act_fallback_reuses_same_vehicle_reading_and_freshness():
     assert not observe_data_act(car, profile, payload, now, now.isoformat())
     assert car.readings["stateOfCharge"]["family"] == "cariad"
     assert car.readings["stateOfCharge"]["value"] == 80
+
+
+@pytest.mark.asyncio
+async def test_portal_reader_is_bounded_and_never_refetches_old_delivery():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    now = datetime.now(UTC)
+    latest = {"name": "new.zip", "createdOn": now.isoformat()}
+    older = {
+        "name": "old.zip",
+        "createdOn": (now - timedelta(days=1)).isoformat(),
+    }
+    empty = {"name": "new_no_content_found.zip", "createdOn": now.isoformat()}
+    client = DataActClient(None)
+    client._json = AsyncMock(
+        side_effect=[
+            {"Identifier": "existing"},
+            [older, latest, empty],
+            [older],
+            [latest],
+        ]
+    )
+    client._get = AsyncMock(
+        return_value=archive({"vin": VIN, "Data": [sample("52")]})
+    )
+    result = await client.latest(VIN)
+    assert result[1] == now.isoformat()
+    assert client._get.await_count == 1
+    assert client._get.call_args.kwargs["headers"]["filename"] == "new.zip"
+    assert await client.latest(VIN) is None
+    assert await client.latest(VIN) is None
+    assert client._get.await_count == 1
+    assert client._json.await_count == 4
+
+
+@pytest.mark.asyncio
+async def test_empty_or_unauthorized_subscription_does_not_download():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    client = DataActClient(None)
+    client._json = AsyncMock(side_effect=[{"Identifier": "existing"}, []])
+    client._get = AsyncMock()
+    assert await client.latest(VIN) is None
+    client._get.assert_not_awaited()
+    client = DataActClient(None)
+    client._json = AsyncMock(return_value={})
+    client._get = AsyncMock()
+    with pytest.raises(DataActUnavailable):
+        await client.latest(VIN)
+    client._get.assert_not_awaited()

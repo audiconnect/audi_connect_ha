@@ -8,6 +8,7 @@ research; they are not a public stable API contract.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import re
@@ -61,7 +62,10 @@ def decode_dataset(raw: bytes, vin: str) -> dict[str, Any]:
             ):
                 raise DataActUnavailable("Invalid Data Act archive member")
             with archive.open(member) as stream:
-                payload = json.loads(stream.read(MAX_JSON_BYTES + 1))
+                decoded = stream.read(MAX_JSON_BYTES + 1)
+                if len(decoded) > MAX_JSON_BYTES:
+                    raise DataActUnavailable("Data Act member too large")
+                payload = json.loads(decoded)
     except (zipfile.BadZipFile, ValueError, RuntimeError, OSError) as err:
         raise DataActUnavailable("Invalid Data Act dataset") from err
     if (
@@ -121,9 +125,12 @@ class DataActClient:
         self._last_file = {}
 
     async def _get(self, path, *, limit, headers=None, allow_empty=False):
-        async with self.session.get(
-            PORTAL + path, headers=headers, allow_redirects=False
-        ) as response:
+        async with (
+            asyncio.timeout(20),
+            self.session.get(
+                PORTAL + path, headers=headers, allow_redirects=False
+            ) as response,
+        ):
             if response.status == 404 and allow_empty:
                 return None
             if response.status != 200:
@@ -186,7 +193,8 @@ class DataActClient:
         if not content:
             return None
         delivered, name = max(content)
-        if self._last_file.get(vin) == (delivered, name):
+        previous = self._last_file.get(vin)
+        if previous is not None and (delivered, name) <= previous:
             return None
         raw = await self._get(
             path + "download",
