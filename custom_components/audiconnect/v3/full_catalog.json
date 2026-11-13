@@ -4,12 +4,21 @@
   "api_families": {
     "cariad": {
       "auth": "auth0",
+      "priority": 10,
       "host_owner": "audi_auth_session",
       "notes": "Region host resolved by existing Audi adapter; not configurable as arbitrary URL.",
       "executor": "cariad_v1"
     },
+    "graphql": {
+      "auth": "auth0",
+      "priority": 10,
+      "host_owner": "audi_auth_session",
+      "notes": "Reviewed read-only identity transport; existing inventory lifecycle owns requests.",
+      "executor": "graphql_v1"
+    },
     "mbb": {
       "auth": "legacy",
+      "priority": 20,
       "host_owner": "legacy_home_region",
       "notes": "Independent V3 legacy executor, reviewed home region, climate and RLU controls.",
       "executor": "mbb_legacy_v1"

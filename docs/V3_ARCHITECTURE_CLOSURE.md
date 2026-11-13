@@ -36,7 +36,7 @@ The machine-readable owner inventory is [OWNERSHIP.json](../governance/OWNERSHIP
 6. Close storage, migrations, diagnostics, tests and documentation drift.
 7. Verify exact-head CI, feature parity, representative ICE/PHEV/BEV and supported market/API contexts, restart/rollback, quota, privacy and physical acceptance.
 
-Every change must state its existing owner, what complexity is removed, remaining validation and regressions. No mock runtime values, speculative command routes, compatibility stubs or accepted debt. Maintainability is not a line-count target. The 80% declarative operation target is a design measure, not a release gate.
+Every change must state its existing owner, what complexity is removed, remaining validation and regressions. A new provider is not a new framework: API owns optional compatible sessions and family transport; Catalog owns one read priority per family and sparse mappings; Status owns observation selection and freshness; Vehicle and HA own stable VIN-scoped data and entity contracts. Provider authorization and market context determine eligibility, never entity identity. Retain operation-specific command safety and explicit activation; a read fallback cannot authorize or verify a command. No mock runtime values, speculative command routes, compatibility stubs or accepted debt. Maintainability is not a line-count target. The 80% declarative operation target is a design measure, not a release gate.
 
 ### Release authority
 
