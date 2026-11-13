@@ -2140,7 +2140,8 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
                 self.vehicle.readings.get("preferredChargeMode"), allow_last_known=True
             )
             and bool(self.options)
-            and self.vehicle.readings["preferredChargeMode"]["value"] in ("manual", "timer")
+            and self.vehicle.readings["preferredChargeMode"]["value"]
+            in ("manual", "timer")
             and self.coordinator.engine.control_enabled(
                 self.vehicle.vin, "set_charge_mode", "charging"
             )

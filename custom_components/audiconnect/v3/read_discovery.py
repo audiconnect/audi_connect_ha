@@ -318,6 +318,7 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
     """Read coverage and control evidence are independent, never proof of support."""
     from .historical_catalog import INVENTORY, CANONICAL_ATTRIBUTES
     from .control_resolution import control_decision
+    from .command_policy import charge_mode_evidence
 
     modern = car.context.auth == "auth0" or car.legacy_cariad
     jobs = {}
@@ -429,6 +430,11 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
                     "status": decision["status"],
                     "reason": decision.get("reason"),
                     "physical": physical,
+                    **(
+                        {"charge_mode_evidence": charge_mode_evidence(car, profile)}
+                        if capability == "charging" and action == "set_charge_mode"
+                        else {}
+                    ),
                 }
             )
     from collections import Counter
@@ -530,7 +536,9 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
         "controls_physically_verified": verified,
         "controls_route_available": sum(row["route_available"] for row in applicable),
         "controls_dispatch_ready": sum(row["dispatch_ready"] for row in applicable),
-        "controls_ineligible": sum(row["route_status"] == "ineligible" for row in applicable),
+        "controls_ineligible": sum(
+            row["route_status"] == "ineligible" for row in applicable
+        ),
         "control_verification_percent": round(100 * verified / len(applicable), 1)
         if applicable
         else None,

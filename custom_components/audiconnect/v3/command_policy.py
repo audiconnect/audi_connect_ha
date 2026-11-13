@@ -17,6 +17,32 @@ def charge_mode_fallback_candidate(car):
     )
 
 
+def locally_verified_charge_modes(profile):
+    """Current built-in route revision proof, not a claim about OEM options."""
+    if profile is None:
+        return []
+    from .operation_revision import operation_revision
+
+    operation = profile.registry.operations.get("cariad.charging.mode")
+    if operation is None:
+        return []
+    revision = operation_revision(operation)
+    return [
+        mode
+        for mode in ("manual", "timer")
+        if getattr(profile, "verified_charge_modes", {}).get(mode) == revision
+    ]
+
+
+def charge_mode_evidence(car, profile):
+    """Safe enum capability evidence; never include the car\'s current setting."""
+    return {
+        "locally_verified_modes": locally_verified_charge_modes(profile),
+        "writable_modes": supported_charge_modes(car, profile),
+        "empty_list_fallback": charge_mode_fallback_candidate(car),
+    }
+
+
 def supported_charge_modes(car, profile=None):
     """Advertised modes first; V2 fallback requires current local route proof."""
     row = car.readings.get("availableChargeModes", {})
@@ -37,12 +63,7 @@ def supported_charge_modes(car, profile=None):
         and profile.control_results.get(route) == "worked"
         and profile.active_revisions.get(key) == operation_revision(operation)
     ):
-        revision = operation_revision(operation)
-        return [
-            mode
-            for mode in ("manual", "timer")
-            if profile.verified_charge_modes.get(mode) == revision
-        ]
+        return locally_verified_charge_modes(profile)
     return []
 
 

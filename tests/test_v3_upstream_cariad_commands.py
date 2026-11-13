@@ -191,7 +191,10 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
 
 
 def test_empty_charge_modes_require_local_route_verification():
-    from custom_components.audiconnect.v3.command_policy import supported_charge_modes
+    from custom_components.audiconnect.v3.command_policy import (
+        charge_mode_evidence,
+        supported_charge_modes,
+    )
     from custom_components.audiconnect.v3.control_resolution import control_decision
 
     engine, car = make_engine()
@@ -209,6 +212,11 @@ def test_empty_charge_modes_require_local_route_verification():
     profile.control_results[route] = "worked"
     profile.choose_working("charging", "set_charge_mode", route)
     assert supported_charge_modes(car, profile) == []
+    assert charge_mode_evidence(car, profile) == {
+        "locally_verified_modes": [],
+        "writable_modes": [],
+        "empty_list_fallback": True,
+    }
     candidate = control_decision(
         car, profile, engine.auth, "charging", "set_charge_mode", for_discovery=True
     )
@@ -228,6 +236,10 @@ def test_empty_charge_modes_require_local_route_verification():
         )
         profile.choose_working("charging", "set_charge_mode", route)
         assert supported_charge_modes(car, profile) == ["manual", "timer"][:sequence]
+        assert charge_mode_evidence(car, profile)["locally_verified_modes"] == [
+            "manual",
+            "timer",
+        ][:sequence]
     from custom_components.audiconnect.v3.profile_store import restore_profile
     from custom_components.audiconnect.v3.registry import VehicleContext
 

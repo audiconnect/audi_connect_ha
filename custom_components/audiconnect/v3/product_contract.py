@@ -187,6 +187,8 @@ def entity_availability_reason(engine, uid, key, status, state_present):
     if status == "projected_unknown":
         if key == "climate.climatisation":
             return "climate_actual_state_unknown"
+        if key == "select.charge_mode":
+            return "charge_mode_reported_outside_writable_options"
         return "state_unknown"
     if status == "disabled":
         return "registry_disabled"
