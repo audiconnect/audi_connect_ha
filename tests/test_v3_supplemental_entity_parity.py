@@ -75,7 +75,7 @@ def test_historical_freshness_age_and_quota_are_distinct():
         "job": "charging",
     }
     assert age.native_value == 0
-    assert fresh.native_value == "fresh"
+    assert fresh.native_value == "partial"
     coverage = fresh.extra_state_attributes["job_capture_coverage"]
     assert coverage["unclassified"]["oldest_minutes"] >= 240
 
@@ -153,7 +153,7 @@ def test_newest_vehicle_capture_keeps_older_climate_age_visible():
     )
     assert V3StatusSensor(co, car, "age").native_value == 0
     sensor = V3StatusSensor(co, car, "freshness")
-    assert sensor.native_value == "fresh"
+    assert sensor.native_value == "partial"
     assert (
         sensor.extra_state_attributes["job_capture_coverage"]["climatisation"][
             "oldest_minutes"
@@ -237,3 +237,26 @@ def test_native_controls_share_reported_capture_attributes():
         assert attrs["age_minutes"] >= 120
         assert attrs["vehicle_freshness"] in ("stale", "stale_last_known")
         assert attrs["verification"] == "readable_but_stale"
+
+
+def test_derived_alias_and_eta_keep_original_observation_and_invalidity():
+    car, co, now = context()
+    source = {
+        "value": 45,
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "status": "verified",
+        "job": "charging",
+        "family": "cariad",
+    }
+    car.readings["remainingChargingTime"] = source
+    car.readings["chargeType"] = {**source, "value": "ac"}
+    observe_derived(car, NS(), {}, now + timedelta(minutes=30), _accept_observation)
+    assert car.readings["charging_complete_time"]["observed"] == now.isoformat()
+    assert car.readings["charging_type"]["observed"] == now.isoformat()
+    car.readings["chargeType"] = {
+        **source, "value": None, "status": "invalid_value", "reason": "vendor_sentinel"
+    }
+    observe_derived(car, NS(), {}, now + timedelta(minutes=31), _accept_observation)
+    assert car.readings["charging_type"]["status"] == "invalid_value"
+    assert car.readings["charging_type"]["value"] is None
