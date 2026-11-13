@@ -550,12 +550,7 @@ class V3AccessSummary(V3BaseEntity, SensorEntity):
     def extra_state_attributes(self):
         from .access_summary import access_summary
 
-        return {
-            **access_summary(self.vehicle, self.kind)[1],
-            **reading_freshness_attributes(
-                self.vehicle.readings.get(self.kind + "_detail")
-            ),
-        }
+        return access_summary(self.vehicle, self.kind)[1]
 
 
 class V3StatusSensor(V3BaseEntity, SensorEntity):
@@ -1658,9 +1653,7 @@ class V3LockEntity(V3BaseEntity, LockEntity):
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(
-            self.vehicle.readings.get("doorLockStatus")
-        )
+        return reading_freshness_attributes(self.vehicle.readings.get("doorLockStatus"))
 
     def _pending_action(self, action):
         from .command_readback import latest_readback_command
