@@ -146,6 +146,7 @@ class V3Engine:
             )
             if not metadata_refined:
                 vehicle.readings.clear()
+                vehicle.family_readings.clear()
                 vehicle.position = None
             vehicle.capability_readings.clear()
             vehicle.charging_profiles.clear()
@@ -1405,6 +1406,7 @@ class V3Engine:
             raise ValueError(
                 "Test the route and verify fresh vehicle data before activation"
             )
+        car.family_readings.pop(attribute, None)
         profile.attribute_disabled.discard(attribute)
         profile.attribute_routes[attribute] = route
         profile.attribute_drafts[attribute] = route
@@ -1418,6 +1420,7 @@ class V3Engine:
         profile = self.profiles[car.vin.lower()]
         if attribute not in attributes_for(profile):
             raise ValueError("Unknown attribute")
+        car.family_readings.pop(attribute, None)
         if disabled:
             profile.attribute_disabled.add(attribute)
             previous = profile.attribute_routes.pop(attribute, None)

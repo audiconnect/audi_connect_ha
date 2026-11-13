@@ -77,6 +77,49 @@ def remember_climate(profile, reading, now=None):
         profile.last_known_climate = row
 
 
+def _observation_rank(row, registry, now):
+    """One ordering at the write boundary: valid, fresh, family, capture."""
+    family = row.get("family", "")
+    priority = (
+        registry.family_priority(family)
+        if registry is not None and family in registry.families
+        else 100
+    )
+    age = capture_age_minutes(row.get("captured"), now)
+    valid = row.get("value") is not None and row.get("status") != "invalid_value"
+    stamp = _capture_in_utc(row.get("captured")) if age is not None else None
+    captured = stamp.timestamp() if stamp else float("-inf")
+    if valid and age is not None and age <= 60:
+        return (3, -priority, captured, family)
+    if valid and age is not None:
+        return (2, captured, -priority, family)
+    if valid:
+        return (1, -priority, captured, family)
+    return (0, captured, -priority, family)
+
+
+def _commit_observation(vehicle, ident, row, registry, now):
+    """Keep one sample per family; choose from the same set in either arrival order."""
+    previous = vehicle.readings.get(ident)
+    candidates = vehicle.family_readings.setdefault(ident, {})
+    if previous is None:
+        candidates.clear()
+    else:
+        # A few existing derived projections still write directly. Preserve a
+        # newer direct sample instead of reviving an older cached observation.
+        source = previous.get("family", "")
+        if _accept_observation(candidates.get(source), previous.get("captured")):
+            candidates[source] = previous
+    family = row["family"]
+    if not _accept_observation(candidates.get(family), row.get("captured")):
+        return False
+    candidates[family] = row
+    vehicle.readings[ident] = max(
+        candidates.values(), key=lambda sample: _observation_rank(sample, registry, now)
+    )
+    return vehicle.readings[ident] is row
+
+
 def record_invalid_observation(
     vehicle: Any,
     ident: str,
@@ -86,17 +129,14 @@ def record_invalid_observation(
     job: str | None,
     reason: str,
     family: str = "cariad",
+    *,
+    profile=None,
 ) -> None:
-    """Invalidate a newer contradictory sample only from its own source family."""
-    previous = vehicle.readings.get(ident)
-    if (
-        previous
-        and previous.get("value") is not None
-        and previous.get("family") not in (None, family)
-    ):
-        return
-    if _accept_observation(previous, captured):
-        vehicle.readings[ident] = {
+    """An explicit invalid sample invalidates only the originating family."""
+    _commit_observation(
+        vehicle,
+        ident,
+        {
             "value": None,
             "captured": captured,
             "observed": observed_at.isoformat(),
@@ -106,33 +146,10 @@ def record_invalid_observation(
             "status": "invalid_value",
             "family": family,
             "reason": reason,
-        }
-
-
-def _accept_family_observation(previous, captured, family, registry, now):
-    """Prefer an eligible fresh primary source; never regress vehicle capture."""
-    if not previous or previous.get("family") in (None, family):
-        return _accept_observation(previous, captured)
-    if registry is None:
-        return _accept_observation(previous, captured)
-    prior_family = previous["family"]
-    if family not in registry.families or prior_family not in registry.families:
-        return _accept_observation(previous, captured)
-    prior_age = capture_age_minutes(previous.get("captured"), now)
-    incoming_age = capture_age_minutes(captured, now)
-    if prior_age is not None and (
-        incoming_age is None or not _accept_observation(previous, captured)
-    ):
-        return False
-    if previous.get("status") == "invalid_value" or previous.get("value") is None:
-        return True
-    prior_priority = (registry.family_priority(prior_family), prior_family)
-    incoming_priority = (registry.family_priority(family), family)
-    if prior_age is not None and prior_age <= 60 and prior_priority < incoming_priority:
-        return False
-    if prior_age == incoming_age:
-        return incoming_priority < prior_priority
-    return True
+        },
+        getattr(profile, "registry", None),
+        observed_at,
+    )
 
 
 def record_observation(
@@ -151,16 +168,8 @@ def record_observation(
     persist_evidence=True,
 ):
     """Commit one normalized observation; persist only reviewed mapping evidence."""
-    if not _accept_family_observation(
-        vehicle.readings.get(ident),
-        captured,
-        family,
-        getattr(profile, "registry", None),
-        observed_at,
-    ):
-        return False
     status = "verified" if fresh else "readable_but_stale"
-    vehicle.readings[ident] = {
+    row = {
         "value": value,
         "captured": captured,
         "observed": observed_at.isoformat(),
@@ -171,8 +180,12 @@ def record_observation(
         "family": family,
         "operation": operation,
     }
+    if not _commit_observation(
+        vehicle, ident, row, getattr(profile, "registry", None), observed_at
+    ):
+        return False
     if ident == "climatisationState":
-        remember_climate(profile, vehicle.readings[ident], observed_at)
+        remember_climate(profile, row, observed_at)
     if persist_evidence:
         profile.attribute_evidence[ident] = {
             "status": status,
@@ -276,6 +289,7 @@ def observe_read_only(
                 row["path"],
                 row["job"],
                 issue,
+                profile=profile,
             )
         if value is None:
             continue
