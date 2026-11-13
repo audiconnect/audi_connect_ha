@@ -210,7 +210,7 @@ def test_wake_budget_survives_restart_and_journal_eviction():
     check_wake_budget(recovered, 100000)
 
 
-def test_security_acceptance_without_confirmation_blocks_only_access():
+def test_known_access_acceptance_has_bounded_cooldown_not_permanent_review():
     import pytest
     from custom_components.audiconnect.v3.command_journal import check_command_sequence
 
@@ -218,9 +218,17 @@ def test_security_acceptance_without_confirmation_blocks_only_access():
     row = CommandRecord.begin("access", "unlock", "cariad.access.unlock", 1000)
     row.observe_http(200)
     p.track_command(row)
-    assert row.unresolved and row.requires_review
+    assert not row.requires_review
+    with pytest.raises(RuntimeError, match="cooldown"):
+        check_command_sequence(p, 1010, capability="access", action="lock")
+    check_command_sequence(p, 1031, capability="access", action="lock")
+    check_command_sequence(p, 1100, capability="climate", action="stop")
+    row.backend_result = "unknown"
+    row.state = "uncertain"  # B29 status GET outcome, not mutation uncertainty.
+    restored = restore_profile(model(), p.discovery.context, p.snapshot())
+    assert restored.last_command.state == "accepted_unconfirmed"
+    check_command_sequence(restored, 1100, capability="access", action="lock")
+    row.backend_result = "transport_uncertain"
+    assert row.requires_review
     with pytest.raises(RuntimeError, match="uncertain"):
         check_command_sequence(p, 1100, capability="access", action="lock")
-    check_command_sequence(p, 1100, capability="climate", action="stop")
-    row.state = "verified"
-    check_command_sequence(p, 1100, capability="access", action="lock")
