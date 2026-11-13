@@ -174,7 +174,9 @@ def _resolve_service_call(
         if domain == DOMAIN
     }
     if len(vins) != 1:
-        raise HomeAssistantError("Audi Connect device has no unambiguous vehicle identity")
+        raise HomeAssistantError(
+            "Audi Connect device has no unambiguous vehicle identity"
+        )
     vin = next(iter(vins))
 
     owners = [

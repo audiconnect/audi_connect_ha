@@ -8,19 +8,19 @@ The release objective is 100% agreed functional scope and V2 parity, zero known 
 
 ### Authoritative responsibilities
 
-| Owner | Responsibility |
-| --- | --- |
-| Shared HA entry | Account/device association, config and runtime selection |
-| API | Authentication, transport, family protocols and quota |
-| Catalog | Canonical capability, operation and attribute definitions |
-| Status | Read discovery, polling, normalization and freshness |
-| Vehicle | Canonical vehicle identity and observations |
-| Command | Eligibility, execution, durable journal, verification |
-| Profiles | Bindings and persistent evidence |
-| HA | Stable native entities, services and registry lifecycle |
-| Workbench | Optional administrator analysis, configuration and test UX |
-| Diagnostics | Read-only reporting and redaction |
-| Engine | Composition and lifecycle orchestration |
+| Owner           | Responsibility                                             |
+| --------------- | ---------------------------------------------------------- |
+| Shared HA entry | Account/device association, config and runtime selection   |
+| API             | Authentication, transport, family protocols and quota      |
+| Catalog         | Canonical capability, operation and attribute definitions  |
+| Status          | Read discovery, polling, normalization and freshness       |
+| Vehicle         | Canonical vehicle identity and observations                |
+| Command         | Eligibility, execution, durable journal, verification      |
+| Profiles        | Bindings and persistent evidence                           |
+| HA              | Stable native entities, services and registry lifecycle    |
+| Workbench       | Optional administrator analysis, configuration and test UX |
+| Diagnostics     | Read-only reporting and redaction                          |
+| Engine          | Composition and lifecycle orchestration                    |
 
 Read: API → status → vehicle → HA. Write: HA owning device → active runtime → command → API → verified readback. Engineering: discover → configure → isolated test → explicit activation. A command must never be routed to an unrelated account by VIN. Ambiguous ownership fails closed.
 

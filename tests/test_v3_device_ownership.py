@@ -14,9 +14,9 @@ VIN = "wauzzz4m0md123456"
 
 def entry(ident, *, v3=None, present=True, loaded=True):
     account = SimpleNamespace(
-        config_vehicles=[
-            SimpleNamespace(vehicle=SimpleNamespace(vin=VIN))
-        ] if present else [],
+        config_vehicles=[SimpleNamespace(vehicle=SimpleNamespace(vin=VIN))]
+        if present
+        else [],
     )
     return SimpleNamespace(
         entry_id=ident,
@@ -33,7 +33,9 @@ def resolve(monkeypatch, entries, owners, *, identifiers=None, missing=False):
     monkeypatch.setattr(
         audiconnect.dr,
         "async_get",
-        lambda hass: SimpleNamespace(async_get=lambda ident: None if missing else device),
+        lambda hass: SimpleNamespace(
+            async_get=lambda ident: None if missing else device
+        ),
     )
     hass = SimpleNamespace(
         config_entries=SimpleNamespace(async_entries=lambda domain: entries)
@@ -47,7 +49,8 @@ def test_registered_v2_owner_wins_over_unrelated_v3(monkeypatch):
     unrelated = entry("unrelated", v3=v3)
     owner = entry("owner")
     assert resolve(monkeypatch, [unrelated, owner], ["owner"]) == (
-        VIN, owner.runtime_data.account
+        VIN,
+        owner.runtime_data.account,
     )
     v3.require_vehicle.assert_not_called()
 
