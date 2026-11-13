@@ -43,6 +43,30 @@ def capture_age_minutes(captured: Any, now: datetime | None = None) -> float | N
     return max(0.0, delta / 60) if delta >= -300 else None
 
 
+def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
+    """Describe a reported sample, independently of its projected HA state."""
+    row = row or {}
+    now = now or datetime.now(UTC)
+    age = capture_age_minutes(row.get("captured"), now)
+    valid = row.get("value") is not None and row.get("status") != "invalid_value"
+    return {
+        "vehicle_captured": row.get("captured"),
+        "age_minutes": age,
+        "cloud_observed": row.get("observed"),
+        "cloud_age_minutes": capture_age_minutes(row.get("observed"), now),
+        "vehicle_freshness": (
+            "unknown"
+            if age is None or not valid
+            else "fresh"
+            if age <= 60
+            else "stale_last_known"
+            if allow_last_known
+            else "stale"
+        ),
+        "verification": row.get("status", "unknown"),
+    }
+
+
 def newest_vehicle_reading(vehicle, now: datetime | None = None):
     """Return the capture and its source, excluding the derived summary itself."""
     reference = now or datetime.now(UTC)
