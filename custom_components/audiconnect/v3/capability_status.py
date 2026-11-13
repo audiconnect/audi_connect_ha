@@ -129,7 +129,9 @@ def attribute_status(vehicle, profile, definition, now):
     legacy = legacy_variant_for(ident) if vehicle.context.auth == "legacy" else None
     native_trip = ident in _NATIVE_TRIP_ATTRIBUTES
     derived = definition.get("derived_job") is not None
-    known = bool(definition["paths"] or legacy or native_trip or derived or ident == "model")
+    known = bool(
+        definition["paths"] or legacy or native_trip or derived or ident == "model"
+    )
     fallback = (
         "not_tested"
         if definition.get("local")
