@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from .registry import read_json_path
-from .freshness import timestamp_is_fresh
+from .freshness import reading_freshness_attributes, timestamp_is_fresh
 
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$")
 _CLOCK = re.compile(r"^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$")
@@ -266,7 +266,7 @@ def _array(rows, normalizer, limit):
 def observe_structured(vehicle, payload, observed_at, accepts):
     """Keep capture-aware structured readings alongside the native scalars."""
 
-    def put(key, value, captured, path):
+    def put(key, value, captured, path, *, invalid=False):
         if value is not None and accepts(vehicle.readings.get(key), captured):
             vehicle.readings[key] = {
                 "value": value,
@@ -275,7 +275,9 @@ def observe_structured(vehicle, payload, observed_at, accepts):
                 "path": path,
                 "family": "cariad",
                 "job": path.split(".", 1)[0],
-                "status": "verified"
+                "status": "invalid_value"
+                if invalid
+                else "verified"
                 if timestamp_is_fresh(captured, observed_at)
                 else "readable_but_stale",
             }
@@ -332,7 +334,16 @@ def observe_structured(vehicle, payload, observed_at, accepts):
             data = _array(block.get(field), normalizer, limit)
             if data is not None and normalizer is _timer:
                 data["vehicle_time"] = _zoned_datetime(block.get("timeInCar"))
-            put(key, data, block.get("carCapturedTimestamp"), path)
+            from .vehicle import window_heating_active
+
+            put(
+                key,
+                data,
+                block.get("carCapturedTimestamp"),
+                path,
+                invalid=normalizer is _window
+                and window_heating_active(block.get(field)) is None,
+            )
     # An empty warningLights object is not a healthy-state claim.
     warnings_path = "vehicleHealthWarnings.warningLights.value"
     warnings = read_json_path(payload, warnings_path)
@@ -468,9 +479,7 @@ def details_for(vehicle, *keys):
         if row is not None:
             result[key.removesuffix("_detail")] = {
                 "data": row.get("value"),
-                "vehicle_captured": row.get("captured"),
-                "cloud_observed": row.get("observed"),
+                **reading_freshness_attributes(row),
                 "source": row.get("path"),
-                "verification": row.get("status", "unknown"),
             }
     return result
