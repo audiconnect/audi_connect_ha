@@ -42,6 +42,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ..const import DOMAIN
 from .auth import configured_spin
+from .freshness import reading_freshness_attributes
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
 from .command_readback import last_known_climate, projected_state
@@ -314,10 +315,9 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
             ),
             "v3_capability": "climate",
             "api_route": self.vehicle.climate_source,
-            "vehicle_captured": self.vehicle.climate_captured.isoformat()
-            if self.vehicle.climate_captured
-            else None,
-            "age_minutes": self.vehicle.capture_age_minutes,
+            **reading_freshness_attributes(
+                self.vehicle.readings.get("climatisationState"), allow_last_known=True
+            ),
             "start_enabled": bool(
                 self.supported_features & ClimateEntityFeature.TURN_ON
             ),
@@ -520,8 +520,7 @@ class V3ChargingReady(V3BaseEntity, BinarySensorEntity):
     def extra_state_attributes(self):
         return {
             "source_attribute": "chargingState",
-            "vehicle_captured": self._reading.get("captured"),
-            "age_minutes": _reading_age_minutes(self._reading.get("captured")),
+            **reading_freshness_attributes(self._reading),
             "semantics": "explicit_readiness_not_charging_active_or_permission",
         }
 
@@ -669,14 +668,20 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
         engine = self.coordinator.engine
         if self.kind == "discovery":
             return self._discovery_progress()
-        if self.kind == "freshness":
-            from .freshness import capture_coverage
+        if self.kind in ("age", "freshness"):
+            from .freshness import capture_coverage, vehicle_capture_summary
             from .structured_details import details_for
 
-            last = self.vehicle.readings.get("last_update_time", {}).get("value")
-            return {
-                "vehicle_last_update": last,
-                "vehicle_age_minutes": self._vehicle_age(),
+            now = datetime.now(UTC)
+            coverage = capture_coverage(self.vehicle, now)
+            oldest = [
+                job["oldest_minutes"]
+                for job in coverage.values()
+                if job["oldest_minutes"] is not None
+            ]
+            result = {
+                **vehicle_capture_summary(self.vehicle, now),
+                "oldest_observed_age_minutes": max(oldest, default=None),
                 "cloud_last_successful_poll": (
                     engine.last_cloud_poll_success.isoformat()
                     if engine.last_cloud_poll_success
@@ -692,11 +697,14 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
                     "last_cloud_poll_succeeded",
                     self.coordinator.last_update_success,
                 ),
-                "freshness_basis": "newest_valid_vehicle_capture",
-                **details_for(self.vehicle, "readiness_detail"),
-                "job_capture_coverage": capture_coverage(self.vehicle),
-                "discovery": self._discovery_progress(),
+                "job_capture_coverage": coverage,
             }
+            if self.kind == "freshness":
+                result.update(
+                    details_for(self.vehicle, "readiness_detail"),
+                    discovery=self._discovery_progress(),
+                )
+            return result
         if self.kind == "cloud":
             return {
                 "cloud_poll_succeeded": getattr(
@@ -1032,16 +1040,6 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             }
         source, reading = projection_reading(self.vehicle, self.attribute)
         reading = reading or {}
-        captured_age = _reading_age_minutes(reading.get("captured"))
-        freshness = (
-            "unknown"
-            if captured_age is None
-            else "fresh"
-            if captured_age <= 60
-            else "stale_last_known"
-            if self._allow_last_known
-            else "stale"
-        )
         from .structured_details import details_for
 
         detail_keys = {
@@ -1110,12 +1108,10 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             "v2_attribute": self.attribute["id"],
             "observed_source": source,
             "api_family": reading.get("family", "cariad"),
-            "vehicle_freshness": freshness,
-            "cloud_age_minutes": _reading_age_minutes(reading.get("observed")),
             "response_mapping": reading.get("path"),
-            "vehicle_captured": reading.get("captured"),
-            "age_minutes": _reading_age_minutes(reading.get("captured")),
-            "verification": reading.get("status", "unknown"),
+            **reading_freshness_attributes(
+                reading, allow_last_known=self._allow_last_known
+            ),
         }
 
 
@@ -1324,22 +1320,12 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         reading = self.vehicle.readings.get(self.attribute["id"]) or {}
-        age = _reading_age_minutes(reading.get("captured"))
         return {
             "v3_capability": self.attribute["capability"],
             "response_mapping": reading.get("path"),
-            "vehicle_captured": reading.get("captured"),
-            "age_minutes": age,
-            "vehicle_freshness": (
-                "unknown"
-                if age is None
-                else "fresh"
-                if age <= 60
-                else "stale_last_known"
-                if self._allow_last_known
-                else "stale"
+            **reading_freshness_attributes(
+                reading, allow_last_known=self._allow_last_known
             ),
-            "verification": reading.get("status", "unknown"),
         }
 
 
@@ -1457,7 +1443,7 @@ class V3OperationalSwitch(V3BaseEntity, SwitchEntity):
         row, state = stateful_reading(self.vehicle, self.key)
         return {
             "last_reported_state": state,
-            "vehicle_captured": row.get("captured"),
+            **reading_freshness_attributes(row),
             "state_source": self._projection()[1],
             "on_enabled": self._enabled("on"),
             "off_enabled": self._enabled("off"),
@@ -1582,6 +1568,12 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             and engine.control_enabled(self.vehicle.vin, "stop")
         )
 
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("climatisationState"), allow_last_known=True
+        )
+
     async def async_turn_on(self, **kwargs) -> None:
         if not self.available:
             raise HomeAssistantError(
@@ -1642,6 +1634,10 @@ class V3LockEntity(V3BaseEntity, LockEntity):
                 or engine.control_enabled(self.vehicle.vin, "unlock", "access")
             )
         )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(self.vehicle.readings.get("doorLockStatus"))
 
     def _pending_action(self, action):
         from .command_readback import latest_readback_command
@@ -1734,16 +1730,25 @@ class V3ParkedTracker(V3BaseEntity, TrackerEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         position = self.vehicle.position or {}
         captured = position.get("timestamp")
+        row = self.vehicle.readings.get("position_last_updated", {})
+        attrs = reading_freshness_attributes(
+            {
+                "value": captured,
+                "captured": captured,
+                "observed": row.get("observed"),
+                "status": row.get("status", "unknown"),
+            },
+            allow_last_known=True,
+        )
         return {
+            **attrs,
             "position_source": "Audi last-known parked location, not live driving GPS",
             "position_captured_at": captured,
-            "position_age_minutes": _reading_age_minutes(captured),
+            "position_age_minutes": attrs["age_minutes"],
             "position_freshness": (
-                "unknown"
-                if captured is None
-                else "stale"
-                if (_reading_age_minutes(captured) or 0) > 60
-                else "fresh"
+                "stale"
+                if attrs["vehicle_freshness"] == "stale_last_known"
+                else attrs["vehicle_freshness"]
             ),
         }
 
@@ -1785,6 +1790,12 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
             float(value)
             if (isinstance(value, (int, float)) and not isinstance(value, bool))
             else None
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("targetstateOfCharge"), allow_last_known=True
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -1842,6 +1853,20 @@ class V3LocationChargeTargetNumber(V3ChargeTargetNumber):
             )
         )
 
+    @property
+    def extra_state_attributes(self):
+        # The profile target belongs to the profile snapshot, not global SoC.
+        row = self.vehicle.readings.get("charging_profile_context_detail", {})
+        return reading_freshness_attributes(
+            {
+                "value": self.native_value,
+                "captured": self.vehicle.charging_profiles_captured,
+                "observed": row.get("observed"),
+                "status": row.get("status", "unknown"),
+            },
+            allow_last_known=True,
+        )
+
     async def async_set_native_value(self, value):
         if not self.available or not float(value).is_integer():
             raise HomeAssistantError("Audi charge profile not available")
@@ -1878,6 +1903,12 @@ class V3PreheaterSwitch(V3BaseEntity, SwitchEntity):
         return self.coordinator.last_update_success and any(
             engine.control_enabled(self.vehicle.vin, aspect, "climate")
             for aspect in ("preheater_start", "preheater_stop")
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("preheater_active")
         )
 
     async def _send(self, aspect):
@@ -1918,6 +1949,12 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
             return False
         return self.is_on is not None and self.coordinator.engine.control_enabled(
             self.vehicle.vin, "set_settings", "climate"
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get(self.reading), allow_last_known=True
         )
 
     async def _write(self, value):
@@ -1983,6 +2020,12 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
         }:
             return None
         return value
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("preferredChargeMode"), allow_last_known=True
+        )
 
     async def async_select_option(self, option: str) -> None:
         if not self.available or option not in self.options:

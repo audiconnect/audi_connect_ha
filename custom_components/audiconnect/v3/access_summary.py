@@ -1,6 +1,6 @@
 """Read-only access data display. Stale or partial is never a safe closed state."""
 
-from .freshness import capture_age_minutes
+from .freshness import reading_freshness_attributes
 
 COMPONENTS = {
     "door": ("frontLeft", "frontRight", "rearLeft", "rearRight", "trunk", "bonnet"),
@@ -45,7 +45,7 @@ def access_summary(car, kind):
                 else _component_state(tokens, "unlocked", "locked")
             )
     states = {name: states.get(name, "unknown") for name in names}
-    age = capture_age_minutes(row.get("captured"))
+    freshness = reading_freshness_attributes(row)
     aggregate = (
         "open"
         if "open" in states.values()
@@ -53,15 +53,17 @@ def access_summary(car, kind):
         if all(s == "closed" for s in states.values())
         else "unknown"
     )
-    state = "unknown" if age is None else "stale" if age > 60 else aggregate
+    state = (
+        aggregate
+        if freshness["vehicle_freshness"] == "fresh"
+        else freshness["vehicle_freshness"]
+    )
     return state, {
         "components": states,
         "lock_states": locks,
         "roof_components": roof,
         "last_reported_aggregate": aggregate,
-        "vehicle_captured": row.get("captured"),
-        "age_minutes": age,
-        "cloud_observed": row.get("observed"),
-        "freshness": "unknown" if age is None else "stale" if age > 60 else "fresh",
+        **freshness,
+        "freshness": freshness["vehicle_freshness"],
         "complete": all(s != "unknown" for s in states.values()),
     }

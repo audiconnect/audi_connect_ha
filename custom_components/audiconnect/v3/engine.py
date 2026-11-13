@@ -1470,11 +1470,20 @@ class V3Engine:
         )
         from .vehicle import powertrain_identity
         from .access_summary import access_summary
+        from .freshness import vehicle_capture_summary
+        from .historical_catalog import ATTRIBUTES, V2_JOBS
 
         vehicles = []
         for index, car in enumerate(self.vehicles.values(), 1):
             p = self.profiles.get(car.vin.lower())
             schemas = getattr(p, "job_schema", {})
+            capture = vehicle_capture_summary(car)
+            if capture["source_attribute"] not in ATTRIBUTES:
+                capture["source_attribute"] = (
+                    "other_reading" if capture["source_attribute"] else None
+                )
+            if capture["source_job"] not in V2_JOBS:
+                capture["source_job"] = None
             # Keep historical-only evidence, without repeating current fields.
             historical = {}
             for job, rows in getattr(p, "historical_job_schema", {}).items():
@@ -1514,6 +1523,7 @@ class V3Engine:
                         "powertrain": powertrain_identity(car),
                     },
                     "integration_health": self.health.snapshot(self, car),
+                    "vehicle_capture": capture,
                     "access_evidence": {
                         kind: {
                             key: value

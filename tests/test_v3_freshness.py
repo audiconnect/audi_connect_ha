@@ -41,3 +41,59 @@ def test_new_sample_without_capture_does_not_inherit_timestamp():
         "heating", "not-a-timestamp", route="c", observed_at=now, http_status=200
     )
     assert car.climate_captured == now
+
+
+def test_newest_capture_ignores_derived_summary_and_invalid_readings():
+    from types import SimpleNamespace
+    from custom_components.audiconnect.v3.freshness import (
+        newest_vehicle_capture,
+        newest_vehicle_reading,
+        vehicle_capture_summary,
+    )
+
+    now = datetime.now(UTC)
+    older = now - timedelta(hours=2)
+    car = SimpleNamespace(
+        readings={
+            "last_update_time": {"value": now.isoformat(), "captured": now.isoformat()},
+            "stateOfCharge": {"value": 80, "captured": older.isoformat()},
+            "climatisationState": {
+                "value": None,
+                "captured": now.isoformat(),
+                "status": "invalid_value",
+            },
+        }
+    )
+    assert newest_vehicle_capture(car, now) == older
+    assert newest_vehicle_reading(car, now)[1] == "stateOfCharge"
+    summary = vehicle_capture_summary(car, now)
+    assert summary["source_attribute"] == "stateOfCharge"
+    assert summary["vehicle_age_minutes"] == 120
+    assert summary["vehicle_last_update"] == older.isoformat()
+    car.readings.pop("stateOfCharge")
+    assert newest_vehicle_capture(car, now) is None
+
+
+def test_reading_attributes_distinguish_vehicle_capture_from_cloud_refresh():
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+
+    now = datetime.now(UTC)
+    captured = (now - timedelta(hours=2)).isoformat()
+    reading = {
+        "value": 80,
+        "captured": captured,
+        "observed": now.isoformat(),
+        "status": "readable_but_stale",
+    }
+    attrs = reading_freshness_attributes(reading, allow_last_known=True, now=now)
+    assert attrs["vehicle_captured"] == captured
+    assert attrs["age_minutes"] == 120
+    assert attrs["cloud_observed"] == now.isoformat()
+    assert attrs["cloud_age_minutes"] == 0
+    assert attrs["vehicle_freshness"] == "stale_last_known"
+    reading.update(value=None, status="invalid_value")
+    assert (
+        reading_freshness_attributes(reading, now=now)["vehicle_freshness"] == "unknown"
+    )
+    reading.update(value=80, captured=None)
+    assert reading_freshness_attributes(reading, now=now)["age_minutes"] is None

@@ -286,7 +286,7 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         return "trip_snapshot_missing"
     if metric and trip_metric_value(car, key.removeprefix("sensor.")) is None:
         return "trip_metric_missing"
-    from .freshness import capture_age_minutes
+    from .freshness import reading_freshness_attributes
 
     sources = definition.get("source_attributes", ())
     found = False
@@ -307,10 +307,10 @@ def entity_availability_reason(engine, uid, key, status, state_present):
             ):
                 return reason
             return "invalid_vehicle_value"
-        age = capture_age_minutes(reading.get("captured"))
-        if age is not None and age > 60:
+        freshness = reading_freshness_attributes(reading)["vehicle_freshness"]
+        if freshness == "stale":
             return "vehicle_capture_stale"
-        if reading.get("captured") is None:
+        if freshness == "unknown":
             return "vehicle_capture_unknown"
     if not_offered and sources and not found:
         return "source_not_observed"
