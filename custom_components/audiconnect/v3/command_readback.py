@@ -198,8 +198,11 @@ def last_known_climate(profile):
     ):
         return row["value"], row["captured"], "last_known_vehicle"
     if record is not None:
-        stamp = datetime.fromtimestamp(record.completed_at, UTC)
-        if stamp.year >= 2020 and stamp <= datetime.now(UTC):
+        try:
+            stamp = datetime.fromtimestamp(record.completed_at, UTC)
+        except (ValueError, OverflowError, OSError):
+            stamp = None
+        if stamp and stamp.year >= 2020 and stamp <= datetime.now(UTC):
             return (
                 "off" if record.action == "stop" else "on",
                 stamp.isoformat(),
@@ -258,10 +261,7 @@ def observe_command_response(record, car, profile, family, response):
 
     paths = {
         "climate": ("climatisation", "climatisationStatus"),
-        "climatisationTargetTemperatureC": (
-            "climatisation",
-            "climatisationSettings"
-        ),
+        "climatisationTargetTemperatureC": ("climatisation", "climatisationSettings"),
         "chargingState": ("charging", "chargingStatus"),
         "windowHeatingActive": ("climatisation", "windowHeatingStatus"),
         "doorLockStatus": ("access", "accessStatus"),

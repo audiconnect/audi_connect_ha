@@ -217,7 +217,10 @@ def test_accepted_command_is_not_restored_as_verified_climate_state():
     )
 
     command = CommandRecord.begin(
-        "climate", "start", "route", (datetime.now(UTC) - timedelta(hours=2)).timestamp()
+        "climate",
+        "start",
+        "route",
+        (datetime.now(UTC) - timedelta(hours=2)).timestamp(),
     )
     configure_readback(command, {})
     command.observe_http(200)

@@ -260,7 +260,8 @@ class CommandRecord:
                     or any(
                         type(v) not in (str, int, bool)
                         and not (
-                            record.readback_attribute == "climatisationTargetTemperatureC"
+                            record.readback_attribute
+                            == "climatisationTargetTemperatureC"
                             and type(v) is float
                             and math.isfinite(v)
                             and 15 <= v <= 30

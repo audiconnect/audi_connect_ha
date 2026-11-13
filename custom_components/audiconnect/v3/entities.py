@@ -348,9 +348,8 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
         }
 
     def _can_set_temperature(self):
-        return (
-            self.reported_target_temperature is not None
-            and self._enabled("set_settings")
+        return self.reported_target_temperature is not None and self._enabled(
+            "set_settings"
         )
 
     async def async_set_temperature(self, **kwargs):
