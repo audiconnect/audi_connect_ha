@@ -94,17 +94,24 @@ def _v2_additional_get():
     }
 
 
-def attribute_reading(vehicle, ident):
-    """Use the native trip snapshot owner rather than duplicating trip state."""
-    if ident in (
+_NATIVE_TRIP_ATTRIBUTES = frozenset(
+    (
         "shortterm_current",
         "shortterm_reset",
         "longterm_current",
         "longterm_reset",
-    ):
+    )
+)
+
+
+def attribute_reading(vehicle, ident):
+    """Use the native trip snapshot owner rather than duplicating trip state."""
+    if ident in _NATIVE_TRIP_ATTRIBUTES:
         trip = vehicle.trips.get(ident, {})
         stamp = trip.get("timestamp")
-        if stamp:
+        from .attribute_runtime import _capture_in_utc
+
+        if _capture_in_utc(stamp) is not None:
             return {
                 "value": stamp,
                 "captured": stamp,
@@ -120,12 +127,7 @@ def attribute_status(vehicle, profile, definition, now):
     evidence = profile.attribute_evidence.get(ident, {})
     reading = attribute_reading(vehicle, ident)
     legacy = legacy_variant_for(ident) if vehicle.context.auth == "legacy" else None
-    native_trip = ident in (
-        "shortterm_current",
-        "shortterm_reset",
-        "longterm_current",
-        "longterm_reset",
-    )
+    native_trip = ident in _NATIVE_TRIP_ATTRIBUTES
     known = bool(definition["paths"] or legacy or native_trip or ident == "model")
     fallback = (
         "not_tested"
