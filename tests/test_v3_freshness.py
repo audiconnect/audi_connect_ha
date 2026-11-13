@@ -48,6 +48,7 @@ def test_newest_capture_ignores_derived_summary_and_invalid_readings():
     from custom_components.audiconnect.v3.freshness import (
         newest_vehicle_capture,
         newest_vehicle_reading,
+        vehicle_capture_summary,
     )
 
     now = datetime.now(UTC)
@@ -65,6 +66,10 @@ def test_newest_capture_ignores_derived_summary_and_invalid_readings():
     )
     assert newest_vehicle_capture(car, now) == older
     assert newest_vehicle_reading(car, now)[1] == "stateOfCharge"
+    summary = vehicle_capture_summary(car, now)
+    assert summary["source_attribute"] == "stateOfCharge"
+    assert summary["vehicle_age_minutes"] == 120
+    assert summary["vehicle_last_update"] == older.isoformat()
     car.readings.pop("stateOfCharge")
     assert newest_vehicle_capture(car, now) is None
 
