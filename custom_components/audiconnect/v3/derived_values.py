@@ -229,8 +229,14 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 "partial_or_unknown_component_state",
             )
 
+        def record_component(ident, value):
+            if value is None:
+                invalidate_missing(ident)
+            else:
+                record(ident, value, captured, "access", path)
+
         trunk_open = trunk_unlocked = None
-        seen_doors, seen_windows = set(), set()
+        seen_doors = set()
         for row in (
             block.get("doors", []) if isinstance(block.get("doors"), list) else []
         ):
@@ -248,36 +254,17 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 None if duplicate else component_state(states, "unlocked", "locked")
             )
             if name in names:
-                record(names[name] + "_door_open", open_state, captured, "access", path)
+                record_component(names[name] + "_door_open", open_state)
                 opened[name] = open_state
                 unlocked[name] = lock_state
             elif name == "trunk":
-                record("trunk_open", open_state, captured, "access", path)
-                record("trunk_unlocked", lock_state, captured, "access", path)
+                record_component("trunk_open", open_state)
+                record_component("trunk_unlocked", lock_state)
                 trunk_open, trunk_unlocked = open_state, lock_state
             elif name == "bonnet":
-                record("hood_open", open_state, captured, "access", path)
-        if isinstance(block.get("doors"), list):
-            for name, key in names.items():
-                if opened.get(name) is None and (
-                    name in seen_doors or key + "_door_open" not in car.readings
-                ):
-                    invalidate_missing(key + "_door_open")
-            if trunk_open is None and (
-                "trunk" in seen_doors or "trunk_open" not in car.readings
-            ):
-                invalidate_missing("trunk_open")
-            if trunk_unlocked is None and (
-                "trunk" in seen_doors or "trunk_unlocked" not in car.readings
-            ):
-                invalidate_missing("trunk_unlocked")
-            if "bonnet" in seen_doors and not any(
-                row.get("name") == "bonnet"
-                and component_state(row.get("status"), "open", "closed") is not None
-                for row in block["doors"]
-                if isinstance(row, dict)
-            ):
-                invalidate_missing("hood_open")
+                record_component("hood_open", open_state)
+        # Omitted components retain their prior sample. Explicit unknown or
+        # contradictory components invalidate only their own sample.
         # Positive is conclusive even if other components are not present.
         # Negative requires complete, known evidence; no fabricated safe state.
         for key, values in (("any_door_open", opened), ("any_door_unlocked", unlocked)):
@@ -312,6 +299,7 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 invalidate_missing("doors_trunk_status")
         elif isinstance(block.get("doors"), list):
             invalidate_missing("doors_trunk_status")
+        seen_windows = set()
         for row in (
             block.get("windows", []) if isinstance(block.get("windows"), list) else []
         ):
@@ -326,21 +314,11 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             key = (
                 names[name] + "_window_open"
                 if name in names
-                else {"sunRoof": "sun_roof", "roofCover": "roof_cover"}.get(name)
+                else {"sunRoof": "sun_roof", "roofCover": "roof_cover"}[name]
             )
-            if key:
-                if state is None:
-                    invalidate_missing(key)
-                else:
-                    record(key, state, captured, "access", path)
-                if name in names:
-                    windows[name] = state
-        if isinstance(block.get("windows"), list):
-            for name, key in names.items():
-                if windows.get(name) is None and (
-                    name in seen_windows or key + "_window_open" not in car.readings
-                ):
-                    invalidate_missing(key + "_window_open")
+            record_component(key, state)
+            if name in names:
+                windows[name] = state
         value = (
             True
             if True in windows.values()

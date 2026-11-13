@@ -44,7 +44,9 @@ def test_sleeping_binary_display_retains_actual_last_known(ident, value, expecte
     vehicle = car()
     row = reading(value, datetime.now(UTC) - timedelta(hours=7))
     vehicle.readings[ident] = row
-    entity = V3ReadOnlyBinarySensor(NS(), vehicle, ATTRIBUTES[ident])
+    entity = V3ReadOnlyBinarySensor(
+        NS(async_add_listener=lambda cb: None), vehicle, ATTRIBUTES[ident]
+    )
     assert entity.available
     assert entity.is_on is expected
     assert entity.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
@@ -66,7 +68,9 @@ def test_charging_display_policy_is_not_command_policy(ident, value, available):
     vehicle = car()
     row = reading(value, datetime.now(UTC) - timedelta(hours=7))
     vehicle.readings[ident] = row
-    entity = V3ReadOnlySensor(NS(), vehicle, ATTRIBUTES[ident])
+    entity = V3ReadOnlySensor(
+        NS(async_add_listener=lambda cb: None), vehicle, ATTRIBUTES[ident]
+    )
     assert entity.available is available
     assert not _reading_available(row)
 
@@ -82,9 +86,16 @@ def test_partial_access_does_not_discard_omitted_component_or_claim_safe():
         observe_read_only(
             vehicle,
             profile,
-            {"access": {"accessStatus": {"value": {
-                "carCapturedTimestamp": now.isoformat(), "doors": doors
-            }}}},
+            {
+                "access": {
+                    "accessStatus": {
+                        "value": {
+                            "carCapturedTimestamp": now.isoformat(),
+                            "doors": doors,
+                        }
+                    }
+                }
+            },
             now,
         )
 
@@ -103,7 +114,9 @@ def test_data_age_uses_capture_not_cloud_observation_or_invalid_future():
     vehicle.readings["stateOfCharge"] = reading(80, old)
     vehicle.readings["chargingPower"] = reading(1, now + timedelta(hours=1))
     assert newest_vehicle_capture(vehicle, now) == old
-    sensor = V3StatusSensor(NS(), vehicle, "age")
+    sensor = V3StatusSensor(
+        NS(async_add_listener=lambda cb: None), vehicle, "age"
+    )
     assert sensor.native_value >= 420
     vehicle.readings["chargingState"] = reading("off", now)
     assert sensor.native_value == 0
