@@ -283,3 +283,37 @@ def test_missing_entity_reason_uses_native_sources_without_private_values():
         "reason": "negative_duration",
     }
     assert reason("sensor.remaining_climatisation_time") == "negative_duration"
+
+
+def test_alias_projection_uses_same_family_preference_as_observation_writer():
+    from datetime import UTC, datetime, timedelta
+
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = NS(
+        readings={
+            "TOTAL_RANGE": {
+                "family": "eu_data_act",
+                "value": 700,
+                "captured": now.isoformat(),
+            },
+            "measuredTotalRange": {
+                "family": "cariad",
+                "value": 690,
+                "captured": (now - timedelta(minutes=10)).isoformat(),
+            },
+        }
+    )
+    descriptor = ATTRIBUTES["TOTAL_RANGE"]
+    assert projection_reading(car, descriptor, registry=registry, now=now)[0] == (
+        "measuredTotalRange"
+    )
+    car.readings["measuredTotalRange"]["captured"] = (
+        now - timedelta(hours=3)
+    ).isoformat()
+    assert projection_reading(car, descriptor, registry=registry, now=now)[0] == (
+        "TOTAL_RANGE"
+    )

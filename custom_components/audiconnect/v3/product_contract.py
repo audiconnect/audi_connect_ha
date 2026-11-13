@@ -92,9 +92,10 @@ def projection_descriptor(attribute):
     return canonical if key in product_inventory()["entities"] else None
 
 
-def projection_reading(vehicle, attribute):
+def projection_reading(vehicle, attribute, *, registry=None, now=None):
     """Resolve only declared same-semantic historical aliases, never by order."""
-    from .attribute_runtime import _capture_in_utc
+    from datetime import UTC, datetime
+    from .attribute_runtime import _capture_in_utc, _observation_rank
 
     ident = attribute["id"]
     canonical = ALIAS_OF.get(ident, ident)
@@ -134,7 +135,24 @@ def projection_reading(vehicle, attribute):
         stamp = _capture_in_utc(item[1].get("captured"))
         return (stamp.timestamp() if stamp is not None else -1, item[0] == canonical)
 
-    return max(valid, key=score)
+    # Resolve historical aliases within each family by capture first, then
+    # apply the same family ranking as the observation writer. An explicit
+    # invalid newer sample must still invalidate its own family.
+    by_family = {}
+    for item in valid:
+        family = item[1].get("family", "")
+        previous = by_family.get(family)
+        if previous is None or score(item) > score(previous):
+            by_family[family] = item
+    reference = now or datetime.now(UTC)
+    return max(
+        by_family.values(),
+        key=lambda item: (
+            _observation_rank(item[1], registry, reference),
+            item[0] == canonical,
+            item[0],
+        ),
+    )
 
 
 def entity_key(unique_id, entry_id):

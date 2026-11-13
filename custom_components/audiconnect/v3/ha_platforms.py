@@ -191,7 +191,9 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     descriptor = projection_descriptor(descriptor)
                     if descriptor is None:
                         continue
-                    _source, reading = projection_reading(car, descriptor)
+                    _source, reading = projection_reading(
+                        car, descriptor, registry=getattr(profile, "registry", None)
+                    )
                     if (
                         platform == "sensor"
                         and descriptor["entity_key"] == "car_type"
