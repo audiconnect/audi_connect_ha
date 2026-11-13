@@ -961,6 +961,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "charging_type",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "charging",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -983,6 +984,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "max_charge_current",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "charging",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1027,6 +1029,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "charging_complete_time",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "charging",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1093,6 +1096,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "preheater_duration",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "climatisation",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1104,6 +1108,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "preheater_remaining",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "climatisation",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1115,6 +1120,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "active_charging_profile_target_soc",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "chargingProfiles",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1126,6 +1132,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "active_charging_profile_name",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "chargingProfiles",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1137,6 +1144,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "active_charging_profile_min_soc",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "chargingProfiles",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1148,6 +1156,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "preferred_charging_time_start",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "chargingProfiles",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1159,6 +1168,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "preferred_charging_time_end",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "chargingProfiles",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
@@ -1181,6 +1191,7 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "entity_key": "next_climatisation_timer_local",
       "platform": "sensor",
       "paths": [],
+      "derived_job": "climatisationTimers",
       "source": "v2_entity_reference",
       "sensitivity": "vehicle_state"
     },
