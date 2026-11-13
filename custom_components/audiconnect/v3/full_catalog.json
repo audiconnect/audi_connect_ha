@@ -16,6 +16,12 @@
       "notes": "Reviewed read-only identity transport; existing inventory lifecycle owns requests.",
       "executor": "graphql_v1"
     },
+    "eu_data_act": {
+      "auth": "eu_data_act",
+      "priority": 30,
+      "host_owner": "authorized_data_act_portal_session",
+      "notes": "Read-only dataset provider; no control or generic request executor."
+    },
     "mbb": {
       "auth": "legacy",
       "priority": 20,

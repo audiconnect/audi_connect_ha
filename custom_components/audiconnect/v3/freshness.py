@@ -61,6 +61,7 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
             else "stale"
         ),
         "verification": row.get("status", "unknown"),
+        **({"delivered_at": row["delivered_at"]} if row.get("delivered_at") else {}),
     }
 
 

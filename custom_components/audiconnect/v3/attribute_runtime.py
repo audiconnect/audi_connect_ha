@@ -149,6 +149,7 @@ def record_observation(
     fresh,
     operation,
     persist_evidence=True,
+    delivered_at=None,
 ):
     """Commit one normalized observation; persist only reviewed mapping evidence."""
     if not _accept_family_observation(
@@ -171,6 +172,8 @@ def record_observation(
         "family": family,
         "operation": operation,
     }
+    if delivered_at is not None:
+        vehicle.readings[ident]["delivered_at"] = delivered_at
     if ident == "climatisationState":
         remember_climate(profile, vehicle.readings[ident], observed_at)
     if persist_evidence:
@@ -313,3 +316,36 @@ def observe_read_only(
     observe_structured(vehicle, payload, observed_at, _accept_observation)
     vehicle.v2_initial_discovery_completed = True
     return {"mapped": mapped, "fresh": fresh_count}
+
+
+def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
+    """Map only proven informational fields; never alter command evidence."""
+    from .data_act import soc_observation
+
+    if (
+        not isinstance(payload, dict)
+        or not isinstance(payload.get("vin"), str)
+        or payload["vin"].upper() != vehicle.vin.upper()
+        or not isinstance(payload.get("Data"), list)
+        or "stateOfCharge" in getattr(profile, "attribute_disabled", ())
+    ):
+        return False
+    sample = soc_observation(payload, observed_at)
+    if sample is None:
+        return False
+    # The existing native route remains bound. No Data Act profile activation.
+    return record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        sample["value"],
+        sample["captured"],
+        observed_at,
+        sample["path"],
+        "charging",
+        "eu_data_act",
+        fresh=timestamp_is_fresh(sample["captured"], observed_at),
+        operation="eu_data_act.dataset",
+        persist_evidence=False,
+        delivered_at=delivered_at,
+    )

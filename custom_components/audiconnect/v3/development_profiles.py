@@ -123,8 +123,8 @@ def _validated_route(
             "Operation ID must match its capability and aspect"
         )
     family = data.get("family")
-    if family not in known_families:
-        raise DevelopmentProfileError("Unknown API family")
+    if family not in known_families or family == "eu_data_act":
+        raise DevelopmentProfileError("Unknown or non-executable API family")
     method = data.get("method")
     if (aspect == "status" and method != "GET") or (
         aspect != "status" and method not in ("POST", "PUT")

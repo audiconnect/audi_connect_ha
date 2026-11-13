@@ -119,3 +119,7 @@ Avoid blindly preferring BFF if its measurement timestamp is older than the Data
 - [One-off versus continuous trip reconstruction](https://github.com/jmap42591/raval-trips)
 
 Continue with [04 — Freshness and availability](04-FRESHNESS-AND-AVAILABILITY.md).
+
+## Narrow implementation candidate
+
+The optional dataset reader uses an independently authorized portal session; it does not create consent or subscriptions. One metadata lookup, one listing and at most one new ZIP per read. No automatic retries or raw archive retention. The first mapping is current SOC only, using exact public field IDs; other SOC-at-start, mileage (multiple units/identities), target settings and command state are intentionally excluded. The existing Status observation writer and HA freshness contract own publication. An isolated authorized session and real Q8 dataset are still required before enabling the provider. The consumer portal behavior and sample field identities were compared against MIT-licensed community references above; no external client implementation is imported.
