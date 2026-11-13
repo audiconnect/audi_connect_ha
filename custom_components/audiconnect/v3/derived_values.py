@@ -424,18 +424,6 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
             "oilLevel",
             "numeric_oil_level_no_binary_warning",
         )
-    # The preference block may lack a timestamp. Borrow ONLY the sibling
-    # charging status clock from this response, matching the historical source.
-    mode = read_json_path(payload, "charging.chargeMode.value")
-    charge = read_json_path(payload, "charging.chargingStatus.value")
-    if isinstance(mode, dict) and isinstance(charge, dict):
-        captured = mode.get("carCapturedTimestamp") or charge.get(
-            "carCapturedTimestamp"
-        )
-        for key in ("preferredChargeMode", "availableChargeModes"):
-            record(
-                key, mode.get(key), captured, "charging", "charging.chargeMode.value"
-            )
     path = "chargingProfiles.chargingProfilesStatus.value"
     block = read_json_path(payload, path)
     if isinstance(block, dict) and isinstance(block.get("profiles"), list):
