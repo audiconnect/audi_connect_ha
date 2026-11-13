@@ -331,7 +331,9 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
             parts = [field["path"].split(".") for field in fields]
             value_schema = any(
                 any(part in ("value", "value[]") for part in path)
-                and not any(part in ("error", "requests", "requests[]") for part in path)
+                and not any(
+                    part in ("error", "requests", "requests[]") for part in path
+                )
                 and field.get("type") not in ("object", "null")
                 and path[-1] not in ("carCapturedTimestamp", "timestamp", "timeInCar")
                 for field, path in zip(fields, parts, strict=True)
@@ -344,7 +346,9 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
                 else "error_only"
                 if any("error" in path for path in parts)
                 else "request_only"
-                if any("requests" in path for path in parts)
+                if any(
+                    "requests" in path or "requests[]" in path for path in parts
+                )
                 else "no_value"
                 if fields
                 else "not_captured"
