@@ -234,3 +234,49 @@ async def test_inventory_never_falls_back_for_valid_vin_or_rate_limit(status):
             await transport.discover_vehicles()
     assert transport.request.await_count == 1
     assert not transport.last_inventory_fallback_reason
+
+
+@pytest.mark.asyncio
+async def test_garage_fallback_projects_identity_without_revoking_or_exposing_other_vins():
+    from unittest.mock import AsyncMock, Mock
+    from custom_components.audiconnect.v3.engine import V3Engine
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    now = datetime.now(UTC)
+    transport = SimpleNamespace(
+        discover_vehicles=AsyncMock(
+            return_value=[{"vin": VIN, "model": "Audi Q8", "nickname": "private"}]
+        ),
+        last_inventory_operation=GARAGE_OPERATION,
+        last_inventory_complete=False,
+        last_inventory_metadata=V3Response(200, None, now),
+        last_inventory_fallback_reason="graphql_inventory_rejected",
+        discover_vehicle_images=AsyncMock(),
+        remaining_calls=50,
+    )
+
+    async def load_profiles(registry, contexts):
+        return {key: DevelopmentProfile(registry, ctx) for key, ctx in contexts.items()}
+
+    engine = V3Engine(
+        None,
+        SimpleNamespace(entry_id="entry", options={}, data={}),
+        registry,
+        auth=SimpleNamespace(uses_auth0=True, country="DE"),
+        transport=transport,
+        storage=SimpleNamespace(async_load=load_profiles, async_save=AsyncMock()),
+    )
+    other = V3Vehicle(OTHER, "Audi", "", "", "DE")
+    engine.vehicles[OTHER.lower()] = other
+    engine._api_record = Mock()
+    await engine.discover()
+    car = engine.vehicles[VIN.lower()]
+    assert car.model == "Audi Q8" and car.identity_operation == GARAGE_OPERATION
+    assert other.inventory_present and not other.inventory_misses
+    args = engine._api_record.call_args.args
+    assert args[1:4] == (GARAGE_OPERATION, "cariad", "GET")
+    assert "private" not in str(args[4].data) and OTHER not in str(args[4].data)
+    transport.discover_vehicle_images.assert_not_awaited()

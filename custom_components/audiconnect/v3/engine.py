@@ -333,6 +333,10 @@ class V3Engine:
                     metadata.remaining_calls,
                     metadata.request,
                 )
+                if garage:
+                    from .transport import selected_garage_response
+
+                    response = selected_garage_response(response, known[vin].vin)
                 self._api_record(
                     self.profiles[vin],
                     inventory_operation,
