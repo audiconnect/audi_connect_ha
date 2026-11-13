@@ -54,7 +54,9 @@ def redaction_context(entry, auth):
         settings.get(key) for key in (CONF_USERNAME, CONF_PASSWORD, CONF_REFRESH_TOKEN)
     ]
     options = getattr(entry, "options", {})
-    known.extend(options.get(key) for key in ("v3_data_act_email", "v3_data_act_password"))
+    known.extend(
+        options.get(key) for key in ("v3_data_act_email", "v3_data_act_password")
+    )
     service = getattr(auth, "service", None)
     for family in _TOKEN_SLOTS:
         token = _token_record(service, family)

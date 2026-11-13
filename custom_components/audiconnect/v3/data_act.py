@@ -13,7 +13,7 @@ import io
 import json
 import re
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -85,6 +85,18 @@ def decode_dataset(raw: bytes, vin: str) -> dict[str, Any]:
     return payload
 
 
+async def read_bounded(response, limit):
+    """Read complete bounded bodies, even when the server chunks the response."""
+    if response.content_length is not None and response.content_length > limit:
+        raise DataActUnavailable("Data Act response too large")
+    chunks = bytearray()
+    async for chunk in response.content.iter_chunked(65536):
+        chunks.extend(chunk)
+        if len(chunks) > limit:
+            raise DataActUnavailable("Data Act response too large")
+    return bytes(chunks)
+
+
 class DataActClient:
     """Read existing subscriptions with an isolated, already authorized session."""
 
@@ -116,25 +128,18 @@ class DataActClient:
                         response.status, response.headers, datetime.now(UTC)
                     )
                     if response.status == 401:
-                        self.authorization_required = self._login is None or self._renewed
+                        self.authorization_required = (
+                            self._login is None or self._renewed
+                        )
                         self._logged_in = False
+                        self.quota.retry_at = datetime.now(UTC) + timedelta(minutes=30)
                     elif response.status == 200:
                         self._renewed = False
                     if response.status == 404 and allow_empty:
                         return None
                     if response.status != 200:
                         raise DataActUnavailable("Data Act read unavailable")
-                    if (
-                        response.content_length is not None
-                        and response.content_length > limit
-                    ):
-                        raise DataActUnavailable("Data Act response too large")
-                    chunks = bytearray()
-                    async for chunk in response.content.iter_chunked(65536):
-                        chunks.extend(chunk)
-                        if len(chunks) > limit:
-                            raise DataActUnavailable("Data Act response too large")
-                    return bytes(chunks)
+                    return await read_bounded(response, limit)
             except (ClientError, OSError, TimeoutError, RuntimeError) as err:
                 if isinstance(err, DataActUnavailable):
                     raise

@@ -825,13 +825,18 @@ class OptionsFlowHandler(OptionsFlow):
             user_input = {**self.config_entry.options, **submitted}
             user_input.setdefault("runtime_version", "v2")
             if user_input["runtime_version"] != "v3_climate":
-                user_input["v3_data_act_enabled"] = False
+                user_input.pop("v3_data_act_enabled", None)
             if user_input.get("v3_data_act_enabled", False):
                 # Blank password retains the current portal credential. It is
                 # never sent back as a default to the browser.
                 if not submitted.get("v3_data_act_password"):
-                    user_input["v3_data_act_password"] = self.config_entry.options.get(
-                        "v3_data_act_password", ""
+                    same_email = user_input.get("v3_data_act_email", "") == (
+                        self.config_entry.options.get("v3_data_act_email", "")
+                    )
+                    user_input["v3_data_act_password"] = (
+                        self.config_entry.options.get("v3_data_act_password", "")
+                        if same_email
+                        else ""
                     )
             else:
                 user_input.pop("v3_data_act_email", None)
@@ -921,11 +926,14 @@ class OptionsFlowHandler(OptionsFlow):
             schema[vol.Optional("edit_local_dealer", default=False)] = bool
             schema[
                 vol.Optional(
-                    "v3_data_act_enabled", default=values.get("v3_data_act_enabled", False)
+                    "v3_data_act_enabled",
+                    default=values.get("v3_data_act_enabled", False),
                 )
             ] = bool
             schema[
-                vol.Optional("v3_data_act_email", default=values.get("v3_data_act_email", ""))
+                vol.Optional(
+                    "v3_data_act_email", default=values.get("v3_data_act_email", "")
+                )
             ] = TextSelector()
             schema[vol.Optional("v3_data_act_password", default="")] = TextSelector(
                 TextSelectorConfig(type=TextSelectorType.PASSWORD)

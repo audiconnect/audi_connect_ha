@@ -16,7 +16,12 @@ from urllib.parse import urlencode, urljoin, urlsplit, parse_qs
 from aiohttp import ClientError
 from bs4 import BeautifulSoup
 
-from .data_act import DataActAuthorizationRequired, DataActUnavailable, PORTAL
+from .data_act import (
+    DataActAuthorizationRequired,
+    DataActUnavailable,
+    PORTAL,
+    read_bounded,
+)
 
 IDENTITY = "https://identity.vwgroup.io"
 CLIENT_ID = "cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com"
@@ -30,7 +35,8 @@ def _host(url):
         or parsed.username
         or parsed.password
         or parsed.port not in (None, 443)
-        or parsed.hostname not in (
+        or parsed.hostname
+        not in (
             "identity.vwgroup.io",
             "eu-data-act.drivesomethinggreater.com",
         )
@@ -69,7 +75,9 @@ def _form(html, url, step):
         or not urlsplit(target).path.endswith("/login/" + step)
         or not all(fields.get(key) for key in ("hmac", "_csrf"))
     ):
-        raise DataActAuthorizationRequired("Data Act interactive authorization required")
+        raise DataActAuthorizationRequired(
+            "Data Act interactive authorization required"
+        )
     return target, fields
 
 
@@ -85,9 +93,18 @@ class DataActPortalLogin:
     async def _request(self, method, url, quota, data=None, referer=None):
         for _ in range(10):
             host = _host(url)
-            if method == "POST" and host != "identity.vwgroup.io":
-                raise DataActUnavailable("Unexpected credential destination")
             parsed = urlsplit(url)
+            if method == "POST" and (
+                host != "identity.vwgroup.io"
+                or not parsed.path.startswith("/signin-service/")
+                or not parsed.path.endswith(("/login/identifier", "/login/authenticate"))
+            ):
+                raise DataActAuthorizationRequired("Unexpected credential destination")
+            if host == "eu-data-act.drivesomethinggreater.com" and parsed.path not in (
+                "/login",
+                CALLBACK,
+            ):
+                raise DataActAuthorizationRequired("Unexpected portal callback")
             if host == "eu-data-act.drivesomethinggreater.com" and (
                 parsed.path == "/login"
                 and parse_qs(parsed.query).get("state") != [self.state]
@@ -121,9 +138,7 @@ class DataActPortalLogin:
                     referer, url = url, urljoin(url, location)
                     method, data = "GET", None
                     continue
-                raw = await response.content.read(1_000_001)
-                if len(raw) > 1_000_000:
-                    raise DataActUnavailable("Data Act sign-in page too large")
+                raw = await read_bounded(response, 1_000_000)
                 return url, raw.decode("utf-8", errors="replace")
         raise DataActUnavailable("Data Act redirect limit")
 
