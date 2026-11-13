@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from homeassistant.core import callback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorDeviceClass,
@@ -565,15 +567,25 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
             return engine.discovery_progress(self.vehicle, profile)
         return user_progress(self.vehicle, profile, engine.auth)
 
-    def _vehicle_age(self):
-        from .freshness import capture_coverage
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self.kind in ("age", "freshness"):
+            self.async_on_remove(
+                async_track_time_interval(
+                    self.hass, self._async_clock_tick, timedelta(minutes=5)
+                )
+            )
 
-        ages = [
-            group["newest_minutes"]
-            for group in capture_coverage(self.vehicle).values()
-            if group["newest_minutes"] is not None
-        ]
-        return min(ages, default=None)
+    @callback
+    def _async_clock_tick(self, _now: datetime) -> None:
+        self.async_write_ha_state()
+
+    def _vehicle_age(self):
+        from .freshness import newest_vehicle_capture, capture_age_minutes
+
+        stamp = newest_vehicle_capture(self.vehicle)
+        age = capture_age_minutes(stamp.isoformat()) if stamp else None
+        return int(age) if age is not None else None
 
     def _freshness(self):
         from .freshness import capture_coverage
@@ -854,12 +866,14 @@ def _reading_available(
     *,
     allow_last_known: bool = False,
 ) -> bool:
-    if not reading or reading.get("value") is None:
+    if (
+        not reading
+        or reading.get("value") is None
+        or reading.get("status") == "invalid_value"
+    ):
         return False
     if allow_last_known:
-        # V2 compatibility: retain passive vehicle readings from a sleeping
-        # car. Their *actual* capture age is exposed separately. Safety-critical
-        # binary statuses and controls still require timely vehicle evidence.
+        # Display only. Command projections keep their independent freshness gate.
         return reading.get("status") in ("verified", "readable_but_stale")
     captured_age = _reading_age_minutes(reading.get("captured"))
     if captured_age is not None:
@@ -1207,6 +1221,9 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
         contract = attribute.get("contract") or binary_contract_for(
             attribute["entity_key"]
         )
+        self._allow_last_known = (
+            not attribute.get("local") and contract.get("display_last_known") is True
+        )
         self._attr_name = (
             contract.get("name")
             if attribute.get("local")
@@ -1248,7 +1265,7 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
                 and age is not None
                 and age <= 60
             )
-        return _reading_available(reading)
+        return _reading_available(reading, allow_last_known=self._allow_last_known)
 
     @property
     def is_on(self) -> bool | None:
@@ -1277,10 +1294,21 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         reading = self.vehicle.readings.get(self.attribute["id"]) or {}
+        age = _reading_age_minutes(reading.get("captured"))
         return {
             "v3_capability": self.attribute["capability"],
             "response_mapping": reading.get("path"),
             "vehicle_captured": reading.get("captured"),
+            "age_minutes": age,
+            "vehicle_freshness": (
+                "unknown"
+                if age is None
+                else "fresh"
+                if age <= 60
+                else "stale_last_known"
+                if self._allow_last_known
+                else "stale"
+            ),
             "verification": reading.get("status", "unknown"),
         }
 

@@ -1,0 +1,109 @@
+"""Sleeping-car display cache stays separate from current command evidence."""
+
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace as NS
+
+import pytest
+
+from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+from custom_components.audiconnect.v3.entities import (
+    V3ReadOnlyBinarySensor,
+    V3ReadOnlySensor,
+    V3StatusSensor,
+    _reading_available,
+)
+from custom_components.audiconnect.v3.freshness import newest_vehicle_capture
+from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+
+def car():
+    return V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE")
+
+
+def reading(value, stamp):
+    return {
+        "value": value,
+        "captured": stamp.isoformat(),
+        "observed": datetime.now(UTC).isoformat(),
+        "status": "readable_but_stale",
+        "family": "cariad",
+    }
+
+
+@pytest.mark.parametrize(
+    "ident,value,expected",
+    [
+        ("left_front_door_open", False, False),
+        ("right_rear_window_open", True, True),
+        ("plugState", "connected", True),
+        ("plugLockState", "locked", False),
+    ],
+)
+def test_sleeping_binary_display_retains_actual_last_known(ident, value, expected):
+    vehicle = car()
+    row = reading(value, datetime.now(UTC) - timedelta(hours=7))
+    vehicle.readings[ident] = row
+    entity = V3ReadOnlyBinarySensor(NS(), vehicle, ATTRIBUTES[ident])
+    assert entity.available
+    assert entity.is_on is expected
+    assert entity.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
+    assert not _reading_available(row)
+    row["status"] = "invalid_value"
+    assert not entity.available
+
+
+@pytest.mark.parametrize(
+    "ident,value,available",
+    [
+        ("chargingState", "charging", True),
+        ("chargingPower", 7.2, False),
+        ("remainingChargingTime", 30, False),
+        ("stateOfCharge", 80, True),
+    ],
+)
+def test_charging_display_policy_is_not_command_policy(ident, value, available):
+    vehicle = car()
+    row = reading(value, datetime.now(UTC) - timedelta(hours=7))
+    vehicle.readings[ident] = row
+    entity = V3ReadOnlySensor(NS(), vehicle, ATTRIBUTES[ident])
+    assert entity.available is available
+    assert not _reading_available(row)
+
+
+def test_partial_access_does_not_discard_omitted_component_or_claim_safe():
+    vehicle = car()
+    profile = NS(attribute_routes={}, attribute_evidence={})
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=7)
+    vehicle.readings["left_front_door_open"] = reading(False, old)
+
+    def observe(doors):
+        observe_read_only(
+            vehicle,
+            profile,
+            {"access": {"accessStatus": {"value": {
+                "carCapturedTimestamp": now.isoformat(), "doors": doors
+            }}}},
+            now,
+        )
+
+    observe([{"name": "frontRight", "status": ["closed", "locked"]}])
+    assert vehicle.readings["left_front_door_open"]["captured"] == old.isoformat()
+    assert vehicle.readings["left_front_door_open"]["value"] is False
+    assert vehicle.readings["any_door_open"]["value"] is None
+    observe([{"name": "frontLeft", "status": ["unknown"]}])
+    assert vehicle.readings["left_front_door_open"]["status"] == "invalid_value"
+
+
+def test_data_age_uses_capture_not_cloud_observation_or_invalid_future():
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=7, seconds=10)
+    vehicle.readings["stateOfCharge"] = reading(80, old)
+    vehicle.readings["chargingPower"] = reading(1, now + timedelta(hours=1))
+    assert newest_vehicle_capture(vehicle, now) == old
+    sensor = V3StatusSensor(NS(), vehicle, "age")
+    assert sensor.native_value >= 420
+    vehicle.readings["chargingState"] = reading("off", now)
+    assert sensor.native_value == 0

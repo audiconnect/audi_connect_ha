@@ -6,13 +6,15 @@
       "name": "Charging plug",
       "device_class": "plug",
       "icon": "mdi:ev-plug-type2",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "plug_lock_state": {
       "name": "Charging plug lock",
       "device_class": "lock",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "glass_surface_heating": {
       "name": "Window heating",
@@ -24,13 +26,15 @@
       "name": "Sun roof",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "roof_cover": {
       "name": "Roof cover",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "parking_light": {
       "name": "Vehicle lights",
@@ -42,85 +46,99 @@
       "name": "Windows",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "any_door_unlocked": {
       "name": "Door locks",
       "device_class": "lock",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "any_door_open": {
       "name": "Doors",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "trunk_unlocked": {
       "name": "Trunk lock",
       "device_class": "lock",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "trunk_open": {
       "name": "Trunk",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "hood_open": {
       "name": "Hood",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "left_front_door_open": {
       "name": "Left front door",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "right_front_door_open": {
       "name": "Right front door",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "left_rear_door_open": {
       "name": "Left rear door",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "right_rear_door_open": {
       "name": "Right rear door",
       "device_class": "door",
       "icon": "mdi:car-door",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "left_front_window_open": {
       "name": "Left front window",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "right_front_window_open": {
       "name": "Right front window",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "left_rear_window_open": {
       "name": "Left rear window",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "right_rear_window_open": {
       "name": "Right rear window",
       "device_class": "window",
       "icon": null,
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "braking_status": {
       "name": "Braking status",
@@ -132,7 +150,8 @@
       "name": "Oil level warning",
       "device_class": "problem",
       "icon": "mdi:oil",
-      "category": null
+      "category": null,
+      "display_last_known": true
     },
     "is_moving": {
       "name": "Vehicle moving",

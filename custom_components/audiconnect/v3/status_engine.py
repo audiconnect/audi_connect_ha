@@ -645,20 +645,12 @@ class StatusEngine:
         for car in self.vehicles.values():
             if not car.inventory_present:
                 continue
-            captures = [
-                x.get("captured")
-                for x in car.readings.values()
-                if isinstance(x.get("captured"), str)
-            ]
-            from .attribute_runtime import _capture_in_utc
+            from .freshness import newest_vehicle_capture
 
-            valid = [x for x in (_capture_in_utc(v) for v in captures) if x is not None]
+            newest = newest_vehicle_capture(car)
+            captured = newest.isoformat() if newest else None
             for ident, value, stamp in (
-                (
-                    "last_update_time",
-                    max(valid).isoformat() if valid else None,
-                    max(valid).isoformat() if valid else None,
-                ),
+                ("last_update_time", captured, captured),
                 ("model", car.model or None, None),
             ):
                 if value is not None:

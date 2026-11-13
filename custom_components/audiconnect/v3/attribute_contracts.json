@@ -99,7 +99,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:car-light-high"
     },
     "door_lock_status": {
@@ -109,7 +109,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:car-door-lock"
     },
     "car_type": {
@@ -208,7 +208,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:car-battery"
     },
     "charging_mode": {
@@ -218,7 +218,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:calendar-clock"
     },
     "charging_power": {
@@ -249,7 +249,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:ev-station"
     },
     "target_state_of_charge": {
@@ -280,7 +280,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:power-plug"
     },
     "plugled_color": {
@@ -290,7 +290,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:ev-plug-type2"
     },
     "climatisation_state": {
@@ -516,7 +516,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:ev-station"
     },
     "energy_flow": {
@@ -576,7 +576,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:ev-plug-type2"
     },
     "doors_trunk_status": {
@@ -586,7 +586,7 @@
       "state_class": null,
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:car-door"
     },
     "outdoor_temperature": {
@@ -596,7 +596,7 @@
       "state_class": "measurement",
       "precision": null,
       "category": null,
-      "display_last_known": false,
+      "display_last_known": true,
       "icon": "mdi:temperature-celsius"
     },
     "park_time": {

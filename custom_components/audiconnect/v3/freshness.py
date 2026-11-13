@@ -43,6 +43,19 @@ def capture_age_minutes(captured: Any, now: datetime | None = None) -> float | N
     return max(0.0, delta / 60) if delta >= -300 else None
 
 
+def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | None:
+    """Newest real, valid vehicle measurement; never cloud receipt time."""
+    reference = now or datetime.now(UTC)
+    stamps = []
+    for ident, row in vehicle.readings.items():
+        if ident == "model" or row.get("status") == "invalid_value":
+            continue
+        captured = row.get("captured")
+        if capture_age_minutes(captured, reference) is not None:
+            stamps.append(datetime.fromisoformat(captured.replace("Z", "+00:00")))
+    return max(stamps, default=None)
+
+
 def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
     """Summarize observed job captures, not unobserved capability support.
 
@@ -50,7 +63,9 @@ def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
     determines its conservative age. Invalid observations remain visible.
     """
     groups = {}
-    for row in vehicle.readings.values():
+    for ident, row in vehicle.readings.items():
+        if ident in ("last_update_time", "model"):
+            continue
         job = row.get("job") or "unclassified"
         group = groups.setdefault(
             job,
