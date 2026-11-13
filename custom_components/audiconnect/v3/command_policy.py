@@ -10,7 +10,9 @@ def charge_mode_fallback_candidate(car):
     options = car.readings.get("availableChargeModes", {})
     preferred = car.readings.get("preferredChargeMode", {})
     return (
-        options.get("value") == []
+        options.get("family") != "eu_data_act"
+        and preferred.get("family") != "eu_data_act"
+        and options.get("value") == []
         and options.get("status") != "invalid_value"
         and preferred.get("value") in ("manual", "timer")
         and preferred.get("status") != "invalid_value"
@@ -47,7 +49,11 @@ def supported_charge_modes(car, profile=None):
     """Advertised modes first; V2 fallback requires current local route proof."""
     row = car.readings.get("availableChargeModes", {})
     values = row.get("value")
-    if row.get("status") == "invalid_value" or not isinstance(values, list):
+    if (
+        row.get("family") == "eu_data_act"
+        or row.get("status") == "invalid_value"
+        or not isinstance(values, list)
+    ):
         return []
     if values:
         return [mode for mode in ("manual", "timer") if mode in values]
@@ -75,7 +81,8 @@ def eligible_operation(car, auth, capability, aspect, *, profile=None):
         return any(k in reported and k not in impaired for k in keys)
 
     def readable(key):
-        return key in car.readings and car.readings[key].get("value") is not None
+        row = car.readings.get(key, {})
+        return row.get("value") is not None and row.get("family") != "eu_data_act"
 
     if not auth.uses_auth0:
         if capability == "access" and aspect in ("lock", "unlock"):
@@ -89,7 +96,11 @@ def eligible_operation(car, auth, capability, aspect, *, profile=None):
             and aspect in ("start", "start_with_settings", "stop")
             and (not car.legacy_cariad or car.legacy_api_level != 1)
         ):
-            if car.climate_state is not None:
+            if (
+                car.climate_state is not None
+                and car.readings.get("climatisationState", {}).get("family")
+                != "eu_data_act"
+            ):
                 return "mbb.climate.stop" if aspect == "stop" else "mbb.climate.start"
             return None
         if not car.legacy_cariad or (capability == "remote" and aspect == "wake"):
@@ -135,7 +146,9 @@ def eligible_operation(car, auth, capability, aspect, *, profile=None):
             ):
                 return "cariad.climate." + aspect
         elif supports("climatisation") or (
-            car.climate_state is not None and "climatisation" not in impaired
+            car.climate_state is not None
+            and car.readings.get("climatisationState", {}).get("family") != "eu_data_act"
+            and "climatisation" not in impaired
         ):
             return {
                 "start": "cariad.climate.start.stored",
@@ -151,6 +164,8 @@ def eligible_operation(car, auth, capability, aspect, *, profile=None):
     ):
         # A generic charging capability does not prove all parameter writes.
         if aspect == "set_target_soc":
+            if not readable("targetstateOfCharge"):
+                return None
             value = car.readings.get("targetstateOfCharge", {}).get("value")
             if type(value) not in (int, float) or not 0 <= value <= 100:
                 return None

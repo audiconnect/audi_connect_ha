@@ -119,15 +119,20 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
         )
     if key == "mileage":
         sources.append("maintenanceMileage")
-    valid = [
-        (a, vehicle.readings[a])
-        for a in sources
-        if a in vehicle.readings
-        and (
-            vehicle.readings[a].get("value") is not None
-            or vehicle.readings[a].get("status") == "invalid_value"
+    valid = []
+    cache = getattr(vehicle, "family_readings", {})
+    for a in dict.fromkeys(sources):
+        if a not in vehicle.readings:
+            continue
+        row = vehicle.readings[a]
+        candidates = dict(cache.get(a, {})) if registry is not None else {}
+        candidates[row.get("family", "")] = row
+        valid.extend(
+            (a, sample)
+            for sample in candidates.values()
+            if sample.get("value") is not None
+            or sample.get("status") == "invalid_value"
         )
-    ]
     if not valid:
         return ident, vehicle.readings.get(ident)
 
