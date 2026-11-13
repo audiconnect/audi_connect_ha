@@ -28,15 +28,24 @@ from .product_contract import (
 from homeassistant.const import EntityCategory
 
 
+def _visibility_store(hass, entry_id):
+    return Store(hass, 1, f"audiconnect_v3_{entry_id}_hidden_entities")
+
+
+async def async_remove_visibility(hass, entry_id):
+    """Remove entry-owned migration state only on explicit entry removal."""
+    await _visibility_store(hass, entry_id).async_remove()
+
+
 async def async_apply_v3_entity_visibility(
     hass: Any, entry: Any, enabled: bool
 ) -> None:
-    """Restore legacy V3-hidden entries; never hide them on runtime changes.
+    """Restore owned historical changes and apply reversible V3 presentation.
 
-    The `enabled` argument remains for compatible callers (V2 and V3 setup).
+    Keep stable registry IDs and never override user names or visibility.
     This migration is intentionally idempotent in either direction.
     """
-    store = Store(hass, 1, f"audiconnect_v3_{entry.entry_id}_hidden_entities")
+    store = _visibility_store(hass, entry.entry_id)
     data = await store.async_load() or {}
     if not isinstance(data, dict):
         data = {}
@@ -103,6 +112,7 @@ async def async_apply_v3_entity_visibility(
     hidden = set(data.get("b10_hidden", []))
     reviewed = set(data.get("b10_reviewed", []))
     categories = dict(data.get("b10_categories", {}))
+    names = dict(data.get("original_names", {}))
     disabled_compat = set(data.get("disabled_compatibility", []))
     stateful_hidden = set(data.get("stateful_hidden_buttons", []))
     stateful_reviewed = set(data.get("stateful_reviewed_buttons", []))
@@ -130,6 +140,10 @@ async def async_apply_v3_entity_visibility(
                         entity_id,
                         entity_category=EntityCategory(previous) if previous else None,
                     )
+            if uid in names and hasattr(current, "original_name"):
+                previous, applied = names[uid]
+                if current.original_name == applied:
+                    registry.async_update_entity(entity_id, original_name=previous)
             continue
         if engine is None:
             continue
@@ -147,6 +161,8 @@ async def async_apply_v3_entity_visibility(
             and hasattr(current, "original_name")
             and current.original_name != label
         ):
+            previous = names.get(uid, [current.original_name])[0]
+            names[uid] = [previous, label]
             updates["original_name"] = label
         desired = canonical_entity_category(key)
         if definition is not None:
@@ -205,6 +221,7 @@ async def async_apply_v3_entity_visibility(
         hidden.clear()
         reviewed.clear()
         categories.clear()
+        names.clear()
         disabled_compat.clear()
         stateful_hidden.clear()
         stateful_reviewed.clear()
@@ -222,6 +239,8 @@ async def async_apply_v3_entity_visibility(
         result["b10_reviewed"] = sorted(reviewed)
     if categories:
         result["b10_categories"] = categories
+    if names:
+        result["original_names"] = names
     if disabled_compat:
         result["disabled_compatibility"] = sorted(disabled_compat)
     if stateful_hidden:

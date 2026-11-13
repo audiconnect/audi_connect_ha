@@ -502,6 +502,11 @@ class V3ProfileStorage:
         self._store = Store(hass, 1, f"audiconnect_v3_{entry_id}_profiles")
         self._write_lock = asyncio.Lock()
 
+    async def async_remove(self) -> None:
+        """Remove this entry's profiles and evidence after integration removal."""
+        async with self._write_lock:
+            await self._store.async_remove()
+
     async def async_identity(self, vehicle_key: str, region: str) -> dict:
         from .identity_cache import validate_identity
 

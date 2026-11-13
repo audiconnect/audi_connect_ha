@@ -99,9 +99,10 @@ def projection_reading(vehicle, attribute):
     ident = attribute["id"]
     canonical = ALIAS_OF.get(ident, ident)
     key = attribute.get("entity_key") or ATTRIBUTES.get(canonical, {}).get("entity_key")
-    definition = product_inventory()["entities"].get(
-        f"{attribute['platform']}.{key}", {}
+    platform = attribute.get("platform") or ATTRIBUTES.get(canonical, {}).get(
+        "platform"
     )
+    definition = product_inventory()["entities"].get(f"{platform}.{key}", {})
     declared = definition.get("source_attributes", ())
     # Raw/configuration-only readings must not become alternate sensor values.
     sources = list(declared) if canonical in declared else [canonical]

@@ -629,12 +629,15 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 
 
 async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    """Remove the private trip archive on explicit integration removal only."""
-    from homeassistant.helpers.storage import Store
+    """Remove all entry-owned V3 storage, not on unload or runtime switch."""
+    from .v3.profile_store import V3ProfileStorage
+    from .v3.registry_lifecycle import async_remove_visibility
+    from .v3.trip_archive import V3TripArchive
 
-    await Store(
-        hass, 1, f"audiconnect_v3_{config_entry.entry_id}_trips", private=True
-    ).async_remove()
+    entry_id = config_entry.entry_id
+    await V3ProfileStorage(hass, entry_id).async_remove()
+    await V3TripArchive(hass, entry_id).async_remove()
+    await async_remove_visibility(hass, entry_id)
 
 
 async def async_remove_config_entry_device(

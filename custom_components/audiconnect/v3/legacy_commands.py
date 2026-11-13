@@ -21,7 +21,10 @@ def climate_body(mode, params):
         return {"action": {"type": "stopClimatisation"}}
     validate_inputs(
         params,
-        {**CLIMATE_INPUTS, "climatisation_mode": {"type": "string", "enum": ["comfort"]}},
+        {
+            **CLIMATE_INPUTS,
+            "climatisation_mode": {"type": "string", "enum": ["comfort"]},
+        },
     )
     temp = temperature_celsius(params, 21)
     return {

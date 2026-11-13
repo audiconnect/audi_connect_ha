@@ -168,6 +168,11 @@ class V3TripArchive:
         self._store = Store(hass, 1, f"audiconnect_v3_{entry_id}_trips", private=True)
         self._lock = asyncio.Lock()
 
+    async def async_remove(self):
+        """Remove this entry's private trip archive on explicit removal."""
+        async with self._lock:
+            await self._store.async_remove()
+
     async def _load(self):
         data = await self._store.async_load()
         if data is None:

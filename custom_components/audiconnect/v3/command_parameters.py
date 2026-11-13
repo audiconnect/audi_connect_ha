@@ -139,9 +139,9 @@ def map_parameters(route, supplied):
     bindings = route.get("parameter_bindings", {})
     if not bindings:
         return supplied
-    schema = route.get("input_schema") or _BINDABLE[
-        (route["capability"], route["aspect"])
-    ]
+    schema = (
+        route.get("input_schema") or _BINDABLE[(route["capability"], route["aspect"])]
+    )
     variables = route.get("request_variables", route.get("variables", {}))
     supplied = supplied or {}
     if set(supplied) != set(bindings.values()):
