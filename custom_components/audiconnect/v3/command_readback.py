@@ -155,7 +155,8 @@ def reconcile_access_mismatch(record, car, now=None) -> bool:
         record.origin != "home_assistant"
         or record.capability != "access"
         or record.readback_attribute != "doorLockStatus"
-        or record.state not in ("accepted_unconfirmed", "backend_completed", "uncertain")
+        or record.state
+        not in ("accepted_unconfirmed", "backend_completed", "uncertain")
         or record.http_status is None
         or not 200 <= record.http_status < 300
         or record.backend_result == "transport_uncertain"
@@ -202,6 +203,35 @@ def latest_readback_command(profile, attribute):
         ),
         None,
     )
+
+
+def command_attributes(profile, capability, actions, *, attribute=None):
+    """Shared command evidence, including rejection, scoped to this control."""
+    record = next(
+        (
+            row
+            for row in reversed(getattr(profile, "command_journal", ()))
+            if row.origin == "home_assistant"
+            and row.capability == capability
+            and row.action in actions
+            and (
+                attribute is None
+                or row.readback_attribute == attribute
+                or (
+                    attribute == "climate"
+                    and row.action == "start_with_settings"
+                    and row.readback_attribute == "climatisationTargetTemperatureC"
+                )
+            )
+        ),
+        None,
+    )
+    return {
+        "command_status": record.state if record else None,
+        "command_action": record.action if record else None,
+        "command_backend_result": record.backend_result if record else None,
+        "command_http_status": record.http_status if record else None,
+    }
 
 
 def last_known_climate(profile):
