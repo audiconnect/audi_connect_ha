@@ -19,7 +19,7 @@ from .attribute_runtime import (
     normalize_attribute_value,
 )
 from .custom_attributes import attributes_for
-from .registry import extract_first
+from .registry import extract_first, selective_status_path
 from .attribute_routes import get_read_variant
 from .historical_catalog import ATTRIBUTES, capture_time, read_path
 from .legacy_read_mappings import FIELDS as MBB_FIELDS
@@ -92,16 +92,20 @@ class StatusEngine:
     def transport(self):
         return self._transport()
 
+    def invalidate_trip_poll(self, vin: str) -> None:
+        """Re-evaluate trip polling after the vehicle context changes."""
+        self._trip_poll_at.pop(vin.lower(), None)
+
     async def _poll_legacy(self, car, profile, cache) -> bool:
         """Normal MBB polling, one GET per resource, with no mutations."""
-        from .legacy_read_mappings import ROUTES
+        from .legacy_read_mappings import read_routes
         from .legacy_values import observe_legacy
         from .legacy_commands import configure_home_region
 
         if hasattr(self.transport, "executors"):
             await configure_home_region(self.transport, self.auth, car)
         reachable = False
-        for kind, template in ROUTES.items():
+        for kind, template in read_routes().items():
             key = (car.vin.lower(), kind)
             if read_excluded(profile, "mbb.discovery." + kind):
                 continue
@@ -274,7 +278,9 @@ class StatusEngine:
             ):
                 if vehicle.legacy_cariad and planned_jobs(vehicle, profile):
                     # V2 reads selective-status even on its legacy IDK session.
-                    path = f"/vehicle/v1/vehicles/{vehicle.vin}/selectivestatus?jobs={','.join(planned_jobs(vehicle, profile))}"
+                    path = selective_status_path(
+                        vehicle.vin, ",".join(planned_jobs(vehicle, profile))
+                    )
                     try:
                         reply = await self.transport.request("cariad", "GET", path)
                     except (RuntimeError, ValueError, OSError, TimeoutError):
@@ -505,7 +511,7 @@ class StatusEngine:
                     and self.transport.remaining_calls <= 12
                 ):
                     break
-                path = f"/vehicle/v1/vehicles/{car.vin}/selectivestatus?jobs={','.join(jobs)}"
+                path = selective_status_path(car.vin, ",".join(jobs))
                 try:
                     response = await self.transport.request("cariad", "GET", path)
                 except (TimeoutError, OSError, RuntimeError, ValueError):

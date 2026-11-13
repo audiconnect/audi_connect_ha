@@ -88,9 +88,7 @@
           "start_engine",
           "stop_engine"
         ],
-        "switch": [
-          "preheater_active"
-        ],
+        "switch": ["preheater_active"],
         "number": [
           "active_charging_profile_target_soc",
           "target_state_of_charge"
@@ -208,9 +206,7 @@
           "stop_window_heating_modern",
           "wake_vehicle_modern"
         ],
-        "switch": [
-          "preheater_active"
-        ],
+        "switch": ["preheater_active"],
         "number": [
           "active_charging_profile_target_soc",
           "target_state_of_charge"

@@ -25,7 +25,7 @@ from .response_preview import (
     MAX_ENGINEERING_HISTORY,
 )
 from .api_observations import record_for, save_record, save_execution_review
-from .registry import CapabilityRegistry
+from .registry import CapabilityRegistry, selective_status_path
 from .product_contract import entity_projection_report
 from .transport import V3Response, V3Transport, INVENTORY_OPERATION
 from .vehicle import V3Vehicle
@@ -41,7 +41,7 @@ from .attribute_routes import (
     read_variants,
     validate_custom_read_route,
 )
-from .legacy_read_mappings import ROUTES as MBB_ROUTES
+from .legacy_read_mappings import read_routes
 from .historical_catalog import V2_JOBS
 from .read_discovery import (
     record_jobs,
@@ -157,7 +157,7 @@ class V3Engine:
             vehicle.charging_profiles_captured = None
             # Completed trip snapshots are VIN-scoped historical facts.
             # A refined model/auth context invalidates control evidence, not trips.
-            self.status._trip_poll_at.pop(vehicle.vin.lower(), None)
+            self.status.invalidate_trip_poll(vehicle.vin)
 
     def _apply_identity_candidate(
         self, car, profile, candidate, operation, observed_at
@@ -864,10 +864,7 @@ class V3Engine:
             plans = [
                 (
                     "cariad.discovery.full",
-                    "/vehicle/v1/vehicles/"
-                    + vehicle.vin
-                    + "/selectivestatus?jobs="
-                    + ",".join(V2_JOBS),
+                    selective_status_path(vehicle.vin, ",".join(V2_JOBS)),
                     tuple(V2_JOBS),
                 )
             ]
@@ -880,7 +877,7 @@ class V3Engine:
                     ),
                     (),
                 )
-                for kind, template in MBB_ROUTES.items()
+                for kind, template in read_routes().items()
             ]
 
         async def run_one(route_id: str, path: str, jobs: tuple[str, ...]) -> bool:
@@ -922,10 +919,7 @@ class V3Engine:
                 break
         if family == "cariad" and outcomes and outcomes[0]["result"] == "http_ok":
             for group in pending_groups(profile, max_groups=2):
-                path = (
-                    f"/vehicle/v1/vehicles/{vehicle.vin}/selectivestatus?jobs="
-                    + ",".join(group)
-                )
+                path = selective_status_path(vehicle.vin, ",".join(group))
                 if not await run_one(
                     "cariad.discovery." + "_".join(group), path, group
                 ):

@@ -48,3 +48,16 @@ def test_domain_owners_do_not_import_composition_or_ha_projection():
                         assert not any(
                             node.module.endswith(".v3." + name) for name in forbidden
                         ), file
+
+
+def test_canonical_policy_link_resolves():
+    import re
+
+    config = json.loads((ROOT / "governance/OWNERSHIP.json").read_text())
+    path, anchor = config["change_policy"]["canonical_policy"].split("#", 1)
+    headings = {
+        re.sub(r"[^a-z0-9 -]", "", line.lstrip("# ").lower()).replace(" ", "-")
+        for line in (ROOT / path).read_text().splitlines()
+        if line.startswith("#")
+    }
+    assert anchor in headings

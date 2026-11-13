@@ -70,6 +70,11 @@ def test_shared_account_owns_session_lifecycle():
     account = (ROOT / "audi_connect_account.py").read_text()
     assert "await self._connection.ensure_session()" in auth
     assert "await self.ensure_session()" in account
-    for private in ("._loggedin", "._logintime", "._sync_refresh_token", "._audi_service"):
+    for private in (
+        "._loggedin",
+        "._logintime",
+        "._sync_refresh_token",
+        "._audi_service",
+    ):
         assert private not in auth
     assert ".refresh_token_if_necessary(" not in auth

@@ -10,9 +10,9 @@ from typing import Any
 from collections.abc import Mapping
 from .historical_catalog import ATTRIBUTES
 from .legacy_read_mappings import variant_for
+from .registry import selective_status_path
 from .api_value_mappings import transform_for, validate_attribute_transform
 
-_BASE = "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs={JOBS}"
 _ID = re.compile(r"^user\.read\.[a-z][a-z0-9_]{0,40}$")
 _PATH = re.compile(
     r"^(?:[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*|/(?:[^/~]|~[01])*(?:/(?:[^/~]|~[01])*)*)$"
@@ -84,7 +84,7 @@ def read_variants(
                     "evidence_operation": "cariad.climate.status.batch",
                     "family": "cariad",
                     "method": "GET",
-                    "path": _BASE,
+                    "path": selective_status_path(),
                     "response_paths": field["paths"],
                     "kind": "shared_batch",
                     "conversion": transform_for("cariad", attribute),
@@ -94,7 +94,7 @@ def read_variants(
                     "evidence_operation": "cariad.status." + field["job"],
                     "family": "cariad",
                     "method": "GET",
-                    "path": _BASE.replace("{JOBS}", field["job"]),
+                    "path": selective_status_path(jobs=field["job"]),
                     "response_paths": field["paths"],
                     "kind": "targeted_job",
                     "conversion": transform_for("cariad", attribute),
