@@ -315,10 +315,9 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
             ),
             "v3_capability": "climate",
             "api_route": self.vehicle.climate_source,
-            "vehicle_captured": self.vehicle.climate_captured.isoformat()
-            if self.vehicle.climate_captured
-            else None,
-            "age_minutes": self.vehicle.capture_age_minutes,
+            **reading_freshness_attributes(
+                self.vehicle.readings.get("climatisationState"), allow_last_known=True
+            ),
             "start_enabled": bool(
                 self.supported_features & ClimateEntityFeature.TURN_ON
             ),
@@ -551,7 +550,12 @@ class V3AccessSummary(V3BaseEntity, SensorEntity):
     def extra_state_attributes(self):
         from .access_summary import access_summary
 
-        return access_summary(self.vehicle, self.kind)[1]
+        return {
+            **access_summary(self.vehicle, self.kind)[1],
+            **reading_freshness_attributes(
+                self.vehicle.readings.get(self.kind + "_detail")
+            ),
+        }
 
 
 class V3StatusSensor(V3BaseEntity, SensorEntity):
@@ -1585,6 +1589,12 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             and engine.control_enabled(self.vehicle.vin, "stop")
         )
 
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("climatisationState"), allow_last_known=True
+        )
+
     async def async_turn_on(self, **kwargs) -> None:
         if not self.available:
             raise HomeAssistantError(
@@ -1644,6 +1654,12 @@ class V3LockEntity(V3BaseEntity, LockEntity):
                 engine.control_enabled(self.vehicle.vin, "lock", "access")
                 or engine.control_enabled(self.vehicle.vin, "unlock", "access")
             )
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("doorLockStatus")
         )
 
     def _pending_action(self, action):
@@ -1737,16 +1753,25 @@ class V3ParkedTracker(V3BaseEntity, TrackerEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         position = self.vehicle.position or {}
         captured = position.get("timestamp")
+        row = self.vehicle.readings.get("position_last_updated", {})
+        attrs = reading_freshness_attributes(
+            {
+                "value": captured,
+                "captured": captured,
+                "observed": row.get("observed"),
+                "status": row.get("status", "unknown"),
+            },
+            allow_last_known=True,
+        )
         return {
+            **attrs,
             "position_source": "Audi last-known parked location, not live driving GPS",
             "position_captured_at": captured,
-            "position_age_minutes": _reading_age_minutes(captured),
+            "position_age_minutes": attrs["age_minutes"],
             "position_freshness": (
-                "unknown"
-                if captured is None
-                else "stale"
-                if (_reading_age_minutes(captured) or 0) > 60
-                else "fresh"
+                "stale"
+                if attrs["vehicle_freshness"] == "stale_last_known"
+                else attrs["vehicle_freshness"]
             ),
         }
 
@@ -1788,6 +1813,12 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
             float(value)
             if (isinstance(value, (int, float)) and not isinstance(value, bool))
             else None
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("targetstateOfCharge"), allow_last_known=True
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -1845,6 +1876,20 @@ class V3LocationChargeTargetNumber(V3ChargeTargetNumber):
             )
         )
 
+    @property
+    def extra_state_attributes(self):
+        # The profile target belongs to the profile snapshot, not global SoC.
+        row = self.vehicle.readings.get("charging_profile_context_detail", {})
+        return reading_freshness_attributes(
+            {
+                "value": self.native_value,
+                "captured": self.vehicle.charging_profiles_captured,
+                "observed": row.get("observed"),
+                "status": row.get("status", "unknown"),
+            },
+            allow_last_known=True,
+        )
+
     async def async_set_native_value(self, value):
         if not self.available or not float(value).is_integer():
             raise HomeAssistantError("Audi charge profile not available")
@@ -1881,6 +1926,12 @@ class V3PreheaterSwitch(V3BaseEntity, SwitchEntity):
         return self.coordinator.last_update_success and any(
             engine.control_enabled(self.vehicle.vin, aspect, "climate")
             for aspect in ("preheater_start", "preheater_stop")
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("preheater_active")
         )
 
     async def _send(self, aspect):
@@ -1921,6 +1972,12 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
             return False
         return self.is_on is not None and self.coordinator.engine.control_enabled(
             self.vehicle.vin, "set_settings", "climate"
+        )
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get(self.reading), allow_last_known=True
         )
 
     async def _write(self, value):
@@ -1986,6 +2043,12 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
         }:
             return None
         return value
+
+    @property
+    def extra_state_attributes(self):
+        return reading_freshness_attributes(
+            self.vehicle.readings.get("preferredChargeMode"), allow_last_known=True
+        )
 
     async def async_select_option(self, option: str) -> None:
         if not self.available or option not in self.options:
