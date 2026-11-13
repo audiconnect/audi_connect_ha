@@ -140,6 +140,10 @@ def remove_family_observations(vehicle, profile, family, now):
     changed = False
     for ident in set(vehicle.readings) | set(vehicle.family_readings):
         current = vehicle.readings.get(ident)
+        if (current or {}).get("family") != family and family not in (
+            vehicle.family_readings.get(ident, {})
+        ):
+            continue
         candidates = _current_candidates(vehicle, ident)
         candidates.pop(family, None)
         if current is None or current.get("family") != family:

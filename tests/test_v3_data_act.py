@@ -598,3 +598,25 @@ def test_revoked_family_restores_native_without_replaying_old_data():
     assert car.readings["stateOfCharge"]["family"] == "cariad"
     assert car.readings["stateOfCharge"]["value"] == 80
     assert "eu_data_act" not in car.family_readings["stateOfCharge"]
+
+
+
+def test_data_act_vehicle_capture_provenance_uses_real_observation_clock():
+    from custom_components.audiconnect.v3.freshness import vehicle_capture_summary
+
+    now = datetime.now(UTC)
+    captured = (now - timedelta(hours=35)).isoformat()
+    delivered = (now - timedelta(minutes=10)).isoformat()
+    car = V3Vehicle(VIN, "Audi", "", "", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    assert observe_data_act(
+        car, profile, {"vin": VIN, "Data": [sample("52", captured)]}, now, delivered
+    )
+    summary = vehicle_capture_summary(car, now)
+    assert summary["source_family"] == "eu_data_act"
+    assert summary["source_delivered_at"] == delivered
+    assert summary["source_observed_at"] == now.isoformat()
+    assert summary["vehicle_age_minutes"] == 2100
+    assert summary["vehicle_freshness"] == "stale"

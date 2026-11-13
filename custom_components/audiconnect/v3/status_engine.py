@@ -154,6 +154,8 @@ class StatusEngine:
         self._data_act_result = "no_new_dataset"
         for car, profile in profiles:
             if car.vin.upper() in getattr(client, "denied_vins", ()):
+                if self._data_act_result == "no_new_dataset":
+                    self._data_act_result = "vehicle_access_denied"
                 continue
             try:
                 result = await client.latest(car.vin)
@@ -418,7 +420,7 @@ class StatusEngine:
 
     def _update_capture_projection(self):
         from .attribute_runtime import refresh_family_observations
-        from .freshness import newest_vehicle_capture
+        from .freshness import newest_vehicle_reading
 
         now = datetime.now(UTC)
         for car in self.vehicles.values():
@@ -427,26 +429,27 @@ class StatusEngine:
             profile = self.profiles.get(car.vin.lower())
             if profile is not None:
                 refresh_family_observations(car, profile, now)
-            newest = newest_vehicle_capture(car, now)
-            captured = newest.isoformat() if newest else None
-            if captured is None:
+            newest = newest_vehicle_reading(car, now)
+            if newest is None:
                 car.readings.pop("last_update_time", None)
-            for ident, value, stamp in (
-                ("last_update_time", captured, captured),
-                ("model", car.model or None, None),
-            ):
-                if value is not None:
-                    car.readings[ident] = {
-                        "value": value,
-                        "captured": stamp,
-                        "observed": datetime.now(UTC).isoformat(),
-                        "status": "readable_but_stale",
-                        "family": "cariad",
-                        "path": "vehicle_capture"
-                        if ident == "last_update_time"
-                        else "graphql.vehicle.media",
-                        "job": None,
-                    }
+            else:
+                stamp, _ident, source = newest
+                car.readings["last_update_time"] = {
+                    **source,
+                    "value": stamp.isoformat(),
+                    "captured": stamp.isoformat(),
+                    "path": "vehicle_capture",
+                }
+            if car.model:
+                car.readings["model"] = {
+                    "value": car.model,
+                    "captured": None,
+                    "observed": now.isoformat(),
+                    "status": "readable_but_stale",
+                    "family": "cariad",
+                    "path": "graphql.vehicle.media",
+                    "job": None,
+                }
 
     async def _poll_native_status(self):
         """Existing native family reads; preserve shared request deduplication."""
