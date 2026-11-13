@@ -1619,12 +1619,33 @@ class V3LockEntity(V3BaseEntity, LockEntity):
             and (
                 engine.control_enabled(self.vehicle.vin, "lock", "access")
                 or engine.control_enabled(self.vehicle.vin, "unlock", "access")
+                or self.is_locking
+                or self.is_unlocking
+                or self.is_locked is not None
             )
         )
 
     @property
     def extra_state_attributes(self):
-        return reading_freshness_attributes(self.vehicle.readings.get("doorLockStatus"))
+        from .command_readback import latest_readback_command
+
+        engine = self.coordinator.engine
+        profile = getattr(engine, "profiles", {}).get(self.vehicle.vin.lower())
+        record = latest_readback_command(profile, "doorLockStatus")
+        row = self.vehicle.readings.get("doorLockStatus")
+        _, source = _reading_projection(
+            self.coordinator, self.vehicle, "doorLockStatus", optimistic=False
+        )
+        return {
+            **reading_freshness_attributes(row),
+            "state_source": source,
+            "last_reported_state": (row or {}).get("value"),
+            "command_status": record.state if record else None,
+            "lock_enabled": engine.control_enabled(self.vehicle.vin, "lock", "access"),
+            "unlock_enabled": engine.control_enabled(
+                self.vehicle.vin, "unlock", "access"
+            ),
+        }
 
     def _pending_action(self, action):
         from .command_readback import latest_readback_command
