@@ -1163,8 +1163,10 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
         actions = [item for item in controls if item["capability"] == row["capability"]]
         row["enabled_controls"] = sum(item["eligible"] for item in actions)
         row["locally_verified_controls"] = sum(
-            item["binding_status"] == "local_verified" for item in actions
+            item["route_status"] == "local_verified" for item in actions
         )
+        row["route_available_controls"] = sum(item["route_available"] for item in actions)
+        row["dispatch_ready_controls"] = sum(item["dispatch_ready"] for item in actions)
     operations = [
         {
             key: item.get(key)

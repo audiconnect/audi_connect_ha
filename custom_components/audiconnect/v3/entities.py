@@ -2140,7 +2140,7 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
                 self.vehicle.readings.get("preferredChargeMode"), allow_last_known=True
             )
             and bool(self.options)
-            and self.current_option in self.options
+            and self.vehicle.readings["preferredChargeMode"]["value"] in ("manual", "timer")
             and self.coordinator.engine.control_enabled(
                 self.vehicle.vin, "set_charge_mode", "charging"
             )
@@ -2158,14 +2158,9 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
         value, _ = _reading_projection(
             self.coordinator, self.vehicle, "preferredChargeMode", allow_last_known=True
         )
-        if not isinstance(value, str) or value.lower() in {
-            "",
-            "invalid",
-            "unknown",
-            "unsupported",
-        }:
-            return None
-        return value
+        # HA select state must be one of its executable options. Retain the
+        # independently observed mode in last_reported_state, not in options.
+        return value if isinstance(value, str) and value in self.options else None
 
     @property
     def extra_state_attributes(self):

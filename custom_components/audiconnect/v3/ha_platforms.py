@@ -36,6 +36,7 @@ from .entities import (
     V3AccessSummary,
     V3ChargingReady,
 )
+from .command_policy import supported_charge_modes
 from .custom_attributes import attributes_for
 from .attribute_contracts import semantic_value_issue
 from .product_contract import (
@@ -144,14 +145,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
             elif (
                 platform == "select"
                 and engine.control_enabled(car.vin, "set_charge_mode", "charging")
-                and (
-                    car.readings.get("availableChargeModes", {}).get("value")
-                    or (
-                        car.readings.get("availableChargeModes", {}).get("value") == []
-                        and car.readings.get("preferredChargeMode", {}).get("value")
-                        in ("manual", "timer")
-                    )
-                )
+                and supported_charge_modes(car, engine.profiles.get(vin))
             ):
                 add_once(f"{vin}:charge_mode", V3ChargeModeSelect)
 

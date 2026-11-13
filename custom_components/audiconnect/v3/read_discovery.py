@@ -528,6 +528,9 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
         "model_present": bool(car.model),
         "controls_catalog_applicable": len(applicable),
         "controls_physically_verified": verified,
+        "controls_route_available": sum(row["route_available"] for row in applicable),
+        "controls_dispatch_ready": sum(row["dispatch_ready"] for row in applicable),
+        "controls_ineligible": sum(row["route_status"] == "ineligible" for row in applicable),
         "control_verification_percent": round(100 * verified / len(applicable), 1)
         if applicable
         else None,
