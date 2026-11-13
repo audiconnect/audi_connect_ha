@@ -84,8 +84,11 @@ def decode_dataset(raw: bytes, vin: str) -> dict[str, Any]:
 class DataActClient:
     """Read existing subscriptions with an isolated, already authorized session."""
 
-    def __init__(self, session):
+    def __init__(self, session, login=None):
         self.session = session
+        self._login = login
+        self._logged_in = login is None
+        self._renewed = False
         self.quota = QuotaBudget(reserve=0)
         self.authorization_required = False
         self._request_lock = asyncio.Lock()
@@ -108,8 +111,11 @@ class DataActClient:
                     self.quota.observe(
                         response.status, response.headers, datetime.now(UTC)
                     )
-                    if response.status in (401, 403):
-                        self.authorization_required = True
+                    if response.status == 401:
+                        self.authorization_required = self._login is None or self._renewed
+                        self._logged_in = False
+                    elif response.status == 200:
+                        self._renewed = False
                     if response.status == 404 and allow_empty:
                         return None
                     if response.status != 200:
@@ -144,6 +150,12 @@ class DataActClient:
         if not isinstance(vin, str) or not _VIN.fullmatch(vin):
             raise DataActUnavailable("Invalid Data Act VIN")
         vin = vin.upper()
+        if not self._logged_in:
+            if self.authorization_required or self._login is None:
+                raise DataActUnavailable("Data Act authorization required")
+            await self._login(self.quota)
+            self._logged_in = True
+            self._renewed = True
         prefix = "/proxy_api/euda-apim/"
         identifier = self._identifiers.get(vin)
         if identifier is None:
@@ -152,7 +164,7 @@ class DataActClient:
             )
             identifier = meta.get("Identifier") if isinstance(meta, dict) else None
             if not isinstance(identifier, str) or not _IDENTIFIER.fullmatch(identifier):
-                raise DataActUnavailable("No authorized Data Act subscription")
+                return None
             self._identifiers[vin] = identifier
         path = prefix + f"datadelivery/vehicles/{vin}/{identifier}/"
         result = await self._json(

@@ -69,6 +69,7 @@ class StatusEngine:
         known_inventory,
         operation_request,
         api_record,
+        notify=None,
     ):
         self.hass = hass
         self.entry = entry
@@ -81,6 +82,8 @@ class StatusEngine:
         self._inventory_ready = known_inventory
         self._operation_request = operation_request
         self._api_record = api_record
+        self._notify = notify
+        self._data_act_task = None
         self.last_cloud_poll_success = None
         self.last_cloud_poll_attempt = None
         self.last_cloud_poll_succeeded = None
@@ -120,7 +123,11 @@ class StatusEngine:
 
         client = getattr(self.auth, "data_act_client", None)
         if client is None:
-            self._data_act_result = "not_configured"
+            self._data_act_result = (
+                "credentials_required"
+                if getattr(self.auth, "data_act_configured", False) is True
+                else "not_configured"
+            )
             return samples
         if client.authorization_required:
             self._data_act_result = "authorization_required"
@@ -156,7 +163,9 @@ class StatusEngine:
                     if client.quota.retry_at
                     else "unavailable"
                 )
-                break
+                if client.authorization_required or client.quota.retry_at:
+                    break
+                continue
             self._data_act_success_at = now
             if result is not None:
                 payload, delivered = result
@@ -335,22 +344,58 @@ class StatusEngine:
                     raise
             finally:
                 self._identity_session = getattr(self.auth, "session_generation", None)
-        # Independent sessions may read concurrently. Shared native auth and
-        # quota remain protected by the existing transport lock.
+        # One optional family task, owned by the same status lifecycle. A slow
+        # portal read must not delay the native coordinator's publication.
+        self._start_data_act()
+        await self._poll_native_status()
+        self._update_capture_projection()
+        return list(self.vehicles.values())
+
+    def _start_data_act(self):
+        if self._data_act_task is not None and not self._data_act_task.done():
+            return
+        if getattr(self.auth, "data_act_client", None) is None:
+            self._data_act_result = (
+                "credentials_required"
+                if getattr(self.auth, "data_act_configured", False) is True
+                else "not_configured"
+            )
+            return
+        self._data_act_task = asyncio.create_task(self._collect_data_act())
+
+    async def _collect_data_act(self):
         from .attribute_runtime import observe_data_act
 
-        native_result, samples = await asyncio.gather(
-            self._poll_native_status(), self._poll_data_act(), return_exceptions=True
-        )
-        if isinstance(native_result, BaseException):
-            raise native_result
-        if isinstance(samples, asyncio.CancelledError):
-            raise samples
-        if isinstance(samples, Exception):
-            self._data_act_result = "unavailable"
-        else:
+        try:
+            samples = await self._poll_data_act()
+            changed = False
             for car, profile, payload, observed, delivered in samples:
-                observe_data_act(car, profile, payload, observed, delivered)
+                key = car.vin.lower()
+                if (
+                    self.vehicles.get(key) is car
+                    and self.profiles.get(key) is profile
+                    and car.inventory_present
+                ):
+                    changed |= observe_data_act(
+                        car, profile, payload, observed, delivered
+                    )
+            if changed:
+                self._update_capture_projection()
+                if self._notify is not None:
+                    self._notify()
+        except Exception:
+            # Optional provider errors must not invalidate native data or expose
+            # response content and credentials in logs.
+            self._data_act_result = "unavailable"
+
+    async def async_stop_data_act(self):
+        task = self._data_act_task
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        self._data_act_task = None
+
+    def _update_capture_projection(self):
         for car in self.vehicles.values():
             if not car.inventory_present:
                 continue
@@ -376,8 +421,6 @@ class StatusEngine:
                         else "graphql.vehicle.media",
                         "job": None,
                     }
-        # The composition root persists status and control bindings together.
-        return list(self.vehicles.values())
 
     async def _poll_native_status(self):
         """Existing native family reads; preserve shared request deduplication."""

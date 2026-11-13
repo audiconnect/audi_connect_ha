@@ -113,6 +113,7 @@ class V3Engine:
             known_inventory=lambda: self._known_vehicle_inventory,
             operation_request=self._operation_request,
             api_record=self._api_record,
+            notify=self._notify_discovery_change,
         )
 
     @property

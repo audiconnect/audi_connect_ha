@@ -167,8 +167,7 @@ async def test_empty_or_unauthorized_subscription_does_not_download():
     client = DataActClient(None)
     client._json = AsyncMock(return_value={})
     client._get = AsyncMock()
-    with pytest.raises(DataActUnavailable):
-        await client.latest(VIN)
+    assert await client.latest(VIN) is None
     client._get.assert_not_awaited()
 
 
@@ -258,7 +257,7 @@ async def test_independent_family_reads_overlap_and_publish_through_shared_write
     status = StatusEngine(
         hass=None,
         entry=None,
-        auth=SimpleNamespace(),
+        auth=SimpleNamespace(data_act_client=object()),
         transport=lambda: SimpleNamespace(remaining_calls=50),
         storage=None,
         vehicles={VIN.lower(): car},
@@ -300,6 +299,7 @@ async def test_independent_family_reads_overlap_and_publish_through_shared_write
     status._poll_native_status = native
     status._poll_data_act = optional
     await asyncio.wait_for(status.poll(), timeout=2)
+    await asyncio.wait_for(status._data_act_task, timeout=2)
     assert car.readings["stateOfCharge"]["family"] == "cariad"
     assert car.readings["stateOfCharge"]["value"] == 80
     assert status.last_cloud_poll_succeeded
@@ -356,9 +356,12 @@ def test_sparse_q8_shape_maps_known_information_only():
     assert all(row["captured"] == stamp for row in car.readings.values())
     assert not profile.attribute_evidence and not profile.attribute_routes
     payload["Data"][1]["value"] = "65535"
-    assert data_act_observations(payload, now, registry)[
-        "UTC_TIME_AND_KILOMETER_STATUS"
-    ]["value"] == 65535
+    assert (
+        data_act_observations(payload, now, registry)["UTC_TIME_AND_KILOMETER_STATUS"][
+            "value"
+        ]
+        == 65535
+    )
     for invalid in ("4294967295", "2147483647", "-1", "123.5"):
         payload["Data"][1]["value"] = invalid
         assert "UTC_TIME_AND_KILOMETER_STATUS" not in data_act_observations(

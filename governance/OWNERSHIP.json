@@ -45,7 +45,8 @@
         "transport.py",
         "quota.py",
         "family_executors.py",
-        "data_act.py"
+        "data_act.py",
+        "data_act_auth.py"
       ],
       "responsibility": "authentication, transport, quota and protocols"
     },

@@ -514,7 +514,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     # V3 must enumerate its vehicles before creating the limited HA entities.
     # V2 retains the user's historical "scan on setup" preference.
     if selected_v3 or config_entry.options.get(CONF_SCAN_INITIAL, True):
-        await coordinator.async_config_entry_first_refresh()
+        try:
+            await coordinator.async_config_entry_first_refresh()
+        except BaseException:
+            if selected_v3:
+                await engine.status.async_stop_data_act()
+                await engine.auth.async_close_data_act()
+            raise
 
     _async_cleanup_orphaned_devices(hass, config_entry)
     # Register the same HA service IDs in both runtimes. Service handlers
@@ -551,6 +557,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     if isinstance(getattr(runtime, "v3", None), V3Engine):
         from .v3.dashboard import async_remove_dashboard
 
+        await runtime.v3.status.async_stop_data_act()
+        await runtime.v3.auth.async_close_data_act()
         # On V3→V2 switch, or opting out, hide the sidebar panel. Do not
         # remove it if another live V3 entry explicitly opted in.
         others = any(
