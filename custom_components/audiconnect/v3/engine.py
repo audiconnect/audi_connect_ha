@@ -497,7 +497,9 @@ class V3Engine:
     def redact_evidence(self, payload, vin):
         """Return masked evidence, never the credentials used to mask it."""
         spin, secrets = redaction_context(self.entry, self.auth)
-        return engineering_response(payload, vehicle_vin=vin, spin=spin, secrets=secrets)
+        return engineering_response(
+            payload, vehicle_vin=vin, spin=spin, secrets=secrets
+        )
 
     def _api_record(
         self,

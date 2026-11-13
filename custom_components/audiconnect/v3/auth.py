@@ -56,7 +56,9 @@ def redaction_context(entry, auth):
     service = getattr(auth, "service", None)
     for family in _TOKEN_SLOTS:
         token = _token_record(service, family)
-        known.extend(token.get(k) for k in ("access_token", "refresh_token", "id_token"))
+        known.extend(
+            token.get(k) for k in ("access_token", "refresh_token", "id_token")
+        )
     pin = settings.get(CONF_SPIN)
     active_pin = configured_spin(auth)
     if active_pin is not None and str(active_pin) != str(pin):
