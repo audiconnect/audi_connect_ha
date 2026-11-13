@@ -54,6 +54,8 @@ Keep the delivery branch an ancestor of development wherever practical. Sync rev
 
 Merge focused PRs promptly once review, exact-head CI and relevant acceptance gates pass. Do not accumulate green fixes in parallel branches or wait for an unrelated beta. Review open PRs and branch drift at each release checkpoint; record the owner and concrete blocker for any deferred merge. Promote small coherent upstream-ready deltas regularly, without bypassing upstream maintainers or live acceptance gates. Sync the accepted delivery head back to development before the next promotion.
 
+Keep the offered upstream product code, tests and documentation at most one published HACS beta behind. Before publishing a new beta, verify that the preceding published beta's pinned product source is already included in the upstream review branch. Count published releases, not skipped version numbers. If this gate fails, stop publication and review a coherent delta for promotion; never push to upstream automatically or interrupt an agreed review freeze. Fork-only packaging, release notes and version metadata stay outside the upstream contribution.
+
 Derive HACS candidates from a pinned, validated `dev` runtime snapshot. Keep fork versioning and publication out of the upstream contribution. No release promotion, version reuse for changed published code, or upstream merge based only on static tests. Keep upstream release ownership intact. Separate implementation, automated evidence and live acceptance in all status reporting.
 
 See [V3 review](V3_REVIEW.md) and [V2 parity baseline](V2_V3_PARITY_BASELINE.json). These inventories are not proof of full functional or physical acceptance.
