@@ -243,9 +243,10 @@ def test_charging_eta_follows_valid_and_invalid_source_capture():
         }
 
     observe_read_only(vehicle, profile, sample(45, now), now)
-    assert vehicle.readings["charging_complete_time"]["value"] == (
-        now + timedelta(minutes=45)
-    ).isoformat()
+    assert (
+        vehicle.readings["charging_complete_time"]["value"]
+        == (now + timedelta(minutes=45)).isoformat()
+    )
     later = now + timedelta(minutes=1)
     observe_read_only(vehicle, profile, sample(-256, later), later)
     eta = vehicle.readings["charging_complete_time"]
@@ -256,9 +257,10 @@ def test_charging_eta_follows_valid_and_invalid_source_capture():
     assert vehicle.readings["charging_complete_time"]["value"] is None
     newest = later + timedelta(minutes=1)
     observe_read_only(vehicle, profile, sample(30, newest), newest)
-    assert vehicle.readings["charging_complete_time"]["value"] == (
-        newest + timedelta(minutes=30)
-    ).isoformat()
+    assert (
+        vehicle.readings["charging_complete_time"]["value"]
+        == (newest + timedelta(minutes=30)).isoformat()
+    )
 
 
 def test_shared_scalar_mapping_preserves_meaningful_values_and_rejects_error_envelopes():
