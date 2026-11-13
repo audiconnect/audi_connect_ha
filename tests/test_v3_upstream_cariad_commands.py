@@ -208,7 +208,30 @@ def test_empty_charge_modes_require_local_route_verification():
     assert result["operation"] is None
     profile.control_results[route] = "worked"
     profile.choose_working("charging", "set_charge_mode", route)
-    assert supported_charge_modes(car, profile) == ["manual", "timer"]
+    assert supported_charge_modes(car, profile) == []
+    candidate = control_decision(
+        car, profile, engine.auth, "charging", "set_charge_mode", for_discovery=True
+    )
+    assert candidate["operation"] == route
+    assert candidate["dispatch_ready"] is False
+    for sequence, mode in enumerate(("manual", "timer"), start=1):
+        attempt = profile.begin_test(
+            "charging", "set_charge_mode", route, now=sequence * 100
+        )
+        profile.engineering_record(attempt.sequence).requested_charge_mode = mode
+        profile.observe_http(attempt.sequence, 200)
+        profile.confirm(
+            attempt.sequence, worked=True, inspected_vehicle=True, now=sequence * 100 + 1
+        )
+        profile.choose_working("charging", "set_charge_mode", route)
+        assert supported_charge_modes(car, profile) == ["manual", "timer"][:sequence]
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.registry import VehicleContext
+
+    restored = restore_profile(profile.registry, car.context, profile.snapshot())
+    assert supported_charge_modes(car, restored) == ["manual", "timer"]
+    restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert supported_charge_modes(car, restored) == []
     assert engine.control_enabled(VIN, "set_charge_mode", "charging")
     car.readings["availableChargeModes"] = {"value": ["manual"]}
     assert supported_charge_modes(car, profile) == ["manual"]

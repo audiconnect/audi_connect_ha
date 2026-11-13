@@ -497,6 +497,12 @@ class CommandEngine:
             record = profile.engineering_record(attempt.sequence)
             if record is None:
                 raise RuntimeError("Missing durable engineering command record")
+            if (
+                capability == "charging"
+                and aspect == "set_charge_mode"
+                and operation == "cariad.charging.mode"
+            ):
+                record.requested_charge_mode = (params or {}).get("value")
             if guided:
                 configure_discovery_readback(record, vehicle, params)
             await self.storage.async_save(self.profiles)

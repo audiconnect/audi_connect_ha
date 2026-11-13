@@ -148,6 +148,16 @@ def restore_profile(
         ):
             raise DevelopmentProfileError("Malformed action evidence")
         profile.control_results[operation] = result
+    modes = saved.get("verified_charge_modes", {})
+    if not isinstance(modes, dict) or any(
+        mode not in ("manual", "timer")
+        or not isinstance(revision, str)
+        or len(revision) != 64
+        or any(char not in "0123456789abcdef" for char in revision)
+        for mode, revision in modes.items()
+    ):
+        raise DevelopmentProfileError("Malformed charge mode evidence")
+    profile.verified_charge_modes = dict(modes)
     history = saved.get("historical_control_evidence", [])
     if not isinstance(history, list) or len(history) > 50:
         raise DevelopmentProfileError("Invalid historical control evidence")

@@ -30,13 +30,20 @@ def supported_charge_modes(car, profile=None):
     from .operation_revision import operation_revision
 
     key, route = "charging.set_charge_mode", "cariad.charging.mode"
+    operation = profile.registry.operations.get(route)
     if (
-        profile.active.get(key) == route
+        operation is not None
+        and profile.active.get(key) == route
         and profile.control_results.get(route) == "worked"
         and profile.active_revisions.get(key)
-        == operation_revision(profile.registry.operations[route])
+        == operation_revision(operation)
     ):
-        return ["manual", "timer"]
+        revision = operation_revision(operation)
+        return [
+            mode
+            for mode in ("manual", "timer")
+            if profile.verified_charge_modes.get(mode) == revision
+        ]
     return []
 
 

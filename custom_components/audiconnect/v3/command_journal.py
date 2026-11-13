@@ -59,6 +59,7 @@ class CommandRecord:
     completed_at: float | None = None
     parent_command_id: str | None = None
     http_status: int | None = None
+    requested_charge_mode: str | None = None
 
     @classmethod
     def begin(
@@ -210,6 +211,16 @@ class CommandRecord:
                 and (
                     type(record.http_status) is not int
                     or not 100 <= record.http_status <= 599
+                )
+            )
+            or (
+                record.requested_charge_mode is not None
+                and (
+                    record.origin != "workbench"
+                    or record.capability != "charging"
+                    or record.action != "set_charge_mode"
+                    or record.operation != "cariad.charging.mode"
+                    or record.requested_charge_mode not in ("manual", "timer")
                 )
             )
             or record.origin not in ("home_assistant", "workbench")

@@ -38,7 +38,7 @@ def control_decision(
 
         blocked = (
             dispatch_block_reason(profile, capability, aspect)
-            if operation
+            if operation and status != "candidate_unverified"
             else reason or status
         )
         return {
