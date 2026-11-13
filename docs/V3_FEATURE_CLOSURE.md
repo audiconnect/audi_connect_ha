@@ -61,3 +61,8 @@ Global age and job capture coverage consider usable normalized scalar readings o
 ## User-first control feedback
 
 An accepted climate or charging command immediately publishes the existing effective state via the shared command projection, after durable acceptance and before read-only confirmation. A missing status response or quota-limited follow-up does not undo an accepted mutation; its backend outcome remains visible in the journal. Newer valid vehicle readback wins, explicit rejection removes optimism, and the existing bounded projection expiry applies. No synthetic readings, extra requests or retries. Lock and security-sensitive operations retain conservative confirmation semantics. The user must be able to see requested state immediately after API acceptance, independent of the actual telemetry timestamp. Physical Q8 response time and UI acceptance remain release validation items.
+
+
+## Access command recovery
+
+A successful lock/unlock POST is not physical confirmation. Keep the native lock entity visible as locking/unlocking while awaiting readback, even while the command guard blocks a second dispatch. A matching valid newer capture verifies the command. A contrary valid lock capture at least 30 seconds after an accepted normal HA command closes the interlock as `readback_mismatch`, not a failed route or physical failure. The user can then issue a new authorized action; no command is replayed. Without new evidence, or after an uncertain transport mutation, the explicit review guard remains. The reported state and command status are separate entity attributes. The 30-second interval reuses the existing temporary error cooldown; real-car validation is required.
