@@ -661,6 +661,8 @@ class StatusEngine:
 
             newest = newest_vehicle_capture(car)
             captured = newest.isoformat() if newest else None
+            if captured is None:
+                car.readings.pop("last_update_time", None)
             for ident, value, stamp in (
                 ("last_update_time", captured, captured),
                 ("model", car.model or None, None),
