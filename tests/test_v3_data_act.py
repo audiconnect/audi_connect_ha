@@ -600,7 +600,6 @@ def test_revoked_family_restores_native_without_replaying_old_data():
     assert "eu_data_act" not in car.family_readings["stateOfCharge"]
 
 
-
 def test_data_act_vehicle_capture_provenance_uses_real_observation_clock():
     from custom_components.audiconnect.v3.freshness import vehicle_capture_summary
 
