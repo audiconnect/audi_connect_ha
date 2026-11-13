@@ -97,3 +97,35 @@ def test_unknown_device_fails_closed(monkeypatch):
 def test_missing_or_ambiguous_vin_fails_closed(monkeypatch, identifiers):
     with pytest.raises(HomeAssistantError, match="vehicle identity"):
         resolve(monkeypatch, [entry("owner")], ["owner"], identifiers=identifiers)
+
+
+def test_global_refresh_skips_unloaded_accounts():
+    active = entry("active")
+    inactive = entry("inactive", loaded=False)
+    active.runtime_data.coordinator = object()
+    inactive.runtime_data.coordinator = object()
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_entries=lambda domain: [active, inactive])
+    )
+    assert audiconnect._get_all_coordinators(hass) == [active.runtime_data.coordinator]
+
+
+def test_last_loaded_entry_unregisters_all_services_even_with_inactive_entries():
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    active = entry("active")
+    active.runtime_data.loaded_platforms = []
+    inactive = entry("inactive", loaded=False)
+    services = SimpleNamespace(has_service=lambda *args: True, async_remove=Mock())
+    hass = SimpleNamespace(
+        services=services,
+        config_entries=SimpleNamespace(
+            async_entries=lambda domain: [active, inactive],
+            async_unload_platforms=AsyncMock(return_value=True),
+        ),
+    )
+    assert asyncio.run(audiconnect.async_unload_entry(hass, active))
+    assert {call.args[1] for call in services.async_remove.call_args_list} == set(
+        audiconnect.SERVICE_SCHEMAS
+    )

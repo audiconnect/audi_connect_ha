@@ -72,3 +72,11 @@ def test_diagnostics_never_import_native_entity_classes():
         for node in ast.walk(ast.parse((V3 / file).read_text())):
             if isinstance(node, ast.ImportFrom):
                 assert node.module not in ("entities", "ha_platforms"), file
+
+
+def test_engine_does_not_reach_into_status_or_command_private_state():
+    tree = ast.parse((V3 / "engine.py").read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Attribute):
+            if node.value.attr in ("status", "commands"):
+                assert not node.attr.startswith("_"), node.attr

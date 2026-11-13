@@ -18,7 +18,9 @@ def test_read_only_route_api_never_exposes_unreviewed_mutations():
         assert f'"audiconnect/v3/{command}"' in server
     engine = (ROOT / "engine.py").read_text()
     assert "async def test_attribute_route(" in engine
-    assert 'self.transport.request(family, "GET", path)' in engine
+    status = (ROOT / "status_engine.py").read_text()
+    assert 'self.transport.request(family, "GET", path)' in status
+    assert "await self.status.test_attribute_route(" in engine
     assert "async def activate_attribute_route(" in engine
     assert "async def disable_attribute_route(" in engine
 

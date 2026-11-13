@@ -83,6 +83,21 @@ LOCAL_DEALER_SCHEMA = vol.Schema(
     }
 )
 
+SERVICE_SCHEMAS = {
+    SERVICE_REFRESH_CLOUD_DATA: None,
+    SERVICE_REFRESH_VEHICLE_DATA: SERVICE_REFRESH_VEHICLE_DATA_SCHEMA,
+    SERVICE_PROBE_API_PATHS: PROBE_SCHEMA,
+    SERVICE_SET_LOCAL_DEALER: LOCAL_DEALER_SCHEMA,
+    SERVICE_EXECUTE_VEHICLE_ACTION: SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
+    SERVICE_START_CLIMATE_CONTROL: SERVICE_START_CLIMATE_CONTROL_SCHEMA,
+    SERVICE_START_AUXILIARY_HEATING: SERVICE_START_AUXILIARY_HEATING_SCHEMA,
+    SERVICE_SET_LOCATION_CHARGE_TARGET: SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA,
+    SERVICE_SET_CHARGE_MODE: SERVICE_SET_CHARGE_MODE_SCHEMA,
+    SERVICE_SET_TARGET_SOC: SERVICE_SET_TARGET_SOC_SCHEMA,
+    SERVICE_START_ENGINE: SERVICE_START_ENGINE_SCHEMA,
+    SERVICE_STOP_ENGINE: SERVICE_STOP_ENGINE_SCHEMA,
+}
+
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
@@ -213,12 +228,14 @@ def _resolve_service_call(
     )
 
 
-def _get_all_coordinators(hass: HomeAssistant) -> list[AudiDataUpdateCoordinator]:
+def _get_all_coordinators(
+    hass: HomeAssistant,
+) -> list[AudiDataUpdateCoordinator | V3CleanCoordinator]:
     """Get coordinators from all loaded config entries."""
-    coordinators: list[AudiDataUpdateCoordinator] = []
+    coordinators: list[AudiDataUpdateCoordinator | V3CleanCoordinator] = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         runtime_data: AudiRuntimeData | None = getattr(entry, "runtime_data", None)
-        if runtime_data is not None:
+        if entry.state is ConfigEntryState.LOADED and runtime_data is not None:
             coordinators.append(runtime_data.coordinator)
     return coordinators
 
@@ -358,91 +375,29 @@ def _async_register_services(hass: HomeAssistant) -> None:
         else:
             await account.stop_engine(vin)
 
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CLOUD_DATA):
-        hass.services.async_register(
-            DOMAIN, SERVICE_REFRESH_CLOUD_DATA, _handle_refresh_cloud_data
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_VEHICLE_DATA):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_VEHICLE_DATA,
-            _handle_refresh_vehicle_data,
-            schema=SERVICE_REFRESH_VEHICLE_DATA_SCHEMA,
-        )
+    handlers = {
+        SERVICE_REFRESH_CLOUD_DATA: _handle_refresh_cloud_data,
+        SERVICE_REFRESH_VEHICLE_DATA: _handle_refresh_vehicle_data,
+        SERVICE_PROBE_API_PATHS: _handle_probe_api_paths,
+        SERVICE_SET_LOCAL_DEALER: _handle_set_local_dealer,
+        SERVICE_EXECUTE_VEHICLE_ACTION: _handle_execute_vehicle_action,
+        SERVICE_START_CLIMATE_CONTROL: _handle_start_climate_control,
+        SERVICE_START_AUXILIARY_HEATING: _handle_start_auxiliary_heating,
+        SERVICE_SET_LOCATION_CHARGE_TARGET: _handle_set_location_charge_target,
+        SERVICE_SET_CHARGE_MODE: _handle_set_charge_mode,
+        SERVICE_SET_TARGET_SOC: _handle_set_target_soc,
+        SERVICE_START_ENGINE: _handle_start_engine,
+        SERVICE_STOP_ENGINE: _handle_stop_engine,
+    }
     # Remove obsolete engineering actions left by older development builds.
     for obsolete in ("probe_vehicle_health", "probe_trip_data", "refresh_trip_data"):
         if hass.services.has_service(DOMAIN, obsolete):
             hass.services.async_remove(DOMAIN, obsolete)
-    if not hass.services.has_service(DOMAIN, SERVICE_PROBE_API_PATHS):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_PROBE_API_PATHS,
-            _handle_probe_api_paths,
-            schema=PROBE_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_SET_LOCAL_DEALER):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_SET_LOCAL_DEALER,
-            _handle_set_local_dealer,
-            schema=LOCAL_DEALER_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_EXECUTE_VEHICLE_ACTION):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_EXECUTE_VEHICLE_ACTION,
-            _handle_execute_vehicle_action,
-            schema=SERVICE_EXECUTE_VEHICLE_ACTION_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_START_CLIMATE_CONTROL):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_START_CLIMATE_CONTROL,
-            _handle_start_climate_control,
-            schema=SERVICE_START_CLIMATE_CONTROL_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_START_AUXILIARY_HEATING):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_START_AUXILIARY_HEATING,
-            _handle_start_auxiliary_heating,
-            schema=SERVICE_START_AUXILIARY_HEATING_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_SET_LOCATION_CHARGE_TARGET):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_SET_LOCATION_CHARGE_TARGET,
-            _handle_set_location_charge_target,
-            schema=SERVICE_SET_LOCATION_CHARGE_TARGET_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_SET_CHARGE_MODE):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_SET_CHARGE_MODE,
-            _handle_set_charge_mode,
-            schema=SERVICE_SET_CHARGE_MODE_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_SET_TARGET_SOC):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_SET_TARGET_SOC,
-            _handle_set_target_soc,
-            schema=SERVICE_SET_TARGET_SOC_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_START_ENGINE):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_START_ENGINE,
-            _handle_start_engine,
-            schema=SERVICE_START_ENGINE_SCHEMA,
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_STOP_ENGINE):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_STOP_ENGINE,
-            _handle_stop_engine,
-            schema=SERVICE_STOP_ENGINE_SCHEMA,
-        )
+    for service, schema in SERVICE_SCHEMAS.items():
+        if not hass.services.has_service(DOMAIN, service):
+            hass.services.async_register(
+                DOMAIN, service, handlers[service], schema=schema
+            )
 
 
 def _async_cleanup_orphaned_devices(
@@ -482,7 +437,11 @@ def _async_cleanup_orphaned_devices(
                 device_vin = identifier
                 break
 
-        if device_vin is not None and device_vin.lower() not in active_vins:
+        if (
+            device_vin is not None
+            and device_vin.lower() not in active_vins
+            and device_entry.config_entries == {config_entry.entry_id}
+        ):
             _LOGGER.info(
                 "Removing orphaned device %s (VIN no longer active)",
                 device_entry.id,
@@ -596,7 +555,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         # remove it if another live V3 entry explicitly opted in.
         others = any(
             entry.entry_id != config_entry.entry_id
-            and entry.options.get("runtime_version", "v2") == "v3_climate"
+            and entry.state is ConfigEntryState.LOADED
+            and entry.options.get(V3_RUNTIME_OPTION, V3_DEFAULT) == V3_ENABLED
             and entry.options.get("v3_development_workbench", False)
             and isinstance(
                 getattr(getattr(entry, "runtime_data", None), "v3", None),
@@ -607,21 +567,12 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         if not others:
             async_remove_dashboard(hass)
 
-    if len(hass.config_entries.async_entries(DOMAIN)) <= 1:
-        for service in (
-            SERVICE_PROBE_API_PATHS,
-            SERVICE_SET_LOCAL_DEALER,
-            SERVICE_REFRESH_CLOUD_DATA,
-            SERVICE_REFRESH_VEHICLE_DATA,
-            SERVICE_EXECUTE_VEHICLE_ACTION,
-            SERVICE_START_CLIMATE_CONTROL,
-            SERVICE_START_AUXILIARY_HEATING,
-            SERVICE_SET_CHARGE_MODE,
-            SERVICE_SET_LOCATION_CHARGE_TARGET,
-            SERVICE_SET_TARGET_SOC,
-            SERVICE_START_ENGINE,
-            SERVICE_STOP_ENGINE,
-        ):
+    if not any(
+        entry.entry_id != config_entry.entry_id
+        and entry.state is ConfigEntryState.LOADED
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        for service in SERVICE_SCHEMAS:
             if hass.services.has_service(DOMAIN, service):
                 hass.services.async_remove(DOMAIN, service)
 

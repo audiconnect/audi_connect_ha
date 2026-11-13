@@ -1748,7 +1748,6 @@ test("Copy API evidence uses displayed masked JSON only and never calls Audi", a
   assert.doesNotMatch(p.responseInspector("old"), /Copy request/);
 });
 
-
 test("Share saved route copies backend-approved definition without execution", async () => {
   const panel = new Panel();
   panel.selected = "entry";

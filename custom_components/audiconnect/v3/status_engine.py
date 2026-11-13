@@ -381,7 +381,7 @@ class StatusEngine:
                             # remains explicit because MBB timestamps may be absent.
                             for attr, (kind, _field) in MBB_FIELDS.items():
                                 if kind == "climater":
-                                    self._record_attribute_response(
+                                    self.record_attribute_response(
                                         vehicle,
                                         profile,
                                         attr,
@@ -548,7 +548,7 @@ class StatusEngine:
             for ident, route in profile.attribute_routes.items():
                 if route == "cariad.selectivestatus.batch":
                     continue
-                family, path, mappings = self._attribute_request(
+                family, path, mappings = self.attribute_request(
                     car, profile, ident, route
                 )
                 if "selectivestatus?jobs=" in path:
@@ -585,7 +585,7 @@ class StatusEngine:
                         profile, operation, family, "GET", response, car.vin
                     )
                 for ident, route, mappings in selected:
-                    self._record_attribute_response(
+                    self.record_attribute_response(
                         car, profile, ident, route, mappings, response
                     )
                 if 200 <= response.status < 300:
@@ -767,7 +767,28 @@ class StatusEngine:
                             "job": None,
                         }
 
-    def _attribute_request(
+    async def test_attribute_route(self, car, attribute, route) -> dict[str, Any]:
+        """Isolated engineering GET; never publish a test reading to HA."""
+        profile = self.profiles[car.vin.lower()]
+        family, path, mappings = self.attribute_request(car, profile, attribute, route)
+        if family != ("mbb" if car.context.auth == "legacy" else "cariad") and not (
+            family == "cariad" and car.legacy_cariad
+        ):
+            raise ValueError("Read route is not applicable to this vehicle API family")
+        response = await self.transport.request(family, "GET", path)
+        variant = get_read_variant(
+            attribute, route, profile.attribute_custom, attributes_for(profile)
+        )
+        self._api_record(
+            profile, variant["evidence_operation"], family, "GET", response, car.vin
+        )
+        result = self.record_attribute_response(
+            car, profile, attribute, route, mappings, response, publish=False
+        )
+        await self.storage.async_save(self.profiles)
+        return result
+
+    def attribute_request(
         self,
         car: V3Vehicle,
         profile: DevelopmentProfile,
@@ -794,7 +815,7 @@ class StatusEngine:
         )
         return request["family"], request["relative_path"], route["response_paths"]
 
-    def _record_attribute_response(
+    def record_attribute_response(
         self,
         car: V3Vehicle,
         profile: DevelopmentProfile,
