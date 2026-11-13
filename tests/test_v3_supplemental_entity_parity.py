@@ -160,3 +160,31 @@ def test_newest_vehicle_capture_keeps_older_climate_age_visible():
         ]
         >= 180
     )
+
+
+def test_age_sensor_explains_source_and_partial_freshness():
+    car, co, now = context()
+    car.readings["stateOfCharge"] = {
+        "value": 80,
+        "captured": (now - timedelta(hours=4)).isoformat(),
+        "job": "charging",
+    }
+    car.readings["climatisationState"] = {
+        "value": "off",
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "job": "climatisation",
+    }
+    age = V3StatusSensor(co, car, "age")
+    attrs = age.extra_state_attributes
+    assert age.native_value == attrs["vehicle_age_minutes"] == 0
+    assert attrs["source_attribute"] == "climatisationState"
+    assert attrs["source_job"] == "climatisation"
+    assert attrs["vehicle_last_update"] == now.isoformat()
+    assert attrs["source_observed_at"] == now.isoformat()
+    assert attrs["oldest_observed_age_minutes"] >= 240
+    assert attrs["job_capture_coverage"]["charging"]["oldest_minutes"] >= 240
+    assert attrs["cloud_last_successful_poll"] == now.isoformat()
+    car.readings.clear()
+    assert age.native_value is None
+    assert age.extra_state_attributes["source_attribute"] is None
