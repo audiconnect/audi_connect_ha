@@ -49,6 +49,34 @@ def _accept_observation(previous: dict[str, Any] | None, captured: Any) -> bool:
     return incoming is not None and incoming >= prior
 
 
+def validate_last_known_climate(row, now=None):
+    """Bounded display-only observation; never a source of authorization."""
+    from .freshness import capture_age_minutes
+    from .vehicle import CLIMATE_OFF_STATES, CLIMATE_ON_STATES
+
+    if not isinstance(row, dict):
+        return None
+    value, captured = row.get("value"), row.get("captured")
+    if (
+        not isinstance(value, str)
+        or value not in CLIMATE_OFF_STATES + CLIMATE_ON_STATES
+        or capture_age_minutes(captured, now) is None
+    ):
+        return None
+    return {"value": value, "captured": captured}
+
+
+def remember_climate(profile, reading, now=None):
+    """Keep the most recent valid sample, including across sentinel responses."""
+    if reading.get("status") not in ("verified", "readable_but_stale"):
+        return
+    row = validate_last_known_climate(reading, now)
+    if row and _accept_observation(
+        getattr(profile, "last_known_climate", None), row["captured"]
+    ):
+        profile.last_known_climate = row
+
+
 def record_invalid_observation(
     vehicle: Any,
     ident: str,
@@ -104,6 +132,8 @@ def record_observation(
         "operation": operation
         or ("mbb.legacy" if family == "mbb" else "cariad.climate.status.batch"),
     }
+    if ident == "climatisationState":
+        remember_climate(profile, vehicle.readings[ident], observed_at)
     profile.attribute_evidence[ident] = {
         "status": status,
         "path": path,

@@ -55,6 +55,17 @@ def configure_readback(record, params):
             field, value = next(iter(values.items()))
             if field in fields and type(value) is bool:
                 match = (fields[field], [value])
+    if (
+        record.capability == "climate"
+        and record.action in ("start_with_settings", "set_settings")
+        and {"temp_c", "temp_f"} & values.keys()
+    ):
+        from .command_parameters import temperature_celsius
+
+        match = (
+            "climatisationTargetTemperatureC",
+            [temperature_celsius(values, None)],
+        )
     if match:
         record.readback_attribute, record.readback_values = match
 
@@ -116,6 +127,17 @@ def reconcile_readback(record, car, now=None) -> bool:
         return False
     if value not in record.readback_values:
         return False
+    if (
+        record.action == "start_with_settings"
+        and record.readback_attribute == "climatisationTargetTemperatureC"
+        and (
+            car.climate_state not in CLIMATE_ON_STATES
+            or car.climate_captured is None
+            or car.climate_captured.timestamp() <= record.started_at
+            or not -300 <= (now - car.climate_captured).total_seconds() <= 3600
+        )
+    ):
+        return False
     record.state = "verified"
     record.completed_at = max(record.started_at, now.timestamp())
     return True
@@ -142,6 +164,53 @@ def latest_readback_command(profile, attribute):
         ),
         None,
     )
+
+
+def last_known_climate(profile):
+    """Return (value, timestamp, source) without promoting historical evidence."""
+    from .attribute_runtime import validate_last_known_climate
+
+    row = validate_last_known_climate(getattr(profile, "last_known_climate", None))
+    # A verified command or an explicitly reviewed physical test can supply a
+    # historical observation even when the API status field is unavailable.
+    record = next(
+        (
+            record
+            for record in reversed(getattr(profile, "command_journal", ()))
+            if record.capability == "climate"
+            and record.action in ("start", "stop", "start_with_settings")
+            and record.state == "verified"
+            and record.completed_at is not None
+            and (
+                record.readback_attribute == "climate"
+                or (
+                    record.origin == "workbench"
+                    and getattr(profile, "control_results", {}).get(record.operation)
+                    == "worked"
+                )
+            )
+        ),
+        None,
+    )
+    if row and (
+        record is None
+        or _capture_in_utc(row["captured"]).timestamp() > record.started_at
+    ):
+        return row["value"], row["captured"], "last_known_vehicle"
+    if record is not None:
+        try:
+            stamp = datetime.fromtimestamp(record.completed_at, UTC)
+        except (ValueError, OverflowError, OSError):
+            stamp = None
+        if stamp and stamp.year >= 2020 and stamp <= datetime.now(UTC):
+            return (
+                "off" if record.action == "stop" else "on",
+                stamp.isoformat(),
+                "last_verified_command",
+            )
+    if row:
+        return row["value"], row["captured"], "last_known_vehicle"
+    return None, None, "unknown"
 
 
 def projected_state(
@@ -192,6 +261,7 @@ def observe_command_response(record, car, profile, family, response):
 
     paths = {
         "climate": ("climatisation", "climatisationStatus"),
+        "climatisationTargetTemperatureC": ("climatisation", "climatisationSettings"),
         "chargingState": ("charging", "chargingStatus"),
         "windowHeatingActive": ("climatisation", "windowHeatingStatus"),
         "doorLockStatus": ("access", "accessStatus"),

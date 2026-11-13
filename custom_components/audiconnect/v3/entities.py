@@ -44,7 +44,7 @@ from ..const import DOMAIN
 from .auth import configured_spin
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
-from .command_readback import projected_state
+from .command_readback import last_known_climate, projected_state
 from .command_policy import supported_charge_modes
 from .attribute_contracts import contract_for, binary_contract_for, semantic_value_issue
 from .product_contract import (
@@ -138,9 +138,21 @@ def _climate_projection(coordinator, vehicle):
         or (age is not None and age > 60)
     ):
         state = None
-    return _command_projection(
+    profile = getattr(getattr(coordinator, "engine", None), "profiles", {}).get(
+        vehicle.vin.lower()
+    )
+    known, stamp, known_source = last_known_climate(profile)
+    if stamp and vehicle.climate_captured:
+        from .attribute_runtime import _capture_in_utc
+
+        if vehicle.climate_captured < _capture_in_utc(stamp):
+            state = None
+    effective, source = _command_projection(
         coordinator, vehicle, "climate", state, vehicle.climate_captured
     )
+    if effective is not None:
+        return effective, source
+    return known, known_source
 
 
 def _climate_reported_state(coordinator, vehicle):
@@ -226,7 +238,7 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
     @property
     def supported_features(self) -> ClimateEntityFeature:
         value = ClimateEntityFeature(0)
-        if self._enabled("start_with_settings"):
+        if self._enabled("start_with_settings") or self._can_set_temperature():
             value |= ClimateEntityFeature.TARGET_TEMPERATURE
         if self._enabled("start") or (
             self._enabled("start_with_settings")
@@ -259,7 +271,9 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        state = _climate_reported_state(self.coordinator, self.vehicle)
+        state, source = _climate_projection(self.coordinator, self.vehicle)
+        if source != "vehicle":
+            return None
         if state in _CLIMATE_OFF:
             return HVACAction.OFF
         # A requested ON is not proof of heating rather than cooling.
@@ -275,6 +289,8 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
         profile = getattr(engine, "profiles", {}).get(self.vehicle.vin.lower())
         from .structured_details import details_for
 
+        known, stamp, known_source = last_known_climate(profile)
+        _, source = _climate_projection(self.coordinator, self.vehicle)
         return {
             **details_for(
                 self.vehicle,
@@ -323,9 +339,18 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
                 else "unknown"
             ),
             "last_reported_climate_state": self.vehicle.climate_state,
-            "state_source": _climate_projection(self.coordinator, self.vehicle)[1],
+            "state_source": source,
+            "state_is_current": source == "vehicle",
+            "last_known_climate_state": known,
+            "last_known_climate_at": stamp,
+            "last_known_climate_source": known_source,
             "active_paths": len(getattr(profile, "active", {})),
         }
+
+    def _can_set_temperature(self):
+        return self.reported_target_temperature is not None and self._enabled(
+            "set_settings"
+        )
 
     async def async_set_temperature(self, **kwargs):
         value = kwargs.get("temperature")
@@ -334,6 +359,16 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
             raise HomeAssistantError("Climate temperature must be 15..30 C")
         if mode not in (None, HVACMode.OFF, HVACMode.HEAT_COOL):
             raise HomeAssistantError("Unsupported climate mode")
+        if mode is None and self._can_set_temperature():
+            # A setpoint write is not a request to start the cabin heater.
+            await _send_climate(
+                self.coordinator, self.vehicle, "set_settings", {"temp_c": value}
+            )
+            self._requested_temperature = None
+            self._dispatched_temperature = None
+            self._dispatched_at = None
+            self.async_write_ha_state()
+            return
         if not self._enabled("start_with_settings"):
             raise HomeAssistantError("Temperature-bearing start is not enabled")
         # Off/unknown: stage locally; do not implicitly start. Commit a
@@ -341,7 +376,10 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
         if mode == HVACMode.OFF:
             await self.async_turn_off()
             self._requested_temperature = float(value)
-        elif mode == HVACMode.HEAT_COOL or self.hvac_mode == HVACMode.HEAT_COOL:
+        elif mode == HVACMode.HEAT_COOL or (
+            self.hvac_mode == HVACMode.HEAT_COOL
+            and _climate_projection(self.coordinator, self.vehicle)[1] == "vehicle"
+        ):
             await self._send_target(float(value))
         else:
             self._requested_temperature = float(value)
@@ -1549,7 +1587,8 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             raise HomeAssistantError(
                 "Climate ON/OFF requires available verified controls"
             )
-        if self.is_on is not True:
+        state, source = _climate_projection(self.coordinator, self.vehicle)
+        if source not in ("vehicle", "command_pending") or state not in _CLIMATE_ON:
             await _send_climate(self.coordinator, self.vehicle, "start")
         self.async_write_ha_state()
 
@@ -1558,7 +1597,8 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             raise HomeAssistantError(
                 "Climate ON/OFF requires available verified controls"
             )
-        if self.is_on is not False:
+        state, source = _climate_projection(self.coordinator, self.vehicle)
+        if source not in ("vehicle", "command_pending") or state not in _CLIMATE_OFF:
             await _send_climate(self.coordinator, self.vehicle, "stop")
         self.async_write_ha_state()
 

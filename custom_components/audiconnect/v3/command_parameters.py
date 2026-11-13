@@ -42,6 +42,7 @@ LEGACY_CLIMATE_INPUTS = {
     "climatisation_mode": {"type": "string", "enum": ["comfort"]},
 }
 CLIMATE_SETTINGS_INPUTS = {
+    **TEMPERATURE,
     "targetTemperature": {"type": "number"},
     "targetTemperature_C": TEMPERATURE["temp_c"],
     "targetTemperature_F": TEMPERATURE["temp_f"],

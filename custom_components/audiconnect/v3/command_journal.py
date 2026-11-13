@@ -24,6 +24,7 @@ TEMPORARY_ERROR_COOLDOWN_SECONDS = 30
 ENGINEERING_COMMAND_COOLDOWN_SECONDS = 90
 _READBACKS = {
     "climate",
+    "climatisationTargetTemperatureC",
     "chargingState",
     "doorLockStatus",
     "targetstateOfCharge",
@@ -257,7 +258,15 @@ class CommandRecord:
                     not isinstance(record.readback_values, list)
                     or len(record.readback_values) > 8
                     or any(
-                        type(v) not in (str, int, bool) or len(str(v)) > 40
+                        type(v) not in (str, int, bool)
+                        and not (
+                            record.readback_attribute
+                            == "climatisationTargetTemperatureC"
+                            and type(v) is float
+                            and math.isfinite(v)
+                            and 15 <= v <= 30
+                        )
+                        or len(str(v)) > 40
                         for v in record.readback_values
                     )
                 )

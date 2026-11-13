@@ -8,6 +8,7 @@ from .registry import read_json_path, selective_status_path
 from .command_parameters import (
     SOC,
     DURATION,
+    TEMPERATURE,
     CLIMATE_INPUTS,
     CLIMATE_SETTINGS_INPUTS,
     validate_inputs,
@@ -23,7 +24,7 @@ CHARGE_FIELDS = frozenset(
         "targetSOC_pct",
     }
 )
-CLIMATE_FIELDS = frozenset(CLIMATE_SETTINGS_INPUTS)
+CLIMATE_FIELDS = frozenset(CLIMATE_SETTINGS_INPUTS) - TEMPERATURE.keys()
 OVERRIDES = {
     "climatisation_at_unlock": "climatizationAtUnlock",
     "glass_heating": "windowHeatingEnabled",
@@ -80,10 +81,33 @@ async def patch_settings(transport, vin, mode, params):
         validate_inputs(params, {"value": SOC})
     else:
         validate_inputs(params, CLIMATE_SETTINGS_INPUTS)
-    updates = {"targetSOC_pct": params["value"]} if strict else params
-    if not updates or set(updates) - allowed:
+    updates = {"targetSOC_pct": params["value"]} if strict else dict(params)
+    if not updates:
         raise ValueError("Unknown climatisation setting")
     current = await settings(transport, vin, job, path)
+    if not strict and TEMPERATURE.keys() & updates.keys():
+        if {
+            "targetTemperature",
+            "targetTemperature_C",
+            "targetTemperature_F",
+            "targetTemperatureUnit",
+        } & updates.keys():
+            raise ValueError("Supply one semantic temperature, not raw settings")
+        target = temperature_celsius(updates, None)
+        if "targetTemperature_C" not in current:
+            raise ValueError("Vehicle has not reported a Celsius setpoint")
+        for key in TEMPERATURE:
+            updates.pop(key, None)
+        updates["targetTemperature_C"] = target
+        if "targetTemperature_F" in current:
+            fahrenheit = target * 9 / 5 + 32
+            updates["targetTemperature_F"] = (
+                round(fahrenheit)
+                if type(current["targetTemperature_F"]) is int
+                else round(fahrenheit, 1)
+            )
+    if set(updates) - allowed:
+        raise ValueError("Unknown climatisation setting")
     if strict and set(current) - allowed - {"carCapturedTimestamp"}:
         raise ValueError("Unrecognized charging settings; refusing destructive PUT")
     if not strict and any(key not in current for key in updates):

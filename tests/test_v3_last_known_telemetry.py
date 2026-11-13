@@ -144,3 +144,89 @@ def test_identity_refinement_retains_same_vehicle_measurements():
     vehicle.country = "GB"
     V3Engine._rebind_identity_context(engine, vehicle, profile, old_context)
     assert not vehicle.readings
+
+
+@pytest.mark.parametrize("initial", ["off", "heating"])
+def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
+    from pathlib import Path
+
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.entities import V3ClimateEntity
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+
+    vehicle = car()
+    catalog = CapabilityRegistry.from_json_file(
+        Path(__file__).resolve().parents[1]
+        / "custom_components/audiconnect/v3/full_catalog.json"
+    )
+    profile = DevelopmentProfile(catalog, vehicle.context)
+    now = datetime.now(UTC)
+
+    def observe(state, captured):
+        observe_read_only(
+            vehicle,
+            profile,
+            {
+                "climatisation": {
+                    "climatisationStatus": {
+                        "value": {
+                            "carCapturedTimestamp": captured.isoformat(),
+                            "climatisationState": state,
+                        }
+                    }
+                }
+            },
+            now,
+        )
+
+    observe(initial, now - timedelta(hours=2))
+    observe("unknown", now)
+    saved = profile.snapshot()
+    restored = restore_profile(catalog, vehicle.context, saved)
+    rebooted = car()
+    coordinator = NS(
+        engine=NS(
+            profiles={rebooted.vin.lower(): restored},
+            control_enabled=lambda *args: True,
+        ),
+        last_update_success=True,
+    )
+    entity = V3ClimateEntity(coordinator, rebooted)
+    assert entity.hvac_mode.value == ("off" if initial == "off" else "heat_cool")
+    assert entity.hvac_action is None
+    assert entity.extra_state_attributes["state_source"] == "last_known_vehicle"
+    assert not entity.extra_state_attributes["state_is_current"]
+    assert not rebooted.readings
+    assert not restored.command_journal
+
+    # A newer real observation supersedes the restored display.
+    rebooted.set_climate(
+        "off", now.isoformat(), route="test", observed_at=now, http_status=200
+    )
+    assert entity.hvac_mode.value == "off"
+    assert entity.hvac_action.value == "off"
+    assert entity.extra_state_attributes["state_is_current"]
+
+
+def test_accepted_command_is_not_restored_as_verified_climate_state():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import (
+        configure_readback,
+        last_known_climate,
+    )
+
+    command = CommandRecord.begin(
+        "climate",
+        "start",
+        "route",
+        (datetime.now(UTC) - timedelta(hours=2)).timestamp(),
+    )
+    configure_readback(command, {})
+    command.observe_http(200)
+    profile = NS(command_journal=[command])
+    assert last_known_climate(profile) == (None, None, "unknown")
+    command.state = "verified"
+    command.completed_at = command.started_at + 30
+    value, _, source = last_known_climate(profile)
+    assert value == "on" and source == "last_verified_command"
