@@ -26,7 +26,7 @@ from .historical_catalog import INVENTORY, ALIAS_OF, CANONICAL_ATTRIBUTES
 from .custom_attributes import attributes_for
 from .attribute_routes import get_read_variant, read_variants
 from .legacy_read_mappings import variant_for as legacy_variant_for
-from .registry import selective_status_path
+from .registry import builtin_read_path, selective_status_path
 from .read_discovery import summary as discovery_summary
 from .transport import (
     INVENTORY_OPERATION,
@@ -83,11 +83,15 @@ IDENTITY_FIELDS = {
 # Source: V2 capability_jobs.BASE_SELECTIVE_JOBS and api_probe.py.
 # This is a migration backlog, not 24 proven V3 capabilities.
 _V2_SELECTIVE_JOBS = {row["id"]: row["capability"] for row in INVENTORY["jobs"]}
-_V2_ADDITIONAL_GET = {
-    "parkingPosition": "/vehicle/v1/vehicles/{VIN}/parkingposition",
-    "pendingRequests": "/vehicle/v1/vehicles/{VIN}/pendingrequests",
-    "tripStatistics": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=tripStatistics",
-}
+
+
+def _v2_additional_get():
+    return {
+        "parkingPosition": builtin_read_path("cariad.mobility.status.parkingPosition"),
+        # Reference-only: pendingRequests is not a generic executable GET.
+        "pendingRequests": "/vehicle/v1/vehicles/{VIN}/pendingrequests",
+        "tripStatistics": builtin_read_path("cariad.mobility.status.tripStatistics"),
+    }
 
 
 def attribute_status(vehicle, profile, definition, now):
@@ -230,7 +234,7 @@ def build_status_report(
                 "context_applicable": None,
             }
         )
-    for label, path in _V2_ADDITIONAL_GET.items():
+    for label, path in _v2_additional_get().items():
         if ("cariad", path) in seen_paths:
             continue
         rows.append(
@@ -433,8 +437,8 @@ def build_status_report(
         },
         "counts": counts,
         "control_actions": controls_for_vehicle,
-        "pending_control": profile.discovery._active.public()
-        if profile.discovery._active
+        "pending_control": profile.discovery.active_attempt.public()
+        if profile.discovery.active_attempt
         else None,
         "rows": rows,
         "notes": (

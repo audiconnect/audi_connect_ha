@@ -160,3 +160,19 @@ def test_shared_climate_patch_preserves_existing_fields_and_rejects_unreported_u
         asyncio.run(
             build(obj, car(), "climate_settings_update", {"zoneFrontLeftEnabled": True})
         )
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"windowHeatingEnabled": "false"},
+        {"zoneFrontLeftEnabled": 1},
+        {"targetTemperature_C": 99},
+        {"unreviewed": True},
+    ],
+)
+def test_invalid_climate_patch_rejected_before_any_request(params):
+    obj = engine()
+    with pytest.raises(ValueError):
+        asyncio.run(build(obj, car(), "climate_settings_update", params))
+    obj.transport.request.assert_not_awaited()

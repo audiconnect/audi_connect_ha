@@ -35,3 +35,7 @@ The latest known full Python pass before the product-contract refactor was 1,087
 ## Sharing implementation increment
 
 Saved local read/control definitions can be copied via the backend privacy check, then pasted as a new draft. The export includes a custom attribute definition where needed, but never activation or evidence. The check refuses potential private values rather than modifying the template. Manual inspection before external sharing and live import/roundtrip acceptance remain required.
+
+## b23 corrective development
+
+Audit baseline: published b22, `a22dce6c7398cb797b2510a2f2c5cc721dbfec7b`. b22 passed 1,102 Python tests on HA 2026.7.0 and 2026.11.1, 37 frontend tests and all package gates. PR #24 addresses the audit findings without expanding the vehicle-operation catalog. Charge mode, registry transactions, portable definition privacy, typed climate settings, discovery state ownership and minimum HA metadata have focused corrections. Shared fixtures cover backend export/import and frontend editor shape; full websocket-to-vehicle acceptance remains open. Remaining engine orchestration, protocol-specific route exceptions, full requirement-to-test traceability and real vehicle evidence remain explicit closure gates. Stable release remains NO GO.

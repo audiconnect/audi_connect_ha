@@ -399,47 +399,6 @@ class V3Engine:
         )
         return selected, candidate
 
-    def _resolve_secure_body(
-        self,
-        vehicle: V3Vehicle,
-        ident: str,
-        family: str,
-        method: str,
-        path: str,
-        body: Any,
-    ) -> Any:
-        """Resolve credentials last, exclusively for reviewed door controls.
-
-        Secret values are never part of route definitions, local profiles,
-        response previews or WebSocket payloads. No URL substitutions.
-        """
-        if "{SPIN}" not in str(body):
-            return body
-        profile = self.profiles[vehicle.vin.lower()]
-        built_in = ident in ("cariad.access.lock", "cariad.access.unlock")
-        custom = profile.custom.get(ident)
-        is_reviewed = built_in or (
-            custom is not None
-            and custom["capability"] == "access"
-            and custom["aspect"] in ("lock", "unlock")
-        )
-        allowed_paths = {
-            f"/vehicle/v1/vehicles/{vehicle.vin}/access/lock",
-            f"/vehicle/v1/vehicles/{vehicle.vin}/access/unlock",
-        }
-        if (
-            not is_reviewed
-            or family != "cariad"
-            or method != "POST"
-            or path not in allowed_paths
-            or body != {"spin": "{SPIN}"}
-        ):
-            raise ValueError("Secure S-PIN template is not permitted for this command")
-        spin = configured_spin(self.auth)
-        if not isinstance(spin, str) or not spin:
-            raise ValueError("Configure an Audi S-PIN to use remote door controls")
-        return {"spin": spin}
-
     def _operation_request(
         self,
         vehicle: V3Vehicle,
@@ -479,12 +438,21 @@ class V3Engine:
             and "/climater/actions" in path
         ):
             path = f"/api/bs/climatisation/v1/vehicles/{vehicle.vin}/climater/actions"
+        from .command_payloads import resolve_secure_body
+
         return (
             family,
             method,
             path,
-            self._resolve_secure_body(
-                vehicle, ident, family, method, path, preview["json_body"]
+            resolve_secure_body(
+                self.auth,
+                profile,
+                vehicle,
+                ident,
+                family,
+                method,
+                path,
+                preview["json_body"],
             ),
         )
 
@@ -758,7 +726,7 @@ class V3Engine:
                     not can_activate
                     or self.require_vehicle(vin) is not car
                     or self.profiles.get(car.vin.lower()) is not profile
-                    or profile.discovery._active is not None
+                    or profile.discovery.active_attempt is not None
                 ):
                     raise ValueError(
                         "No current matching manufacturer identity or pending control review"

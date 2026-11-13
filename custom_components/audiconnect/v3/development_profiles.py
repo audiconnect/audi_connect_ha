@@ -558,7 +558,7 @@ class DevelopmentProfile:
         rows = [*self.command_journal, record]
         # Keep security review and active engineering attempts; routine errors are bounded history.
         while len(rows) > HISTORY_LIMIT:
-            active = self.discovery._active
+            active = self.discovery.active_attempt
             index = next(
                 (
                     i
@@ -599,20 +599,15 @@ class DevelopmentProfile:
         """Rollback journal/discovery changes only before physical dispatch."""
         rows = list(self.command_journal)
         last = self.last_command
-        history = list(self.discovery.history)
-        sequence = self.discovery._sequence
-        active = self.discovery._active
         invalidated = self.invalidated_attempt_sequence
-        try:
-            yield
-        except BaseException:
-            self.command_journal[:] = rows
-            self.last_command = last
-            self.discovery.history[:] = history
-            self.discovery._sequence = sequence
-            self.discovery._active = active
-            self.invalidated_attempt_sequence = invalidated
-            raise
+        with self.discovery.transaction():
+            try:
+                yield
+            except BaseException:
+                self.command_journal[:] = rows
+                self.last_command = last
+                self.invalidated_attempt_sequence = invalidated
+                raise
 
     def begin_test(self, capability: str, action: str, operation: str, *, now: float):
         """Called only after an authenticated user clicks Test."""
@@ -645,8 +640,8 @@ class DevelopmentProfile:
         """Preserve local definitions and unresolved commands, invalidate old applicability evidence."""
         if context == self.discovery.context:
             return
-        if self.discovery._active is not None:
-            self.invalidated_attempt_sequence = self.discovery._active.sequence
+        if self.discovery.active_attempt is not None:
+            self.invalidated_attempt_sequence = self.discovery.active_attempt.sequence
         # Preserve reviewed built-in outcomes before invalidating the current
         # context. A revision is proven only for a revision-bound selection.
         for operation, outcome in sorted(self.control_results.items()):

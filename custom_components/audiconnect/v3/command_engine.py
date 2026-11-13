@@ -25,6 +25,8 @@ from .command_parameters import (
     runtime_ready,
     parameter_schema,
     validate_inputs,
+    validate_parameter,
+    SOC,
 )
 from .command_readback import (
     configure_readback,
@@ -218,7 +220,7 @@ class CommandEngine:
             for op in applicable
             if profile.registry.operations[op]["method"] in ("POST", "PUT")
         ]
-        in_progress = profile.discovery._active
+        in_progress = profile.discovery.active_attempt
         match = control_decision(vehicle, profile, self.auth, capability, action)
         return {
             "capability": capability,
@@ -253,7 +255,7 @@ class CommandEngine:
                 car = self.require_vehicle(vin)
             except ValueError:
                 continue
-            active = profile.discovery._active
+            active = profile.discovery.active_attempt
             if (
                 active is not None
                 and active.result == "awaiting_user_feedback"
@@ -412,7 +414,7 @@ class CommandEngine:
                     approval=approval,
                 )
             except (ValueError, RuntimeError, OSError, TimeoutError):
-                if profile.discovery._active is not None:
+                if profile.discovery.active_attempt is not None:
                     raise  # The alternate may have been dispatched; preserve pending uncertainty.
                 return {**result, "alternative": "paused_check_status"}
             return {
@@ -462,7 +464,7 @@ class CommandEngine:
                 )
         if profile.registry.operations[operation]["method"] not in ("POST", "PUT"):
             raise ValueError("Read-only operation cannot be a control")
-        if profile.discovery._active is not None:
+        if profile.discovery.active_attempt is not None:
             raise ValueError("Review the previous action before trying another")
         if profile.last_command is not None:
             check_command_sequence(
@@ -607,8 +609,8 @@ class CommandEngine:
             car = self.require_vehicle(vin)
             p = self.profiles[vin.lower()]
             if (
-                p.discovery._active is not None
-                and p.discovery._active.capability == capability
+                p.discovery.active_attempt is not None
+                and p.discovery.active_attempt.capability == capability
             ):
                 raise RuntimeError(
                     "A control experiment for this capability is awaiting physical confirmation"
@@ -644,9 +646,12 @@ class CommandEngine:
                 raise RuntimeError(
                     "Vehicle command cooldown active after engineering test"
                 )
-            if capability == "charging" and aspect == "set_charge_mode":
-                if (params or {}).get("value") not in supported_charge_modes(car):
-                    raise ValueError("Charge mode not advertised by this vehicle")
+            if (
+                capability == "charging"
+                and aspect == "set_charge_mode"
+                and (params or {}).get("value") not in supported_charge_modes(car)
+            ):
+                raise ValueError("Charge mode not advertised by this vehicle")
             ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")
@@ -773,12 +778,10 @@ class CommandEngine:
         the active declarative V3 operation.
         """
         if kind == "set_target_soc":
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, int)
-                or value not in range(20, 101, 5)
-            ):
-                raise ValueError("Audi target SoC must be 20..100 in steps of 5")
+            try:
+                validate_parameter(value, SOC)
+            except ValueError as exc:
+                raise ValueError("Audi target SoC must be 20..100 in steps of 5") from exc
         elif kind == "set_charge_mode":
             if value not in ("manual", "timer"):
                 raise ValueError("Audi charge mode must be manual or timer")

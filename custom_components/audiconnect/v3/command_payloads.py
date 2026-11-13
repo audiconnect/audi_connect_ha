@@ -9,6 +9,7 @@ from .command_parameters import (
     SOC,
     DURATION,
     CLIMATE_INPUTS,
+    CLIMATE_SETTINGS_INPUTS,
     validate_inputs,
     validate_parameter,
     temperature_celsius,
@@ -22,22 +23,7 @@ CHARGE_FIELDS = frozenset(
         "targetSOC_pct",
     }
 )
-CLIMATE_FIELDS = frozenset(
-    {
-        "targetTemperature",
-        "targetTemperature_C",
-        "targetTemperature_F",
-        "targetTemperatureUnit",
-        "climatisationWithoutExternalPower",
-        "climatizationAtUnlock",
-        "windowHeatingEnabled",
-        "heaterSource",
-        "zoneFrontLeftEnabled",
-        "zoneFrontRightEnabled",
-        "zoneRearLeftEnabled",
-        "zoneRearRightEnabled",
-    }
-)
+CLIMATE_FIELDS = frozenset(CLIMATE_SETTINGS_INPUTS)
 OVERRIDES = {
     "climatisation_at_unlock": "climatizationAtUnlock",
     "glass_heating": "windowHeatingEnabled",
@@ -92,10 +78,12 @@ async def patch_settings(transport, vin, mode, params):
     job, path, allowed, strict = _SETTINGS_PATCHES[mode]
     if strict:
         validate_inputs(params, {"value": SOC})
-    updates = {"targetSOC_pct": target_soc(params.get("value"))} if strict else params
-    current = await settings(transport, vin, job, path)
+    else:
+        validate_inputs(params, CLIMATE_SETTINGS_INPUTS)
+    updates = {"targetSOC_pct": params["value"]} if strict else params
     if not updates or set(updates) - allowed:
         raise ValueError("Unknown climatisation setting")
+    current = await settings(transport, vin, job, path)
     if strict and set(current) - allowed - {"carCapturedTimestamp"}:
         raise ValueError("Unrecognized charging settings; refusing destructive PUT")
     if not strict and any(key not in current for key in updates):
@@ -117,7 +105,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
         return await patch_settings(transport, vin, mode, params)
     if mode == "charging_profile_update":
         validate_inputs(params, {"value": SOC, "profile_id": {"type": "integer"}})
-        value = target_soc(params.get("value"))
+        value = params["value"]
         current = await settings(
             transport,
             vin,
@@ -211,3 +199,45 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
         )
         return {"duration_min": duration, "spin": spin}
     raise ValueError("Unrecognized V3 request mode")
+
+
+def resolve_secure_body(
+    auth,
+    profile,
+    vehicle,
+    ident: str,
+    family: str,
+    method: str,
+    path: str,
+    body: Any,
+) -> Any:
+    """Resolve credentials last, exclusively for reviewed door controls.
+
+    Secret values are never part of route definitions, local profiles,
+    response previews or WebSocket payloads. No URL substitutions.
+    """
+    if "{SPIN}" not in str(body):
+        return body
+    built_in = ident in ("cariad.access.lock", "cariad.access.unlock")
+    custom = profile.custom.get(ident)
+    is_reviewed = built_in or (
+        custom is not None
+        and custom["capability"] == "access"
+        and custom["aspect"] in ("lock", "unlock")
+    )
+    allowed_paths = {
+        f"/vehicle/v1/vehicles/{vehicle.vin}/access/lock",
+        f"/vehicle/v1/vehicles/{vehicle.vin}/access/unlock",
+    }
+    if (
+        not is_reviewed
+        or family != "cariad"
+        or method != "POST"
+        or path not in allowed_paths
+        or body != {"spin": "{SPIN}"}
+    ):
+        raise ValueError("Secure S-PIN template is not permitted for this command")
+    spin = configured_spin(auth)
+    if not isinstance(spin, str) or not spin:
+        raise ValueError("Configure an Audi S-PIN to use remote door controls")
+    return {"spin": spin}

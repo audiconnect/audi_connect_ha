@@ -406,9 +406,9 @@ def portable_definition(definition, *, vehicle_vin="", spin=None, secrets=()):
     can legitimately match a PIN, but exporting such a literal is unnecessary.
     """
     private_numbers = {
-        str(value)
+        str(value).lstrip("0") or "0"
         for value in (*secrets, spin)
-        if isinstance(value, (str, int)) and str(value).isdigit()
+        if isinstance(value, (str, int)) and str(value).isascii() and str(value).isdigit()
     }
 
     def contains_private_number(value):

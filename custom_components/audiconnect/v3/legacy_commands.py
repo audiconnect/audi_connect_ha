@@ -10,7 +10,11 @@ import hashlib
 import re
 from .auth import service_api_level
 from .registry import read_json_path
-from .command_parameters import CLIMATE_INPUTS, temperature_celsius, validate_inputs
+from .command_parameters import (
+    LEGACY_CLIMATE_INPUTS,
+    temperature_celsius,
+    validate_inputs,
+)
 
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 
@@ -20,13 +24,7 @@ def climate_body(mode, params):
         if params:
             raise ValueError("Legacy climate stop has no parameters")
         return {"action": {"type": "stopClimatisation"}}
-    validate_inputs(
-        params,
-        {
-            **CLIMATE_INPUTS,
-            "climatisation_mode": {"type": "string", "enum": ["comfort"]},
-        },
-    )
+    validate_inputs(params, LEGACY_CLIMATE_INPUTS)
     temp = temperature_celsius(params, 21)
     return {
         "action": {

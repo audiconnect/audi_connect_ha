@@ -95,3 +95,16 @@ def test_only_auth_owner_reads_historical_credential_slots():
                 assert node.attr not in slots, path.name
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
                 assert node.value not in slots, path.name
+
+
+def test_discovery_state_is_owned_by_action_discovery():
+    for path in V3.glob("*.py"):
+        if path.name == "action_discovery.py":
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            if (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "discovery"
+            ):
+                assert node.attr not in ("_active", "_sequence"), path.name

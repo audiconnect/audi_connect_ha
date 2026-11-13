@@ -447,17 +447,7 @@ def restore_profile(
             raise DevelopmentProfileError("Untrusted action history")
         profile.discovery.history.append(attempt)
         prev = attempt.sequence
-    profile.discovery._sequence = prev
-    # Never replay a command interrupted by a Home Assistant restart.
-    unresolved = [
-        attempt
-        for attempt in profile.discovery.history
-        if attempt.result in ("uncertain_pending_review", "awaiting_user_feedback")
-    ]
-    if unresolved:
-        pending = unresolved[-1]
-        pending.result = "uncertain_pending_review"
-        profile.discovery._active = pending
+    profile.discovery.restore_interrupted_attempt()
     drafts = saved.get("draft_selected", {})
     if not isinstance(drafts, dict):
         raise DevelopmentProfileError("Invalid draft route selections")

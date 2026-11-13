@@ -3,8 +3,11 @@
   "scope": "v3 active runtime",
   "owners": {
     "engine": {
-      "paths": ["engine.py", "runtime.py"],
-      "responsibility": "composition, public facade, inventory/profile orchestration (pending extraction)"
+      "paths": [
+        "engine.py",
+        "runtime.py"
+      ],
+      "responsibility": "composition, public facade and inventory/profile orchestration; remaining orchestration cleanup tracked"
     },
     "status": {
       "paths": [
@@ -40,7 +43,12 @@
       "responsibility": "fast control resolution, explicit tests, execution and confirmation"
     },
     "api": {
-      "paths": ["auth.py", "transport.py", "quota.py", "family_executors.py"],
+      "paths": [
+        "auth.py",
+        "transport.py",
+        "quota.py",
+        "family_executors.py"
+      ],
       "responsibility": "authentication, transport, quota and protocols"
     },
     "catalog": {
@@ -69,7 +77,9 @@
       "responsibility": "bindings and evidence persistence"
     },
     "vehicle": {
-      "paths": ["vehicle.py"],
+      "paths": [
+        "vehicle.py"
+      ],
       "responsibility": "vehicle state"
     },
     "ha": {
@@ -85,7 +95,11 @@
       "responsibility": "HA projection and scheduling"
     },
     "workbench": {
-      "paths": ["dashboard.py", "frontend/panel.js", "entity_traceability.py"],
+      "paths": [
+        "dashboard.py",
+        "frontend/panel.js",
+        "entity_traceability.py"
+      ],
       "responsibility": "admin engineering UX"
     },
     "diagnostics": {
@@ -97,7 +111,9 @@
       "responsibility": "read-only reporting and redaction"
     }
   },
-  "migration_exclusions": ["__init__.py"],
+  "migration_exclusions": [
+    "__init__.py"
+  ],
   "status": "partial closure; remaining generic catalog/status work tracked",
   "change_policy": {
     "principle": "simplify_before_adding",
@@ -127,7 +143,11 @@
       "target_percent": 80,
       "target_kind": "design_target_not_release_gate",
       "measurement": "unique_supported_operation_variants; generic_plus_parameterized_generic / all_classified; exclude duplicate aliases and reference-only rows",
-      "classification": ["generic", "parameterized_generic", "exceptional"],
+      "classification": [
+        "generic",
+        "parameterized_generic",
+        "exceptional"
+      ],
       "shared_contract": [
         "request_template",
         "typed_parameters",
@@ -141,7 +161,12 @@
     },
     "workbench": {
       "principle": "template_driven_direct_field_editing",
-      "views": ["overview", "capabilities", "configure_and_test", "api_log"],
+      "views": [
+        "overview",
+        "capabilities",
+        "configure_and_test",
+        "api_log"
+      ],
       "source": "backend_operation_definition",
       "navigation": "select_edit_execute_inspect_same_screen",
       "details": "foldable_optional_complex_fields",
@@ -161,7 +186,7 @@
         "analysis": "overview, capabilities, api_log; show unsupported, not_observed, failed and explicitly disabled separately",
         "design": "backend operation template, editable fields and folded optional details",
         "test": "isolated candidate evidence, no production data or binding change; explicit physical approval for commands",
-        "release": "explicit activation of validated local binding; community export/import remains open; software release separate",
+        "release": "explicit activation of validated local binding; portable local definition export/import implemented; physical acceptance remains open; software release separate",
         "cleanup": "retire obsolete experiments and superseded executable paths; retain historical evidence and required migrations"
       }
     }
