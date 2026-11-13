@@ -1306,73 +1306,6 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
 # Native HA controls are created only for personally verified route mappings.
 # The workbench always shows unverified candidates without injecting unusable
 # lock/button/switch entities into a customer's HA device.
-CONTROL_BUTTONS = (
-    (
-        "refresh_vehicle_data",
-        canonical_entity_name("button.refresh_vehicle_data"),
-        "mdi:cloud-refresh",
-        "remote",
-        "refresh",
-    ),
-    (
-        "flash_lights",
-        canonical_entity_name("button.flash_lights"),
-        "mdi:car-light-high",
-        "remote",
-        "flash",
-    ),
-    (
-        "start_engine",
-        canonical_entity_name("button.start_engine"),
-        "mdi:car-key",
-        "remote",
-        "engine_start",
-    ),
-    (
-        "stop_engine",
-        canonical_entity_name("button.stop_engine"),
-        "mdi:car-off",
-        "remote",
-        "engine_stop",
-    ),
-    (
-        "wake_vehicle_modern",
-        canonical_entity_name("button.wake_vehicle_modern"),
-        "mdi:car-connected",
-        "remote",
-        "wake",
-    ),
-    (
-        "start_charging_modern",
-        canonical_entity_name("button.start_charging_modern"),
-        "mdi:ev-station",
-        "charging",
-        "start",
-    ),
-    (
-        "stop_charging_modern",
-        canonical_entity_name("button.stop_charging_modern"),
-        "mdi:ev-station",
-        "charging",
-        "stop",
-    ),
-    (
-        "start_window_heating_modern",
-        canonical_entity_name("button.start_window_heating_modern"),
-        "mdi:car-defrost-rear",
-        "climate",
-        "window_heating_start",
-    ),
-    (
-        "stop_window_heating_modern",
-        canonical_entity_name("button.stop_window_heating_modern"),
-        "mdi:car-defrost-rear",
-        "climate",
-        "window_heating_stop",
-    ),
-)
-
-
 class V3ControlButton(V3BaseEntity, ButtonEntity):
     def __init__(
         self,
@@ -1876,36 +1809,6 @@ class V3LocationChargeTargetNumber(V3ChargeTargetNumber):
             "charging",
             params={"value": int(value), "profile_id": self.profile_id},
         )
-
-
-CLIMATE_SWITCHES = (
-    (
-        "climatisation_window_heating",
-        "climatisationWindowHeatingEnabled",
-        "windowHeatingEnabled",
-    ),
-    ("climatisation_at_unlock", "climatisationAtUnlock", "climatizationAtUnlock"),
-    (
-        "climatisation_zone_front_left",
-        "climatisationZoneFrontLeft",
-        "zoneFrontLeftEnabled",
-    ),
-    (
-        "climatisation_zone_front_right",
-        "climatisationZoneFrontRight",
-        "zoneFrontRightEnabled",
-    ),
-    (
-        "climatisation_zone_rear_left",
-        "climatisationZoneRearLeft",
-        "zoneRearLeftEnabled",
-    ),
-    (
-        "climatisation_zone_rear_right",
-        "climatisationZoneRearRight",
-        "zoneRearRightEnabled",
-    ),
-)
 
 
 class V3PreheaterSwitch(V3BaseEntity, SwitchEntity):

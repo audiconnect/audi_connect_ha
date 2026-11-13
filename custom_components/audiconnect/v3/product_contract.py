@@ -18,6 +18,32 @@ def product_inventory():
     return json.loads(Path(__file__).with_name("product_entities.json").read_text())
 
 
+def control_buttons():
+    """Native button descriptors from the HA product contract."""
+    return tuple(
+        (
+            key.removeprefix("button."),
+            definition["name"],
+            command["icon"],
+            command["capability"],
+            command["aspect"],
+        )
+        for key, definition in product_inventory()["entities"].items()
+        if (command := definition.get("command")) is not None
+        and key.startswith("button.")
+    )
+
+
+def climate_switches():
+    """Native configuration switches reference the same product contract."""
+    return tuple(
+        (key.removeprefix("switch."), setting["attribute"], setting["field"])
+        for key, definition in product_inventory()["entities"].items()
+        if (setting := definition.get("climate_setting")) is not None
+        and key.startswith("switch.")
+    )
+
+
 def retired_sensor_keys():
     return frozenset(product_inventory()["retired_v3_sensors"])
 
@@ -72,11 +98,13 @@ def projection_reading(vehicle, attribute):
 
     ident = attribute["id"]
     canonical = ALIAS_OF.get(ident, ident)
-    sources = [
-        canonical,
-        *sorted(a for a, target in ALIAS_OF.items() if target == canonical),
-    ]
     key = attribute.get("entity_key") or ATTRIBUTES.get(canonical, {}).get("entity_key")
+    definition = product_inventory()["entities"].get(
+        f"{attribute['platform']}.{key}", {}
+    )
+    declared = definition.get("source_attributes", ())
+    # Raw/configuration-only readings must not become alternate sensor values.
+    sources = list(declared) if canonical in declared else [canonical]
     if key == "range":
         sources.extend(("hybridRange", "measuredTotalRange"))
     if key == "state_of_charge":
@@ -192,11 +220,10 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         ("button.", "climate.", "switch.", "lock.")
     ):
         from .control_resolution import control_decision
-        from .entities import CONTROL_BUTTONS
 
         controls = [
             (cap, action)
-            for button, _, _, cap, action in CONTROL_BUTTONS
+            for button, _, _, cap, action in control_buttons()
             if key == "button." + button
         ]
         if key == "climate.climatisation":

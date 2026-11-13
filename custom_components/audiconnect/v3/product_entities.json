@@ -633,7 +633,12 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": null,
-      "name": "Request fresh vehicle data"
+      "name": "Request fresh vehicle data",
+      "command": {
+        "capability": "remote",
+        "aspect": "refresh",
+        "icon": "mdi:cloud-refresh"
+      }
     },
     "button.flash_lights": {
       "origin": "v2",
@@ -641,7 +646,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Flash lights"
+      "name": "Flash lights",
+      "command": {
+        "capability": "remote",
+        "aspect": "flash",
+        "icon": "mdi:car-light-high"
+      }
     },
     "button.start_charging_modern": {
       "origin": "v2",
@@ -649,7 +659,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Start charging"
+      "name": "Start charging",
+      "command": {
+        "capability": "charging",
+        "aspect": "start",
+        "icon": "mdi:ev-station"
+      }
     },
     "button.stop_charging_modern": {
       "origin": "v2",
@@ -657,7 +672,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Stop charging"
+      "name": "Stop charging",
+      "command": {
+        "capability": "charging",
+        "aspect": "stop",
+        "icon": "mdi:ev-station"
+      }
     },
     "button.start_window_heating_modern": {
       "origin": "v2",
@@ -665,7 +685,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Start window heating"
+      "name": "Start window heating",
+      "command": {
+        "capability": "climate",
+        "aspect": "window_heating_start",
+        "icon": "mdi:car-defrost-rear"
+      }
     },
     "button.stop_window_heating_modern": {
       "origin": "v2",
@@ -673,7 +698,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Stop window heating"
+      "name": "Stop window heating",
+      "command": {
+        "capability": "climate",
+        "aspect": "window_heating_stop",
+        "icon": "mdi:car-defrost-rear"
+      }
     },
     "button.wake_vehicle_modern": {
       "origin": "v2",
@@ -681,7 +711,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Wake vehicle"
+      "name": "Wake vehicle",
+      "command": {
+        "capability": "remote",
+        "aspect": "wake",
+        "icon": "mdi:car-connected"
+      }
     },
     "button.start_engine": {
       "origin": "v2",
@@ -689,7 +724,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Start engine"
+      "name": "Start engine",
+      "command": {
+        "capability": "remote",
+        "aspect": "engine_start",
+        "icon": "mdi:car-key"
+      }
     },
     "button.stop_engine": {
       "origin": "v2",
@@ -697,7 +737,12 @@
       "source_attributes": [],
       "metadata_contract": null,
       "freshness": "native_entity_contract",
-      "name": "Stop engine"
+      "name": "Stop engine",
+      "command": {
+        "capability": "remote",
+        "aspect": "engine_stop",
+        "icon": "mdi:car-off"
+      }
     },
     "switch.preheater_active": {
       "origin": "v2",
@@ -714,7 +759,11 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "config",
-      "name": "Climate window heating enabled"
+      "name": "Climate window heating enabled",
+      "climate_setting": {
+        "attribute": "climatisationWindowHeatingEnabled",
+        "field": "windowHeatingEnabled"
+      }
     },
     "switch.climatisation_at_unlock": {
       "origin": "v2",
@@ -723,7 +772,11 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "config",
-      "name": "Climate at unlock"
+      "name": "Climate at unlock",
+      "climate_setting": {
+        "attribute": "climatisationAtUnlock",
+        "field": "climatizationAtUnlock"
+      }
     },
     "switch.climatisation_zone_front_left": {
       "origin": "v2",
@@ -732,7 +785,11 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "config",
-      "name": "Climate front left zone"
+      "name": "Climate front left zone",
+      "climate_setting": {
+        "attribute": "climatisationZoneFrontLeft",
+        "field": "zoneFrontLeftEnabled"
+      }
     },
     "switch.climatisation_zone_front_right": {
       "origin": "v2",
@@ -741,7 +798,11 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "config",
-      "name": "Climate front right zone"
+      "name": "Climate front right zone",
+      "climate_setting": {
+        "attribute": "climatisationZoneFrontRight",
+        "field": "zoneFrontRightEnabled"
+      }
     },
     "switch.climatisation_zone_rear_left": {
       "origin": "v2",
@@ -750,7 +811,11 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "config",
-      "name": "Climate rear left zone"
+      "name": "Climate rear left zone",
+      "climate_setting": {
+        "attribute": "climatisationZoneRearLeft",
+        "field": "zoneRearLeftEnabled"
+      }
     },
     "switch.climatisation_zone_rear_right": {
       "origin": "v2",
@@ -759,7 +824,11 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "config",
-      "name": "Climate rear right zone"
+      "name": "Climate rear right zone",
+      "climate_setting": {
+        "attribute": "climatisationZoneRearRight",
+        "field": "zoneRearRightEnabled"
+      }
     },
     "number.target_state_of_charge": {
       "origin": "v2",

@@ -224,3 +224,38 @@ def test_unavailable_reason_distinguishes_missing_trip_parking_and_stale_capture
     assert reason("sensor.charging_state") == "vehicle_capture_stale"
     car.readings["chargingState"]["status"] = "invalid_value"
     assert reason("sensor.charging_state") == "invalid_vehicle_value"
+
+
+def test_product_control_descriptors_reference_reviewed_catalog():
+    from custom_components.audiconnect.v3.command_payloads import CLIMATE_FIELDS
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.product_contract import (
+        climate_switches,
+        control_buttons,
+    )
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    buttons = control_buttons()
+    switches = climate_switches()
+    assert len(buttons) == 9
+    assert len(switches) == 6
+    for key, name, icon, capability, aspect in buttons:
+        assert name and icon
+        assert registry.operations_for(capability, aspect)
+        assert "button." + key in product_inventory()["entities"]
+    for key, attribute, field in switches:
+        assert attribute in ATTRIBUTES
+        assert field in CLIMATE_FIELDS
+        assert "switch." + key in product_inventory()["entities"]
+
+
+def test_historical_aliases_are_covered_by_product_sources():
+    from custom_components.audiconnect.v3.historical_catalog import ALIAS_OF, ATTRIBUTES
+
+    for alias, canonical in ALIAS_OF.items():
+        attribute = ATTRIBUTES[canonical]
+        key = f"{attribute['platform']}.{attribute['entity_key']}"
+        sources = product_inventory()["entities"][key]["source_attributes"]
+        assert alias in sources and canonical in sources

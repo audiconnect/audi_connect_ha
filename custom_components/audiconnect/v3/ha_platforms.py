@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import Any
 
 from .entities import (
-    CONTROL_BUTTONS,
     V3ClimateEntity,
     V3ReadOnlyBinarySensor,
     V3TripSensor,
@@ -26,7 +25,6 @@ from .entities import (
     V3ChargeTargetNumber,
     V3ChargeModeSelect,
     V3LocationChargeTargetNumber,
-    CLIMATE_SWITCHES,
     V3ClimateSettingSwitch,
     V3PreheaterSwitch,
     V3LocalServiceSensor,
@@ -42,6 +40,8 @@ from .custom_attributes import attributes_for
 from .attribute_contracts import semantic_value_issue
 from .product_contract import (
     CORE_STATUS_KINDS,
+    control_buttons,
+    climate_switches,
     account_cloud_refresh_vin,
     projection_descriptor,
     projection_reading,
@@ -222,7 +222,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     )
                     entities.append(entity_type(coordinator, car, descriptor))
             elif platform == "button":
-                for descriptor in CONTROL_BUTTONS:
+                for descriptor in control_buttons():
                     key, _, _, capability, action = descriptor
                     tag = f"{vin}:{key}"
                     if tag not in seen and engine.control_enabled(
@@ -249,7 +249,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 ):
                     seen.add(preheater)
                     entities.append(V3PreheaterSwitch(coordinator, car))
-                for descriptor in CLIMATE_SWITCHES:
+                for descriptor in climate_switches():
                     key, reading, _ = descriptor
                     tag = f"{vin}:{key}"
                     if tag not in seen and reading in car.readings:

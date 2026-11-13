@@ -71,9 +71,13 @@ class CommandEngine:
         route = profile.custom.get(ident, {})
         op = profile.registry.operations[ident]
         # Fixed-body controls cannot silently discard caller-supplied parameters.
-        if op.get("request_mode") in ("bodyless", "json", "secure_spin", "mbb_rlu"):
-            if not op.get("request_variables"):
-                validate_inputs(params or {}, {})
+        if op.get("request_mode") in (
+            "bodyless",
+            "json",
+            "secure_spin",
+            "mbb_rlu",
+        ) and not op.get("request_variables"):
+            validate_inputs(params or {}, {})
         rendered = map_parameters(op if op.get("input_schema") else route, params)
         family, method, path, body = self._operation_request(car, ident, rendered)
         mode = op.get("request_mode")
