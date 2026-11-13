@@ -16,6 +16,7 @@ _STATES = _UNRESOLVED | {
     "rejected",
     "reviewed",
     "physical_failed",
+    "readback_mismatch",
 }
 HISTORY_LIMIT = 50
 # Local anti-flood policy, not a claimed Audi server limit.
