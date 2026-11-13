@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import time
 from typing import Any
 
@@ -88,10 +88,78 @@ class StatusEngine:
         self._identity_session = None
         self._trip_poll_at = {}
         self._legacy_route_backoff = {}
+        self._data_act_attempt_at = None
+        self._data_act_success_at = None
+        self._data_act_result = "not_configured"
 
     @property
     def transport(self):
         return self._transport()
+
+    def data_act_poll_status(self):
+        """Safe account-level scheduler status; no dataset or session contents."""
+        client = getattr(self.auth, "data_act_client", None)
+        retry = client.quota.retry_at if client is not None else None
+        return {
+            "result": self._data_act_result,
+            "last_attempt": self._data_act_attempt_at.isoformat()
+            if self._data_act_attempt_at
+            else None,
+            "last_success": self._data_act_success_at.isoformat()
+            if self._data_act_success_at
+            else None,
+            "retry_at": retry.isoformat() if retry else None,
+        }
+
+    async def _poll_data_act(self, now=None):
+        """Optional family cadence on the existing coordinator; native quota is separate."""
+        from .attribute_runtime import observe_data_act
+        from .data_act import DataActUnavailable
+
+        client = getattr(self.auth, "data_act_client", None)
+        if client is None:
+            self._data_act_result = "not_configured"
+            return
+        if client.authorization_required:
+            self._data_act_result = "authorization_required"
+            return
+        now = now or datetime.now(UTC)
+        if client.quota.retry_at and now < client.quota.retry_at:
+            self._data_act_result = "rate_limited"
+            return
+        profiles = [
+            (car, self.profiles[key])
+            for key, car in self.vehicles.items()
+            if car.inventory_present and key in self.profiles
+        ]
+        if not profiles:
+            return
+        interval = profiles[0][1].registry.families["eu_data_act"][
+            "poll_interval_minutes"
+        ]
+        if self._data_act_attempt_at and now < self._data_act_attempt_at + timedelta(
+            minutes=interval
+        ):
+            return
+        self._data_act_attempt_at = now
+        self._data_act_result = "no_new_dataset"
+        for car, profile in profiles:
+            try:
+                result = await client.latest(car.vin)
+            except DataActUnavailable:
+                self._data_act_result = (
+                    "authorization_required"
+                    if client.authorization_required
+                    else "rate_limited"
+                    if client.quota.retry_at
+                    else "unavailable"
+                )
+                break
+            self._data_act_success_at = now
+            if result is not None:
+                payload, delivered = result
+                observe_data_act(car, profile, payload, datetime.now(UTC), delivered)
+                self._data_act_result = "dataset_received"
 
     def invalidate_trip_poll(self, vin: str) -> None:
         """Re-evaluate trip polling after the vehicle context changes."""
@@ -654,6 +722,7 @@ class StatusEngine:
                         or car.context.auth in ("auth0", "legacy")
                     ):
                         await self._poll_trips(car)
+        await self._poll_data_act()
         for car in self.vehicles.values():
             if not car.inventory_present:
                 continue

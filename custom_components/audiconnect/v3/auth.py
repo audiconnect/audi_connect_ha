@@ -73,7 +73,9 @@ class FamilyAuthUnavailable(RuntimeError):
 class V3Auth:
     """V3 credential adapter; the shared account owns the session lifecycle."""
 
-    def __init__(self, hass: Any, entry: Any, *, shared_account: Any = None):
+    def __init__(
+        self, hass: Any, entry: Any, *, shared_account: Any = None, data_act_session=None
+    ):
         self.hass = hass
         self.entry = entry
         self.country = (entry.data.get(CONF_REGION) or "DE").upper()
@@ -95,6 +97,13 @@ class V3Auth:
         if shared_account is None:
             self._connection.set_refresh_token_listener(self._save_refresh)
         self.service = self._connection.authentication_service
+        # The optional session must already be authorized by its own auth owner.
+        # Never reuse the native CARIAD session or import browser credentials.
+        self.data_act_client = None
+        if data_act_session is not None:
+            from .data_act import DataActClient
+
+            self.data_act_client = DataActClient(data_act_session)
 
     async def ensure_ready(self) -> None:
         """Delegate session management to the single account owner."""

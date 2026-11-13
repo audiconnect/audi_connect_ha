@@ -63,3 +63,7 @@ See [V3 review](V3_REVIEW.md) and [V2 parity baseline](V2_V3_PARITY_BASELINE.jso
 ## Feature closure status
 
 See [the feature closure review](V3_FEATURE_CLOSURE.md). It separates source inventory, implementation, automated evidence and real vehicle acceptance. Do not use an entity-count or a passing unit suite as a feature-completeness claim.
+
+### Family polling ownership
+
+Keep the existing HA coordinator and Status owner. Family cadence and source priority are independent. Poll only compatible authorized families when due, respecting the family restrictions AND any shared authentication/account quota. Do not split the native VCF budget into artificial independent counters: its scope is conservatively shared until proven otherwise. Data Act uses an isolated authorized portal session and its own existing QuotaBudget implementation, never the native command reserve. Optional absence, no new delivery, or a family failure must not invalidate another family's successful poll. No extra coordinator, consent creation or implicit auth downgrade.

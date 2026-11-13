@@ -142,9 +142,7 @@ async def test_portal_reader_is_bounded_and_never_refetches_old_delivery():
             [latest],
         ]
     )
-    client._get = AsyncMock(
-        return_value=archive({"vin": VIN, "Data": [sample("52")]})
-    )
+    client._get = AsyncMock(return_value=archive({"vin": VIN, "Data": [sample("52")]}))
     result = await client.latest(VIN)
     assert result[1] == now.isoformat()
     assert client._get.await_count == 1
@@ -172,3 +170,75 @@ async def test_empty_or_unauthorized_subscription_does_not_download():
     with pytest.raises(DataActUnavailable):
         await client.latest(VIN)
     client._get.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_data_act_rate_limit_is_independent_of_native_quota():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.quota import QuotaBudget
+
+    native = QuotaBudget(remaining=50)
+    session = MagicMock()
+    response = SimpleNamespace(status=429, headers={"Retry-After": "7200"})
+    session.get.return_value.__aenter__.return_value = response
+    client = DataActClient(session)
+    with pytest.raises(DataActUnavailable):
+        await client._get("/test", limit=100)
+    assert client.quota.retry_at > datetime.now(UTC) + timedelta(minutes=119)
+    with pytest.raises(DataActUnavailable):
+        await client._get("/test", limit=100)
+    assert session.get.call_count == 1
+    assert native.remaining == 50 and native.retry_at is None
+
+
+@pytest.mark.asyncio
+async def test_optional_family_uses_existing_status_cadence_and_auth():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    auth = SimpleNamespace(data_act_client=None)
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=auth,
+        transport=lambda: None,
+        storage=None,
+        vehicles={VIN.lower(): car},
+        profiles={VIN.lower(): profile},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+    )
+    now = datetime.now(UTC)
+    await status._poll_data_act(now)
+    assert status.data_act_poll_status()["result"] == "not_configured"
+    client = SimpleNamespace(
+        authorization_required=False,
+        quota=QuotaBudget(),
+        latest=AsyncMock(return_value=None),
+    )
+    auth.data_act_client = client
+    await status._poll_data_act(now)
+    await status._poll_data_act(now + timedelta(minutes=15))
+    assert client.latest.await_count == 1
+    await status._poll_data_act(now + timedelta(minutes=30))
+    assert client.latest.await_count == 2
+    client.quota.retry_at = now + timedelta(hours=3)
+    await status._poll_data_act(now + timedelta(hours=1))
+    assert status.data_act_poll_status()["result"] == "rate_limited"
+    assert client.latest.await_count == 2
+    client.authorization_required = True
+    await status._poll_data_act(now + timedelta(hours=4))
+    assert status.data_act_poll_status()["result"] == "authorization_required"
+    assert client.latest.await_count == 2

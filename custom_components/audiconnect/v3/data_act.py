@@ -17,6 +17,9 @@ from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import Any
 
+from aiohttp import ClientError
+
+from .quota import QuotaBudget
 
 PORTAL = "https://eu-data-act.drivesomethinggreater.com"
 MAX_ZIP_BYTES = 5_000_000
@@ -83,28 +86,49 @@ class DataActClient:
 
     def __init__(self, session):
         self.session = session
+        self.quota = QuotaBudget(reserve=0)
+        self.authorization_required = False
+        self._request_lock = asyncio.Lock()
         self._identifiers = {}
         self._last_file = {}
 
     async def _get(self, path, *, limit, headers=None, allow_empty=False):
-        async with (
-            asyncio.timeout(20),
-            self.session.get(
-                PORTAL + path, headers=headers, allow_redirects=False
-            ) as response,
-        ):
-            if response.status == 404 and allow_empty:
-                return None
-            if response.status != 200:
-                raise DataActUnavailable("Data Act read unavailable")
-            if response.content_length is not None and response.content_length > limit:
-                raise DataActUnavailable("Data Act response too large")
-            chunks = bytearray()
-            async for chunk in response.content.iter_chunked(65536):
-                chunks.extend(chunk)
-                if len(chunks) > limit:
-                    raise DataActUnavailable("Data Act response too large")
-            return bytes(chunks)
+        async with self._request_lock:
+            if self.authorization_required:
+                raise DataActUnavailable("Data Act authorization required")
+            try:
+                self.quota.authorize(datetime.now(UTC), read_only=True)
+                self.quota.reserve_request()
+                async with (
+                    asyncio.timeout(20),
+                    self.session.get(
+                        PORTAL + path, headers=headers, allow_redirects=False
+                    ) as response,
+                ):
+                    self.quota.observe(
+                        response.status, response.headers, datetime.now(UTC)
+                    )
+                    if response.status in (401, 403):
+                        self.authorization_required = True
+                    if response.status == 404 and allow_empty:
+                        return None
+                    if response.status != 200:
+                        raise DataActUnavailable("Data Act read unavailable")
+                    if (
+                        response.content_length is not None
+                        and response.content_length > limit
+                    ):
+                        raise DataActUnavailable("Data Act response too large")
+                    chunks = bytearray()
+                    async for chunk in response.content.iter_chunked(65536):
+                        chunks.extend(chunk)
+                        if len(chunks) > limit:
+                            raise DataActUnavailable("Data Act response too large")
+                    return bytes(chunks)
+            except (ClientError, OSError, TimeoutError, RuntimeError) as err:
+                if isinstance(err, DataActUnavailable):
+                    raise
+                raise DataActUnavailable("Data Act request unavailable") from err
 
     async def _json(self, path, **kwargs):
         raw = await self._get(path, limit=MAX_JSON_BYTES, **kwargs)
@@ -163,6 +187,6 @@ class DataActClient:
             limit=MAX_ZIP_BYTES,
             headers={"filename": name, "type": "partial"},
         )
-        payload = decode_dataset(raw, vin)
+        payload = await asyncio.to_thread(decode_dataset, raw, vin)
         self._last_file[vin] = (delivered, name)
         return payload, delivered.isoformat()

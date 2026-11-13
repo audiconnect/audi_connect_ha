@@ -327,10 +327,9 @@ def data_act_soc(payload, now, registry):
             continue
         key = item["key"]
         mapping = fields.get(key, {})
-        if (
-            mapping.get("attribute") != "stateOfCharge"
-            or item.get("dataFieldName") != mapping.get("field")
-        ):
+        if mapping.get("attribute") != "stateOfCharge" or item.get(
+            "dataFieldName"
+        ) != mapping.get("field"):
             continue
         raw = item.get("value")
         if type(raw) not in (str, int, float):
@@ -349,7 +348,9 @@ def data_act_soc(payload, now, registry):
     if not candidates:
         return None
     # Flat capture-time rows and delivery clocks never date another field.
-    latest = max((_capture_in_utc(row[0]) for row in candidates if row[0]), default=None)
+    latest = max(
+        (_capture_in_utc(row[0]) for row in candidates if row[0]), default=None
+    )
     matching = [row for row in candidates if _capture_in_utc(row[0]) == latest]
     if len({row[1] for row in matching}) != 1:
         return None

@@ -19,6 +19,7 @@
     "eu_data_act": {
       "auth": "eu_data_act",
       "priority": 30,
+      "poll_interval_minutes": 30,
       "host_owner": "authorized_data_act_portal_session",
       "notes": "Read-only dataset provider; no control or generic request executor.",
       "observations": {
