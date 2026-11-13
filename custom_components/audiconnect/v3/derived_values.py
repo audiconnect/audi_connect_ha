@@ -45,7 +45,9 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
 
     stamp = _capture_in_utc(remaining.get("captured"))
     minutes = remaining.get("value")
-    if stamp and accepts(car.readings.get("charging_complete_time"), remaining["captured"]):
+    if stamp and accepts(
+        car.readings.get("charging_complete_time"), remaining["captured"]
+    ):
         if remaining.get("status") == "invalid_value":
             car.readings["charging_complete_time"] = {
                 **remaining,
