@@ -35,7 +35,30 @@ CLIMATE_FLAGS = {
 CLIMATE_INPUTS = {
     **TEMPERATURE,
     **CLIMATE_FLAGS,
-    "climatisation_mode": {"type": "string"},
+    "climatisation_mode": {"type": "string", "enum": ["comfort", "economy"]},
+}
+LEGACY_CLIMATE_INPUTS = {
+    **CLIMATE_INPUTS,
+    "climatisation_mode": {"type": "string", "enum": ["comfort"]},
+}
+CLIMATE_SETTINGS_INPUTS = {
+    "targetTemperature": {"type": "number"},
+    "targetTemperature_C": TEMPERATURE["temp_c"],
+    "targetTemperature_F": TEMPERATURE["temp_f"],
+    "targetTemperatureUnit": {"type": "string"},
+    "heaterSource": {"type": "string"},
+    **{
+        name: {"type": "boolean"}
+        for name in (
+            "climatisationWithoutExternalPower",
+            "climatizationAtUnlock",
+            "windowHeatingEnabled",
+            "zoneFrontLeftEnabled",
+            "zoneFrontRightEnabled",
+            "zoneRearLeftEnabled",
+            "zoneRearRightEnabled",
+        )
+    },
 }
 
 
@@ -114,10 +137,8 @@ def parameter_schema(operation, route):
         "charging_profile_update": {"value": SOC, "profile_id": {"type": "integer"}},
         "auxiliary_start": {"duration": DURATION},
         "climate_start_settings": CLIMATE_INPUTS,
-        "mbb_climate_start": {
-            **CLIMATE_INPUTS,
-            "climatisation_mode": {"type": "string", "enum": ["comfort"]},
-        },
+        "mbb_climate_start": LEGACY_CLIMATE_INPUTS,
+        "climate_settings_update": CLIMATE_SETTINGS_INPUTS,
     }.get(operation.get("request_mode"), {})
 
 

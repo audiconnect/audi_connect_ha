@@ -8,6 +8,7 @@ vehicle-scoped by the OWNER; exported snapshots contain no VIN or payloads.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 
@@ -124,6 +125,35 @@ class GuidedActionDiscovery:
         self.disabled: set[str] = set()
         self._active: ActionAttempt | None = None
         self._sequence = 0
+
+    @property
+    def active_attempt(self) -> ActionAttempt | None:
+        """Read the current experiment without managing its lifecycle."""
+        return self._active
+
+    @contextmanager
+    def transaction(self):
+        """Rollback only pre-dispatch history and sequence changes."""
+        history = list(self.history)
+        sequence, active = self._sequence, self._active
+        try:
+            yield
+        except BaseException:
+            self.history[:] = history
+            self._sequence, self._active = sequence, active
+            raise
+
+    def restore_interrupted_attempt(self):
+        """Restore validated history without replaying any physical action."""
+        self._sequence = self.history[-1].sequence if self.history else 0
+        unresolved = [
+            attempt
+            for attempt in self.history
+            if attempt.result in ("uncertain_pending_review", "awaiting_user_feedback")
+        ]
+        self._active = unresolved[-1] if unresolved else None
+        if self._active is not None:
+            self._active.result = "uncertain_pending_review"
 
     def candidates(self, capability: str, action: str) -> list[dict[str, str]]:
         """Show alternatives ordered by evidence, but never send a request."""

@@ -4,7 +4,7 @@
   "owners": {
     "engine": {
       "paths": ["engine.py", "runtime.py"],
-      "responsibility": "composition, public facade, inventory/profile orchestration (pending extraction)"
+      "responsibility": "composition, public facade and inventory/profile orchestration; remaining orchestration cleanup tracked"
     },
     "status": {
       "paths": [
@@ -161,7 +161,7 @@
         "analysis": "overview, capabilities, api_log; show unsupported, not_observed, failed and explicitly disabled separately",
         "design": "backend operation template, editable fields and folded optional details",
         "test": "isolated candidate evidence, no production data or binding change; explicit physical approval for commands",
-        "release": "explicit activation of validated local binding; community export/import remains open; software release separate",
+        "release": "explicit activation of validated local binding; portable local definition export/import implemented; physical acceptance remains open; software release separate",
         "cleanup": "retire obsolete experiments and superseded executable paths; retain historical evidence and required migrations"
       }
     }

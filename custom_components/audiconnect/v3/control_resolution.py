@@ -43,7 +43,7 @@ def control_decision(
         return decision("user_disabled")
     from .command_journal import blocking_normal_command
 
-    active = profile.discovery._active
+    active = profile.discovery.active_attempt
     if active is not None and active.capability == capability:
         return decision("pending_review", reason="engineering_command_awaiting_review")
     blocker = blocking_normal_command(profile, capability)

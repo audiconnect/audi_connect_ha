@@ -397,3 +397,38 @@ def engineering_response(
             "truncated": True,
         }
     return detail
+
+
+def portable_definition(definition, *, vehicle_vin="", spin=None, secrets=()):
+    """Refuse known private values in shared templates, including numeric PINs.
+
+    This is deliberately stricter than evidence display: a numeric measurement
+    can legitimately match a PIN, but exporting such a literal is unnecessary.
+    """
+    private_numbers = {
+        str(value).lstrip("0") or "0"
+        for value in (*secrets, spin)
+        if isinstance(value, (str, int))
+        and str(value).isascii()
+        and str(value).isdigit()
+    }
+
+    def contains_private_number(value):
+        if isinstance(value, dict):
+            return any(contains_private_number(item) for item in value.values())
+        if isinstance(value, list):
+            return any(contains_private_number(item) for item in value)
+        if type(value) is int:
+            return str(value) in private_numbers
+        if type(value) is float and value.is_integer():
+            return str(int(value)) in private_numbers
+        return False
+
+    checked = engineering_response(
+        definition, vehicle_vin=vehicle_vin, spin=spin, secrets=secrets
+    )
+    return (
+        not checked["truncated"]
+        and checked["payload"] == definition
+        and not contains_private_number(definition)
+    )

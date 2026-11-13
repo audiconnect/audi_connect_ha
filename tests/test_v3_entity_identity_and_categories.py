@@ -429,3 +429,51 @@ def test_stateful_button_visibility_is_reversible_without_disabling_automations(
     assert rows[0].hidden_by is None
     assert rows[1].hidden_by == er.RegistryEntryHider.USER
     assert all(row.disabled_by is None for row in rows)
+
+
+def test_registry_visibility_serializes_and_ignores_stale_runtime(monkeypatch):
+    from homeassistant.config_entries import ConfigEntryState
+
+    async def scenario():
+        events = []
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def apply(hass, entry, enabled):
+            events.append(("start", enabled))
+            if enabled:
+                entered.set()
+                await release.wait()
+            events.append(("finish", enabled))
+
+        monkeypatch.setattr(lifecycle, "_apply_visibility", apply)
+        engine = object()
+        entry = NS(
+            entry_id="abc",
+            state=ConfigEntryState.LOADED,
+            runtime_data=NS(v3=engine),
+        )
+        first = asyncio.create_task(
+            lifecycle.async_apply_v3_entity_visibility(None, entry, True)
+        )
+        await entered.wait()
+        rollback = asyncio.create_task(
+            lifecycle.async_apply_v3_entity_visibility(None, entry, False)
+        )
+        await asyncio.sleep(0)
+        assert events == [("start", True)]
+        release.set()
+        await asyncio.gather(first, rollback)
+        assert events == [
+            ("start", True),
+            ("finish", True),
+            ("start", False),
+            ("finish", False),
+        ]
+        entry.runtime_data.v3 = object()
+        await lifecycle.async_apply_v3_entity_visibility(
+            None, entry, True, expected_engine=engine
+        )
+        assert events[-1] == ("finish", False)
+
+    asyncio.run(scenario())

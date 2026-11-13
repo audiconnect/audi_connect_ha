@@ -322,3 +322,11 @@ def test_share_local_read_includes_definition_not_observations():
     shared = p.share_definition(ident)
     assert shared["attribute_definition"] == p.attribute_definitions[attribute]
     assert "active" not in shared and "attribute_routes" not in shared
+
+
+@pytest.mark.parametrize("value", [1234, 1234.0])
+def test_share_rejects_numeric_pin_under_generic_field(value):
+    p = workspace()
+    ident = p.add(custom_start(body={"value": value}))
+    with pytest.raises(DevelopmentProfileError, match="private"):
+        p.share_definition(ident, spin="1234")
