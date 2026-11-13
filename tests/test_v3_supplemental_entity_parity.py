@@ -255,7 +255,10 @@ def test_derived_alias_and_eta_keep_original_observation_and_invalidity():
     assert car.readings["charging_complete_time"]["observed"] == now.isoformat()
     assert car.readings["charging_type"]["observed"] == now.isoformat()
     car.readings["chargeType"] = {
-        **source, "value": None, "status": "invalid_value", "reason": "vendor_sentinel"
+        **source,
+        "value": None,
+        "status": "invalid_value",
+        "reason": "vendor_sentinel",
     }
     observe_derived(car, NS(), {}, now + timedelta(minutes=31), _accept_observation)
     assert car.readings["charging_type"]["status"] == "invalid_value"
