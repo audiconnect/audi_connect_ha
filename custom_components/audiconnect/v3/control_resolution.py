@@ -136,6 +136,20 @@ def control_decision(
                 "alternative_requires_verification",
             )
         return decision("no_working_route", reason="reviewed_candidates_failed")
+    if capability == "charging" and aspect == "set_charge_mode":
+        from .command_policy import supported_charge_modes
+
+        if not supported_charge_modes(car):
+            options = car.readings.get("availableChargeModes", {})
+            if options.get("status") == "invalid_value":
+                reason = "charge_mode_options_invalid"
+            elif options.get("value") == []:
+                reason = "charge_mode_options_empty"
+            elif options.get("value") is None:
+                reason = "charge_mode_options_not_observed"
+            else:
+                reason = "charge_mode_options_unrecognized"
+            return decision("unknown", reason=reason)
     return decision("unknown")
 
 
