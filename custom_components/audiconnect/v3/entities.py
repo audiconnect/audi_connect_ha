@@ -669,18 +669,10 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
         if self.kind == "discovery":
             return self._discovery_progress()
         if self.kind in ("age", "freshness"):
-            from .freshness import (
-                capture_age_minutes,
-                capture_coverage,
-                newest_vehicle_reading,
-            )
+            from .freshness import capture_coverage, vehicle_capture_summary
             from .structured_details import details_for
 
             now = datetime.now(UTC)
-            newest = newest_vehicle_reading(self.vehicle, now)
-            stamp, ident, row = newest if newest else (None, None, {})
-            last = stamp.isoformat() if stamp else None
-            age = capture_age_minutes(last, now)
             coverage = capture_coverage(self.vehicle, now)
             oldest = [
                 job["oldest_minutes"]
@@ -688,14 +680,7 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
                 if job["oldest_minutes"] is not None
             ]
             result = {
-                "vehicle_last_update": last,
-                "vehicle_age_minutes": int(age) if age is not None else None,
-                "source_attribute": ident,
-                "source_job": row.get("job"),
-                "source_observed_at": row.get("observed"),
-                "source_clock_ahead_seconds": (
-                    max(0, int((stamp - now).total_seconds())) if stamp else None
-                ),
+                **vehicle_capture_summary(self.vehicle, now),
                 "oldest_observed_age_minutes": max(oldest, default=None),
                 "cloud_last_successful_poll": (
                     engine.last_cloud_poll_success.isoformat()
@@ -712,7 +697,6 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
                     "last_cloud_poll_succeeded",
                     self.coordinator.last_update_success,
                 ),
-                "freshness_basis": "newest_valid_vehicle_capture",
                 "job_capture_coverage": coverage,
             }
             if self.kind == "freshness":
