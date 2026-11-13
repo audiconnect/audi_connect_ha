@@ -342,7 +342,9 @@ def test_alias_projection_considers_all_cached_families_and_ignores_removed():
     )
     # Canonical wins the equal-time alias tie within Data Act.
     descriptor = ATTRIBUTES["TOTAL_RANGE"]
-    assert projection_reading(car, descriptor, registry=registry, now=now)[1] == fallback
+    assert (
+        projection_reading(car, descriptor, registry=registry, now=now)[1] == fallback
+    )
     invalid["captured"] = (now + timedelta(seconds=1)).isoformat()
     assert projection_reading(car, descriptor, registry=registry, now=now)[1] == native
     car.readings.pop("TOTAL_RANGE")

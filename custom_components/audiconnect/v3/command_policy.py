@@ -147,7 +147,8 @@ def eligible_operation(car, auth, capability, aspect, *, profile=None):
                 return "cariad.climate." + aspect
         elif supports("climatisation") or (
             car.climate_state is not None
-            and car.readings.get("climatisationState", {}).get("family") != "eu_data_act"
+            and car.readings.get("climatisationState", {}).get("family")
+            != "eu_data_act"
             and "climatisation" not in impaired
         ):
             return {
