@@ -188,3 +188,52 @@ def test_age_sensor_explains_source_and_partial_freshness():
     car.readings.clear()
     assert age.native_value is None
     assert age.extra_state_attributes["source_attribute"] is None
+
+
+def test_native_controls_share_reported_capture_attributes():
+    from custom_components.audiconnect.v3.entities import (
+        V3ChargeModeSelect,
+        V3ChargeTargetNumber,
+        V3ClimateSettingSwitch,
+        V3PreheaterSwitch,
+    )
+
+    car, co, now = context()
+    captured = (now - timedelta(hours=2)).isoformat()
+    row = {
+        "value": True,
+        "captured": captured,
+        "observed": now.isoformat(),
+        "status": "readable_but_stale",
+    }
+    car.readings.update(
+        climatisationState={**row, "value": "off"},
+        doorLockStatus={**row, "value": "locked"},
+        preferredChargeMode={**row, "value": "manual"},
+        targetstateOfCharge={**row, "value": 80},
+        preheater_active=row,
+        climatisationWithoutExternalPower=row,
+    )
+    entities = (
+        V3ClimateQuickSwitch(co, car),
+        V3LockEntity(co, car),
+        V3ChargeModeSelect(co, car),
+        V3ChargeTargetNumber(co, car),
+        V3PreheaterSwitch(co, car),
+        V3ClimateSettingSwitch(
+            co,
+            car,
+            (
+                "climatisation_without_external_power",
+                "climatisationWithoutExternalPower",
+                "climatisationWithoutExternalPower",
+            ),
+        ),
+    )
+    for entity in entities:
+        attrs = entity.extra_state_attributes
+        assert attrs["vehicle_captured"] == captured
+        assert attrs["cloud_observed"] == now.isoformat()
+        assert attrs["age_minutes"] >= 120
+        assert attrs["vehicle_freshness"] in ("stale", "stale_last_known")
+        assert attrs["verification"] == "readable_but_stale"
