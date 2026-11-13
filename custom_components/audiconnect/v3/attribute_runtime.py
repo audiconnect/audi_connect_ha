@@ -331,18 +331,16 @@ def observe_read_only(
     return {"mapped": mapped, "fresh": fresh_count}
 
 
-def data_act_soc(payload, now, registry):
-    """Only exact reviewed SOC field IDs; charging-start SOC is not current SOC."""
+def data_act_observations(payload, now, registry):
+    """Exact UUID + field-name mappings; one best timestamp per semantic field."""
     fields = registry.families["eu_data_act"]["observations"]
-    candidates = []
+    candidates = {}
     for item in payload["Data"]:
         if not isinstance(item, dict) or not isinstance(item.get("key"), str):
             continue
         key = item["key"]
-        mapping = fields.get(key, {})
-        if mapping.get("attribute") != "stateOfCharge" or item.get(
-            "dataFieldName"
-        ) != mapping.get("field"):
+        mapping = fields.get(key)
+        if not mapping or item.get("dataFieldName") != mapping["field"]:
             continue
         raw = item.get("value")
         if type(raw) not in (str, int, float):
@@ -351,52 +349,60 @@ def data_act_soc(payload, now, registry):
             value = float(raw)
         except (ValueError, OverflowError):
             continue
-        value, _ = normalize_attribute_value(ATTRIBUTES["stateOfCharge"], value, None)
+        if not mapping["min"] <= value <= mapping["max"]:
+            continue
+        # An all-bits-set odometer is not a vehicle measurement.
+        if mapping["attribute"] == "UTC_TIME_AND_KILOMETER_STATUS" and value == 65535:
+            continue
+        ident = mapping["attribute"]
+        value, _ = normalize_attribute_value(ATTRIBUTES[ident], value, None)
         if value is None:
             continue
         captured = item.get("timestampUtc")
         if capture_age_minutes(captured, now) is None:
             captured = None
-        candidates.append((captured, value, key))
-    if not candidates:
-        return None
-    # Flat capture-time rows and delivery clocks never date another field.
-    latest = max(
-        (_capture_in_utc(row[0]) for row in candidates if row[0]), default=None
-    )
-    matching = [row for row in candidates if _capture_in_utc(row[0]) == latest]
-    if len({row[1] for row in matching}) != 1:
-        return None
-    captured, value, key = min(matching, key=lambda row: row[2])
-    return {"value": value, "captured": captured, "path": key}
+        candidates.setdefault(ident, []).append((captured, value, key))
+    result = {}
+    for ident, rows in candidates.items():
+        latest = max(
+            (_capture_in_utc(row[0]) for row in rows if row[0]), default=None
+        )
+        matching = [row for row in rows if _capture_in_utc(row[0]) == latest]
+        if len({row[1] for row in matching}) != 1:
+            continue
+        captured, value, key = min(matching, key=lambda row: row[2])
+        result[ident] = {"value": value, "captured": captured, "path": key}
+    return result
 
 
 def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
-    """Map only proven informational fields; never alter command evidence."""
+    """Reuse canonical informational readings; never activate control evidence."""
     if (
         not isinstance(payload, dict)
         or not isinstance(payload.get("vin"), str)
         or payload["vin"].upper() != vehicle.vin.upper()
         or not isinstance(payload.get("Data"), list)
-        or "stateOfCharge" in getattr(profile, "attribute_disabled", ())
     ):
         return False
-    sample = data_act_soc(payload, observed_at, profile.registry)
-    if sample is None:
-        return False
-    # The existing native route remains bound. No Data Act profile activation.
-    return record_observation(
-        vehicle,
-        profile,
-        "stateOfCharge",
-        sample["value"],
-        sample["captured"],
-        observed_at,
-        sample["path"],
-        "charging",
-        "eu_data_act",
-        fresh=timestamp_is_fresh(sample["captured"], observed_at),
-        operation="eu_data_act.dataset",
-        persist_evidence=False,
-        delivered_at=delivered_at,
-    )
+    accepted = False
+    for ident, sample in data_act_observations(
+        payload, observed_at, profile.registry
+    ).items():
+        if ident in getattr(profile, "attribute_disabled", ()):
+            continue
+        accepted |= record_observation(
+            vehicle,
+            profile,
+            ident,
+            sample["value"],
+            sample["captured"],
+            observed_at,
+            sample["path"],
+            ATTRIBUTES[ident]["job"],
+            "eu_data_act",
+            fresh=timestamp_is_fresh(sample["captured"], observed_at),
+            operation="eu_data_act.dataset",
+            persist_evidence=False,
+            delivered_at=delivered_at,
+        )
+    return accepted

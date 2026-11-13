@@ -25,11 +25,51 @@
       "observations": {
         "506cb83e-f99f-3af3-bbeb-0429b69a78d9": {
           "field": "battery_state_report.soc",
-          "attribute": "stateOfCharge"
+          "attribute": "stateOfCharge",
+          "min": 0,
+          "max": 100
         },
         "ae0294b4-1286-3e98-a818-1485b8d88430": {
           "field": "state_of_charge",
-          "attribute": "stateOfCharge"
+          "attribute": "stateOfCharge",
+          "min": 0,
+          "max": 100
+        },
+        "41c0805c-43e5-313e-9dfb-356cb8d20f7c": {
+          "field": "mileage",
+          "attribute": "UTC_TIME_AND_KILOMETER_STATUS",
+          "min": 0,
+          "max": 1000000
+        },
+        "1503760b-5570-3001-8ffc-1bb6f464948e": {
+          "field": "fuel_level_current_level",
+          "attribute": "TANK_LEVEL_IN_PERCENTAGE",
+          "min": 0,
+          "max": 100
+        },
+        "153e8c40-4c6c-3c17-a11b-0ecc35d55b81": {
+          "field": "cruising_range_combined",
+          "attribute": "TOTAL_RANGE",
+          "min": 0,
+          "max": 10000
+        },
+        "55e0d40b-38ed-3cb5-9dcd-6193df6fc493": {
+          "field": "cruising_range_primary_engine",
+          "attribute": "primaryEngineRange",
+          "min": 0,
+          "max": 10000
+        },
+        "3dedefab-8ded-3f5a-907f-d5e9970720bf": {
+          "field": "cruising_range_secondary_engine",
+          "attribute": "secondaryEngineRange",
+          "min": 0,
+          "max": 10000
+        },
+        "a3368611-8c63-3b7d-9d19-148a464c7a7b": {
+          "field": "oil_level_actual_level",
+          "attribute": "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
+          "min": 0,
+          "max": 100
         }
       }
     },

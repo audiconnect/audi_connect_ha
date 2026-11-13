@@ -8,7 +8,7 @@ import zipfile
 import pytest
 
 from custom_components.audiconnect.v3.attribute_runtime import (
-    data_act_soc,
+    data_act_observations,
     observe_data_act,
     record_observation,
 )
@@ -54,13 +54,13 @@ def test_exact_soc_field_and_no_inherited_capture_time():
     }
     decoded = decode_dataset(archive(payload), VIN)
     registry = CapabilityRegistry.from_json_file(catalog_path())
-    assert data_act_soc(decoded, now, registry) == {
+    assert data_act_observations(decoded, now, registry).get("stateOfCharge") == {
         "value": 52,
         "captured": None,
         "path": SOC,
     }
     payload["Data"].append(sample("40"))
-    assert data_act_soc(payload, now, registry) is None
+    assert not data_act_observations(payload, now, registry)
 
 
 @pytest.mark.parametrize("name", ["../vehicle.json", "/vehicle.json", "vehicle.txt"])
@@ -303,3 +303,47 @@ async def test_independent_family_reads_overlap_and_publish_through_shared_write
     assert car.readings["stateOfCharge"]["family"] == "cariad"
     assert car.readings["stateOfCharge"]["value"] == 80
     assert status.last_cloud_poll_succeeded
+
+
+def test_sparse_q8_shape_maps_known_information_only():
+    """Synthetic values and VIN; field IDs are from the public dictionary."""
+    now = datetime.now(UTC)
+    stamp = (now - timedelta(hours=35)).isoformat()
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    fields = [
+        ("ae0294b4-1286-3e98-a818-1485b8d88430", "state_of_charge", "64"),
+        ("41c0805c-43e5-313e-9dfb-356cb8d20f7c", "mileage", "12345"),
+        ("1503760b-5570-3001-8ffc-1bb6f464948e", "fuel_level_current_level", "80"),
+        ("153e8c40-4c6c-3c17-a11b-0ecc35d55b81", "cruising_range_combined", "620"),
+        ("55e0d40b-38ed-3cb5-9dcd-6193df6fc493", "cruising_range_primary_engine", "590"),
+        ("3dedefab-8ded-3f5a-907f-d5e9970720bf", "cruising_range_secondary_engine", "30"),
+        ("a3368611-8c63-3b7d-9d19-148a464c7a7b", "oil_level_actual_level", "95"),
+        ("cf28f7d9-6201-30b8-82e5-a461968d30dc", "remaining_charging_time", "65535"),
+        ("1c62bf0a-8088-332c-9399-3b8cb0573099", "remaining_climatisation_time", "-256"),
+        ("60bc0937-f5a7-3809-9535-9a7942e5dd94", "lock_state", "unlocked"),
+    ]
+    payload = {
+        "vin": VIN,
+        "Data": [
+            {"key": key, "dataFieldName": field, "value": value, "timestampUtc": stamp}
+            for key, field, value in fields
+        ],
+    }
+    car = V3Vehicle(VIN, "Audi", "", "", "BE")
+    profile = DevelopmentProfile(registry, car.context)
+    assert observe_data_act(car, profile, payload, now, now.isoformat())
+    assert {key: row["value"] for key, row in car.readings.items()} == {
+        "stateOfCharge": 64,
+        "UTC_TIME_AND_KILOMETER_STATUS": 12345,
+        "TANK_LEVEL_IN_PERCENTAGE": 80,
+        "TOTAL_RANGE": 620,
+        "primaryEngineRange": 590,
+        "secondaryEngineRange": 30,
+        "OIL_LEVEL_DIPSTICKS_PERCENTAGE": 95,
+    }
+    assert all(row["captured"] == stamp for row in car.readings.values())
+    assert not profile.attribute_evidence and not profile.attribute_routes
+    payload["Data"][1]["value"] = "65535"
+    assert "UTC_TIME_AND_KILOMETER_STATUS" not in data_act_observations(
+        payload, now, registry
+    )
