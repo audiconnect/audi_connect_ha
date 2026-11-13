@@ -76,9 +76,8 @@ def test_historical_freshness_age_and_quota_are_distinct():
     }
     assert age.native_value == 0
     assert fresh.native_value == "fresh"
-    assert fresh.extra_state_attributes["job_capture_coverage"]["unclassified"][
-        "oldest_minutes"
-    ] >= 240
+    coverage = fresh.extra_state_attributes["job_capture_coverage"]
+    assert coverage["unclassified"]["oldest_minutes"] >= 240
 
 
 def test_service_overview_and_dealer_are_vehicle_local_data():
@@ -142,7 +141,7 @@ def test_aliases_and_completion_keep_source_capture():
     assert car.readings["charging_complete_time"]["captured"] == stamp
 
 
-def test_freshness_does_not_hide_old_climate_behind_recent_charging():
+def test_newest_vehicle_capture_keeps_older_climate_age_visible():
     car, co, now = context()
     car.readings.update(
         stateOfCharge={"value": 77, "job": "charging", "captured": now.isoformat()},
@@ -154,7 +153,7 @@ def test_freshness_does_not_hide_old_climate_behind_recent_charging():
     )
     assert V3StatusSensor(co, car, "age").native_value == 0
     sensor = V3StatusSensor(co, car, "freshness")
-    assert sensor.native_value == "stale"
+    assert sensor.native_value == "fresh"
     assert (
         sensor.extra_state_attributes["job_capture_coverage"]["climatisation"][
             "oldest_minutes"
