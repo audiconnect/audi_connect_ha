@@ -136,9 +136,22 @@ class V3Engine:
             profile.rebind_context(vehicle.context)
             vehicle.advertised_capabilities.clear()
             vehicle.impaired_capabilities.clear()
-            vehicle.readings.clear()
+            # A newly resolved manufacturer label/type does not change the
+            # identity of this VIN or its measured telemetry. Invalidate
+            # control applicability, not the last-known vehicle measurements.
+            context = vehicle.context
+            metadata_refined = (
+                context.auth == old_context.auth
+                and context.region == old_context.region
+                and context.legacy_cariad == old_context.legacy_cariad
+                and context.legacy_api_level == old_context.legacy_api_level
+                and old_context.vehicle_type in ("", context.vehicle_type)
+                and old_context.model_family in ("", context.model_family)
+            )
+            if not metadata_refined:
+                vehicle.readings.clear()
+                vehicle.position = None
             vehicle.capability_readings.clear()
-            vehicle.position = None
             vehicle.charging_profiles.clear()
             vehicle.active_charging_profile_id = None
             vehicle.charging_profiles_captured = None

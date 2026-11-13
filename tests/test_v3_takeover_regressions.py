@@ -57,7 +57,7 @@ def test_parking_light_never_uses_other_light_types():
     assert car.readings["parking_light"]["value"] is False
 
 
-def test_partial_access_report_invalidates_missing_or_contradictory_components():
+def test_partial_access_retains_missing_and_invalidates_contradictory_components():
     car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
     now = datetime.now(UTC)
 
@@ -85,8 +85,11 @@ def test_partial_access_report_invalidates_missing_or_contradictory_components()
         now + timedelta(seconds=1),
         [{"name": "frontRight", "status": ["open", "closed"]}],
     )
-    assert car.readings["left_front_door_open"]["value"] is None
+    assert car.readings["left_front_door_open"]["value"] is False
+    assert car.readings["left_front_door_open"]["captured"] == now.isoformat()
     assert car.readings["right_front_door_open"]["value"] is None
+    assert car.readings["right_front_door_open"]["status"] == "invalid_value"
+    assert car.readings["any_door_open"]["value"] is None
 
 
 def test_structured_timers_services_and_components_are_bounded_and_typed():

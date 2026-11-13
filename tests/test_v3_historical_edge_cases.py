@@ -36,10 +36,15 @@ def test_incomplete_or_duplicated_doors_do_not_prove_closed():
         }
     }
     observe_read_only(car, profile, data, now)
-    assert "any_door_open" not in car.readings
-    assert "any_door_unlocked" not in car.readings
-    assert "doors_trunk_status" not in car.readings
-    assert "any_window_open" not in car.readings
+    for key in (
+        "any_door_open",
+        "any_door_unlocked",
+        "doors_trunk_status",
+        "any_window_open",
+        "left_rear_door_open",
+    ):
+        assert car.readings[key]["value"] is None
+        assert car.readings[key]["status"] == "invalid_value"
 
 
 def test_restored_quota_is_display_only_and_live_quota_wins():

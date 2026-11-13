@@ -48,7 +48,11 @@ def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | N
     reference = now or datetime.now(UTC)
     stamps = []
     for ident, row in vehicle.readings.items():
-        if ident == "model" or row.get("status") == "invalid_value":
+        if (
+            ident == "model"
+            or row.get("status") == "invalid_value"
+            or row.get("value") is None
+        ):
             continue
         captured = row.get("captured")
         if capture_age_minutes(captured, reference) is not None:

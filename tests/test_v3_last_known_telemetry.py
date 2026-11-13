@@ -114,9 +114,28 @@ def test_data_age_uses_capture_not_cloud_observation_or_invalid_future():
     vehicle.readings["stateOfCharge"] = reading(80, old)
     vehicle.readings["chargingPower"] = reading(1, now + timedelta(hours=1))
     assert newest_vehicle_capture(vehicle, now) == old
-    sensor = V3StatusSensor(
-        NS(async_add_listener=lambda cb: None), vehicle, "age"
-    )
+    sensor = V3StatusSensor(NS(async_add_listener=lambda cb: None), vehicle, "age")
     assert sensor.native_value >= 420
     vehicle.readings["chargingState"] = reading("off", now)
     assert sensor.native_value == 0
+
+
+def test_identity_refinement_retains_same_vehicle_measurements():
+    from custom_components.audiconnect.v3.engine import V3Engine
+
+    vehicle = car()
+    vehicle.model_family = ""
+    old_context = vehicle.context
+    stamp = datetime.now(UTC) - timedelta(hours=7)
+    vehicle.readings["stateOfCharge"] = reading(80, stamp)
+    vehicle.model_family = "q8"
+    seen = []
+    profile = NS(rebind_context=seen.append)
+    engine = NS(status=NS(_trip_poll_at={}))
+    V3Engine._rebind_identity_context(engine, vehicle, profile, old_context)
+    assert seen == [vehicle.context]
+    assert vehicle.readings["stateOfCharge"]["captured"] == stamp.isoformat()
+    old_context = vehicle.context
+    vehicle.country = "GB"
+    V3Engine._rebind_identity_context(engine, vehicle, profile, old_context)
+    assert not vehicle.readings

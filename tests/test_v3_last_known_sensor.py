@@ -1,7 +1,7 @@
 """Passive V2-compatible values remain readable without pretending to be live.
 
 Cloud receipt age cannot turn an old vehicle sample into fresh data, and
-active/security binary statuses stay unavailable when their capture is old.
+command readback and instantaneous measurements remain freshness-gated.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -47,16 +47,16 @@ def test_unknown_or_missing_value_is_never_exposed():
     )
 
 
-def test_contract_restricts_last_known_to_passive_not_active_state():
+def test_contract_separates_last_reported_state_from_live_measurements():
     from custom_components.audiconnect.v3.attribute_contracts import contract_for
 
     assert contract_for("state_of_charge")["display_last_known"] is True
     assert contract_for("range")["display_last_known"] is True
+    for key in ("charging_state", "door_lock_status", "doors_trunk_status"):
+        assert contract_for(key)["display_last_known"] is True
     for key in (
-        "charging_state",
         "charging_power",
         "climatisation_state",
-        "door_lock_status",
         "vehicle_reported_online",
         "remaining_climatisation_time",
     ):
@@ -112,4 +112,6 @@ def test_v3_sensor_availability_uses_attribute_contract_not_all_sensors():
     )
     assert passive.available and passive.native_value == 67
     assert passive.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
-    assert not active.available
+    assert active.available and active.native_value == "charging"
+    assert active.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
+    assert not _reading_available(vehicle.readings["chargingState"])
