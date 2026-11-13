@@ -30,9 +30,9 @@ def test_mbb_legacy_reading_has_correct_family_and_vehicle_scope():
         r
         for r in report["rows"]
         if r.get("attribute") == "stateOfCharge"
-        and r.get("source") == "v3_live_evidence"
+        and r.get("source") == "v3_historical_evidence"
     ]
     assert len(rows) == 1
     assert rows[0]["api_family"] == "mbb"
-    assert rows[0]["status"] == "readable_but_stale"
+    assert rows[0]["status"] == "not_observed"
     assert not rows[0]["selected"]
