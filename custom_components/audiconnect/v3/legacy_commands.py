@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from .auth import service_api_level
 from .registry import read_json_path
 from .command_parameters import CLIMATE_INPUTS, temperature_celsius, validate_inputs
 
@@ -157,7 +158,7 @@ async def configure_home_region(transport, auth, car):
     executor = transport.executors["mbb"]
     if car.vin.upper() in executor._trusted_hosts:
         return
-    level = getattr(getattr(auth, "service", None), "_api_level", None)
+    level = service_api_level(auth)
     if car.country != "US" and level == 1:
         executor.set_vehicle_home_region(
             car.vin, "https://mal-3a.prd.eu.dp.vwg-connect.com"

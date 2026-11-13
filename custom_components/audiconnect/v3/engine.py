@@ -11,7 +11,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from .auth import V3Auth
+from .auth import V3Auth, configured_spin, redaction_context
 from .action_discovery import validate_approval
 from .command_engine import CommandEngine
 from .command_parameters import runtime_ready
@@ -54,10 +54,6 @@ from ..const import (
     CONF_FILTER_VINS,
     CONF_REFRESH_AFTER_ACTION,
     CONF_UPDATE_SLEEP,
-    CONF_SPIN,
-    CONF_USERNAME,
-    CONF_PASSWORD,
-    CONF_REFRESH_TOKEN,
     DOMAIN,
     REFRESH_VEHICLE_DATA_COMPLETED_EVENT,
     REFRESH_VEHICLE_DATA_FAILED_EVENT,
@@ -439,7 +435,7 @@ class V3Engine:
             or body != {"spin": "{SPIN}"}
         ):
             raise ValueError("Secure S-PIN template is not permitted for this command")
-        spin = getattr(getattr(self.auth, "service", None), "_spin", None)
+        spin = configured_spin(self.auth)
         if not isinstance(spin, str) or not spin:
             raise ValueError("Configure an Audi S-PIN to use remote door controls")
         return {"spin": spin}
@@ -498,21 +494,10 @@ class V3Engine:
     async def _dispatch_command(self, car, family, method, path, body):
         return await self.commands.dispatch_command(car, family, method, path, body)
 
-    def _evidence_credentials(self):
-        """One redaction context for reviewed and experimental API evidence."""
-        settings = getattr(self.entry, "data", {})
-        known = [
-            settings.get(key)
-            for key in (CONF_USERNAME, CONF_PASSWORD, CONF_REFRESH_TOKEN)
-        ]
-        service = getattr(self.auth, "service", None)
-        for name in ("_bearer_token_json", "audiToken", "vwToken"):
-            token = getattr(service, name, None)
-            if isinstance(token, dict):
-                known.extend(
-                    token.get(k) for k in ("access_token", "refresh_token", "id_token")
-                )
-        return settings.get(CONF_SPIN), tuple(known)
+    def redact_evidence(self, payload, vin):
+        """Return masked evidence, never the credentials used to mask it."""
+        spin, secrets = redaction_context(self.entry, self.auth)
+        return engineering_response(payload, vehicle_vin=vin, spin=spin, secrets=secrets)
 
     def _api_record(
         self,
@@ -529,7 +514,7 @@ class V3Engine:
         detail = None
         request = None
         if response is not None:
-            spin, known = self._evidence_credentials()
+            spin, known = redaction_context(self.entry, self.auth)
             try:
                 detail = engineering_response(
                     response.data, vehicle_vin=vin, spin=spin, secrets=known
@@ -709,7 +694,7 @@ class V3Engine:
             and isinstance(row.get("vin"), str)
             and row["vin"].lower() == car.vin.lower()
         ]
-        spin, known = self._evidence_credentials()
+        spin, known = redaction_context(self.entry, self.auth)
         # Unknown field names/types only. Never return raw unknown account values.
         fields, truncated = safe_schema_inventory(
             {"data": {"userVehicles": rows}},
@@ -1060,7 +1045,7 @@ class V3Engine:
             raise ValueError("Execution evidence is no longer retained")
         if not isinstance(comment, str) or len(comment) > 500:
             raise ValueError("Comment must be at most 500 characters")
-        spin, secrets = self._evidence_credentials()
+        spin, secrets = redaction_context(self.entry, self.auth)
         masked = engineering_response(
             comment, vehicle_vin=car.vin, spin=spin, secrets=secrets
         )["payload"]
@@ -1148,7 +1133,7 @@ class V3Engine:
             aspect,
             op,
             approval,
-            has_spin=bool(getattr(getattr(self.auth, "service", None), "_spin", None)),
+            has_spin=bool(configured_spin(self.auth)),
         )
         if guided:
             return await self.commands.test_action(
@@ -1192,7 +1177,7 @@ class V3Engine:
 
     def share_definition(self, vin: str, operation: str) -> dict[str, Any]:
         car = self.require_vehicle(vin)
-        spin, secrets = self._evidence_credentials()
+        spin, secrets = redaction_context(self.entry, self.auth)
         return self.profiles[car.vin.lower()].share_definition(
             operation, vin=car.vin, spin=spin, secrets=secrets
         )

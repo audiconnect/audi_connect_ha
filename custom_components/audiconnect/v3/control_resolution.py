@@ -7,6 +7,7 @@ evidence only; the current context and policy are evaluated on every use.
 from __future__ import annotations
 
 from .action_discovery import approval_group
+from .auth import configured_spin
 from .command_policy import eligible_operation
 from .operation_revision import operation_revision
 from .command_parameters import runtime_ready
@@ -79,9 +80,7 @@ def control_decision(
         group = approval_group(capability, aspect, op)
         if group not in ("non_spin", "spin"):
             return False
-        if group == "spin" and not getattr(
-            getattr(auth, "service", None), "_spin", None
-        ):
+        if group == "spin" and not configured_spin(auth):
             return False
         impaired = car.impaired_capabilities
         relevant = {

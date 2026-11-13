@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from .action_discovery import approval_group
+from .auth import configured_spin
 from .command_journal import (
     CommandRecord,
     check_command_sequence,
@@ -129,7 +130,7 @@ class CommandEngine:
                 self.transport,
                 car.vin,
                 path.rsplit("/", 1)[-1],
-                getattr(self.auth.service, "_spin", None),
+                configured_spin(self.auth),
             )
             return await self.transport.request(
                 family,
@@ -226,9 +227,7 @@ class CommandEngine:
             "binding": match,
             "pending": in_progress.public() if in_progress else None,
             "requires": "Explicit per-action consent and physical verification",
-            "spin_configured": bool(
-                getattr(getattr(self.auth, "service", None), "_spin", None)
-            ),
+            "spin_configured": bool(configured_spin(self.auth)),
         }
 
     async def disable_control(

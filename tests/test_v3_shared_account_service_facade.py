@@ -140,3 +140,20 @@ def test_service_translation_never_discards_parameters(action, data):
     with pytest.raises(HomeAssistantError):
         asyncio.run(_v3_service_command(engine, "TESTVIN", action, data))
     engine.send_control.assert_not_awaited()
+
+
+def test_auth_redaction_includes_live_token_slots_and_active_pin():
+    from custom_components.audiconnect.const import CONF_SPIN
+    from custom_components.audiconnect.v3.auth import redaction_context
+
+    service = SimpleNamespace(
+        _spin="9876",
+        _bearer_token_json={"access_token": "cariad-token"},
+        audiToken={"id_token": "identity-token"},
+        vwToken={"refresh_token": "legacy-token"},
+    )
+    pin, secrets = redaction_context(
+        SimpleNamespace(data={CONF_SPIN: "1234"}), SimpleNamespace(service=service)
+    )
+    assert pin == "1234"
+    assert {"9876", "cariad-token", "identity-token", "legacy-token"} <= set(secrets)

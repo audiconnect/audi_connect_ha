@@ -24,6 +24,46 @@ from ..const import (
 )
 
 
+# Only this boundary knows the historical credential slots.
+_TOKEN_SLOTS = {
+    "graphql": "audiToken",
+    "cariad": "_bearer_token_json",
+    "mbb": "vwToken",
+}
+
+
+def _token_record(service, family):
+    name = _TOKEN_SLOTS.get(family)
+    record = getattr(service, name, None) if name else None
+    return record if isinstance(record, dict) else {}
+
+
+def configured_spin(auth):
+    """Internal credential access; callers must never expose the returned value."""
+    return getattr(getattr(auth, "service", None), "_spin", None)
+
+
+def service_api_level(auth):
+    return getattr(getattr(auth, "service", None), "_api_level", None)
+
+
+def redaction_context(entry, auth):
+    """Collect known credentials only for local, in-memory masking."""
+    settings = getattr(entry, "data", {})
+    known = [
+        settings.get(key) for key in (CONF_USERNAME, CONF_PASSWORD, CONF_REFRESH_TOKEN)
+    ]
+    service = getattr(auth, "service", None)
+    for family in _TOKEN_SLOTS:
+        token = _token_record(service, family)
+        known.extend(token.get(k) for k in ("access_token", "refresh_token", "id_token"))
+    pin = settings.get(CONF_SPIN)
+    active_pin = configured_spin(auth)
+    if active_pin is not None and str(active_pin) != str(pin):
+        known.append(str(active_pin))
+    return pin if pin is not None else active_pin, tuple(known)
+
+
 class V3Auth:
     """V3 credential adapter; the shared account owns the session lifecycle."""
 
@@ -76,31 +116,20 @@ class V3Auth:
 
     @property
     def has_cariad_bearer(self) -> bool:
-        token = getattr(self.service, "_bearer_token_json", None)
-        return (
-            isinstance(token, dict)
-            and isinstance(token.get("access_token"), str)
-            and bool(token["access_token"])
-        )
+        token = _token_record(self.service, "cariad").get("access_token")
+        return isinstance(token, str) and bool(token)
 
     @property
     def legacy_api_level(self) -> int:
-        return int(getattr(self.service, "_api_level", 0) or 0)
+        return int(service_api_level(self) or 0)
 
     def identity_auth_evidence(self, family: str = "graphql") -> dict:
         """Coarse unverified JWT metadata for diagnosis only. Never export a token or subject."""
         import base64
         import json
 
-        name = {
-            "graphql": "audiToken",
-            "cariad": "_bearer_token_json",
-            "mbb": "vwToken",
-        }.get(family)
-        token = getattr(self.service, name, None) if name else None
-        bearer = getattr(self.service, "_bearer_token_json", None)
-        access = token.get("access_token") if isinstance(token, dict) else None
-        primary = bearer.get("access_token") if isinstance(bearer, dict) else None
+        access = _token_record(self.service, family).get("access_token")
+        primary = _token_record(self.service, "cariad").get("access_token")
         result = {
             "provider": "auth0" if self.uses_auth0 else "legacy",
             "role": "cariad_bearer"
@@ -154,15 +183,9 @@ class V3Auth:
 
     def access_token(self, family: str) -> str:
         """Only reviewed family tokens; never expose in diagnostics."""
-        if family == "cariad":
-            token = getattr(self.service, "_bearer_token_json", None)
-        elif family == "graphql":
-            token = getattr(self.service, "audiToken", None)
-        elif family == "mbb":
-            token = getattr(self.service, "vwToken", None)
-        else:
+        if family not in _TOKEN_SLOTS:
             raise ValueError("V3 family is not enabled")
-        value = token.get("access_token") if isinstance(token, dict) else None
+        value = _token_record(self.service, family).get("access_token")
         if not isinstance(value, str) or not value:
             raise ConfigEntryAuthFailed("Audi authentication token unavailable")
         return value

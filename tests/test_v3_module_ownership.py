@@ -83,3 +83,15 @@ def test_engine_does_not_reach_into_status_or_command_private_state():
             and node.value.attr in ("status", "commands")
         ):
             assert not node.attr.startswith("_"), node.attr
+
+
+def test_only_auth_owner_reads_historical_credential_slots():
+    slots = {"_spin", "_api_level", "_bearer_token_json", "audiToken", "vwToken"}
+    for path in V3.glob("*.py"):
+        if path.name == "auth.py":
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Attribute):
+                assert node.attr not in slots, path.name
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                assert node.value not in slots, path.name

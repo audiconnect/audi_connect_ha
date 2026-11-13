@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from .auth import configured_spin
 from .registry import read_json_path, selective_status_path
 from .command_parameters import (
     SOC,
@@ -179,7 +180,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
             raise ValueError("Remote engine start not supported for this vehicle")
         if params:
             raise ValueError("Unexpected engine start parameters")
-        spin = engine.auth.service._spin
+        spin = configured_spin(engine.auth)
         reply = await transport.request(
             "cariad",
             "PUT",
@@ -202,7 +203,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
         return {"securedActivationData": proof, "spin": spin}
     if mode == "auxiliary_start":
         validate_inputs(params, {"duration": DURATION})
-        spin = getattr(engine.auth.service, "_spin", None)
+        spin = configured_spin(engine.auth)
         if not spin:
             raise ValueError("Auxiliary heating needs S-PIN")
         duration = validate_parameter(
