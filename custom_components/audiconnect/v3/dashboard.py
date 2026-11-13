@@ -272,6 +272,31 @@ async def ws_add_route(hass, connection, msg):
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): "audiconnect/v3/share_definition",
+        vol.Required("entry_id"): str,
+        vol.Required("vin"): str,
+        vol.Required("operation"): vol.All(str, vol.Length(min=1, max=120)),
+    }
+)
+@websocket_api.async_response
+async def ws_share_definition(hass, connection, msg):
+    """Return only the saved definition after the backend privacy check."""
+    try:
+        definition = _engine(hass, msg["entry_id"]).share_definition(
+            msg["vin"], msg["operation"]
+        )
+        connection.send_result(msg["id"], definition)
+    except (ValueError, KeyError, TypeError):
+        connection.send_error(
+            msg["id"],
+            "v3_share_definition_failed",
+            "Definition unavailable or contains potentially private values",
+        )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): "audiconnect/v3/discard_route",
         vol.Required("entry_id"): str,
         vol.Required("vin"): str,
@@ -788,6 +813,7 @@ async def async_setup_dashboard(hass) -> None:
             ws_resume_discovery,
             ws_add_route,
             ws_discard_route,
+            ws_share_definition,
             ws_review,
             ws_review_normal_command,
             ws_select,

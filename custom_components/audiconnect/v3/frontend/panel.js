@@ -640,6 +640,20 @@ class AudiConnectV3Panel extends HTMLElement {
       this.render();
       return;
     }
+    if (action === "share-definition") {
+      try {
+        const definition = await this.api("share_definition", {
+          entry_id: this.selected,
+          vin: this.vin,
+          operation: button.dataset.operation,
+        });
+        await this.copyText(JSON.stringify(definition, null, 2), button);
+      } catch (err) {
+        this.error = String(err.message || err);
+        this.render();
+      }
+      return;
+    }
     if (action === "definition-json") {
       const id = button.dataset.editor;
       const template = this.editorTemplate(id);
@@ -1603,8 +1617,12 @@ class AudiConnectV3Panel extends HTMLElement {
               .filter(Boolean)
               .join("\n\n");
     if (!value) return;
+    await this.copyText(value, button);
+  }
+
+  async copyText(value, button) {
     try {
-      // Copy only the masked text already displayed; no API or new execution.
+      // Copy only the supplied, reviewed text; never execute a vehicle action.
       if (!navigator.clipboard?.writeText) throw Error("Clipboard unavailable");
       await navigator.clipboard.writeText(value);
     } catch {
@@ -2267,6 +2285,7 @@ class AudiConnectV3Panel extends HTMLElement {
             </div>
             <div class="actions">
               <button data-action="read-test" class="primary" ${!this.readChoice || this.loading ? "disabled" : ""}>Test read-only GET</button>
+              ${chosen?.kind === "custom" ? `<button data-action="share-definition" data-operation="${escapeHTML(this.readChoice)}">Copy shareable definition</button>` : ""}
               <button data-action="read-save" ${!this.readChoice || this.loading ? "disabled" : ""}>Save candidate</button>
               ${chosen?.kind === "custom" && (!chosen.result || chosen.result === "not_tested") && this.readActive !== this.readChoice ? `<button data-action="discard-route" data-operation="${escapeHTML(this.readChoice)}" ${this.loading ? "disabled" : ""}>Delete unused draft</button>` : ""}
               <button data-action="read-activate" ${!canActivateRead || this.loading ? "disabled" : ""}>Activate for polling</button>
@@ -2308,6 +2327,7 @@ class AudiConnectV3Panel extends HTMLElement {
             </label>
             <div class="actions">
               <button data-action="control-test" class="primary" ${!this.controlChoice || this.loading || this.controlDisabled || this.pending || this.capabilityBlocked(this.controlCapability) || group === "unsupported" || (group === "spin" && !this.spinConfigured) ? "disabled" : ""}>Send one test command</button>
+              ${this.controlChoice.startsWith("user.") ? `<button data-action="share-definition" data-operation="${escapeHTML(this.controlChoice)}">Copy shareable definition</button>` : ""}
               <button data-action="control-select" ${this.loading || this.pending || selectedControl?.status !== "worked" || !selectedControl?.runtime_ready ? "disabled" : ""}>Activate verified route</button>
               ${this.controlChoice.startsWith("user.") && selectedControl?.status === "not_tested" && !selectedControl.active ? `<button data-action="discard-route" data-operation="${escapeHTML(this.controlChoice)}" ${this.loading || this.pending ? "disabled" : ""}>Delete unused draft</button>` : ""}
               ${this.controlDisabled ? `<button data-action="control-enable" ${this.loading || this.pending ? "disabled" : ""}>Re-enable control</button>` : `<button data-action="control-disable" ${this.loading || this.pending ? "disabled" : ""}>Disable this control</button>`}

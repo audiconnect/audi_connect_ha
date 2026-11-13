@@ -1190,6 +1190,13 @@ class V3Engine:
             await self.storage.async_save(self.profiles)
             return op
 
+    def share_definition(self, vin: str, operation: str) -> dict[str, Any]:
+        car = self.require_vehicle(vin)
+        spin, secrets = self._evidence_credentials()
+        return self.profiles[car.vin.lower()].share_definition(
+            operation, vin=car.vin, spin=spin, secrets=secrets
+        )
+
     async def discard_unused_route(self, vin: str, operation: str) -> None:
         async with self.commands._actions:
             profile = self.profiles[self.require_vehicle(vin).vin.lower()]

@@ -271,3 +271,54 @@ def test_development_candidate_save_is_not_equivalent_to_verified_activation():
     assert "climate.start" not in p.active
     with pytest.raises(DevelopmentProfileError, match="confirm"):
         p.choose_working("climate", "start", route)
+
+
+def test_shared_definition_roundtrip_does_not_transfer_evidence_or_activation():
+    p = workspace()
+    ident = p.add(custom_start())
+    attempt = p.begin_test("climate", "start", ident, now=10)
+    p.observe_http(attempt.sequence, 202)
+    p.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=25)
+    p.choose_working("climate", "start", ident)
+    shared = p.share_definition(ident)
+    target = workspace()
+    assert target.add(shared) == ident
+    assert target.custom[ident] == p.custom[ident]
+    assert not target.active
+    assert not target.control_results
+    assert not target.discovery.history
+
+
+@pytest.mark.parametrize(
+    "description",
+    ["Contact example@example.org", "Private value topsecret123", "WAUZZZ4M0MD123456"],
+)
+def test_share_rejects_private_definition_literals(description):
+    p = workspace()
+    ident = p.add(custom_start(description=description))
+    with pytest.raises(DevelopmentProfileError, match="private"):
+        p.share_definition(ident, secrets=("topsecret123",))
+
+
+def test_share_local_read_includes_definition_not_observations():
+    p = workspace()
+    ident = "user.read.pressure"
+    attribute = "user.attribute.pressure"
+    p.attribute_custom[ident] = {
+        "id": ident,
+        "attribute": attribute,
+        "family": "cariad",
+        "method": "GET",
+        "path": "/vehicle/v1/vehicles/{VIN}/example",
+        "response_path": "pressure",
+    }
+    p.attribute_definitions[attribute] = {
+        "id": attribute,
+        "capability": "vehicle_status",
+        "name": "Pressure",
+        "type": "number",
+    }
+    p.attribute_routes[attribute] = ident
+    shared = p.share_definition(ident)
+    assert shared["attribute_definition"] == p.attribute_definitions[attribute]
+    assert "active" not in shared and "attribute_routes" not in shared
