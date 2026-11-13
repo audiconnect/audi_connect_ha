@@ -114,9 +114,10 @@ def record_observation(
     family,
     *,
     fresh,
-    operation=None,
+    operation,
+    persist_evidence=True,
 ):
-    """Commit value and evidence together, only if the vehicle sample is accepted."""
+    """Commit one normalized observation; persist only reviewed mapping evidence."""
     if not _accept_observation(vehicle.readings.get(ident), captured):
         return False
     status = "verified" if fresh else "readable_but_stale"
@@ -129,18 +130,18 @@ def record_observation(
         "job": job,
         "status": status,
         "family": family,
-        "operation": operation
-        or ("mbb.legacy" if family == "mbb" else "cariad.climate.status.batch"),
+        "operation": operation,
     }
     if ident == "climatisationState":
         remember_climate(profile, vehicle.readings[ident], observed_at)
-    profile.attribute_evidence[ident] = {
-        "status": status,
-        "path": path,
-        "job": job,
-        "source": "mbb.legacy" if family == "mbb" else "cariad.selectivestatus",
-        "timestamp_present": bool(captured),
-    }
+    if persist_evidence:
+        profile.attribute_evidence[ident] = {
+            "status": status,
+            "path": path,
+            "job": job,
+            "source": "mbb.legacy" if family == "mbb" else "cariad.selectivestatus",
+            "timestamp_present": bool(captured),
+        }
     return True
 
 
@@ -251,6 +252,7 @@ def observe_read_only(
             row["job"],
             "cariad",
             fresh=fresh,
+            operation="cariad.climate.status.batch",
         ):
             continue
         # A proven V2 response field is *readable* even if the vehicle's

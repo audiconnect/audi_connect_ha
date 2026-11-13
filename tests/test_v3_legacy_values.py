@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace as NS
 from custom_components.audiconnect.v3.legacy_values import observe_legacy
 from custom_components.audiconnect.v3.vehicle import V3Vehicle
@@ -60,3 +60,34 @@ def test_legacy_trip_units_and_reset_are_not_cariad_units():
     )
     assert out["current"]["averageFuelConsumption"] == 8.1
     assert out["reset"]["averageFuelConsumption"] == 7.3
+
+
+def test_legacy_uses_shared_observation_and_never_overwrites_newer_capture():
+    car = V3Vehicle(VIN, "Audi", "A4", "", "DE", auth_family="legacy")
+    profile = NS(attribute_evidence={})
+    now = datetime.now(UTC)
+
+    def sample(value, captured):
+        return NS(
+            data={
+                "charger": {
+                    "status": {
+                        "batteryStatusData": {
+                            "stateOfCharge": {
+                                "content": value,
+                                "carCapturedTimestamp": captured.isoformat(),
+                            }
+                        }
+                    }
+                }
+            },
+            observed_at=now,
+        )
+
+    observe_legacy(car, profile, "charger", sample(80, now))
+    row = car.readings["stateOfCharge"]
+    assert row["family"] == "mbb" and row["fresh"]
+    assert row["operation"] == "mbb.charger.readonly"
+    assert profile.attribute_evidence["stateOfCharge"]["source"] == "mbb.legacy"
+    observe_legacy(car, profile, "charger", sample(60, now - timedelta(hours=24)))
+    assert car.readings["stateOfCharge"] == row
