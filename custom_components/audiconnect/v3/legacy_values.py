@@ -43,7 +43,15 @@ def observe_legacy(car, profile, kind, response):
         issue = semantic_value_issue(descriptor.get("entity_key", key), value)
         if issue:
             record_invalid_observation(
-                car, key, stamp, response.observed_at, path or kind, None, issue, "mbb"
+                car,
+                key,
+                stamp,
+                response.observed_at,
+                path or kind,
+                None,
+                issue,
+                "mbb",
+                profile=profile,
             )
             return
         # Only reviewed mappings survive restart; derived legacy readings use
@@ -192,6 +200,7 @@ def observe_legacy(car, profile, kind, response):
                 None,
                 "boolean_oil_level_use_binary",
                 "mbb",
+                profile=profile,
             )
             record("oil_level_binary", not value, stamp, key)
         elif key in numeric_fields:

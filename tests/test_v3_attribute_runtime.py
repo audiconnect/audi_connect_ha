@@ -406,3 +406,41 @@ def test_invalid_secondary_sample_cannot_erase_other_family():
         "cariad",
     )
     assert vehicle.readings["stateOfCharge"]["status"] == "invalid_value"
+
+
+def test_family_selection_is_independent_of_response_arrival_order():
+    from itertools import permutations
+
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    samples = [
+        ("cariad", 80, now - timedelta(minutes=10)),
+        ("mbb", 81, now - timedelta(minutes=5)),
+        ("graphql", 79, now - timedelta(minutes=15)),
+    ]
+    for order in permutations(samples):
+        vehicle = car()
+        profile = DevelopmentProfile(registry, vehicle.context)
+        for family, value, captured in order:
+            record_observation(
+                vehicle,
+                profile,
+                "stateOfCharge",
+                value,
+                captured.isoformat(),
+                now,
+                "test",
+                "charging",
+                family,
+                fresh=True,
+                operation=family + ".test",
+                persist_evidence=False,
+            )
+        assert vehicle.readings["stateOfCharge"]["family"] == "cariad"
+        assert vehicle.readings["stateOfCharge"]["value"] == 80
+        assert len(vehicle.family_readings["stateOfCharge"]) == 3

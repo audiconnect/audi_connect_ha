@@ -871,6 +871,7 @@ class StatusEngine:
                     definition["job"],
                     issue,
                     family,
+                    profile=profile,
                 )
             value = None
         fresh = timestamp_is_fresh(captured, response.observed_at)

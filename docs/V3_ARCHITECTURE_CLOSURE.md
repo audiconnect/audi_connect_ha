@@ -63,3 +63,7 @@ See [V3 review](V3_REVIEW.md) and [V2 parity baseline](V2_V3_PARITY_BASELINE.jso
 ## Feature closure status
 
 See [the feature closure review](V3_FEATURE_CLOSURE.md). It separates source inventory, implementation, automated evidence and real vehicle acceptance. Do not use an entity-count or a passing unit suite as a feature-completeness claim.
+
+### Deterministic observation selection
+
+Use the existing Status writer, not a second resolver. Keep one normalized in-memory sample per known family and semantic field; never persist this cache. Valid fresh observations use family priority, then capture time and a stable tie-break. If no fresh observation exists, use the newest valid captured sample, then family priority; unknown capture ranks below known capture. Older samples never overwrite a newer sample within the same family. Explicit invalidation affects its own family. No separate priority matrix or change to command authorization. The selected projection may legitimately move to a slightly older but still fresh higher-priority family; freshness provenance remains visible.
