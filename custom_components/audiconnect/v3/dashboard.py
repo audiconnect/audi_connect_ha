@@ -6,6 +6,7 @@ diagnostic exports. Admin actions may address their own authenticated VIN.
 
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -794,13 +795,20 @@ async def ws_trip_history(hass, connection, msg):
         )
 
 
+def _panel_module_url(frontend_dir: Path) -> str:
+    """Invalidate the browser cache only when the packaged script changes."""
+    digest = sha256((frontend_dir / "panel.js").read_bytes()).hexdigest()[:16]
+    return f"/audiconnect_v3/panel.js?v={digest}"
+
+
 async def async_setup_dashboard(hass) -> None:
     if hass.data.get(_READY_KEY):
         return
+    frontend_dir = Path(__file__).parent / "frontend"
+    module_url = await hass.async_add_executor_job(_panel_module_url, frontend_dir)
     # HA websocket commands and static paths live for the HA process.
     # Removing and re-adding the optional sidebar must not register duplicates.
     if not hass.data.get(_HANDLERS_KEY):
-        frontend_dir = Path(__file__).parent / "frontend"
         await hass.http.async_register_static_paths(
             [StaticPathConfig("/audiconnect_v3", str(frontend_dir), False)]
         )
@@ -837,7 +845,7 @@ async def async_setup_dashboard(hass) -> None:
         hass,
         webcomponent_name="audiconnect-v3-panel",
         frontend_url_path=_PANEL,
-        module_url="/audiconnect_v3/panel.js?v=3.0.0b18",
+        module_url=module_url,
         sidebar_title="Audi Engineering Dashboard",
         sidebar_icon="mdi:car-cog",
         require_admin=True,

@@ -42,6 +42,19 @@ def test_v3_dashboard_exists_in_package_not_only_in_repo_documentation():
         assert action in script
 
 
+def test_v3_dashboard_cache_key_follows_packaged_script(tmp_path):
+    from custom_components.audiconnect.v3.dashboard import _panel_module_url
+
+    script = tmp_path / "panel.js"
+    script.write_text("first", encoding="utf-8")
+    first = _panel_module_url(tmp_path)
+    assert first.startswith("/audiconnect_v3/panel.js?v=")
+    assert _panel_module_url(tmp_path) == first
+
+    script.write_text("second", encoding="utf-8")
+    assert _panel_module_url(tmp_path) != first
+
+
 def test_required_v3_platforms_forwarded_in_v3():
     init = (
         Path(__file__).resolve().parents[1]

@@ -47,11 +47,21 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 row.get("path"),
             )
     remaining = car.readings.get("remainingChargingTime", {})
-    from .attribute_runtime import _capture_in_utc
+    from .attribute_runtime import _capture_in_utc, record_invalid_observation
 
     stamp = _capture_in_utc(remaining.get("captured"))
     minutes = remaining.get("value")
-    if stamp and type(minutes) in (int, float) and 0 < minutes <= 10080:
+    if stamp and remaining.get("status") == "invalid_value":
+        record_invalid_observation(
+            car,
+            "charging_complete_time",
+            remaining["captured"],
+            observed_at,
+            remaining.get("path"),
+            "charging",
+            remaining.get("reason") or "invalid_remaining_charging_time",
+        )
+    elif stamp and type(minutes) in (int, float) and 0 < minutes <= 10080:
         record(
             "charging_complete_time",
             (stamp + timedelta(minutes=minutes)).isoformat(),

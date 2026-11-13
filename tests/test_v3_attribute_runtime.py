@@ -227,6 +227,42 @@ def test_negative_duration_invalidates_newer_but_not_older_capture():
     )
 
 
+def test_charging_eta_follows_valid_and_invalid_source_capture():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(value, stamp):
+        return {
+            "charging": {
+                "chargingStatus": {
+                    "value": {
+                        "remainingChargingTimeToComplete_min": value,
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(45, now), now)
+    assert (
+        vehicle.readings["charging_complete_time"]["value"]
+        == (now + timedelta(minutes=45)).isoformat()
+    )
+    later = now + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(-256, later), later)
+    eta = vehicle.readings["charging_complete_time"]
+    assert eta["value"] is None
+    assert eta["status"] == "invalid_value"
+    assert eta["captured"] == later.isoformat()
+    observe_read_only(vehicle, profile, sample(45, now), later)
+    assert vehicle.readings["charging_complete_time"]["value"] is None
+    newest = later + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(30, newest), newest)
+    assert (
+        vehicle.readings["charging_complete_time"]["value"]
+        == (newest + timedelta(minutes=30)).isoformat()
+    )
+
+
 def test_shared_scalar_mapping_preserves_meaningful_values_and_rejects_error_envelopes():
     from custom_components.audiconnect.v3.attribute_runtime import (
         normalize_attribute_value,
