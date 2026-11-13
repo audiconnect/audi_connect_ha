@@ -82,7 +82,11 @@ def capture_coverage(vehicle, now: datetime | None = None) -> dict[str, dict]:
         )
         group["observed"] += 1
         age = capture_age_minutes(row.get("captured"), now)
-        if age is None or row.get("status") == "invalid_value":
+        if (
+            age is None
+            or row.get("status") == "invalid_value"
+            or row.get("value") is None
+        ):
             group["unknown"] += 1
             continue
         age = int(age)

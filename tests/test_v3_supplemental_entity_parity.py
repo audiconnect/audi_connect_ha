@@ -48,8 +48,16 @@ def context():
 
 def test_historical_freshness_age_and_quota_are_distinct():
     car, co, now = context()
-    car.readings["stateOfCharge"] = {"captured": (now - timedelta(hours=4)).isoformat()}
-    car.readings["invalid"] = {"captured": (now + timedelta(hours=4)).isoformat()}
+    car.readings["stateOfCharge"] = {
+        "value": 80,
+        "captured": (now - timedelta(hours=4)).isoformat(),
+        "status": "readable_but_stale",
+    }
+    car.readings["invalid"] = {
+        "value": 1,
+        "captured": (now + timedelta(hours=4)).isoformat(),
+        "status": "invalid_value",
+    }
     fresh = V3StatusSensor(co, car, "freshness")
     age = V3StatusSensor(co, car, "age")
     quota = V3ApiQuotaSensor(co, car, "entry")
@@ -60,6 +68,17 @@ def test_historical_freshness_age_and_quota_are_distinct():
         quota.unique_id == "entry_api_requests_remaining" and quota.native_value == 44
     )
     assert fresh.extra_state_attributes["last_cloud_poll_succeeded"] is True
+    car.readings["chargingState"] = {
+        "value": "off",
+        "captured": now.isoformat(),
+        "status": "verified",
+        "job": "charging",
+    }
+    assert age.native_value == 0
+    assert fresh.native_value == "fresh"
+    assert fresh.extra_state_attributes["job_capture_coverage"]["unclassified"][
+        "oldest_minutes"
+    ] >= 240
 
 
 def test_service_overview_and_dealer_are_vehicle_local_data():

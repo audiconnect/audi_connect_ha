@@ -588,24 +588,14 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
         return int(age) if age is not None else None
 
     def _freshness(self):
-        from .freshness import capture_coverage
-
-        groups = capture_coverage(self.vehicle)
-        ages = [
-            group["oldest_minutes"]
-            for group in groups.values()
-            if group["oldest_minutes"] is not None
-        ]
-        if not ages:
+        # Same newest vehicle capture as the age sensor and upstream V2.
+        # Per-job ages remain separately visible for partial/stale data.
+        age = self._vehicle_age()
+        if age is None:
             return "unknown"
-        age = max(ages)
         if age > 120:
             return "stale"
-        if age > 30:
-            return "delayed"
-        return (
-            "unknown" if any(group["unknown"] for group in groups.values()) else "fresh"
-        )
+        return "delayed" if age > 30 else "fresh"
 
     @property
     def native_unit_of_measurement(self):
@@ -662,7 +652,7 @@ class V3StatusSensor(V3BaseEntity, SensorEntity):
                     "last_cloud_poll_succeeded",
                     self.coordinator.last_update_success,
                 ),
-                "freshness_basis": "oldest_observed_job_capture_not_unobserved_support",
+                "freshness_basis": "newest_valid_vehicle_capture",
                 **details_for(self.vehicle, "readiness_detail"),
                 "job_capture_coverage": capture_coverage(self.vehicle),
                 "discovery": self._discovery_progress(),
