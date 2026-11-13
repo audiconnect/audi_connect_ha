@@ -1124,6 +1124,7 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
     remain independent. This is a read-only computation from current state.
     """
     from .control_resolution import control_decision
+    from .command_journal import unresolved_normal_commands
     from .read_discovery import physical_control_evidence
 
     report = build_status_report(vehicle, profile)
@@ -1182,7 +1183,38 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
         if item["operation"] in base_registry.operations
         or item["operation"] in IDENTITY_OPERATIONS
     ]
+    def safe_command(row):
+        if row.capability not in known or row.action not in known[
+            row.capability
+        ].get("control", {}):
+            return None
+        return {
+            "capability": row.capability,
+            "action": row.action,
+            "operation": diagnostic_route_label(row.operation, base_registry),
+            "http_status": row.http_status,
+            "started_at": row.started_at,
+        }
+
+    pending = profile.discovery.active_attempt
+    pending_summary = safe_command(pending) if pending else None
+    if pending_summary is not None:
+        pending_summary["result"] = pending.result
+    unresolved = []
+    for record in unresolved_normal_commands(profile):
+        item = safe_command(record)
+        if item is not None:
+            unresolved.append(
+                {
+                    **item,
+                    "state": record.state,
+                    "backend_result": record.backend_result,
+                    "review_required": record.requires_review,
+                }
+            )
     return {
+        "pending_engineering_test": pending_summary,
+        "unresolved_normal_commands": unresolved,
         "capabilities": summaries,
         "attributes": {
             ident: attribute_status(vehicle, profile, definition, datetime.now(UTC))[0]
