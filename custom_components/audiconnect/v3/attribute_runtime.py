@@ -150,6 +150,26 @@ def normalize_attribute_value(definition, value, conversion):
     Preserve meaningful false/zero and external-power 'unavailable'. Reject
     error envelopes and never turn missing data into a working mapping.
     """
+    ident = definition["id"]
+    if ident == "availableChargeModes":
+        # An explicit empty list is meaningful: no advertised write options.
+        if isinstance(value, list) and all(isinstance(mode, str) for mode in value):
+            return value, None
+        return None, "invalid_charge_mode_options"
+    if ident == "preferredChargeMode" and (
+        not isinstance(value, str)
+        or value.strip().lower()
+        in (
+            "",
+            "unknown",
+            "unsupported",
+            "invalid",
+            "unavailable",
+            "error",
+            "notavailable",
+        )
+    ):
+        return None, "invalid_preferred_charge_mode"
     if (
         value is None
         or isinstance(value, dict)
