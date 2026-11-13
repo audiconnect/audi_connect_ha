@@ -781,7 +781,9 @@ class CommandEngine:
             try:
                 validate_parameter(value, SOC)
             except ValueError as exc:
-                raise ValueError("Audi target SoC must be 20..100 in steps of 5") from exc
+                raise ValueError(
+                    "Audi target SoC must be 20..100 in steps of 5"
+                ) from exc
         elif kind == "set_charge_mode":
             if value not in ("manual", "timer"):
                 raise ValueError("Audi charge mode must be manual or timer")

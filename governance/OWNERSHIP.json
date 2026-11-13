@@ -3,10 +3,7 @@
   "scope": "v3 active runtime",
   "owners": {
     "engine": {
-      "paths": [
-        "engine.py",
-        "runtime.py"
-      ],
+      "paths": ["engine.py", "runtime.py"],
       "responsibility": "composition, public facade and inventory/profile orchestration; remaining orchestration cleanup tracked"
     },
     "status": {
@@ -43,12 +40,7 @@
       "responsibility": "fast control resolution, explicit tests, execution and confirmation"
     },
     "api": {
-      "paths": [
-        "auth.py",
-        "transport.py",
-        "quota.py",
-        "family_executors.py"
-      ],
+      "paths": ["auth.py", "transport.py", "quota.py", "family_executors.py"],
       "responsibility": "authentication, transport, quota and protocols"
     },
     "catalog": {
@@ -77,9 +69,7 @@
       "responsibility": "bindings and evidence persistence"
     },
     "vehicle": {
-      "paths": [
-        "vehicle.py"
-      ],
+      "paths": ["vehicle.py"],
       "responsibility": "vehicle state"
     },
     "ha": {
@@ -95,11 +85,7 @@
       "responsibility": "HA projection and scheduling"
     },
     "workbench": {
-      "paths": [
-        "dashboard.py",
-        "frontend/panel.js",
-        "entity_traceability.py"
-      ],
+      "paths": ["dashboard.py", "frontend/panel.js", "entity_traceability.py"],
       "responsibility": "admin engineering UX"
     },
     "diagnostics": {
@@ -111,9 +97,7 @@
       "responsibility": "read-only reporting and redaction"
     }
   },
-  "migration_exclusions": [
-    "__init__.py"
-  ],
+  "migration_exclusions": ["__init__.py"],
   "status": "partial closure; remaining generic catalog/status work tracked",
   "change_policy": {
     "principle": "simplify_before_adding",
@@ -143,11 +127,7 @@
       "target_percent": 80,
       "target_kind": "design_target_not_release_gate",
       "measurement": "unique_supported_operation_variants; generic_plus_parameterized_generic / all_classified; exclude duplicate aliases and reference-only rows",
-      "classification": [
-        "generic",
-        "parameterized_generic",
-        "exceptional"
-      ],
+      "classification": ["generic", "parameterized_generic", "exceptional"],
       "shared_contract": [
         "request_template",
         "typed_parameters",
@@ -161,12 +141,7 @@
     },
     "workbench": {
       "principle": "template_driven_direct_field_editing",
-      "views": [
-        "overview",
-        "capabilities",
-        "configure_and_test",
-        "api_log"
-      ],
+      "views": ["overview", "capabilities", "configure_and_test", "api_log"],
       "source": "backend_operation_definition",
       "navigation": "select_edit_execute_inspect_same_screen",
       "details": "foldable_optional_complex_fields",

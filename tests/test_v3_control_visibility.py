@@ -69,7 +69,7 @@ def test_pending_control_reason_distinguishes_uncertain_from_inflight():
     from custom_components.audiconnect.v3.command_journal import CommandRecord
 
     record = CommandRecord.begin("access", "unlock", "cariad.access.unlock", 10)
-    profile = NS(discovery=NS(disabled=set(), _active=None), last_command=record)
+    profile = NS(discovery=NS(disabled=set(), active_attempt=None), last_command=record)
     assert (
         control_decision(None, profile, None, "access", "lock")["reason"]
         == "vehicle_command_in_progress"
