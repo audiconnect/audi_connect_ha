@@ -236,10 +236,13 @@ def test_empty_charge_modes_require_local_route_verification():
         )
         profile.choose_working("charging", "set_charge_mode", route)
         assert supported_charge_modes(car, profile) == ["manual", "timer"][:sequence]
-        assert charge_mode_evidence(car, profile)["locally_verified_modes"] == [
-            "manual",
-            "timer",
-        ][:sequence]
+        assert (
+            charge_mode_evidence(car, profile)["locally_verified_modes"]
+            == [
+                "manual",
+                "timer",
+            ][:sequence]
+        )
     from custom_components.audiconnect.v3.profile_store import restore_profile
     from custom_components.audiconnect.v3.registry import VehicleContext
 

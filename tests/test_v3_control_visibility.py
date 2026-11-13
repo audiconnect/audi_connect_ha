@@ -114,3 +114,30 @@ def test_charge_mode_select_keeps_verified_option_when_reported_mode_differs():
     assert entity.available
     assert entity.current_option is None
     assert entity.extra_state_attributes["last_reported_state"] == "timer"
+
+
+def test_timer_entity_projection_distinguishes_schedule_from_missing_source():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.product_contract import (
+        entity_availability_reason,
+    )
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE")
+    engine = NS(vehicles={car.vin.lower(): car}, profiles={})
+    key = "sensor.next_climatisation_timer_local"
+    uid = car.vin.lower() + "_sensor_next_climatisation_timer_local"
+
+    def reason():
+        return entity_availability_reason(
+            engine, uid, key, "registered_not_projected", False
+        )
+
+    assert reason() == "source_not_observed"
+    count = "climatisation_timer_enabled_count"
+    car.readings[count] = {"value": 0, "status": "readable_but_stale"}
+    assert reason() == "no_enabled_climatisation_timer"
+    car.readings[count]["value"] = 1
+    assert reason() == "next_single_timer_not_determined"
+    car.readings[count] = {"status": "invalid_value"}
+    assert reason() == "incomplete_timer_data"

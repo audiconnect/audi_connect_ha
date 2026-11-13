@@ -315,6 +315,17 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         if freshness == "unknown":
             return "vehicle_capture_unknown"
     if not_offered and sources and not found:
+        if key == "sensor.next_climatisation_timer_local":
+            count = car.readings.get("climatisation_timer_enabled_count", {})
+            if count.get("status") == "invalid_value":
+                return "incomplete_timer_data"
+            enabled = count.get("value")
+            if type(enabled) is int:
+                return (
+                    "no_enabled_climatisation_timer"
+                    if enabled == 0
+                    else "next_single_timer_not_determined"
+                )
         return "source_not_observed"
     return "not_offered_by_runtime" if not_offered else "runtime_state_unavailable"
 
