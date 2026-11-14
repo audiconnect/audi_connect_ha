@@ -106,8 +106,8 @@ def test_parked_state_unknown_does_not_hide_authorized_control():
     car.set_climate("off", stamp, route="test", observed_at=now, http_status=200)
     lock = V3LockEntity(co, car)
     quick = V3ClimateQuickSwitch(co, car)
-    assert lock.available and lock.is_locked is None
-    assert quick.available and quick.is_on is None
+    assert lock.available and lock.is_locked is True
+    assert quick.available and quick.is_on is False
     lock.async_write_ha_state = lambda: None
     quick.async_write_ha_state = lambda: None
     asyncio.run(lock.async_lock())
@@ -297,11 +297,11 @@ def test_lock_remains_visible_while_command_is_accepted():
     co.engine.control_enabled = lambda *args: False
     entity = V3LockEntity(co, car)
     assert entity.available
-    assert entity.is_locking
-    assert entity.is_locked is None
+    assert not entity.is_locking
+    assert entity.is_locked is True
     assert entity.extra_state_attributes["command_status"] == "accepted_unconfirmed"
     assert entity.extra_state_attributes["command_requested_state"] == "locked"
-    assert entity.extra_state_attributes["state_is_optimistic"] is False
+    assert entity.extra_state_attributes["state_is_optimistic"] is True
     assert entity.extra_state_attributes["last_reported_state"] == "unlocked"
     assert entity.extra_state_attributes["lock_enabled"] is False
 

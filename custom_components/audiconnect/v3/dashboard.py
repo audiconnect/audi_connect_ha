@@ -123,6 +123,12 @@ async def ws_status(hass, connection, msg):
             or latest_by_capability.get(row.capability, row) is row
         ]
         report["command_journal"] = [row.snapshot() for row in profile.command_journal]
+        from .structured_details import details_for
+
+        report["charging_requests"] = engine.redact_evidence(
+            details_for(vehicle, "charging_requests_detail").get("charging_requests"),
+            vehicle.vin,
+        )["payload"]
         report["fast_bindings"] = bindings
         from .product_contract import entity_projection_report, entity_key
 
@@ -219,30 +225,15 @@ async def ws_status(hass, connection, msg):
         report["data_act_discovery"] = data_act_discovery(
             vehicle, profile, include_fields=True
         )
-        report["end_user_candidates"] = [
-            {
-                "label": label,
-                "capability": capability,
-                "action": action,
-                "operation": operation,
-                "approval_group": group,
-            }
-            for label, capability, action, operation, group in user_test_candidates(
-                engine, vehicle, profile
-            ).values()
-        ]
-        report["expert_candidates"] = [
-            {
-                "label": label,
-                "capability": capability,
-                "action": action,
-                "operation": operation,
-                "approval_group": group,
-            }
-            for label, capability, action, operation, group in user_test_candidates(
-                engine, vehicle, profile, include_verified=True
-            ).values()
-        ]
+        for key, include_verified in (
+            ("end_user_candidates", False),
+            ("expert_candidates", True),
+        ):
+            report[key] = list(
+                user_test_candidates(
+                    engine, vehicle, profile, include_verified=include_verified
+                ).values()
+            )
         coordinator = getattr(
             getattr(engine.entry, "runtime_data", None), "coordinator", None
         )

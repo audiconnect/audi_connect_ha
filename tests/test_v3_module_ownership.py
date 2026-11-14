@@ -108,3 +108,32 @@ def test_discovery_state_is_owned_by_action_discovery():
                 and node.value.attr == "discovery"
             ):
                 assert node.attr not in ("_active", "_sequence"), path.name
+
+
+def test_status_command_and_ha_own_distinct_state_functions():
+    """Canonical state, command evidence and HA projection never overlap."""
+    expected = {
+        "commit_observation": "attribute_runtime.py",
+        "status_snapshot": "attribute_runtime.py",
+        "restore_status": "attribute_runtime.py",
+        "bind_status": "attribute_runtime.py",
+        "optimistic_expiry": "command_readback.py",
+        "reconcile_readback": "command_readback.py",
+        "control_projection": "product_contract.py",
+    }
+    found = {name: [] for name in expected}
+    for path in V3.glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.FunctionDef) and node.name in expected:
+                found[node.name].append(path.name)
+    assert found == {name: [path] for name, path in expected.items()}
+    config = json.loads((ROOT / "governance/OWNERSHIP.json").read_text())
+    for owner in ("status", "command", "catalog", "profiles", "vehicle", "api"):
+        for file in config["owners"][owner]["paths"]:
+            if not file.endswith(".py"):
+                continue
+            for node in ast.walk(ast.parse((V3 / file).read_text())):
+                if isinstance(node, ast.ImportFrom):
+                    assert not any(
+                        name.name == "control_projection" for name in node.names
+                    ), file

@@ -209,7 +209,8 @@ def test_wake_does_not_hide_previous_command_readback():
         "heating", now.isoformat(), route="test", observed_at=now, http_status=200
     )
     engine.commands.reconcile_commands()
-    assert start.state == "verified"
+    assert start.state == "backend_completed"
+    assert start.readback_observed_at == now.timestamp()
     assert wake.state == "accepted_unconfirmed"
 
 

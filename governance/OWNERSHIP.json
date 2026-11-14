@@ -22,7 +22,7 @@
         "structured_details.py",
         "access_summary.py"
       ],
-      "responsibility": "read-only polling and observations"
+      "responsibility": "read-only polling, canonical observation reconciliation and historical status serialization"
     },
     "command": {
       "paths": [
@@ -37,7 +37,7 @@
         "command_readback.py",
         "command_parameters.py"
       ],
-      "responsibility": "fast control resolution, explicit tests, execution and confirmation"
+      "responsibility": "control resolution, explicit tests, execution, readback evidence and bounded command intent"
     },
     "api": {
       "paths": [
@@ -73,11 +73,11 @@
         "api_observations.py",
         "identity_cache.py"
       ],
-      "responsibility": "bindings and evidence persistence"
+      "responsibility": "bindings and persistence of owner-provided evidence; no parallel runtime status map"
     },
     "vehicle": {
       "paths": ["vehicle.py"],
-      "responsibility": "vehicle state"
+      "responsibility": "per-VIN canonical status container; Status owns observation writes"
     },
     "ha": {
       "paths": [
@@ -89,7 +89,7 @@
         "product_contract.py",
         "product_entities.json"
       ],
-      "responsibility": "HA projection and scheduling"
+      "responsibility": "native HA projection from Status and Command, local scheduling; no independent vehicle state cache"
     },
     "workbench": {
       "paths": ["dashboard.py", "frontend/panel.js", "entity_traceability.py"],

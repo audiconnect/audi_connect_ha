@@ -76,17 +76,17 @@
           "runtime_version": "Uitvoeringsversie",
           "v3_development_workbench": "V3 Development Workbench inschakelen",
           "filter_vins": "Uitgesloten VIN's",
-          "run_vehicle_discovery": "Voertuigdetectie en bediening testen",
+          "run_vehicle_discovery": "Voertuigconfiguratie & discovery",
           "manage_data_act": "EU Data Act beheren"
         },
         "title": "Audi Connect-opties",
         "data_description": {
           "scan_interval": "Minuten tussen cloudupdates.",
           "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
-          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen.",
+          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen. Na opslaan en herladen van V3, open Configureren opnieuw voor voertuigconfiguratie & discovery of optionele EU Data Act.",
           "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard.",
           "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
-          "run_vehicle_discovery": "Bekijk automatische detectie en test beschikbare bediening expliciet. Zonder toestemming voor de specifieke actie wordt geen voertuigactie uitgevoerd.",
+          "run_vehicle_discovery": "Open op elk moment om de automatische detectie te bekijken, begeleid te testen of één functie te selecteren, ook voor hertests. Elke fysieke actie vereist expliciete toestemming.",
           "manage_data_act": "Verbind, herstel of verbreek de optionele alleen-lezenbron. De native Audi-login blijft ongewijzigd."
         },
         "description": "{data_act_status}"

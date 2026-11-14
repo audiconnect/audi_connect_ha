@@ -15,7 +15,7 @@ Due to API changes, **currently not all functionality is available**. Please ope
 > [!Caution]
 > Excessive use of certain features in this integration may result in temporary or permanent suspension of your Audi Connect account. Please use responsibly — abuse or misuse could potentially impact access for the entire community. Use at your own risk.
 
-> **Experimental V3 (only in builds that include it):** V2 remains the default. See [V3 setup, known limitations and review](docs/V3_REVIEW.md) before opting in. A review branch or passing CI is not a stable release.
+> **Experimental V3 (only in builds that include it):** V2 remains the default. See the [V3 user and engineering guide](docs/V3_REVIEW.md) before opting in, including vehicle-specific discovery, freshness, controls, diagnostics and rollback. The control descriptions below primarily document V2; do not assume identical V3 support. See [V3 acceptance](docs/V3_FEATURE_CLOSURE.md) for current evidence and open release gates. A review branch or passing CI is not a stable release.
 
 ## Maintainers Wanted
 

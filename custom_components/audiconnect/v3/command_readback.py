@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from .attribute_runtime import _capture_in_utc, _valid_capture, select_reading
+from .attribute_runtime import (
+    _capture_in_utc,
+    _valid_capture,
+    select_reading,
+)
 from .vehicle import (
     CLIMATE_ON_STATES,
     CLIMATE_OFF_STATES,
@@ -121,7 +125,15 @@ def configure_discovery_readback(record, car, params, *, registry=None):
 
 
 def reconcile_readback(record, car, now=None, *, registry=None) -> bool:
-    if record.state not in ("accepted_unconfirmed", "backend_completed", "uncertain"):
+    if record.state not in (
+        "accepted_unconfirmed",
+        "backend_completed",
+        "uncertain",
+    ) and not (
+        record.state == "rejected"
+        and record.http_status is not None
+        and 200 <= record.http_status < 300
+    ):
         return False
     if not record.readback_attribute or not record.readback_values:
         return False
@@ -160,17 +172,19 @@ def reconcile_readback(record, car, now=None, *, registry=None) -> bool:
             or not -300 <= (now - climate_stamp).total_seconds() <= 3600
         ):
             return False
-    record.state = "verified"
-    record.completed_at = max(record.started_at, now.timestamp())
+    # Expected state observed is not proof this command caused it.
+    stamp = captured.timestamp()
+    if (
+        getattr(record, "readback_observed_at", None) is not None
+        and stamp <= record.readback_observed_at
+    ):
+        return False
+    record.readback_observed_at = stamp
     return True
 
 
 def reconcile_access_mismatch(record, car, now=None, *, registry=None) -> bool:
-    """Close an accepted lock attempt on a later reliable contrary observation.
-
-    This is not proof that the command physically failed: the car may have
-    been operated externally. Never close a transport-uncertain mutation this way.
-    """
+    """Record contrary lock telemetry without changing the command outcome."""
     from .command_journal import TEMPORARY_ERROR_COOLDOWN_SECONDS
 
     if (
@@ -178,7 +192,7 @@ def reconcile_access_mismatch(record, car, now=None, *, registry=None) -> bool:
         or record.capability != "access"
         or record.readback_attribute != "doorLockStatus"
         or record.state
-        not in ("accepted_unconfirmed", "backend_completed", "uncertain")
+        not in ("accepted_unconfirmed", "backend_completed", "uncertain", "rejected")
         or record.http_status is None
         or not 200 <= record.http_status < 300
         or record.backend_result == "transport_uncertain"
@@ -198,16 +212,20 @@ def reconcile_access_mismatch(record, car, now=None, *, registry=None) -> bool:
         or value.strip().lower() in record.readback_values
     ):
         return False
-    record.state = "readback_mismatch"
-    record.completed_at = max(record.started_at, now.timestamp())
+    captured = stamp.timestamp()
+    if (
+        getattr(record, "readback_mismatch_at", None) is not None
+        and captured <= record.readback_mismatch_at
+    ):
+        return False
+    record.readback_mismatch_at = captured
     return True
 
 
-# UI projection is separate from actual telemetry and physical evidence.
-# Only explicit, successfully accepted HA actions are eligible.
-OPTIMISTIC_TTL_SECONDS = 30 * 60
+# Command feedback is separate from actual vehicle telemetry.
+OPTIMISTIC_TTL_SECONDS = 5 * 60
 _ACCEPTED = frozenset({"accepted_unconfirmed", "backend_completed"})
-_OPTIMISTIC = {
+_REQUESTED_STATES = {
     "climate": ("on", "off"),
     "chargingState": ("charging", "off"),
 }
@@ -220,10 +238,58 @@ def latest_readback_command(profile, attribute):
             for record in reversed(getattr(profile, "command_journal", ()))
             if record.origin == "home_assistant"
             and record.readback_attribute == attribute
-            and record.state != "rejected"
         ),
         None,
     )
+
+
+def projection_attributes(record):
+    """Fields affected by a command, not new vehicle observations."""
+    attribute = record.readback_attribute
+    if (
+        record.capability == "climate"
+        and record.action == "start_with_settings"
+        and attribute == "climatisationTargetTemperatureC"
+    ):
+        return ("climate", attribute)
+    return (attribute,) if attribute else ()
+
+
+def latest_projection_command(profile, attribute):
+    # A later attempt supersedes an earlier one even if rejected or uncertain.
+    return next(
+        (
+            record
+            for record in reversed(getattr(profile, "command_journal", ()))
+            if attribute in projection_attributes(record)
+        ),
+        None,
+    )
+
+
+def optimistic_expiry(record):
+    """Original dispatch time; a restart must never extend the expiry."""
+    if (
+        record is None
+        or record.origin != "home_assistant"
+        or getattr(record, "restored", False)
+        or record.http_status is None
+        or not 200 <= record.http_status < 300
+        or not projection_attributes(record)
+        or record.backend_result in ("rejected", "transport_uncertain")
+        or record.state not in _ACCEPTED
+    ):
+        return None
+    return record.started_at + OPTIMISTIC_TTL_SECONDS
+
+
+def requested_projection(record, attribute):
+    if record is None:
+        return None
+    if attribute in _REQUESTED_STATES:
+        return _REQUESTED_STATES[attribute][1 if record.action == "stop" else 0]
+    values = record.readback_values or []
+    return values[0] if len(values) == 1 else None
 
 
 def command_attributes(profile, capability, actions, *, attribute=None):
@@ -247,15 +313,9 @@ def command_attributes(profile, capability, actions, *, attribute=None):
         ),
         None,
     )
-    requested = None
-    if record is not None:
-        values = record.readback_values or []
-        if record.readback_attribute in _OPTIMISTIC:
-            requested = _OPTIMISTIC[record.readback_attribute][
-                1 if record.action == "stop" else 0
-            ]
-        elif len(values) == 1:
-            requested = values[0]
+    requested = requested_projection(
+        record, attribute or (record.readback_attribute if record else None)
+    )
     return {
         "command_status": record.state if record else None,
         "command_requested_state": requested,
@@ -267,6 +327,16 @@ def command_attributes(profile, capability, actions, *, attribute=None):
             if record
             else None
         ),
+        "command_readback_observed_at": (
+            datetime.fromtimestamp(record.readback_observed_at, UTC).isoformat()
+            if record and getattr(record, "readback_observed_at", None) is not None
+            else None
+        ),
+        "command_readback_mismatch_at": (
+            datetime.fromtimestamp(record.readback_mismatch_at, UTC).isoformat()
+            if record and getattr(record, "readback_mismatch_at", None) is not None
+            else None
+        ),
         "command_completed_at": (
             datetime.fromtimestamp(record.completed_at, UTC).isoformat()
             if record and record.completed_at is not None
@@ -275,96 +345,10 @@ def command_attributes(profile, capability, actions, *, attribute=None):
     }
 
 
-def last_known_climate(profile):
-    """Return (value, timestamp, source) without promoting historical evidence."""
-    from .attribute_runtime import validate_last_known_climate
-
-    row = validate_last_known_climate(getattr(profile, "last_known_climate", None))
-    # A verified command or an explicitly reviewed physical test can supply a
-    # historical observation even when the API status field is unavailable.
-    record = next(
-        (
-            record
-            for record in reversed(getattr(profile, "command_journal", ()))
-            if record.capability == "climate"
-            and record.action in ("start", "stop", "start_with_settings")
-            and record.state == "verified"
-            and record.completed_at is not None
-            and (
-                record.readback_attribute == "climate"
-                or (
-                    record.origin == "workbench"
-                    and getattr(profile, "control_results", {}).get(record.operation)
-                    == "worked"
-                )
-            )
-        ),
-        None,
-    )
-    if row and (
-        record is None
-        or _capture_in_utc(row["captured"]).timestamp() > record.started_at
-    ):
-        return row["value"], row["captured"], "last_known_vehicle"
-    if record is not None:
-        try:
-            stamp = datetime.fromtimestamp(record.completed_at, UTC)
-        except (ValueError, OverflowError, OSError):
-            stamp = None
-        if stamp and stamp.year >= 2020 and stamp <= datetime.now(UTC):
-            return (
-                "off" if record.action == "stop" else "on",
-                stamp.isoformat(),
-                "last_verified_command",
-            )
-    if row:
-        return row["value"], row["captured"], "last_known_vehicle"
-    return None, None, "unknown"
-
-
-def projected_state(
-    profile, attribute, reported, captured, *, now=None, optimistic=True
-):
-    """Return (effective value, source). A newer valid report always wins.
-
-    No optimistic write to readings, no physical verification from HTTP,
-    no replay, and no optimism for workbench, rejected or uncertain commands.
-    """
-    record = latest_readback_command(profile, attribute)
-    if record is None:
-        return reported, "vehicle" if reported is not None else "unknown"
-    stamp = captured if isinstance(captured, datetime) else _capture_in_utc(captured)
-    if (
-        reported is not None
-        and stamp is not None
-        and stamp.timestamp() > record.started_at
-    ):
-        return reported, "vehicle"
-    if record.state not in _ACCEPTED | {"pending", "uncertain"}:
-        return reported, "vehicle" if reported is not None else "unknown"
-    if record.origin != "home_assistant":
-        return reported, "vehicle" if reported is not None else "unknown"
-    age = (now or datetime.now(UTC)).timestamp() - record.started_at
-    if record.state not in _ACCEPTED or not 0 <= age < OPTIMISTIC_TTL_SECONDS:
-        return None, "unknown"
-    if not optimistic:
-        return None, "command_pending"
-    values = record.readback_values or []
-    if not values:
-        return None, "unknown"
-    if attribute in _OPTIMISTIC:
-        value = _OPTIMISTIC[attribute][1 if record.action == "stop" else 0]
-    elif len(values) == 1:
-        value = values[0]
-    else:
-        return None, "unknown"
-    return value, "command_pending"
-
-
 def observe_command_response(record, car, profile, family, response):
     """Normalize real post-command captures through the existing observation writer.
 
-    Only reviewed selective-status jobs and their value envelopes are eligible.
+    Only reviewed selective-status jobs and their dated value envelopes are eligible. Older observations are handled by the same writer.
     A request echo, status, receipt clock or HTTP success is not telemetry.
     """
     if (
@@ -392,7 +376,7 @@ def observe_command_response(record, car, profile, family, response):
             captured = _valid_capture(
                 value.get("carCapturedTimestamp"), response.observed_at
             )
-            if captured is None or captured.timestamp() <= record.started_at:
+            if captured is None:
                 continue
             payload.setdefault(job, {})[group] = {"value": value}
     if not payload:

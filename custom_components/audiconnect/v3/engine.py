@@ -338,8 +338,10 @@ class V3Engine:
             except (OSError, ValueError):
                 _LOGGER.warning("Unable to restore private Audi trip archive")
         from .identity_cache import capture_identity, withdraw_optional_identity
+        from .attribute_runtime import bind_status
 
         for key, car in known.items():
+            bind_status(car, self.profiles[key])
             if getattr(self.auth, "data_act_client", None) is None:
                 withdraw_optional_identity(car, self.profiles[key])
             identity = capture_identity(car)

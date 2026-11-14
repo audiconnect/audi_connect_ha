@@ -63,7 +63,6 @@ def observe_derived(
         record_observation,
         _valid_capture,
         commit_observation,
-        invalidate_attribute,
     )
 
     def record(ident, value, captured, job, path):
@@ -103,6 +102,7 @@ def observe_derived(
             )
     from .attribute_runtime import record_invalid_observation
 
+    # Derive from selected source observations, also for direct response consumers.
     project_charging_eta(car, profile, observed_at)
 
     # Complementary identity fields are present even if manufacturer media is null.
@@ -529,16 +529,13 @@ def observe_derived(
                 for x in block["profiles"][:30]
                 if isinstance(x, dict) and type(x.get("id")) is int
             ]
-            car.charging_profiles = profiles
-            car.charging_profiles_captured = captured
             active_id = block.get("vehiclePositionedInProfileID")
-            car.active_charging_profile_id = (
-                active_id if type(active_id) is int else None
-            )
             next_timer = block.get("nextChargingTimer")
             record(
                 "charging_profile_context_detail",
                 {
+                    "profiles": profiles,
+                    "active_profile_id": active_id if type(active_id) is int else None,
                     "vehicle_time": _zoned_datetime(block.get("timeInCar")),
                     "next_charging_timer": {
                         "id": next_timer.get("id")
@@ -555,40 +552,52 @@ def observe_derived(
                 "chargingProfiles",
                 path,
             )
+            selected = car.readings.get("charging_profile_context_detail", {})
+            snapshot = selected.get("value") or {}
+            car.charging_profiles = snapshot.get("profiles", [])
+            car.charging_profiles_captured = selected.get("captured")
+            car.active_charging_profile_id = snapshot.get("active_profile_id")
             active = next(
-                (x for x in profiles if x["id"] == car.active_charging_profile_id), None
+                (
+                    x
+                    for x in car.charging_profiles
+                    if x["id"] == car.active_charging_profile_id
+                ),
+                None,
             )
+            captured = car.charging_profiles_captured
             keys = {
                 "active_charging_profile_target_soc": "targetSOC_pct",
                 "active_charging_profile_name": "name",
                 "active_charging_profile_min_soc": "minSOC_pct",
             }
-            for ident, key in keys.items():
-                invalidate_attribute(car, ident)
-                if active:
-                    record(ident, active.get(key), captured, "chargingProfiles", path)
-            for ident in (
-                "preferred_charging_time_start",
-                "preferred_charging_time_end",
-            ):
-                invalidate_attribute(car, ident)
-            if active and active["preferredChargingTimes"]:
-                times = active["preferredChargingTimes"]
-                window = next((x for x in times if x.get("enabled") is True), None)
-                if window is not None:
-                    record(
-                        "preferred_charging_time_start",
-                        window.get("startTimeLocal"),
+            window = next(
+                (
+                    x
+                    for x in (active or {}).get("preferredChargingTimes", [])
+                    if x.get("enabled") is True
+                ),
+                {},
+            )
+            values = {
+                **{ident: (active or {}).get(key) for ident, key in keys.items()},
+                "preferred_charging_time_start": window.get("startTimeLocal"),
+                "preferred_charging_time_end": window.get("endTimeLocal"),
+            }
+            for ident, value in values.items():
+                if value is not None:
+                    record(ident, value, captured, "chargingProfiles", path)
+                else:
+                    record_invalid_observation(
+                        car,
+                        ident,
                         captured,
-                        "chargingProfiles",
+                        observed_at,
                         path,
-                    )
-                    record(
-                        "preferred_charging_time_end",
-                        window.get("endTimeLocal"),
-                        captured,
                         "chargingProfiles",
-                        path,
+                        selected.get("reason", "no_active_profile_value"),
+                        profile=profile,
+                        operation=operation,
                     )
 
     for job, count in (
@@ -689,5 +698,19 @@ def observe_derived(
                     job,
                     path,
                 )
-            elif accepts(car.readings.get(ident), captured, observed_at):
-                invalidate_attribute(car, ident)
+            else:
+                record_invalid_observation(
+                    car,
+                    ident,
+                    captured,
+                    observed_at,
+                    path,
+                    job,
+                    "no_enabled_climatisation_timer"
+                    if complete and not any(t.get("enabled") is True for t in entries)
+                    else "next_single_timer_not_determined"
+                    if complete
+                    else "incomplete_timer_data",
+                    profile=profile,
+                    operation=operation,
+                )

@@ -49,13 +49,33 @@ def movement_capture_valid(reading, now=None):
     )
 
 
+def reading_availability_reason(row, *, now=None):
+    row = row or {}
+    if row.get("status") == "invalid_value":
+        return row.get("reason") or "invalid_vehicle_value"
+    if row.get("value") is None:
+        return row.get("reason") or "source_not_observed"
+    age = capture_age_minutes(row.get("captured"), now or datetime.now(UTC))
+    if age is None:
+        return "vehicle_capture_unknown"
+    return "vehicle_capture_stale" if age > 60 else "available"
+
+
 def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
     """Describe a reported sample, independently of its projected HA state."""
     row = row or {}
     now = now or datetime.now(UTC)
     age = capture_age_minutes(row.get("captured"), now)
     valid = row.get("value") is not None and row.get("status") != "invalid_value"
+    from .attribute_runtime import last_known_observation
+
+    known = last_known_observation(row)
     return {
+        "availability_reason": reading_availability_reason(row, now=now),
+        "last_known_state": known.get("value")
+        if type(known.get("value")) in (str, int, float, bool)
+        else None,
+        "last_known_captured": known.get("captured"),
         "vehicle_captured": row.get("captured"),
         "age_minutes": age,
         "cloud_observed": row.get("observed"),

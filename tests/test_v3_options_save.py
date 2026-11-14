@@ -99,6 +99,12 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
     assert "climate_quick_start" not in fields
     assert "experimental_commands" not in fields
     assert "edit_local_dealer" in fields
+    assert (
+        next(
+            key for key in schema.schema if key.schema == "run_vehicle_discovery"
+        ).default()
+        is True
+    )
 
 
 @pytest.mark.asyncio
@@ -119,12 +125,20 @@ async def test_user_discovery_never_dispatches_without_exact_single_action_conse
     flow._discovery_context = lambda: (engine, car, profile)
     flow._discovery_action = "climate.start"
     route = "cariad.climate.start.stored"
-    original = ("Start cabin climate", "climate", "start", route, "non_spin")
+    original = {
+        "label": "Start cabin climate",
+        "instructions": "Check climate starts.",
+        "capability": "climate",
+        "action": "start",
+        "operation": route,
+        "approval_group": "non_spin",
+        "parameter_schema": {},
+    }
     flow._discovery_candidate = original
     monkeypatch.setattr(
         read_discovery,
         "user_test_candidates",
-        lambda *args: {"climate.start": original},
+        lambda *args, **kwargs: {"climate.start": original},
     )
     flow.async_step_discovery = AsyncMock(return_value={"step_id": "discovery"})
     flow.async_step_discovery_review = AsyncMock(return_value={"step_id": "review"})
@@ -135,14 +149,8 @@ async def test_user_discovery_never_dispatches_without_exact_single_action_conse
     monkeypatch.setattr(
         read_discovery,
         "user_test_candidates",
-        lambda *args: {
-            "climate.start": (
-                "Start cabin climate",
-                "climate",
-                "start",
-                "another.route",
-                "non_spin",
-            )
+        lambda *args, **kwargs: {
+            "climate.start": {**original, "operation": "another.route"}
         },
     )
     result = await flow.async_step_discovery_consent({"accept": True})
@@ -152,12 +160,19 @@ async def test_user_discovery_never_dispatches_without_exact_single_action_conse
     monkeypatch.setattr(
         read_discovery,
         "user_test_candidates",
-        lambda *args: {"climate.start": original},
+        lambda *args, **kwargs: {"climate.start": original},
     )
     result = await flow.async_step_discovery_consent({"accept": True})
     assert result["step_id"] == "review"
     engine.approved_control_discovery.assert_awaited_once_with(
-        car.vin, "start", route, approval="non_spin", capability="climate", guided=True
+        car.vin,
+        "start",
+        route,
+        approval="non_spin",
+        capability="climate",
+        params=None,
+        guided=True,
+        expert=True,
     )
     assert flow._discovery_candidate is None
     await flow.async_step_discovery_consent({"accept": True})
@@ -306,3 +321,95 @@ async def test_data_act_wizard_reuses_runtime_status_without_authentication():
     result = await flow.async_step_data_act({"action": "keep"})
     assert result["data"] == options
     flow._validate_data_act_credentials.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_default_discovery_is_repeatable_and_does_not_dispatch_on_save():
+    from unittest.mock import AsyncMock
+
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    flow._test_entry = SimpleNamespace(
+        data={"scan_interval": 15},
+        options={"runtime_version": "v3_climate"},
+        runtime_data=SimpleNamespace(v3=SimpleNamespace()),
+    )
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    flow.async_step_discovery_vehicle = AsyncMock(return_value={"step_id": "discovery"})
+    result = await flow.async_step_init({"scan_interval": 20})
+    assert result["step_id"] == "discovery"
+    assert flow._pending_options["scan_interval"] == 20
+    assert "run_vehicle_discovery" not in flow._pending_options
+    result = await flow.async_step_init(
+        {"scan_interval": 25, "run_vehicle_discovery": False}
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"]["scan_interval"] == 25
+    flow.async_step_discovery_vehicle.assert_awaited_once()
+    result = await flow.async_step_init({"manage_data_act": True})
+    assert result["step_id"] == "data_act"
+    result = await flow.async_step_data_act({"action": "keep"})
+    assert result["step_id"] == "discovery"
+    assert flow.async_step_discovery_vehicle.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_native_selective_discovery_accepts_typed_temperature(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3 import read_discovery
+
+    flow = OptionsFlowHandler()
+    car = SimpleNamespace(vin="WAUZZZ4M0MD123456", name="Synthetic test car")
+    profile = SimpleNamespace(
+        discovery=SimpleNamespace(_active=None), last_command=None
+    )
+    candidate = {
+        "label": "Start climate with temperature",
+        "instructions": "Stop climate first.",
+        "capability": "climate",
+        "action": "start_with_settings",
+        "operation": "cariad.climate.start.vehicle_settings",
+        "approval_group": "non_spin",
+        "parameter_schema": {
+            "temp_c": {"type": "number", "minimum": 15, "maximum": 30, "required": True}
+        },
+    }
+    engine = SimpleNamespace(
+        approved_control_discovery=AsyncMock(return_value={"sequence": 1}),
+        discovery_progress=lambda *_: {
+            "controls_physically_verified": 0,
+            "controls_catalog_applicable": 1,
+        },
+    )
+    flow._discovery_context = lambda: (engine, car, profile)
+    monkeypatch.setattr(
+        read_discovery,
+        "user_test_candidates",
+        lambda *args, **kwargs: {"climate.start_with_settings": candidate},
+    )
+    flow.async_step_discovery_review = AsyncMock(return_value={"step_id": "review"})
+    result = await flow.async_step_discovery({"action": "climate.start_with_settings"})
+    assert result["step_id"] == "discovery_consent"
+    assert {key.schema for key in result["data_schema"].schema} == {"accept", "temp_c"}
+    assert result["description_placeholders"]["instructions"] == "Stop climate first."
+    engine.approved_control_discovery.assert_not_awaited()
+    result = await flow.async_step_discovery_consent({"accept": "yes"})
+    assert result["errors"]["base"] == "discovery_test_failed"
+    engine.approved_control_discovery.assert_not_awaited()
+    result = await flow.async_step_discovery_consent({"accept": "yes", "temp_c": 22})
+    assert result["step_id"] == "review"
+    engine.approved_control_discovery.assert_awaited_once_with(
+        car.vin,
+        "start_with_settings",
+        candidate["operation"],
+        approval="non_spin",
+        capability="climate",
+        params={"temp_c": 22},
+        guided=True,
+        expert=True,
+    )

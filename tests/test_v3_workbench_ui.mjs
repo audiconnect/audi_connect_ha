@@ -1956,3 +1956,91 @@ test("Capability matrix shows actual, missing and invalid source evidence withou
   assert.match(html, /Last known/);
   assert.match(html, /data-action="select-attribute"/);
 });
+
+test("Guided and selective climate discovery use the same typed parameters", async () => {
+  for (const expert of [false, true]) {
+    const p = new Panel();
+    p.selected = "entry";
+    p.vin = "VIN1";
+    p.entries = [
+      {
+        entry_id: "entry",
+        vehicles: [{ vin: "VIN1", name: "Audi", api_family: "cariad" }],
+      },
+    ];
+    p.step = 5;
+    p.expertDiscovery = expert;
+    p.capabilityFilter = "climate";
+    const candidate = {
+      label: "Start climate with temperature",
+      instructions:
+        "Stop climate first. Check both start and target temperature.",
+      capability: "climate",
+      action: "start_with_settings",
+      operation: "cariad.climate.start.vehicle_settings",
+      approval_group: "non_spin",
+      parameter_schema: {
+        temp_c: {
+          type: "number",
+          minimum: 15,
+          maximum: 30,
+          required: true,
+          label: "Target temperature (°C)",
+        },
+      },
+    };
+    p.capabilityStatus = {
+      rows: [],
+      end_user_progress: {
+        controls: [
+          {
+            capability: "climate",
+            action: "start_with_settings",
+            eligible: true,
+            status: "catalog_matched",
+          },
+        ],
+      },
+      end_user_candidates: [candidate],
+      expert_candidates: [candidate],
+    };
+    const calls = [];
+    p.api = async (name, args) => {
+      calls.push([name, args]);
+      if (name === "status") return p.capabilityStatus;
+      if (name === "api_results") return { records: [] };
+      if (name === "control_test") return { sequence: 1 };
+      throw Error(name);
+    };
+    p.render();
+    assert.match(p.shadowRoot.innerHTML, /Target temperature/);
+    assert.match(p.shadowRoot.innerHTML, /Stop climate first/);
+    const click = () =>
+      p._click({
+        target: {
+          closest: () => ({
+            dataset: {
+              action: "end-user-yes",
+              capability: candidate.capability,
+              control: candidate.action,
+              operation: candidate.operation,
+            },
+          }),
+        },
+      });
+    await click();
+    assert.equal(calls.filter(([name]) => name === "control_test").length, 0);
+    assert.match(p.error, /Required parameter/);
+    const key = p.definitionKey(
+      "parameters",
+      JSON.stringify([candidate.operation, candidate.parameter_schema]),
+    );
+    p.definitionEdits.set(key + ":temp_c", "22");
+    await click();
+    const sent = calls.filter(([name]) => name === "control_test");
+    assert.equal(sent.length, 1);
+    assert.equal(JSON.stringify(sent[0][1].parameters), '{"temp_c":22}');
+    assert.equal(sent[0][1].expert, expert);
+    assert.equal(sent[0][1].end_user, true);
+  }
+});

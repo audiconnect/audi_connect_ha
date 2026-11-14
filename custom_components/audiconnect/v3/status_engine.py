@@ -14,11 +14,10 @@ from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured
 from .attribute_runtime import (
     planned_jobs,
     observe_read_only,
-    _accept_observation,
+    _merge_observation,
     _valid_capture,
     record_invalid_observation,
     record_observation,
-    remember_climate,
     normalize_attribute_value,
 )
 from .custom_attributes import attributes_for
@@ -793,19 +792,14 @@ class StatusEngine:
                             and "climatisationState" not in profile.attribute_disabled
                             and profile.attribute_routes.get("climatisationState")
                             in (None, "cariad.selectivestatus.batch")
-                            and vehicle.set_climate(
+                        ):
+                            vehicle.set_climate(
                                 value,
                                 captured,
                                 route=ident,
                                 path=field,
                                 observed_at=response.observed_at,
                                 http_status=response.status,
-                            )
-                        ):
-                            remember_climate(
-                                profile,
-                                vehicle.readings["climatisationState"],
-                                response.observed_at,
                             )
                     elif valid:
                         if (
@@ -829,22 +823,29 @@ class StatusEngine:
                             valid = False
                         elif isinstance(value, (str, int, float, bool)):
                             previous = vehicle.capability_readings.get(capability)
-                            if _accept_observation(
-                                previous, captured, response.observed_at
-                            ):
-                                vehicle.capability_readings[capability] = {
-                                    "value": value,
-                                    "captured": (
-                                        captured
+                            vehicle.capability_readings[capability] = (
+                                _merge_observation(
+                                    previous,
+                                    {
+                                        "value": value,
+                                        "captured": captured
                                         if _valid_capture(
                                             captured, response.observed_at
                                         )
-                                        else None
-                                    ),
-                                    "observed": response.observed_at.isoformat(),
-                                    "operation": ident,
-                                    "path": field,
-                                }
+                                        else None,
+                                        "observed": response.observed_at.isoformat(),
+                                        "operation": ident,
+                                        "family": family,
+                                        "path": field,
+                                        "status": "verified"
+                                        if timestamp_is_fresh(
+                                            captured, response.observed_at
+                                        )
+                                        else "readable_but_stale",
+                                    },
+                                    response.observed_at,
+                                )
+                            )
                     fresh = bool(
                         valid and timestamp_is_fresh(captured, response.observed_at)
                     )

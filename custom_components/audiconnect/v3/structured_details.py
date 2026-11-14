@@ -282,6 +282,11 @@ def observe_structured(
                     "observed": observed_at.isoformat(),
                     "path": path,
                     "family": "cariad",
+                    **(
+                        {"informational": True, "detail": True}
+                        if path.endswith(".requests")
+                        else {}
+                    ),
                     "operation": operation,
                     "job": path.split(".", 1)[0],
                     "status": "invalid_value"
@@ -462,11 +467,12 @@ def observe_structured(
             block.get("carCapturedTimestamp"),
             "access.accessStatus.value.overallStatus",
         )
-    # b12 exposed these two fields in the climate status envelope. Its
-    # vehicle capture belongs to the climate reading, not to the requests.
+    # Request metadata has no vehicle capture of its own. It is informational,
+    # never physical readback or proof of a matching command.
     for key, requests_path in (
         ("climate_requests_detail", "climatisation.climatisationStatus.requests"),
         ("access_requests_detail", "access.accessStatus.requests"),
+        ("charging_requests_detail", "charging.chargingStatus.requests"),
     ):
         requests = read_json_path(payload, requests_path)
         if isinstance(requests, list):
@@ -487,8 +493,16 @@ def details_for(vehicle, *keys):
     for key in keys:
         row = vehicle.readings.get(key)
         if row is not None:
+            data = row.get("value")
+            if key == "charging_profile_context_detail" and isinstance(data, dict):
+                # Profiles already have their own existing local HA attributes.
+                data = {
+                    k: v
+                    for k, v in data.items()
+                    if k not in ("profiles", "active_profile_id")
+                }
             result[key.removesuffix("_detail")] = {
-                "data": row.get("value"),
+                "data": data,
                 **reading_freshness_attributes(row),
                 "source": row.get("path"),
             }

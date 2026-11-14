@@ -63,11 +63,11 @@ def restore_profile(
     profile = DevelopmentProfile(
         catalog, old_context, cooldown_seconds=cooldown_seconds
     )
-    from .attribute_runtime import validate_last_known_climate
+    from .attribute_runtime import restore_status
     from .identity_cache import validate_identity
 
-    profile.last_known_climate = validate_last_known_climate(
-        saved.get("last_known_climate")
+    profile.status_readings = restore_status(
+        saved.get("status_observations"), saved.get("last_known_climate")
     )
     profile.manufacturer_identity = validate_identity(
         saved.get("manufacturer_identity"), context.region

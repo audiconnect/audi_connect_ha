@@ -57,6 +57,8 @@ class CommandRecord:
     operation_revision: str | None = None
     backend_result: str | None = None
     completed_at: float | None = None
+    readback_observed_at: float | None = None
+    readback_mismatch_at: float | None = None
     parent_command_id: str | None = None
     http_status: int | None = None
     requested_charge_mode: str | None = None
@@ -80,6 +82,32 @@ class CommandRecord:
         self.backend_result = (
             "transport_uncertain" if self.state == "uncertain" else self.state
         )
+
+    def observe_backend(self, outcome: str, now: float) -> None:
+        """Apply correlated backend evidence without undoing terminal results."""
+        if self.backend_result == "rejected" or (
+            self.backend_result == "backend_completed" and outcome != "rejected"
+        ):
+            return
+        self.backend_result = outcome
+        if outcome == "rejected":
+            self.state = "rejected"
+            self.completed_at = max(self.started_at, now)
+        elif outcome == "backend_completed":
+            if self.state not in (
+                "verified",
+                "physical_failed",
+                "reviewed",
+                "readback_mismatch",
+            ):
+                self.state = "backend_completed"
+                self.completed_at = max(self.started_at, now)
+        elif outcome in (
+            "unknown",
+            "quota_limited",
+            "pending",
+        ) and self.capability not in ("climate", "charging", "access"):
+            self.state = "uncertain"
 
     @property
     def unresolved(self) -> bool:
@@ -273,6 +301,22 @@ class CommandRecord:
                 )
             )
             or (
+                record.readback_observed_at is not None
+                and (
+                    type(record.readback_observed_at) not in (int, float)
+                    or not math.isfinite(record.readback_observed_at)
+                    or record.readback_observed_at <= record.started_at
+                )
+            )
+            or (
+                record.readback_mismatch_at is not None
+                and (
+                    type(record.readback_mismatch_at) not in (int, float)
+                    or not math.isfinite(record.readback_mismatch_at)
+                    or record.readback_mismatch_at <= record.started_at
+                )
+            )
+            or (
                 record.request_id is not None
                 and (
                     not isinstance(record.request_id, str)
@@ -304,6 +348,19 @@ class CommandRecord:
             )
         ):
             raise ValueError("Invalid stored command context")
+        # Pre-B41 normal commands used verified for a matching observation,
+        # not causal proof. Keep their backend evidence; do not invent capture.
+        if record.origin == "home_assistant" and record.state in (
+            "verified",
+            "readback_mismatch",
+        ):
+            record.state = (
+                "backend_completed"
+                if record.backend_result == "backend_completed"
+                else "rejected"
+                if record.backend_result == "rejected"
+                else "accepted_unconfirmed"
+            )
         if record.state == "uncertain" and record.known_access_acceptance:
             record.state = "accepted_unconfirmed"
         if (
@@ -317,6 +374,7 @@ class CommandRecord:
             )
         ):
             record.state = "uncertain"  # Never replay an interrupted mutation.
+        record.restored = True
         return record
 
 

@@ -604,12 +604,12 @@ async def test_accepted_climate_start_and_immediate_stop_use_real_command_owner(
     assert climate.hvac_mode == HVACMode.OFF
     await climate.async_turn_on()
     assert climate.hvac_mode == HVACMode.HEAT_COOL
-    assert climate.extra_state_attributes["state_source"] == "command_pending"
+    assert climate.extra_state_attributes["state_source"] == "optimistic"
     assert car.climate_state == "off"
     assert profile.last_command.state == "accepted_unconfirmed"
     await climate.async_turn_off()
     assert climate.hvac_mode == HVACMode.OFF
-    assert climate.extra_state_attributes["state_source"] == "command_pending"
+    assert climate.extra_state_attributes["state_source"] == "optimistic"
     assert [call[1] for call in transport.calls if len(call) > 1] == [
         "GET",
         "POST",
@@ -660,7 +660,8 @@ async def test_direct_command_response_uses_actual_vehicle_status():
     assert entity.hvac_mode == HVACMode.HEAT_COOL
     assert entity.hvac_action.value == "cooling"
     assert entity.extra_state_attributes["state_source"] == "vehicle"
-    assert profile.last_command.state == "verified"
+    assert profile.last_command.state == "accepted_unconfirmed"
+    assert profile.last_command.readback_observed_at == future.timestamp()
 
 
 @pytest.mark.asyncio
@@ -1203,7 +1204,7 @@ async def test_adopted_identity_is_retained_without_repeating_experimental_query
 
 
 @pytest.mark.asyncio
-async def test_guided_command_automatically_confirms_only_fresh_changed_readback():
+async def test_guided_command_requires_physical_confirmation_after_readback():
     from types import SimpleNamespace as NS
     from custom_components.audiconnect.v3.runtime import catalog_path
     from datetime import timedelta
@@ -1238,11 +1239,15 @@ async def test_guided_command_automatically_confirms_only_fresh_changed_readback
     result = await engine.approved_control_discovery(
         VIN, "start", "cariad.climate.start.stored", approval="non_spin", guided=True
     )
-    assert result["physical_result"] == "verified"
+    assert result["physical_result"] == "requires_user_confirmation"
+    assert profile.discovery._active is not None
+    assert profile.control_results.get("cariad.climate.start.stored") != "worked"
+    assert "climate.start" not in profile.active
+    assert profile.command_journal[-1].readback_observed_at == stamp.timestamp()
+    assert profile.command_journal[-1].state == "accepted_unconfirmed"
+    await engine.review_action(VIN, result["sequence"], "worked")
     assert profile.discovery._active is None
-    assert profile.control_results["cariad.climate.start.stored"] == "worked"
     assert profile.active["climate.start"] == "cariad.climate.start.stored"
-    assert profile.command_journal[-1].state == "verified"
     assert transport.request_count == 1
 
 
@@ -1409,7 +1414,8 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     switch.async_write_ha_state = Mock()
     await switch.async_turn_on()
     assert switch.is_on is True
-    assert engine.profiles[VIN.lower()].last_command.state == "verified"
+    assert engine.profiles[VIN.lower()].last_command.state == "accepted_unconfirmed"
+    assert engine.profiles[VIN.lower()].last_command.readback_observed_at is not None
     assert sum(call[1] == "POST" for call in transport.calls if len(call) > 1) == 1
 
     restarted = V3Engine(
@@ -1425,7 +1431,8 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     assert restored_entities[model_key].native_value == "Audi Q8 TFSI e"
     assert restored_entities[switch_key].is_on is True
     assert sum(call[1] == "POST" for call in transport.calls if len(call) > 1) == 1
-    assert restarted.profiles[VIN.lower()].last_command.state == "verified"
+    assert restarted.profiles[VIN.lower()].last_command.state == "uncertain"
+    assert restarted.profiles[VIN.lower()].last_command.readback_observed_at is not None
 
 
 def test_identity_refresh_is_periodic_and_quota_aware():

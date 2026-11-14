@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from ..const import CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .command_readback import optimistic_expiry, projection_attributes
 from .engine import V3Engine
 from .vehicle import V3Vehicle
 
@@ -35,6 +37,41 @@ class V3CleanCoordinator(DataUpdateCoordinator[list[V3Vehicle]]):
             update_interval=timedelta(minutes=max(5, int(minutes))),
         )
         self.engine = engine
+        self._cancel_projection_timer = None
+        if hasattr(entry, "async_on_unload"):
+            entry.async_on_unload(self._cancel_projection_expiry)
+
+    @callback
+    def _cancel_projection_expiry(self):
+        if self._cancel_projection_timer is not None:
+            self._cancel_projection_timer()
+            self._cancel_projection_timer = None
+
+    @callback
+    def _projection_expired(self, _now):
+        self._cancel_projection_timer = None
+        self.async_update_listeners()
+
+    @callback
+    def async_update_listeners(self):
+        """One account-level local expiry; never poll or replay a mutation."""
+        super().async_update_listeners()
+        self._cancel_projection_expiry()
+        now = datetime.now(UTC).timestamp()
+        deadlines = []
+        for profile in self.engine.profiles.values():
+            latest = {}
+            for record in profile.command_journal:
+                for attribute in projection_attributes(record):
+                    latest[attribute] = record
+            for record in latest.values():
+                expiry = optimistic_expiry(record)
+                if expiry is not None and expiry > now:
+                    deadlines.append(expiry)
+        if deadlines:
+            self._cancel_projection_timer = async_call_later(
+                self.hass, min(deadlines) - now, self._projection_expired
+            )
 
     @property
     def last_cloud_poll_attempt(self):

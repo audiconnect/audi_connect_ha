@@ -270,10 +270,38 @@ class CapabilityRegistry:
                     or len(refs) != len(set(refs))
                 ):
                     raise RegistryError("Missing or duplicate operation reference")
+                discovery = node.get("discovery")
+                if discovery is not None and (
+                    aspect == "status"
+                    or not isinstance(discovery, dict)
+                    or set(discovery) - {"label", "instructions", "order", "parameters"}
+                    or not all(
+                        isinstance(discovery.get(key), str) and discovery[key]
+                        for key in ("label", "instructions")
+                    )
+                    or type(discovery.get("order")) is not int
+                    or not isinstance(discovery.get("parameters", []), list)
+                    or any(
+                        not isinstance(name, str)
+                        for name in discovery.get("parameters", [])
+                    )
+                ):
+                    raise RegistryError("Invalid control discovery metadata")
                 for ref in refs:
                     op = self.operations.get(ref)
                     if op is None or (op["method"] == "GET") != (aspect == "status"):
                         raise RegistryError("Invalid operation reference")
+                    if discovery is not None and not ref.startswith("user."):
+                        from .command_parameters import parameter_schema
+
+                        try:
+                            parameter_schema(
+                                op,
+                                {},
+                                discovery_parameters=discovery.get("parameters", []),
+                            )
+                        except KeyError as exc:
+                            raise RegistryError("Unknown discovery parameter") from exc
 
     def _validate_observations(self, mappings):
         """Validate declarative read-only source mappings before runtime use."""

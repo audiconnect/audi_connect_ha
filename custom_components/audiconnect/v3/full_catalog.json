@@ -779,25 +779,57 @@
       },
       "control": {
         "start": {
-          "operations": ["cariad.climate.start.stored", "mbb.climate.start"]
+          "operations": ["cariad.climate.start.stored", "mbb.climate.start"],
+          "discovery": {
+            "label": "Start cabin climate",
+            "instructions": "With climate off, check it starts using the stored vehicle settings.",
+            "order": 10
+          }
         },
         "stop": {
-          "operations": ["cariad.climate.stop", "mbb.climate.stop"]
+          "operations": ["cariad.climate.stop", "mbb.climate.stop"],
+          "discovery": {
+            "label": "Stop cabin climate",
+            "instructions": "With climate running, check it stops.",
+            "order": 20
+          }
         },
         "window_heating_start": {
-          "operations": ["cariad.climate.window_heating_start"]
+          "operations": ["cariad.climate.window_heating_start"],
+          "discovery": {
+            "label": "Start window heating",
+            "instructions": "With window heating off, check that it starts.",
+            "order": 50
+          }
         },
         "window_heating_stop": {
-          "operations": ["cariad.climate.window_heating_stop"]
+          "operations": ["cariad.climate.window_heating_stop"],
+          "discovery": {
+            "label": "Stop window heating",
+            "instructions": "With window heating running, check that it stops.",
+            "order": 60
+          }
         },
         "set_settings": {
-          "operations": ["cariad.climate.settings"]
+          "operations": ["cariad.climate.settings"],
+          "discovery": {
+            "label": "Change climate target temperature",
+            "instructions": "With climate off, choose a different target; check the setting changes without starting climate.",
+            "order": 40,
+            "parameters": ["temp_c"]
+          }
         },
         "start_with_settings": {
           "operations": [
             "cariad.climate.start.vehicle_settings",
             "mbb.climate.start"
-          ]
+          ],
+          "discovery": {
+            "label": "Start climate with temperature",
+            "instructions": "Stop climate first. Choose a temperature different from the stored target; check that climate starts and applies it.",
+            "order": 30,
+            "parameters": ["temp_c"]
+          }
         },
         "preheater_start": {
           "operations": ["cariad.climate.preheater_start"]
@@ -833,10 +865,20 @@
       },
       "control": {
         "lock": {
-          "operations": ["cariad.access.lock", "mbb.access.lock"]
+          "operations": ["cariad.access.lock", "mbb.access.lock"],
+          "discovery": {
+            "label": "Lock vehicle",
+            "instructions": "With the car safely accessible and unlocked, check it locks. Keep the key with you.",
+            "order": 90
+          }
         },
         "unlock": {
-          "operations": ["cariad.access.unlock", "mbb.access.unlock"]
+          "operations": ["cariad.access.unlock", "mbb.access.unlock"],
+          "discovery": {
+            "label": "Unlock vehicle",
+            "instructions": "With the vehicle locked, check that it unlocks.",
+            "order": 100
+          }
         }
       }
     },
@@ -859,19 +901,35 @@
           "operations": [
             "cariad.charging.start",
             "cariad.charging.start.combined"
-          ]
+          ],
+          "discovery": {
+            "label": "Start charging",
+            "instructions": "With the vehicle plugged in and charging stopped, check that charging starts.",
+            "order": 70
+          }
         },
         "stop": {
           "operations": [
             "cariad.charging.stop",
             "cariad.charging.stop.combined"
-          ]
+          ],
+          "discovery": {
+            "label": "Stop charging",
+            "instructions": "While charging, check that charging actually stops; HTTP acceptance is not enough.",
+            "order": 80
+          }
         },
         "set_target_soc": {
           "operations": ["cariad.charging.settings"]
         },
         "set_charge_mode": {
-          "operations": ["cariad.charging.mode"]
+          "operations": ["cariad.charging.mode"],
+          "discovery": {
+            "label": "Verify preferred charging mode",
+            "instructions": "Choose Manual or Timer. Check the actual preferred mode in myAudi or the vehicle before confirming. Test each desired mode separately.",
+            "order": 85,
+            "parameters": ["value"]
+          }
         },
         "set_location_charge_target": {
           "operations": ["cariad.charging.profiles"]
@@ -895,13 +953,23 @@
       },
       "control": {
         "wake": {
-          "operations": ["cariad.remote.wake"]
+          "operations": ["cariad.remote.wake"],
+          "discovery": {
+            "label": "Wake vehicle",
+            "instructions": "Check whether the vehicle wakes; a successful cloud response alone is not proof.",
+            "order": 120
+          }
         },
         "refresh": {
           "operations": ["cariad.remote.refresh"]
         },
         "flash": {
-          "operations": ["cariad.remote.flash"]
+          "operations": ["cariad.remote.flash"],
+          "discovery": {
+            "label": "Flash vehicle lights",
+            "instructions": "Check the vehicle lights flash.",
+            "order": 110
+          }
         },
         "engine_start": {
           "operations": ["cariad.remote.engine_start"]

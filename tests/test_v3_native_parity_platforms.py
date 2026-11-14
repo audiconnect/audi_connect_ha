@@ -185,7 +185,7 @@ def test_parking_uses_shared_observations_without_inventing_motion_capture():
     reply.status = 204
     observe_parking(vehicle, profile, reply, operation)
     assert vehicle.position is position
-    assert vehicle.readings["is_moving"]["value"] is True
+    assert vehicle.readings["is_moving"]["value"] is None
     assert vehicle.readings["is_moving"]["captured"] is None
     assert moving.is_on is None
     assert not moving.available
@@ -194,7 +194,7 @@ def test_parking_uses_shared_observations_without_inventing_motion_capture():
     observe_parking(vehicle, profile, reply, operation)
     assert vehicle.position is position
     assert vehicle.readings["park_time"]["captured"] == stamp
-    assert vehicle.readings["is_moving"]["value"] is True
+    assert vehicle.readings["is_moving"]["value"] is None
 
 
 @pytest.mark.parametrize("invalid", ["2026-01-01T00:00:00", "2099-01-01T00:00:00Z"])
@@ -210,3 +210,114 @@ def test_parking_invalid_capture_cannot_poison_position_recovery(invalid):
     )
     assert keep_newest_position({"timestamp": invalid}, good, now)
     assert not keep_newest_position(good, point, now)
+
+
+def test_registered_read_entities_survive_missing_values_on_reload(monkeypatch):
+    from custom_components.audiconnect.v3 import ha_platforms
+
+    vehicle = car()
+    vin = VIN.lower()
+    keys = (
+        "charging_plug_auto_unlock",
+        "next_climatisation_timer_local",
+        "charging_current_limit_a",
+        "charging_current_limit_mode",
+        "remaining_climatisation_time",
+    )
+    registered = [
+        SimpleNamespace(
+            unique_id=f"{vin}_sensor_{key}",
+            domain="sensor",
+            platform="audiconnect",
+        )
+        for key in keys
+    ]
+    # An unrelated VIN must not create a capability on this vehicle.
+    registered.append(
+        SimpleNamespace(
+            unique_id="other_vin_sensor_oil_level",
+            domain="sensor",
+            platform="audiconnect",
+        )
+    )
+    monkeypatch.setattr(ha_platforms.er, "async_get", lambda _: object())
+    monkeypatch.setattr(
+        ha_platforms.er, "async_entries_for_config_entry", lambda *_: registered
+    )
+    ctx = coordinator()
+    ctx.hass = object()
+    ctx.engine.vehicles = {vin: vehicle}
+    ctx.engine.profiles = {}
+    entry = SimpleNamespace(
+        entry_id="entry",
+        runtime_data=SimpleNamespace(v3=ctx.engine, coordinator=ctx),
+        async_on_unload=lambda _: None,
+    )
+    offered = []
+    ha_platforms.setup("sensor", entry, offered.extend)
+    by_id = {entity.unique_id: entity for entity in offered}
+    for key in keys:
+        entity = by_id[f"{vin}_sensor_{key}"]
+        assert not entity.available
+        assert entity.native_value is None
+    assert f"{vin}_sensor_oil_level" not in by_id
+    assert len(by_id) == len(offered)
+    # When data returns, the same entity object becomes available.
+    now = datetime.now(UTC).isoformat()
+    vehicle.readings["chargingCurrentLimitA"] = {
+        "value": 16,
+        "status": "verified",
+        "captured": now,
+        "observed": now,
+    }
+    entity = by_id[f"{vin}_sensor_charging_current_limit_a"]
+    assert entity.available
+    assert entity.native_value == 16
+
+
+def test_registered_conditionals_survive_reload_without_write_permission(monkeypatch):
+    from custom_components.audiconnect.v3 import ha_platforms
+
+    vehicle = car()
+    vin = VIN.lower()
+    keys = {
+        "select": "charge_mode",
+        "number": "target_state_of_charge",
+        "climate": "climatisation",
+        "lock": "lock",
+        "switch": "charging",
+    }
+    registry = [
+        SimpleNamespace(
+            unique_id=f"{vin}_{platform}_{key}", domain=platform, platform="audiconnect"
+        )
+        for platform, key in keys.items()
+    ]
+    monkeypatch.setattr(ha_platforms.er, "async_get", lambda _: object())
+    monkeypatch.setattr(
+        ha_platforms.er, "async_entries_for_config_entry", lambda *_: registry
+    )
+    ctx = coordinator()
+    ctx.hass = object()
+    ctx.engine.vehicles = {vin: vehicle}
+    ctx.engine.profiles = {}
+    ctx.engine.auth = SimpleNamespace()
+    entry = SimpleNamespace(
+        entry_id="entry",
+        runtime_data=SimpleNamespace(v3=ctx.engine, coordinator=ctx),
+        async_on_unload=lambda _: None,
+    )
+    for platform, key in keys.items():
+        offered = []
+        ha_platforms.setup(platform, entry, offered.extend)
+        entity = next(e for e in offered if e.unique_id == f"{vin}_{platform}_{key}")
+        assert not entity.available
+    # A fresh, valid option can return on the very same select object.
+    offered = []
+    ha_platforms.setup("select", entry, offered.extend)
+    select = offered[0]
+    ctx.engine.control_enabled = lambda *args: True
+    vehicle.readings["availableChargeModes"] = {"value": ["manual"], "family": "cariad"}
+    assert select.available
+    assert select.options == ["manual"]
+    assert select.current_option is None

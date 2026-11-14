@@ -144,10 +144,9 @@ async def test_charge_mode_service_rejects_unadvertised_mode_before_dispatch():
 async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outcome):
     from datetime import timedelta
     from custom_components.audiconnect.v3 import request_status
-    from custom_components.audiconnect.v3.command_readback import projected_state
+    from custom_components.audiconnect.v3.entities import _reading_projection
 
     engine, car = make_engine()
-    profile = engine.profiles[VIN.lower()]
     stamp = datetime.now(UTC) - timedelta(minutes=2)
     car.set_climate(
         "off", stamp.isoformat(), route="test", observed_at=stamp, http_status=200
@@ -156,11 +155,13 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
 
     def notify():
         notifications.append(
-            projected_state(profile, "climate", car.climate_state, car.climate_captured)
+            _reading_projection(
+                SimpleNamespace(engine=engine), car, "climatisationState"
+            )
         )
 
     async def confirm(*args):
-        assert notifications == [("on", "command_pending")]
+        assert notifications == [("on", "optimistic")]
         assert car.climate_state == "off"
         return outcome
 
@@ -185,7 +186,7 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
         record = await engine.commands.send_control(VIN, "start", "climate")
         assert record.state == "accepted_unconfirmed"
         assert record.backend_result == outcome
-        assert notifications[-1] == ("on", "command_pending")
+        assert notifications[-1] == ("on", "optimistic")
     assert car.climate_state == "off"
     assert car.climate_captured == stamp
 
@@ -213,6 +214,7 @@ def test_empty_charge_modes_require_local_route_verification():
     profile.choose_working("charging", "set_charge_mode", route)
     assert supported_charge_modes(car, profile) == []
     assert charge_mode_evidence(car, profile) == {
+        "last_known_advertised_modes": [],
         "locally_verified_modes": [],
         "writable_modes": [],
         "empty_list_fallback": True,
@@ -294,24 +296,32 @@ def test_next_climate_timer_excludes_expired_and_ambiguous_times():
         ],
     }
     payload = {"climatisationTimers": {"climatisationTimersStatus": {"value": block}}}
-    observe_derived(car, profile, payload, now, lambda *_: True)
+    from datetime import timedelta
+
+    def observe():
+        nonlocal now
+        block["carCapturedTimestamp"] = now.isoformat()
+        observe_derived(car, profile, payload, now, lambda *_: True)
+        now += timedelta(seconds=1)
+
+    observe()
     key = "next_climatisation_timer_local"
     assert car.readings[key]["value"] == "2026-11-13T14:00:00"
     assert car.readings["climatisation_timer_enabled_count"]["value"] == 3
     block.pop("timeInCar")
-    observe_derived(car, profile, payload, now, lambda *_: True)
-    assert key not in car.readings
+    observe()
+    assert car.readings[key]["value"] is None
     block["timers"] = block["timers"][2:]
-    observe_derived(car, profile, payload, now, lambda *_: True)
+    observe()
     assert car.readings[key]["value"] == "2026-11-15T14:00:00"
     block["timers"].append({"id": 4, "enabled": True, "singleTimer": {}})
-    observe_derived(car, profile, payload, now, lambda *_: True)
-    assert key not in car.readings
+    observe()
+    assert car.readings[key]["value"] is None
     block["timers"].pop()
     block["timers"].append(
         {"id": 5, "enabled": True, "recurringTimer": {"startTime": "07:00"}}
     )
-    observe_derived(car, profile, payload, now, lambda *_: True)
+    observe()
     assert car.readings[key]["value"] == "2026-11-15T14:00:00"
     block["timeInCar"] = "2026-11-12T13:00:00+01:00"
     block["timers"].append(
@@ -321,5 +331,34 @@ def test_next_climate_timer_excludes_expired_and_ambiguous_times():
             "singleTimer": {"startDateTimeLocal": "2026-11-13T14:00:00"},
         }
     )
-    observe_derived(car, profile, payload, now, lambda *_: True)
-    assert key not in car.readings
+    observe()
+    assert car.readings[key]["value"] is None
+
+
+def test_conflicting_undated_charge_modes_recover_only_through_explicit_discovery():
+    from custom_components.audiconnect.v3.command_policy import supported_charge_modes
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    route = "cariad.charging.mode"
+    car.readings["availableChargeModes"] = {
+        "value": None,
+        "status": "invalid_value",
+        "reason": "conflicting_source_values",
+        "family": "cariad",
+        "captured": None,
+        "discovered_options": ["manual", "timer"],
+    }
+    assert not supported_charge_modes(car, profile)
+    candidate = user_test_candidates(engine, car, profile)["charging.set_charge_mode"]
+    assert candidate["operation"] == route
+    assert candidate["parameter_schema"]["value"]["enum"] == ["manual", "timer"]
+    attempt = profile.begin_test("charging", "set_charge_mode", route, now=100)
+    profile.engineering_record(attempt.sequence).requested_charge_mode = "manual"
+    profile.observe_http(attempt.sequence, 200)
+    profile.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=101)
+    profile.choose_working("charging", "set_charge_mode", route)
+    assert supported_charge_modes(car, profile) == ["manual"]
+    car.readings["availableChargeModes"]["captured"] = datetime.now(UTC).isoformat()
+    assert not supported_charge_modes(car, profile)

@@ -80,7 +80,8 @@ def test_unresolved_capability_survives_unrelated_commands_and_restart():
         other = CommandRecord.begin(
             "climate", "start", "cariad.climate.start.stored", 100 + i * 20
         )
-        other.state = "verified"
+        other.observe_http(200)
+        other.observe_backend("backend_completed", other.started_at)
         p.track_command(other)
     assert len(p.command_journal) == HISTORY_LIMIT
     restored = restore_profile(model(), p.discovery.context, p.snapshot())

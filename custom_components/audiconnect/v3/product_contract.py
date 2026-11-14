@@ -96,6 +96,50 @@ def projection_descriptor(attribute):
     return canonical if key in product_inventory()["entities"] else None
 
 
+def control_projection(profile, attribute, reading, *, now=None):
+    """Effective HA control state, never a physical or authorization proof.
+
+    Retain the newest valid observed value across sleep and sentinel data.
+    Only an acknowledged, unsuperseded command may temporarily overlay it.
+    A newer dated observation wins whether or not it matches the request.
+    """
+    from datetime import UTC, datetime
+
+    from .attribute_runtime import _valid_capture, last_known_observation
+    from .command_readback import (
+        latest_projection_command,
+        optimistic_expiry,
+        requested_projection,
+    )
+    from .freshness import timestamp_is_fresh
+
+    now = now or datetime.now(UTC)
+    reading = reading or {}
+    known = last_known_observation(reading)
+    record = latest_projection_command(profile, attribute)
+    expiry = optimistic_expiry(record)
+    stamp = _valid_capture(known.get("captured"), now)
+    observed_stamp = _valid_capture(reading.get("captured"), now)
+    if (
+        expiry is not None
+        and record.started_at <= now.timestamp() < expiry
+        and (stamp is None or stamp.timestamp() <= record.started_at)
+        and (observed_stamp is None or observed_stamp.timestamp() <= record.started_at)
+        and record.readback_observed_at is None
+        and record.readback_mismatch_at is None
+    ):
+        requested = requested_projection(record, attribute)
+        if requested is not None:
+            return requested, "optimistic"
+    if known.get("value") is None:
+        return None, "unknown"
+    return known["value"], (
+        "vehicle"
+        if known is reading and timestamp_is_fresh(known.get("captured"), now)
+        else "last_known_vehicle"
+    )
+
+
 def projection_reading(vehicle, attribute, *, registry=None, now=None):
     """Resolve only declared same-semantic historical aliases, never by order."""
     from .attribute_runtime import select_reading
@@ -125,6 +169,30 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
     selected, row = select_reading(
         vehicle, sources, canonical, registry=registry, now=now
     )
+    if key in ("remaining_charging_time", "charging_complete_time"):
+        from .attribute_runtime import _capture_in_utc
+        from .vehicle import charging_active
+
+        charging = vehicle.readings.get("chargingState", {})
+        stamp = _capture_in_utc(charging.get("captured"))
+        duration = vehicle.readings.get("remainingChargingTime", {})
+        duration_stamp = _capture_in_utc(duration.get("captured"))
+        if (
+            stamp is not None
+            and charging.get("status") != "invalid_value"
+            and charging_active(charging.get("value")) is False
+            and (duration_stamp is None or stamp >= duration_stamp)
+        ):
+            return canonical, {
+                **{
+                    key: charging.get(key)
+                    for key in ("captured", "observed", "family", "operation")
+                },
+                "value": None,
+                "status": "invalid_value",
+                "reason": "charging_not_active",
+                "derived_from": "chargingState",
+            }
     return (selected, row) if row is not None else (ident, vehicle.readings.get(ident))
 
 
@@ -283,7 +351,7 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         return "trip_snapshot_missing"
     if metric and trip_metric_value(car, key.removeprefix("sensor.")) is None:
         return "trip_metric_missing"
-    from .freshness import reading_freshness_attributes
+    from .freshness import reading_availability_reason
 
     sources = definition.get("source_attributes", ())
     found = False
@@ -295,21 +363,10 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         if not reading:
             continue
         found = True
-        if reading.get("status") == "invalid_value":
-            reason = reading.get("reason")
-            if not_offered and reason in (
-                "boolean_oil_level_use_binary",
-                "negative_duration",
-                "incomplete_timer_data",
-            ):
-                return reason
-            return "invalid_vehicle_value"
-        freshness = reading_freshness_attributes(reading)["vehicle_freshness"]
-        if freshness == "stale":
-            return "vehicle_capture_stale"
-        if freshness == "unknown":
-            return "vehicle_capture_unknown"
-    if not_offered and sources and not found:
+        reason = reading_availability_reason(reading)
+        if reason != "available":
+            return reason
+    if sources and not found:
         if key == "sensor.next_climatisation_timer_local":
             count = car.readings.get("climatisation_timer_enabled_count", {})
             if count.get("status") == "invalid_value":
@@ -532,11 +589,13 @@ def stateful_controls():
 
 def stateful_reading(vehicle, key):
     """Shared operational state normalization, independent of write support."""
+    from .attribute_runtime import last_known_observation
     from .vehicle import charging_active
 
     definition = stateful_controls()[key]
     row = getattr(vehicle, "readings", {}).get(definition["attribute"], {})
-    value = row.get("value")
+    known = last_known_observation(row)
+    value = known.get("value")
     state = (
         charging_active(value)
         if key == "charging"
@@ -544,7 +603,7 @@ def stateful_reading(vehicle, key):
         if type(value) is bool
         else None
     )
-    return row, state if row.get("status") in (
+    return row, state if known.get("status") in (
         "verified",
         "readable_but_stale",
     ) else None
