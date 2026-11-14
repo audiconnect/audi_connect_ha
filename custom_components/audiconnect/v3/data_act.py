@@ -115,6 +115,7 @@ class DataActClient:
         self._identifiers = {}
         self._last_file = {}
         self.denied_vins = set()
+        self.delivery_states = {}
 
     async def _get(self, path, *, limit, headers=None, allow_empty=False):
         async with self._request_lock:
@@ -170,10 +171,12 @@ class DataActClient:
         vin = vin.upper()
         if vin in self.denied_vins:
             return None
+        self.delivery_states[vin] = "unavailable"
         try:
             result = await self._latest(vin)
         except DataActVehicleDenied:
             self.denied_vins.add(vin)
+            self.delivery_states[vin] = "vehicle_access_denied"
             self._identifiers.pop(vin, None)
             self._last_file.pop(vin, None)
             raise
@@ -199,10 +202,12 @@ class DataActClient:
         identifier = self._identifiers.get(vin)
         if identifier is None:
             meta = await self._json(
-                prefix + f"datarequest/vehicles/{vin}/metadata/partial"
+                prefix + f"datarequest/vehicles/{vin}/metadata/partial",
+                allow_empty=True,
             )
             identifier = meta.get("Identifier") if isinstance(meta, dict) else None
             if not isinstance(identifier, str) or not _IDENTIFIER.fullmatch(identifier):
+                self.delivery_states[vin] = "subscription_unavailable"
                 return None
             self._identifiers[vin] = identifier
         path = prefix + f"datadelivery/vehicles/{vin}/{identifier}/"
@@ -212,12 +217,16 @@ class DataActClient:
         if result is None:
             # A replaced or removed subscription can recover on the next due poll.
             self._identifiers.pop(vin, None)
+            self._last_file.pop(vin, None)
+            self.delivery_states[vin] = "subscription_unavailable"
+            return None
         files = result.get("files") if isinstance(result, dict) else result
         if files is None:
-            return None
+            raise DataActUnavailable("Invalid Data Act listing")
         if not isinstance(files, list) or len(files) > 2000:
             raise DataActUnavailable("Invalid Data Act listing")
         content = []
+        now = datetime.now(UTC)
         for item in files:
             if not isinstance(item, dict):
                 continue
@@ -228,13 +237,16 @@ class DataActClient:
                 and _FILENAME.fullmatch(name)
                 and not name.lower().endswith("_no_content_found.zip")
                 and delivered is not None
+                and delivered <= now + timedelta(minutes=5)
             ):
                 content.append((delivered, name))
         if not content:
+            self.delivery_states[vin] = "no_nonempty_dataset"
             return None
         delivered, name = max(content)
         previous = self._last_file.get(vin)
         if previous is not None and (delivered, name) <= previous:
+            self.delivery_states[vin] = "no_new_dataset"
             return None
         raw = await self._get(
             path + "download",
@@ -243,4 +255,7 @@ class DataActClient:
         )
         payload = await asyncio.to_thread(decode_dataset, raw, vin)
         self._last_file[vin] = (delivered, name)
+        self.delivery_states[vin] = (
+            "dataset_received" if payload["Data"] else "empty_dataset"
+        )
         return payload, delivered.isoformat()

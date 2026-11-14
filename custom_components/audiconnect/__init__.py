@@ -465,6 +465,17 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             else "Audi Connect needs your myAudi username and password to sign in"
         )
 
+    # Repair only the old generated Auth0 subject title, never a user title.
+    title = getattr(config_entry, "title", "")
+    unique_id = getattr(config_entry, "unique_id", None)
+    if (
+        isinstance(title, str)
+        and isinstance(unique_id, str)
+        and title.lower().startswith("auth0|")
+        and title.lower() == unique_id.lower()
+    ):
+        hass.config_entries.async_update_entry(config_entry, title="Audi Connect")
+
     selected_v3 = config_entry.options.get(V3_RUNTIME_OPTION, V3_DEFAULT) == V3_ENABLED
     if selected_v3:
         # One Audi account, one refresh-token owner. V3 supplies its own

@@ -378,7 +378,7 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(identifier.lower())
             self._abort_if_unique_id_configured()
         return self.async_create_entry(
-            title=identifier or "Audi Connect",
+            title="Audi Connect",
             data={**self._flow_data, CONF_REFRESH_TOKEN: refresh_token},
         )
 

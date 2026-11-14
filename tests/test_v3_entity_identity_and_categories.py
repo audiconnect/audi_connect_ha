@@ -379,7 +379,13 @@ def test_registry_product_names_clean_unavailable_and_preserve_user_name(monkeyp
     ]
     assert rows[2].name == "My custom range"
     assert rows[2].entity_id == "sensor.hybrid_range"
+    # Native HA registration now owns the translated original name.
+    rows[0].translation_key = "v3_last_trip"
+    rows[0].original_name = "Letzte Fahrt"
+    asyncio.run(lifecycle.async_apply_v3_entity_visibility(None, entry, True))
+    assert rows[0].original_name == "Letzte Fahrt"
     asyncio.run(lifecycle.async_apply_v3_entity_visibility(None, entry, False))
+    assert rows[0].translation_key is None
     assert [row.original_name for row in rows] == [
         "Last trip (CARIAD)",
         "Next Climate Timer (Car Local Time)",

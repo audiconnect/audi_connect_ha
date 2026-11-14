@@ -24,6 +24,12 @@ def test_binary_identity_and_device_class_parity_with_v3_product_presentation():
         )
         assert entity.unique_id == car.vin.lower() + "_binary_sensor_" + description.key
         contract = binary_contracts()[description.key]
+        entity.platform_data = SimpleNamespace(
+            platform_name="audiconnect",
+            domain="binary_sensor",
+            component_translations={},
+            platform_translations={},
+        )
         assert entity.name == contract["name"]
         assert entity.device_class == description.device_class
         assert entity.entity_category is None

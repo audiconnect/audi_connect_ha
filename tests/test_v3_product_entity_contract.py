@@ -349,3 +349,49 @@ def test_alias_projection_considers_all_cached_families_and_ignores_removed():
     assert projection_reading(car, descriptor, registry=registry, now=now)[1] == native
     car.readings.pop("TOTAL_RANGE")
     assert projection_reading(car, descriptor, registry=registry, now=now)[1] == invalid
+
+
+def test_native_product_description_uses_ha_translation_and_english_fallback():
+    from custom_components.audiconnect.v3.entities import _product_description
+
+    description = _product_description("sensor.last_trip")
+    assert description.name == "Last trip"
+    assert description.translation_key == "v3_last_trip"
+    profile = _product_description(
+        "number.charge_profile_{profile_id}_target_soc", profile_id=42
+    )
+    assert profile.name == "Profile 42 charge target"
+    assert profile.translation_key == "v3_charge_profile_target_soc"
+    assert profile.translation_placeholders == {"profile_id": "42"}
+    local = _product_description(
+        "sensor.v3_custom_example", local=True, fallback="My field"
+    )
+    assert local.name == "My field"
+    assert local.translation_key is None
+
+
+def test_native_entity_translations_match_product_contract():
+    from pathlib import Path
+    from custom_components.audiconnect.v3.product_contract import (
+        canonical_entity_name,
+        canonical_entity_translation_key,
+    )
+
+    root = Path(__file__).parents[1] / "custom_components" / "audiconnect"
+    keys = product_inventory()["entities"]
+    english = json.loads((root / "strings.json").read_text())["entity"]
+    for key in keys:
+        platform = key.split(".")[0]
+        translation = canonical_entity_translation_key(key)
+        assert english[platform][translation]["name"] == canonical_entity_name(key)
+    for locale in ("en", "de", "nl", "fr"):
+        localized = json.loads((root / "translations" / f"{locale}.json").read_text())[
+            "entity"
+        ]
+        for platform, descriptions in english.items():
+            for translation, description in descriptions.items():
+                name = localized[platform][translation]["name"]
+                assert name
+                assert ("{profile_id}" in name) == (
+                    "{profile_id}" in description["name"]
+                )

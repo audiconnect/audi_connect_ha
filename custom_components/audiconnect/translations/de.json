@@ -325,5 +325,469 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "v3_last_update_time": {
+        "name": "Letzte Fahrzeugerfassung"
+      },
+      "v3_shortterm_current": {
+        "name": "Kurzzeit-Fahrdaten"
+      },
+      "v3_shortterm_reset": {
+        "name": "Kurzzeit-Fahrdaten seit Rücksetzung"
+      },
+      "v3_longterm_current": {
+        "name": "Langzeit-Fahrdaten"
+      },
+      "v3_longterm_reset": {
+        "name": "Langzeit-Fahrdaten seit Rücksetzung"
+      },
+      "v3_model": {
+        "name": "Modell"
+      },
+      "v3_mileage": {
+        "name": "Kilometerstand"
+      },
+      "v3_service_adblue_distance": {
+        "name": "AdBlue-Reichweite"
+      },
+      "v3_range": {
+        "name": "Gesamtreichweite"
+      },
+      "v3_hybrid_range": {
+        "name": "Kombinierte Reichweite"
+      },
+      "v3_service_inspection_time": {
+        "name": "Zeit bis zur Inspektion"
+      },
+      "v3_service_inspection_distance": {
+        "name": "Strecke bis zur Inspektion"
+      },
+      "v3_oil_change_time": {
+        "name": "Zeit bis zum Ölwechsel"
+      },
+      "v3_oil_change_distance": {
+        "name": "Strecke bis zum Ölwechsel"
+      },
+      "v3_oil_level": {
+        "name": "Ölstand in Prozent"
+      },
+      "v3_charging_state": {
+        "name": "Ladezustand"
+      },
+      "v3_charging_mode": {
+        "name": "Lademodus"
+      },
+      "v3_charging_type": {
+        "name": "Ladeart"
+      },
+      "v3_energy_flow": {
+        "name": "Energiefluss"
+      },
+      "v3_max_charge_current": {
+        "name": "Maximaler Ladestrom"
+      },
+      "v3_charging_current_limit_a": {
+        "name": "AC-Ladestromgrenze"
+      },
+      "v3_charging_current_limit_mode": {
+        "name": "Ladestrommodus"
+      },
+      "v3_charging_plug_auto_unlock": {
+        "name": "Ladestecker nach Laden entriegeln"
+      },
+      "v3_vehicle_reported_online": {
+        "name": "Gemeldete Fahrzeugverbindung"
+      },
+      "v3_vehicle_reported_active": {
+        "name": "Gemeldete Fahrzeugaktivität"
+      },
+      "v3_primary_engine_type": {
+        "name": "Primärer Antriebstyp"
+      },
+      "v3_secondary_engine_type": {
+        "name": "Sekundärer Antriebstyp"
+      },
+      "v3_primary_engine_range": {
+        "name": "Primäre Antriebsreichweite"
+      },
+      "v3_secondary_engine_range": {
+        "name": "Sekundäre Antriebsreichweite"
+      },
+      "v3_primary_engine_range_percent": {
+        "name": "Primärer Antriebsfüllstand"
+      },
+      "v3_car_type": {
+        "name": "Fahrzeugtyp"
+      },
+      "v3_secondary_engine_range_percent": {
+        "name": "Sekundärer Antriebsfüllstand"
+      },
+      "v3_charging_power": {
+        "name": "Ladeleistung"
+      },
+      "v3_actual_charge_rate": {
+        "name": "Ladegeschwindigkeit"
+      },
+      "v3_tank_level": {
+        "name": "Kraftstoffstand"
+      },
+      "v3_state_of_charge": {
+        "name": "Batterieladezustand"
+      },
+      "v3_remaining_charging_time": {
+        "name": "Verbleibende Ladezeit"
+      },
+      "v3_charging_complete_time": {
+        "name": "Ladeende"
+      },
+      "v3_target_state_of_charge": {
+        "name": "Ziel-Ladezustand"
+      },
+      "v3_external_power": {
+        "name": "Externe Stromversorgung"
+      },
+      "v3_plug_led_color": {
+        "name": "Farbe der Ladestecker-LED"
+      },
+      "v3_doors_trunk_status": {
+        "name": "Tür- und Kofferraumstatus"
+      },
+      "v3_climatisation_state": {
+        "name": "Klimatisierungsstatus"
+      },
+      "v3_outdoor_temperature": {
+        "name": "Außentemperatur"
+      },
+      "v3_park_time": {
+        "name": "Parkzeitpunkt"
+      },
+      "v3_position_last_updated": {
+        "name": "Letzte Positionsaktualisierung"
+      },
+      "v3_remaining_climatisation_time": {
+        "name": "Verbleibende Klimatisierungszeit"
+      },
+      "v3_preheater_duration": {
+        "name": "Standheizungsdauer"
+      },
+      "v3_preheater_remaining": {
+        "name": "Verbleibende Standheizungszeit"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Ladeziel des aktiven Profils"
+      },
+      "v3_active_charging_profile_name": {
+        "name": "Aktives Ladeprofil"
+      },
+      "v3_active_charging_profile_min_soc": {
+        "name": "Mindestladung des aktiven Profils"
+      },
+      "v3_preferred_charging_time_start": {
+        "name": "Beginn des bevorzugten Ladefensters"
+      },
+      "v3_preferred_charging_time_end": {
+        "name": "Ende des bevorzugten Ladefensters"
+      },
+      "v3_climatisation_timer_enabled_count": {
+        "name": "Aktive Klimatisierungstimer"
+      },
+      "v3_next_climatisation_timer_local": {
+        "name": "Nächster Klimatisierungstimer"
+      },
+      "v3_charging_timer_enabled_count": {
+        "name": "Aktive Ladetimer"
+      },
+      "v3_vehicle_data_freshness": {
+        "name": "Aktualität der Fahrzeugdaten"
+      },
+      "v3_vehicle_data_age": {
+        "name": "Alter der Fahrzeugdaten"
+      },
+      "v3_cloud_last_successful_poll": {
+        "name": "Letzte erfolgreiche Cloud-Abfrage"
+      },
+      "v3_local_dealer": {
+        "name": "Händler"
+      },
+      "v3_service_overview": {
+        "name": "Serviceübersicht"
+      },
+      "v3_api_requests_remaining": {
+        "name": "Verbleibende API-Anfragen"
+      },
+      "v3_last_trip": {
+        "name": "Letzte Fahrt"
+      },
+      "v3_last_trip_distance": {
+        "name": "Strecke (letzte Fahrt)"
+      },
+      "v3_last_trip_duration": {
+        "name": "Dauer (letzte Fahrt)"
+      },
+      "v3_last_trip_average_speed": {
+        "name": "Durchschnittsgeschwindigkeit (letzte Fahrt)"
+      },
+      "v3_last_trip_average_fuel_consumption": {
+        "name": "Durchschnittlicher Kraftstoffverbrauch (letzte Fahrt)"
+      },
+      "v3_last_trip_average_electric_consumption": {
+        "name": "Durchschnittlicher Stromverbrauch (letzte Fahrt)"
+      },
+      "v3_last_trip_fuel_consumption": {
+        "name": "Kraftstoffverbrauch (letzte Fahrt)"
+      },
+      "v3_last_trip_electric_consumption": {
+        "name": "Stromverbrauch (letzte Fahrt)"
+      },
+      "v3_longterm_trip_distance": {
+        "name": "Strecke (Langzeit)"
+      },
+      "v3_longterm_trip_duration": {
+        "name": "Dauer (Langzeit)"
+      },
+      "v3_longterm_trip_average_speed": {
+        "name": "Durchschnittsgeschwindigkeit (Langzeit)"
+      },
+      "v3_longterm_trip_average_fuel_consumption": {
+        "name": "Durchschnittlicher Kraftstoffverbrauch (Langzeit)"
+      },
+      "v3_longterm_trip_average_electric_consumption": {
+        "name": "Durchschnittlicher Stromverbrauch (Langzeit)"
+      },
+      "v3_longterm_trip_fuel_consumption": {
+        "name": "Kraftstoffverbrauch (Langzeit)"
+      },
+      "v3_longterm_trip_electric_consumption": {
+        "name": "Stromverbrauch (Langzeit)"
+      },
+      "v3_shortterm_trip_distance": {
+        "name": "Strecke (Kurzzeit)"
+      },
+      "v3_shortterm_trip_duration": {
+        "name": "Dauer (Kurzzeit)"
+      },
+      "v3_shortterm_trip_average_speed": {
+        "name": "Durchschnittsgeschwindigkeit (Kurzzeit)"
+      },
+      "v3_shortterm_trip_average_fuel_consumption": {
+        "name": "Durchschnittlicher Kraftstoffverbrauch (Kurzzeit)"
+      },
+      "v3_shortterm_trip_average_electric_consumption": {
+        "name": "Durchschnittlicher Stromverbrauch (Kurzzeit)"
+      },
+      "v3_shortterm_trip_fuel_consumption": {
+        "name": "Kraftstoffverbrauch (Kurzzeit)"
+      },
+      "v3_shortterm_trip_electric_consumption": {
+        "name": "Stromverbrauch (Kurzzeit)"
+      },
+      "v3_last_trip_zero_emission_distance": {
+        "name": "Emissionsfreie Strecke (letzte Fahrt)"
+      },
+      "v3_shortterm_trip_zero_emission_distance": {
+        "name": "Emissionsfreie Strecke (Kurzzeit)"
+      },
+      "v3_longterm_trip_zero_emission_distance": {
+        "name": "Emissionsfreie Strecke (Langzeit)"
+      },
+      "v3_trip_history": {
+        "name": "Fahrtenverlauf"
+      },
+      "v3_discovery_coverage": {
+        "name": "Erkennungsabdeckung"
+      },
+      "v3_integration_status": {
+        "name": "Integrationsstatus"
+      },
+      "v3_last_error": {
+        "name": "Letzter Fehler"
+      },
+      "v3_door_status": {
+        "name": "Türstatus"
+      },
+      "v3_window_status": {
+        "name": "Fensterstatus"
+      },
+      "v3_electric_range": {
+        "name": "Elektrische Reichweite"
+      },
+      "v3_fuel_range": {
+        "name": "Kraftstoffreichweite"
+      }
+    },
+    "binary_sensor": {
+      "v3_plug_state": {
+        "name": "Ladestecker"
+      },
+      "v3_plug_lock_state": {
+        "name": "Ladesteckerverriegelung"
+      },
+      "v3_glass_surface_heating": {
+        "name": "Scheibenheizung"
+      },
+      "v3_sun_roof": {
+        "name": "Schiebedach"
+      },
+      "v3_roof_cover": {
+        "name": "Dachabdeckung"
+      },
+      "v3_parking_light": {
+        "name": "Fahrzeugbeleuchtung"
+      },
+      "v3_any_window_open": {
+        "name": "Fenster"
+      },
+      "v3_any_door_unlocked": {
+        "name": "Türverriegelungen"
+      },
+      "v3_any_door_open": {
+        "name": "Türen"
+      },
+      "v3_trunk_unlocked": {
+        "name": "Kofferraumverriegelung"
+      },
+      "v3_trunk_open": {
+        "name": "Kofferraum"
+      },
+      "v3_hood_open": {
+        "name": "Motorhaube"
+      },
+      "v3_left_front_door_open": {
+        "name": "Tür vorne links"
+      },
+      "v3_right_front_door_open": {
+        "name": "Tür vorne rechts"
+      },
+      "v3_left_rear_door_open": {
+        "name": "Tür hinten links"
+      },
+      "v3_right_rear_door_open": {
+        "name": "Tür hinten rechts"
+      },
+      "v3_left_front_window_open": {
+        "name": "Fenster vorne links"
+      },
+      "v3_right_front_window_open": {
+        "name": "Fenster vorne rechts"
+      },
+      "v3_left_rear_window_open": {
+        "name": "Fenster hinten links"
+      },
+      "v3_right_rear_window_open": {
+        "name": "Fenster hinten rechts"
+      },
+      "v3_braking_status": {
+        "name": "Bremsstatus"
+      },
+      "v3_oil_level_binary": {
+        "name": "Ölstandswarnung"
+      },
+      "v3_is_moving": {
+        "name": "Fahrzeug in Bewegung"
+      },
+      "v3_integration_problem": {
+        "name": "Integrationsproblem"
+      },
+      "v3_charging_ready": {
+        "name": "Ladebereit"
+      }
+    },
+    "button": {
+      "v3_refresh_vehicle_data": {
+        "name": "Aktuelle Fahrzeugdaten anfordern"
+      },
+      "v3_flash_lights": {
+        "name": "Lichtsignal auslösen"
+      },
+      "v3_start_charging_modern": {
+        "name": "Laden starten"
+      },
+      "v3_stop_charging_modern": {
+        "name": "Laden stoppen"
+      },
+      "v3_start_window_heating_modern": {
+        "name": "Scheibenheizung starten"
+      },
+      "v3_stop_window_heating_modern": {
+        "name": "Scheibenheizung stoppen"
+      },
+      "v3_wake_vehicle_modern": {
+        "name": "Fahrzeug aufwecken"
+      },
+      "v3_start_engine": {
+        "name": "Motor starten"
+      },
+      "v3_stop_engine": {
+        "name": "Motor stoppen"
+      },
+      "v3_v3_refresh_cloud": {
+        "name": "Cloud-Daten aktualisieren"
+      }
+    },
+    "switch": {
+      "v3_preheater_active": {
+        "name": "Standheizung"
+      },
+      "v3_climatisation_window_heating": {
+        "name": "Klimatisierung mit Scheibenheizung"
+      },
+      "v3_climatisation_at_unlock": {
+        "name": "Klimatisierung beim Entriegeln"
+      },
+      "v3_climatisation_zone_front_left": {
+        "name": "Klimazone vorne links"
+      },
+      "v3_climatisation_zone_front_right": {
+        "name": "Klimazone vorne rechts"
+      },
+      "v3_climatisation_zone_rear_left": {
+        "name": "Klimazone hinten links"
+      },
+      "v3_climatisation_zone_rear_right": {
+        "name": "Klimazone hinten rechts"
+      },
+      "v3_climate_quick_control": {
+        "name": "Klimatisierung ein/aus"
+      },
+      "v3_charging": {
+        "name": "Laden"
+      },
+      "v3_window_heating": {
+        "name": "Scheibenheizung"
+      }
+    },
+    "number": {
+      "v3_target_state_of_charge": {
+        "name": "Ziel-Ladezustand"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Ladeziel am aktuellen Standort"
+      },
+      "v3_charge_profile_target_soc": {
+        "name": "Ladeziel für Profil {profile_id}"
+      }
+    },
+    "select": {
+      "v3_charge_mode": {
+        "name": "Bevorzugter Lademodus"
+      }
+    },
+    "climate": {
+      "v3_climatisation": {
+        "name": "Klimatisierung"
+      }
+    },
+    "lock": {
+      "v3_lock": {
+        "name": "Zentralverriegelung"
+      }
+    },
+    "device_tracker": {
+      "v3_position": {
+        "name": "Position"
+      }
+    }
   }
 }

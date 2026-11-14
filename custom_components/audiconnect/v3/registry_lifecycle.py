@@ -152,6 +152,7 @@ async def _apply_visibility(hass, entry, enabled):
         key = entity_key(uid, entry.entry_id)
         if not key or not hasattr(current, "hidden_by"):
             continue
+        localized = (getattr(current, "translation_key", None) or "").startswith("v3_")
         if not enabled:
             if (
                 uid in disabled_compat
@@ -170,10 +171,13 @@ async def _apply_visibility(hass, entry, enabled):
                         entity_id,
                         entity_category=EntityCategory(previous) if previous else None,
                     )
+            name_updates = {"translation_key": None} if localized else {}
             if uid in names and hasattr(current, "original_name"):
                 previous, applied = names[uid]
-                if current.original_name == applied:
-                    registry.async_update_entity(entity_id, original_name=previous)
+                if current.original_name == applied or localized:
+                    name_updates["original_name"] = previous
+            if name_updates:
+                registry.async_update_entity(entity_id, **name_updates)
             continue
         if engine is None:
             continue
@@ -182,11 +186,13 @@ async def _apply_visibility(hass, entry, enabled):
         if car is None and (not definition or definition.get("scope") != "account"):
             continue
         updates = {}
-        # Refresh only integration-owned original labels, even when no runtime
-        # entity is currently offered. Never rewrite a user name or entity ID.
+        # HA owns localized runtime labels. Clean historical labels only until
+        # native registration supplies its translation key. User names and IDs
+        # are never rewritten.
         label = canonical_entity_name(key, car)
         if (
             label
+            and not localized
             and "{profile_id}" not in label
             and hasattr(current, "original_name")
             and current.original_name != label

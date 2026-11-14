@@ -549,6 +549,21 @@ def canonical_entity_name(key, vehicle=None):
     return None
 
 
+def canonical_entity_translation_key(key, vehicle=None):
+    """Stable HA translation identity, independent of VIN and API family."""
+    if key not in product_inventory()["entities"]:
+        return None
+    _, _, ident = key.partition(".")
+    if vehicle is not None and ident in (
+        "primary_engine_range",
+        "secondary_engine_range",
+    ):
+        role = engine_role(vehicle, ident.split("_", 1)[0])
+        if role:
+            ident = role + "_range"
+    return "v3_" + ident.replace("_{profile_id}", "")
+
+
 def stateful_controls():
     return product_inventory()["stateful_controls"]
 

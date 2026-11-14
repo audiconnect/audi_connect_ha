@@ -276,4 +276,13 @@ def test_platform_discovers_switch_after_state_and_both_commands_are_observed():
         VIN.lower() + "_switch_charging"
     ]
     assert offered[0].is_on is True
-    assert offered[0].name == "Charging"
+    offered[0].platform_data = NS(
+        platform_name="audiconnect",
+        domain="switch",
+        component_translations={},
+        platform_translations={
+            "component.audiconnect.entity.switch.v3_charging.name": "Laden"
+        },
+    )
+    assert offered[0].entity_description.name == "Charging"
+    assert offered[0].name == "Laden"

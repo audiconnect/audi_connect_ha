@@ -667,3 +667,68 @@ async def test_intermediate_success_does_not_reset_portal_reauthentication_guard
     with pytest.raises(DataActUnavailable):
         await client.latest(VIN)
     login.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_portal_delivery_states_and_future_delivery_guard():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    now = datetime.now(UTC)
+    client = DataActClient(None)
+    client._json = AsyncMock(
+        side_effect=[
+            None,
+            {"Identifier": "existing"},
+            [{"name": "future.zip", "createdOn": "2099-01-01T00:00:00+00:00"}],
+            [{"name": "new_no_content_found.zip", "createdOn": now.isoformat()}],
+            [{"name": "real.zip", "createdOn": now.isoformat()}],
+            [{"name": "real.zip", "createdOn": now.isoformat()}],
+        ]
+    )
+    client._get = AsyncMock(return_value=archive({"vin": VIN, "Data": [sample("52")]}))
+    for expected in (
+        "subscription_unavailable",
+        "no_nonempty_dataset",
+        "no_nonempty_dataset",
+    ):
+        assert await client.latest(VIN) is None
+        assert client.delivery_states[VIN] == expected
+    client._get.assert_not_awaited()
+    assert await client.latest(VIN) is not None
+    assert client.delivery_states[VIN] == "dataset_received"
+    assert await client.latest(VIN) is None
+    assert client.delivery_states[VIN] == "no_new_dataset"
+    client._get.assert_awaited_once()
+
+
+def test_data_act_status_counts_only_canonical_observations():
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    row = {"family": "eu_data_act", "value": 52}
+    car.family_readings["stateOfCharge"] = {"eu_data_act": row}
+    car.readings["stateOfCharge"] = row
+    car.readings["last_update_time"] = row
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=None),
+        transport=None,
+        storage=None,
+        vehicles={VIN.lower(): car},
+        profiles={},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+    )
+    result = status.data_act_poll_status()
+    assert result["mapped_observations"] == result["selected_readings"] == 1
+    car.readings["stateOfCharge"] = {"family": "cariad", "value": 53}
+    result = status.data_act_poll_status()
+    assert result["mapped_observations"] == 1
+    assert result["selected_readings"] == 0

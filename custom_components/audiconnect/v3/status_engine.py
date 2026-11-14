@@ -104,6 +104,21 @@ class StatusEngine:
         """Safe account-level scheduler status; no dataset or session contents."""
         client = getattr(self.auth, "data_act_client", None)
         retry = client.quota.retry_at if client is not None else None
+        states = getattr(client, "delivery_states", {})
+        deliveries = {}
+        mapped = selected = 0
+        for car in self.vehicles.values():
+            if not car.inventory_present:
+                continue
+            state = states.get(car.vin.upper())
+            if state is not None:
+                deliveries[state] = deliveries.get(state, 0) + 1
+            for ident, families in car.family_readings.items():
+                if "eu_data_act" in families:
+                    mapped += 1
+                    selected += (
+                        car.readings.get(ident, {}).get("family") == "eu_data_act"
+                    )
         return {
             "result": self._data_act_result,
             "last_attempt": self._data_act_attempt_at.isoformat()
@@ -113,6 +128,9 @@ class StatusEngine:
             if self._data_act_success_at
             else None,
             "retry_at": retry.isoformat() if retry else None,
+            "delivery_states": deliveries,
+            "mapped_observations": mapped,
+            "selected_readings": selected,
         }
 
     async def _poll_data_act(self, now=None):

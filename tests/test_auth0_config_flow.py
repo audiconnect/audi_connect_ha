@@ -98,3 +98,18 @@ async def test_auth0_step_exchanges_the_callback(monkeypatch) -> None:
 
     assert result == {"type": "finished"}
     assert connection.exchange == ("auth-code", flow._auth0_verifier)
+
+
+async def test_token_entry_title_is_not_account_identifier(monkeypatch) -> None:
+    from unittest.mock import AsyncMock, Mock
+
+    flow = AudiConfigFlow()
+    flow._connection = FakeConnection()
+    flow._connection.account_identifier = lambda: "auth0|example-subject"
+    unique_id = AsyncMock()
+    monkeypatch.setattr(flow, "async_set_unique_id", unique_id)
+    monkeypatch.setattr(flow, "_abort_if_unique_id_configured", Mock())
+    monkeypatch.setattr(flow, "async_create_entry", Mock(return_value={}))
+    await flow._finish_token_login()
+    unique_id.assert_awaited_once_with("auth0|example-subject")
+    assert flow.async_create_entry.call_args.kwargs["title"] == "Audi Connect"
