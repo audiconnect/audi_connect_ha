@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Melde dich mit dem ursprünglichen Audi-Konto an. Das Konto konnte nicht bestätigt werden oder stimmt nicht mit dieser Integration überein.",
       "already_configured": "Das Konto wurde bereits konfiguriert",
       "reauth_successful": "Die erneute Authentifizierung war erfolgreich",
       "reconfigure_successful": "Die Neukonfiguration war erfolgreich",

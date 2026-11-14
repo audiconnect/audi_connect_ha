@@ -113,3 +113,48 @@ async def test_token_entry_title_is_not_account_identifier(monkeypatch) -> None:
     await flow._finish_token_login()
     unique_id.assert_awaited_once_with("auth0|example-subject")
     assert flow.async_create_entry.call_args.kwargs["title"] == "Audi Connect"
+
+
+@pytest.mark.parametrize("token_login", [True, False])
+@pytest.mark.parametrize("same", [True, False])
+async def test_reauth_preserves_account_ownership(monkeypatch, token_login, same):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    flow = AudiConfigFlow()
+    expected = "auth0|owner" if token_login else "owner@example.test"
+    supplied = expected.upper() if same else "different@example.test"
+    entry = SimpleNamespace(
+        unique_id=expected, entry_id="existing", data={"region": "DE"}
+    )
+    flow._reauth_entry = entry
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_schedule_reload=Mock())
+    )
+    flow._connection = FakeConnection()
+    flow._connection.account_identifier = lambda: supplied
+    monkeypatch.setattr(flow, "async_update_and_abort", Mock(return_value={"ok": True}))
+    monkeypatch.setattr(flow, "async_abort", Mock(return_value={"ok": False}))
+    result = (
+        await flow._finish_token_login()
+        if token_login
+        else await flow._finish_password_login(supplied, "test-password")
+    )
+    assert result["ok"] is same
+    assert flow.async_update_and_abort.called is same
+    assert flow.hass.config_entries.async_schedule_reload.called is same
+    if not same:
+        flow.async_abort.assert_called_once_with(reason="wrong_account")
+
+
+async def test_token_reauth_without_account_proof_is_rejected(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    flow = AudiConfigFlow()
+    flow._reauth_entry = SimpleNamespace(unique_id="auth0|owner", data={})
+    flow._connection = FakeConnection()
+    flow._connection.account_identifier = lambda: None
+    monkeypatch.setattr(flow, "async_abort", Mock(return_value={"ok": False}))
+    assert await flow._finish_token_login() == {"ok": False}
+    flow.async_abort.assert_called_once_with(reason="wrong_account")

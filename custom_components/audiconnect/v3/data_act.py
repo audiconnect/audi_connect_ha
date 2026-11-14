@@ -22,6 +22,7 @@ from aiohttp import ClientError
 from .quota import QuotaBudget
 
 PORTAL = "https://eu-data-act.drivesomethinggreater.com"
+IDENTITY_OPERATION = "eu_data_act.identity.vehicles"
 MAX_ZIP_BYTES = 5_000_000
 MAX_JSON_BYTES = 10_000_000
 MAX_FIELDS = 10000
@@ -193,7 +194,7 @@ class DataActClient:
             self._reauth_path = None
         return result
 
-    async def _latest(self, vin):
+    async def _ensure_login(self):
         if not self._logged_in:
             if self.authorization_required or self._login is None:
                 raise DataActUnavailable("Data Act authorization required")
@@ -205,6 +206,38 @@ class DataActClient:
             self._logged_in = True
             if self._reauth_path is None:
                 self._reauth_path = ""
+
+    async def identity_rows(self, vins):
+        """Read explicit identity fields of already owned, consented VINs."""
+        await self._ensure_login()
+        payload = await self._json(
+            "/proxy_api/consent/me/vehicles?viewPosition=FRONT_LEFT"
+        )
+        rows = payload.get("vehicles") if isinstance(payload, dict) else payload
+        if not isinstance(rows, list) or len(rows) > 2000:
+            raise DataActUnavailable("Invalid Data Act vehicle list")
+        allowed = {vin.upper() for vin in vins} - self.denied_vins
+        selected = {}
+        duplicates = set()
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            vin = row.get("vin") or row.get("vehicleIdentificationNumber")
+            if not isinstance(vin, str) or vin.upper() not in allowed:
+                continue
+            vin = vin.upper()
+            if vin in selected:
+                duplicates.add(vin)
+                continue
+            selected[vin] = {
+                "vin": vin,
+                "modelName": row.get("modelName"),
+                "modelYear": row.get("modelYear"),
+            }
+        return [row for vin, row in selected.items() if vin not in duplicates]
+
+    async def _latest(self, vin):
+        await self._ensure_login()
         prefix = "/proxy_api/euda-apim/"
         identifier = self._identifiers.get(vin)
         if identifier is None:
@@ -259,8 +292,11 @@ class DataActClient:
             headers={"filename": name, "type": "partial"},
         )
         payload = await asyncio.to_thread(decode_dataset, raw, vin)
-        self._last_file[vin] = (delivered, name)
         self.delivery_states[vin] = (
             "dataset_received" if payload["Data"] else "empty_dataset"
         )
-        return payload, delivered.isoformat()
+        return payload, delivered.isoformat(), (delivered, name)
+
+    def acknowledge(self, vin, marker):
+        """Advance deduplication only after the existing Status owner commits."""
+        self._last_file[vin.upper()] = marker

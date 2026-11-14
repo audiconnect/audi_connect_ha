@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Logg inn med den opprinnelige Audi-kontoen. Kontoen kunne ikke bekreftes eller samsvarer ikke med denne integrasjonen.",
       "already_configured": "Kontoen er allerede konfigurert",
       "reauth_successful": "Ny autentisering var vellykket",
       "reconfigure_successful": "Rekonfigurering var vellykket",

@@ -267,22 +267,29 @@ def observe_structured(vehicle, payload, observed_at, accepts):
     """Keep capture-aware structured readings alongside the native scalars."""
 
     from .vehicle import window_heating_active
+    from .attribute_runtime import commit_observation
 
     def put(key, value, captured, path, *, invalid=False):
-        if value is not None and accepts(vehicle.readings.get(key), captured):
-            vehicle.readings[key] = {
-                "value": value,
-                "captured": captured,
-                "observed": observed_at.isoformat(),
-                "path": path,
-                "family": "cariad",
-                "job": path.split(".", 1)[0],
-                "status": "invalid_value"
-                if invalid
-                else "verified"
-                if timestamp_is_fresh(captured, observed_at)
-                else "readable_but_stale",
-            }
+        if value is not None:
+            commit_observation(
+                vehicle,
+                key,
+                {
+                    "value": value,
+                    "captured": captured,
+                    "observed": observed_at.isoformat(),
+                    "path": path,
+                    "family": "cariad",
+                    "job": path.split(".", 1)[0],
+                    "status": "invalid_value"
+                    if invalid
+                    else "verified"
+                    if timestamp_is_fresh(captured, observed_at)
+                    else "readable_but_stale",
+                },
+                None,
+                observed_at,
+            )
 
     for key, path, field, normalizer, limit in (
         (

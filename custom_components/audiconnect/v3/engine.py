@@ -114,6 +114,7 @@ class V3Engine:
             operation_request=self._operation_request,
             api_record=self._api_record,
             notify=self._notify_discovery_change,
+            apply_identity=self._apply_identity_candidate,
         )
 
     @property
@@ -158,7 +159,7 @@ class V3Engine:
             self.status.invalidate_trip_poll(vehicle.vin)
 
     def _apply_identity_candidate(
-        self, car, profile, candidate, operation, observed_at
+        self, car, profile, candidate, operation, observed_at, *, fill_missing=False
     ):
         """Apply only fresh, same-vehicle reviewed manufacturer metadata."""
         from .identity_cache import capture_identity
@@ -167,9 +168,30 @@ class V3Engine:
             candidate is None
             or candidate.vin.lower() != car.vin.lower()
             or candidate.country != car.country
-            or not candidate.model
+            or not (candidate.model or (fill_missing and candidate.model_year))
         ):
             return False
+        if fill_missing:
+            if (
+                car.model_family
+                and candidate.model_family
+                and car.model_family != candidate.model_family
+            ):
+                return False
+            old_context = car.context
+            previous = (car.model, car.model_year)
+            car.merge_identity_evidence(candidate, operation=operation)
+            if previous == (car.model, car.model_year):
+                return False
+            if not previous[0] and car.model:
+                car.identity_restored = False
+                car.identity_observed_at = observed_at.isoformat()
+            self._rebind_identity_context(car, profile, old_context)
+            identity = capture_identity(car)
+            if identity:
+                profile.manufacturer_identity = identity
+            self.health.observe_inventory(self, car)
+            return True
         if car.model and not car.identity_restored and car.model != candidate.model:
             return False  # Do not replace a current canonical label with conflicting metadata.
         old_context = car.context
@@ -247,7 +269,7 @@ class V3Engine:
                 vehicle.model = parsed.model
                 vehicle.model_source = parsed.model_source
                 vehicle.model_family = parsed.model_family
-            elif vehicle.model:
+            elif vehicle.model and vehicle.model_source != "eu_data_act_modelName":
                 vehicle.identity_restored = True
             if parsed.car_type:
                 vehicle.car_type = parsed.car_type
@@ -318,6 +340,8 @@ class V3Engine:
                 self.profiles[key].manufacturer_identity = identity
         self.vehicles.update(known)
         self._known_vehicle_inventory = True
+        for car in known.values():
+            self.health.observe_inventory(self, car)
         metadata = getattr(self.transport, "last_inventory_metadata", None)
         if metadata is not None:
             for vin, item in inventory_items.items():
@@ -1366,14 +1390,18 @@ class V3Engine:
         profile.attribute_drafts[attribute] = route
         await self.storage.async_save(self.profiles)
 
-    def _notify_discovery_change(self) -> None:
+    def _notify_discovery_change(self, *, reconcile_registry=True) -> None:
         coordinator = getattr(
             getattr(self.entry, "runtime_data", None), "coordinator", None
         )
         if coordinator is not None and hasattr(coordinator, "async_update_listeners"):
             # Local evidence changes are not a successful cloud update.
             coordinator.async_update_listeners()
-        if coordinator is not None and hasattr(self.hass, "async_create_task"):
+        if (
+            reconcile_registry
+            and coordinator is not None
+            and hasattr(self.hass, "async_create_task")
+        ):
             from .registry_lifecycle import async_apply_v3_entity_visibility
 
             self.hass.async_create_task(

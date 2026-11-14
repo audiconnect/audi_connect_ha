@@ -17,6 +17,10 @@ from .vehicle import V3Vehicle
 _LOGGER = logging.getLogger(__name__)
 
 
+class NativeStatusUnavailable(UpdateFailed):
+    """Inventory was loaded, but the native status poll did not succeed."""
+
+
 class V3CleanCoordinator(DataUpdateCoordinator[list[V3Vehicle]]):
     def __init__(self, hass: HomeAssistant, engine: V3Engine, entry: Any):
         minutes = entry.options.get(
@@ -44,7 +48,9 @@ class V3CleanCoordinator(DataUpdateCoordinator[list[V3Vehicle]]):
         try:
             vehicles = await self.engine.poll()
             if self.engine.last_cloud_poll_succeeded is False:
-                raise UpdateFailed("Audi cloud returned no successful status response")
+                raise NativeStatusUnavailable(
+                    "Audi cloud returned no successful status response"
+                )
             self.engine.health.poll_error = None
             return vehicles
         except ConfigEntryAuthFailed:

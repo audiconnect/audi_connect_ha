@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Connectez-vous avec le compte Audi d’origine. Le compte n’a pas pu être vérifié ou ne correspond pas à cette intégration.",
       "already_configured": "Ce compte est déjà configuré",
       "reauth_successful": "Réauthentification réussie",
       "reconfigure_successful": "Reconfiguration réussie",

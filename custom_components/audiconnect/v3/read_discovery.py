@@ -12,6 +12,7 @@ evidence that the capability is unsupported on other Audi models.
 from __future__ import annotations
 
 from collections.abc import Mapping
+import re
 from typing import Any
 
 from .historical_catalog import V2_JOBS
@@ -38,6 +39,113 @@ PROBE_GROUPS: tuple[tuple[str, ...], ...] = (
 )
 
 _JOBS = frozenset(V2_JOBS)
+DATA_ACT_DATASET = "eu_data_act.dataset"
+_DATA_ACT_KEY = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+
+
+def record_data_act_fields(profile, payload, observed_at):
+    """Discover safe field definitions, never values, in the existing schema store."""
+    from .response_preview import merge_schema_evidence, validate_schema_fields
+
+    fields = {}
+    truncated = False
+    types = {
+        str: "string",
+        int: "integer",
+        float: "number",
+        bool: "boolean",
+        type(None): "null",
+        list: "array",
+        dict: "object",
+    }
+    for item in payload["Data"]:
+        if not isinstance(item, dict):
+            continue
+        key, name = item.get("key"), item.get("dataFieldName")
+        if (
+            not isinstance(key, str)
+            or not _DATA_ACT_KEY.fullmatch(key)
+            or not isinstance(name, str)
+        ):
+            truncated = True
+            continue
+        value_type = types.get(type(item.get("value")), "null")
+        path = "id_" + key.replace("-", "_") + "." + name
+        row = {
+            "path": path,
+            "type": value_type,
+            "quality": "null" if value_type == "null" else "observed",
+        }
+        identity = (path, value_type)
+        if identity in fields:
+            continue
+        if len(fields) >= 512:
+            truncated = True
+            break
+        try:
+            validate_schema_fields([row])
+        except ValueError:
+            truncated = True
+            continue
+        fields[identity] = row
+    previous = profile.job_schema.get(DATA_ACT_DATASET, {})
+    result = merge_schema_evidence(
+        previous,
+        list(fields.values()),
+        truncated,
+        status=200,
+        source=DATA_ACT_DATASET,
+        at=observed_at.isoformat(),
+    )
+    profile.job_schema[DATA_ACT_DATASET] = result
+    return (
+        previous.get("fields") != result["fields"]
+        or previous.get("truncated") != result["truncated"]
+    )
+
+
+def data_act_discovery(car, profile, *, include_fields=False):
+    """One discovery projection; a known mapping is not proof of a valid value."""
+    schema = getattr(profile, "job_schema", {}).get(DATA_ACT_DATASET, {})
+    registry = profile.registry.families.get("eu_data_act", {})
+    mappings = registry.get("observations", {})
+    rows = {}
+    for field in schema.get("fields", []):
+        raw_key, _, name = field["path"].partition(".")
+        key = raw_key.removeprefix("id_").replace("_", "-")
+        mapping = mappings.get(key, {})
+        ident = mapping.get("attribute") if mapping.get("field") == name else None
+        reading = (
+            getattr(car, "family_readings", {}).get(ident, {}).get("eu_data_act", {})
+        )
+        state = (
+            "mapping_missing"
+            if ident is None
+            else "disabled"
+            if ident in getattr(profile, "attribute_disabled", ())
+            else "normalized"
+            if reading.get("path") == key
+            else "mapping_declared"
+        )
+        rows[(key, name)] = {
+            "key": key,
+            "field": name,
+            "attribute": ident,
+            "status": state,
+        }
+    counts = {
+        "fields_observed": len(rows),
+        "fields_mapped": sum(row["attribute"] is not None for row in rows.values()),
+        "fields_unmapped": sum(row["attribute"] is None for row in rows.values()),
+        "fields_normalized": sum(
+            row["status"] == "normalized" for row in rows.values()
+        ),
+        "truncated": bool(schema.get("truncated")),
+        "scope": "session_structural_evidence_not_vehicle_support",
+    }
+    if include_fields:
+        counts["fields"] = sorted(rows.values(), key=lambda row: row["field"])
+    return counts
 
 
 def _retry_requested(payload):
@@ -532,6 +640,7 @@ def user_progress(car, profile, auth, *, base_registry=None, parking_allowed=Non
         "standalone_http": reads,
         "unsupported_reads": sorted(op for op in reads if read_excluded(profile, op)),
         "model_present": bool(car.model),
+        "data_act_discovery": data_act_discovery(car, profile),
         "controls_catalog_applicable": len(applicable),
         "controls_physically_verified": verified,
         "controls_route_available": sum(row["route_available"] for row in applicable),

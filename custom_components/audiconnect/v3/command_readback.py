@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from .attribute_runtime import _capture_in_utc
+from .attribute_runtime import _capture_in_utc, select_reading
 from .vehicle import (
     CLIMATE_ON_STATES,
     CLIMATE_OFF_STATES,
@@ -70,16 +70,18 @@ def configure_readback(record, params):
         record.readback_attribute, record.readback_values = match
 
 
-def _readback_row(car, attribute):
-    """Delayed read-only providers cannot supply command evidence."""
+def _readback_row(car, attribute, now=None):
+    """Use native evidence, independently of the selected display observation."""
     key = "climatisationState" if attribute == "climate" else attribute
-    row = car.readings.get(key) or {}
-    return {} if row.get("family") == "eu_data_act" else row
+    _, row = select_reading(car, (key,), key, now=now, families=("cariad", "mbb", ""))
+    return row or {}
 
 
-def _data_act_readback(car, attribute):
-    key = "climatisationState" if attribute == "climate" else attribute
-    return (car.readings.get(key) or {}).get("family") == "eu_data_act"
+def _readback_value(car, attribute, now=None):
+    row = _readback_row(car, attribute, now)
+    if row.get("status") == "invalid_value":
+        return None, None
+    return row.get("value"), _capture_in_utc(row.get("captured"))
 
 
 def configure_discovery_readback(record, car, params):
@@ -87,14 +89,7 @@ def configure_discovery_readback(record, car, params):
     configure_readback(record, params)
     if not record.readback_attribute:
         return
-    if _data_act_readback(car, record.readback_attribute):
-        record.readback_attribute, record.readback_values = None, None
-        return
-    if record.readback_attribute == "climate":
-        value, captured = car.climate_state, car.climate_captured
-    else:
-        row = car.readings.get(record.readback_attribute) or {}
-        value, captured = row.get("value"), _capture_in_utc(row.get("captured"))
+    value, captured = _readback_value(car, record.readback_attribute)
     if isinstance(value, str):
         value = value.strip().lower()
     now = datetime.now(UTC)
@@ -124,14 +119,8 @@ def reconcile_readback(record, car, now=None) -> bool:
         return False
     if not record.readback_attribute or not record.readback_values:
         return False
-    if _data_act_readback(car, record.readback_attribute):
-        return False
-    if record.readback_attribute == "climate":
-        value, captured = car.climate_state, car.climate_captured
-    else:
-        row = _readback_row(car, record.readback_attribute)
-        value, captured = row.get("value"), _capture_in_utc(row.get("captured"))
     now = now or datetime.now(UTC)
+    value, captured = _readback_value(car, record.readback_attribute, now)
     if captured is None or captured.timestamp() <= record.started_at:
         return False
     age = (now - captured).total_seconds()
@@ -147,15 +136,16 @@ def reconcile_readback(record, car, now=None) -> bool:
     if (
         record.action == "start_with_settings"
         and record.readback_attribute == "climatisationTargetTemperatureC"
-        and (
-            _data_act_readback(car, "climate")
-            or car.climate_state not in CLIMATE_ON_STATES
-            or car.climate_captured is None
-            or car.climate_captured.timestamp() <= record.started_at
-            or not -300 <= (now - car.climate_captured).total_seconds() <= 3600
-        )
     ):
-        return False
+        climate, climate_stamp = _readback_value(car, "climate", now)
+        if (
+            not isinstance(climate, str)
+            or climate.strip().lower() not in CLIMATE_ON_STATES
+            or climate_stamp is None
+            or climate_stamp.timestamp() <= record.started_at
+            or not -300 <= (now - climate_stamp).total_seconds() <= 3600
+        ):
+            return False
     record.state = "verified"
     record.completed_at = max(record.started_at, now.timestamp())
     return True
@@ -180,9 +170,9 @@ def reconcile_access_mismatch(record, car, now=None) -> bool:
         or record.backend_result == "transport_uncertain"
     ):
         return False
-    row = _readback_row(car, "doorLockStatus")
-    stamp = _capture_in_utc(row.get("captured"))
     now = now or datetime.now(UTC)
+    row = _readback_row(car, "doorLockStatus", now)
+    stamp = _capture_in_utc(row.get("captured"))
     value = row.get("value")
     if (
         stamp is None

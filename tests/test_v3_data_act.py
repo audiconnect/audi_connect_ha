@@ -145,6 +145,8 @@ async def test_portal_reader_is_bounded_and_never_refetches_old_delivery():
     client._get = AsyncMock(return_value=archive({"vin": VIN, "Data": [sample("52")]}))
     result = await client.latest(VIN)
     assert result[1] == now.isoformat()
+    assert not client._last_file
+    client.acknowledge(VIN, result[2])
     assert client._get.await_count == 1
     assert client._get.call_args.kwargs["headers"]["filename"] == "new.zip"
     assert await client.latest(VIN) is None
@@ -245,6 +247,8 @@ async def test_optional_family_uses_existing_status_cadence_and_auth():
 
 @pytest.mark.asyncio
 async def test_independent_family_reads_overlap_and_publish_through_shared_writer():
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
     import asyncio
     from types import SimpleNamespace
 
@@ -257,7 +261,7 @@ async def test_independent_family_reads_overlap_and_publish_through_shared_write
     status = StatusEngine(
         hass=None,
         entry=None,
-        auth=SimpleNamespace(data_act_client=object()),
+        auth=SimpleNamespace(data_act_client=DataActClient(None)),
         transport=lambda: SimpleNamespace(remaining_calls=50),
         storage=None,
         vehicles={VIN.lower(): car},
@@ -294,7 +298,7 @@ async def test_independent_family_reads_overlap_and_publish_through_shared_write
         optional_started.set()
         await native_started.wait()
         payload = {"vin": VIN, "Data": [sample("52", now.isoformat())]}
-        return [(car, profile, payload, now, now.isoformat())]
+        return [(car, profile, payload, now, now.isoformat(), (now, "test.zip"))]
 
     status._poll_native_status = native
     status._poll_data_act = optional
@@ -372,6 +376,8 @@ def test_sparse_q8_shape_maps_known_information_only():
 
 @pytest.mark.asyncio
 async def test_slow_optional_family_does_not_delay_native_publish():
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
     import asyncio
     from types import SimpleNamespace
     from unittest.mock import Mock
@@ -387,7 +393,7 @@ async def test_slow_optional_family_does_not_delay_native_publish():
     status = StatusEngine(
         hass=None,
         entry=None,
-        auth=SimpleNamespace(data_act_client=object()),
+        auth=SimpleNamespace(data_act_client=DataActClient(None)),
         transport=lambda: SimpleNamespace(remaining_calls=50),
         storage=None,
         vehicles={VIN.lower(): car},
@@ -410,6 +416,7 @@ async def test_slow_optional_family_does_not_delay_native_publish():
                 {"vin": VIN, "Data": [sample("53", now.isoformat())]},
                 now,
                 now.isoformat(),
+                (now, "test.zip"),
             )
         ]
 
@@ -698,7 +705,9 @@ async def test_portal_delivery_states_and_future_delivery_guard():
         assert await client.latest(VIN) is None
         assert client.delivery_states[VIN] == expected
     client._get.assert_not_awaited()
-    assert await client.latest(VIN) is not None
+    result = await client.latest(VIN)
+    assert result is not None
+    client.acknowledge(VIN, result[2])
     assert client.delivery_states[VIN] == "dataset_received"
     assert await client.latest(VIN) is None
     assert client.delivery_states[VIN] == "no_new_dataset"
@@ -771,3 +780,168 @@ def test_data_act_account_status_is_derived_from_channel_state():
         assert report["delivery_states"] == {delivery: 1}
     client.authorization_required = True
     assert status.data_act_poll_status()["result"] == "authorization_required"
+
+
+@pytest.mark.asyncio
+async def test_delivery_is_retried_until_status_acknowledges_it():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    now = datetime.now(UTC)
+    listing = [{"name": "new.zip", "createdOn": now.isoformat()}]
+    client = DataActClient(None)
+    client._json = AsyncMock(
+        side_effect=[{"Identifier": "existing"}, listing, listing, listing]
+    )
+    client._get = AsyncMock(return_value=archive({"vin": VIN, "Data": [sample("52")]}))
+    first = await client.latest(VIN)
+    second = await client.latest(VIN)
+    assert first == second
+    assert client._get.await_count == 2
+    client.acknowledge(VIN, second[2])
+    assert await client.latest(VIN) is None
+
+
+@pytest.mark.asyncio
+async def test_optional_status_only_update_is_published_without_registry_migration():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    client = DataActClient(None)
+    notify = Mock()
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=None,
+        vehicles={VIN.lower(): car},
+        profiles={},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+        notify=notify,
+    )
+
+    async def poll():
+        client.delivery_states[VIN] = "subscription_unavailable"
+        return []
+
+    status._poll_data_act = poll
+    await status._collect_data_act()
+    notify.assert_called_once_with(reconcile_registry=False)
+    await status._collect_data_act()
+    notify.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_portal_identity_only_enriches_owned_missing_fields():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, Mock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.engine import V3Engine
+    from custom_components.audiconnect.v3.identity_cache import capture_identity
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi vehicle", "", "", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    client = DataActClient(None)
+    client._json = AsyncMock(
+        return_value={
+            "vehicles": [
+                {
+                    "vin": VIN,
+                    "modelName": "Audi Q8",
+                    "modelYear": 2021,
+                    "vehicleNickname": "Not the model",
+                },
+                {"vin": "WAUZZZ4M0MD123457", "modelName": "Audi A8"},
+            ]
+        }
+    )
+    engine = SimpleNamespace(
+        _rebind_identity_context=Mock(),
+        health=SimpleNamespace(observe_inventory=Mock()),
+    )
+    storage = SimpleNamespace(async_save=AsyncMock())
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=storage,
+        vehicles={VIN.lower(): car},
+        profiles={VIN.lower(): profile},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+        apply_identity=lambda *args, **kwargs: V3Engine._apply_identity_candidate(
+            engine, *args, **kwargs
+        ),
+    )
+    assert await status._enrich_data_act_identity(client)
+    assert car.model == "Audi Q8"
+    assert car.model_year == "2021"
+    assert car.identity_operation == "eu_data_act.identity.vehicles"
+    assert capture_identity(car)["operation"] == car.identity_operation
+    assert profile.manufacturer_identity["source"] == "eu_data_act_modelName"
+    assert not await status._enrich_data_act_identity(client)
+    client._json.assert_awaited_once()
+    storage.async_save.assert_awaited_once()
+    status._update_capture_projection()
+    assert car.readings["model"]["family"] == "eu_data_act"
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        {"vehicleNickname": "Audi Q8"},
+        {"modelName": "vehicle"},
+        {"modelName": "unknown"},
+    ],
+)
+def test_portal_identity_does_not_promote_nickname_or_placeholder(row):
+    candidate = V3Vehicle.from_data_act({"vin": VIN, **row}, "BE")
+    assert not candidate.model
+    assert not candidate.model_family
+
+
+def test_data_act_discovery_reuses_schema_inventory_without_raw_values():
+    from custom_components.audiconnect.v3.read_discovery import (
+        data_act_discovery,
+        record_data_act_fields,
+    )
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = V3Vehicle(VIN, "Audi vehicle", "", "", "BE")
+    profile = DevelopmentProfile(registry, car.context)
+    unknown = {
+        "key": "00000000-0000-0000-0000-000000000001",
+        "dataFieldName": "unmapped_signal",
+        "value": "private raw data",
+        "timestampUtc": now.isoformat(),
+    }
+    payload = {"vin": VIN, "Data": [sample("52", now.isoformat()), unknown]}
+    assert record_data_act_fields(profile, payload, now)
+    assert observe_data_act(car, profile, payload, now, now.isoformat())
+    report = data_act_discovery(car, profile, include_fields=True)
+    assert report["fields_observed"] == 2
+    assert report["fields_mapped"] == report["fields_normalized"] == 1
+    assert report["fields_unmapped"] == 1
+    assert report["fields"][1]["status"] == "mapping_missing"
+    assert "private raw data" not in json.dumps(profile.job_schema)
+    assert VIN not in json.dumps(profile.job_schema)
+    assert not record_data_act_fields(profile, {"Data": []}, now)
+    assert data_act_discovery(car, profile)["fields_observed"] == 2
+    assert not profile.attribute_routes and not profile.attribute_evidence

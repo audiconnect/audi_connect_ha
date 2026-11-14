@@ -12,7 +12,11 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.const import Platform
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+)
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -54,7 +58,7 @@ from .const import (
 )
 from .coordinator import AudiDataUpdateCoordinator
 from .local_extensions import DEALER_FIELDS, update_local_dealer_options
-from .v3.coordinator_clean import V3CleanCoordinator
+from .v3.coordinator_clean import NativeStatusUnavailable, V3CleanCoordinator
 from .v3.engine import V3Engine
 from .v3.service_commands import execute as v3_execute_action
 from .v3.registry import CapabilityRegistry
@@ -522,36 +526,51 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     config_entry.async_on_unload(
         config_entry.add_update_listener(_async_update_listener)
     )
-    # V3 must enumerate its vehicles before creating the limited HA entities.
-    # V2 retains the user's historical "scan on setup" preference.
-    if selected_v3 or config_entry.options.get(CONF_SCAN_INITIAL, True):
-        try:
-            await coordinator.async_config_entry_first_refresh()
-        except BaseException:
-            if selected_v3:
-                await engine.status.async_stop_data_act()
-                await engine.auth.async_close_data_act()
-            raise
+    try:
+        # V3 must enumerate its vehicles before creating the limited HA entities.
+        # V2 retains the user's historical "scan on setup" preference.
+        if selected_v3 or config_entry.options.get(CONF_SCAN_INITIAL, True):
+            try:
+                await coordinator.async_config_entry_first_refresh()
+            except ConfigEntryNotReady as err:
+                # A successful inventory is still required. Do not convert an
+                # authentication or storage failure into a successful setup.
+                if not (
+                    selected_v3
+                    and isinstance(err.__cause__, NativeStatusUnavailable)
+                    and engine.auth.data_act_client is not None
+                    and any(car.inventory_present for car in engine.vehicles.values())
+                ):
+                    raise
+                # HA keeps last_update_success=False: native controls remain
+                # unavailable; existing platform listeners schedule normal polls.
 
-    _async_cleanup_orphaned_devices(hass, config_entry)
-    # Register the same HA service IDs in both runtimes. Service handlers
-    # resolve VIN ownership to the active adapter, never a parallel V2 poller.
-    _async_register_services(hass)
-    if selected_v3:
-        from .v3.registry_lifecycle import async_apply_v3_entity_visibility
-        from .v3.dashboard import async_setup_dashboard
+        _async_cleanup_orphaned_devices(hass, config_entry)
+        # Register the same HA service IDs in both runtimes. Service handlers
+        # resolve VIN ownership to the active adapter, never a parallel V2 poller.
+        _async_register_services(hass)
+        if selected_v3:
+            from .v3.registry_lifecycle import async_apply_v3_entity_visibility
+            from .v3.dashboard import async_setup_dashboard
 
-        await async_apply_v3_entity_visibility(hass, config_entry, True)
-        await hass.config_entries.async_forward_entry_setups(
-            config_entry, config_entry.runtime_data.loaded_platforms
-        )
-        if config_entry.options.get("v3_development_workbench", False):
-            await async_setup_dashboard(hass)
-    else:
-        from .v3.registry_lifecycle import async_apply_v3_entity_visibility
+            await async_apply_v3_entity_visibility(hass, config_entry, True)
+            await hass.config_entries.async_forward_entry_setups(
+                config_entry, config_entry.runtime_data.loaded_platforms
+            )
+            if config_entry.options.get("v3_development_workbench", False):
+                await async_setup_dashboard(hass)
+        else:
+            from .v3.registry_lifecycle import async_apply_v3_entity_visibility
 
-        await async_apply_v3_entity_visibility(hass, config_entry, False)
-        await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+            await async_apply_v3_entity_visibility(hass, config_entry, False)
+            await hass.config_entries.async_forward_entry_setups(
+                config_entry, PLATFORMS
+            )
+    except BaseException:
+        if selected_v3:
+            await engine.status.async_stop_data_act()
+            await engine.auth.async_close_data_act()
+        raise
     return True
 
 

@@ -77,7 +77,7 @@ def remember_climate(profile, reading, now=None):
 
 
 def _observation_rank(row, registry, now):
-    """One ordering at the write boundary: valid, fresh, family, capture."""
+    """Newest valid capture wins; priority only breaks equivalent timestamps."""
     family = row.get("family", "")
     priority = (
         registry.family_priority(family)
@@ -88,13 +88,68 @@ def _observation_rank(row, registry, now):
     valid = row.get("value") is not None and row.get("status") != "invalid_value"
     stamp = _capture_in_utc(row.get("captured")) if age is not None else None
     captured = stamp.timestamp() if stamp else float("-inf")
-    if valid and age is not None and age <= 60:
-        return (3, -priority, captured, family)
     if valid and age is not None:
         return (2, captured, -priority, family)
     if valid:
         return (1, -priority, captured, family)
     return (0, captured, -priority, family)
+
+
+def select_reading(
+    vehicle, sources, canonical, *, registry=None, now=None, families=None
+):
+    """Select equivalent observations in the existing Status owner.
+
+    A family restriction supplies evidence, not dispatch authorization.
+    """
+    valid = []
+    cache = getattr(vehicle, "family_readings", {})
+    for a in dict.fromkeys(sources):
+        if a not in vehicle.readings:
+            continue
+        row = vehicle.readings[a]
+        candidates = (
+            dict(cache.get(a, {}))
+            if registry is not None or families is not None
+            else {}
+        )
+        candidates[row.get("family", "")] = row
+        valid.extend(
+            (a, sample)
+            for sample in candidates.values()
+            if (families is None or sample.get("family", "") in families)
+            and (
+                sample.get("value") is not None
+                or sample.get("status") == "invalid_value"
+            )
+        )
+    if not valid:
+        return canonical, None
+
+    def score(item):
+        stamp = _capture_in_utc(item[1].get("captured"))
+        return (stamp.timestamp() if stamp is not None else -1, item[0] == canonical)
+
+    # Resolve historical aliases within each family by capture first, then
+    # apply the same family ranking as the observation writer. An explicit
+    # invalid newer sample must still invalidate its own family.
+    by_family = {}
+    for item in valid:
+        family = item[1].get("family", "")
+        previous = by_family.get(family)
+        if previous is None or score(item) > score(previous):
+            by_family[family] = item
+    if len(by_family) == 1 or (registry is None and families is None):
+        return max(valid, key=score)
+    reference = now or datetime.now(UTC)
+    return max(
+        by_family.values(),
+        key=lambda item: (
+            _observation_rank(item[1], registry, reference),
+            item[0] == canonical,
+            item[0],
+        ),
+    )
 
 
 def _current_candidates(vehicle, ident):
@@ -116,7 +171,7 @@ def _select_observation(vehicle, ident, candidates, registry, now):
     )
 
 
-def _commit_observation(vehicle, ident, row, registry, now):
+def commit_observation(vehicle, ident, row, registry, now):
     """Keep one sample per family; choose from the same set in either arrival order."""
     candidates = _current_candidates(vehicle, ident)
     family = row["family"]
@@ -124,7 +179,7 @@ def _commit_observation(vehicle, ident, row, registry, now):
         return False
     candidates[family] = row
     _select_observation(vehicle, ident, candidates, registry, now)
-    return vehicle.readings[ident] is row
+    return True
 
 
 def refresh_family_observations(vehicle, profile, now):
@@ -169,7 +224,7 @@ def record_invalid_observation(
     profile=None,
 ) -> None:
     """An explicit invalid sample invalidates only the originating family."""
-    _commit_observation(
+    commit_observation(
         vehicle,
         ident,
         {
@@ -204,7 +259,7 @@ def record_observation(
     persist_evidence=True,
     delivered_at=None,
 ):
-    """Commit one normalized observation; persist only reviewed mapping evidence."""
+    """Return whether the family accepted the sample, not whether it won selection."""
     status = "verified" if fresh else "readable_but_stale"
     row = {
         "value": value,
@@ -219,7 +274,7 @@ def record_observation(
     }
     if delivered_at is not None:
         row["delivered_at"] = delivered_at
-    if not _commit_observation(
+    if not commit_observation(
         vehicle, ident, row, getattr(profile, "registry", None), observed_at
     ):
         return False
@@ -426,13 +481,14 @@ def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
         or not isinstance(payload.get("Data"), list)
     ):
         return False
-    accepted = False
+    changed = False
     for ident, sample in data_act_observations(
         payload, observed_at, profile.registry
     ).items():
         if ident in getattr(profile, "attribute_disabled", ()):
             continue
-        accepted |= record_observation(
+        previous = vehicle.readings.get(ident)
+        record_observation(
             vehicle,
             profile,
             ident,
@@ -447,4 +503,5 @@ def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
             persist_evidence=False,
             delivered_at=delivered_at,
         )
-    return accepted
+        changed |= vehicle.readings.get(ident) is not previous
+    return changed

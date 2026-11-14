@@ -92,3 +92,17 @@ def test_access_duplicate_window_does_not_become_safe():
         "value": {"items": rows},
     }
     assert access_summary(car, "window")[0] == "unknown"
+
+
+def test_health_snapshot_is_read_only():
+    car = V3Vehicle(VIN, "Audi", "", "", "DE")
+    health = IntegrationHealth()
+    engine = NS(transport=NS(remaining_calls=50), last_cloud_poll_succeeded=True)
+    health.observe_inventory(engine, car)
+    before = health.snapshot(engine, car)
+    assert before["active_error_count"] == 1
+    car.model = "Audi Q8"
+    health.snapshot(engine, car)
+    assert health.findings[car.vin.lower()]
+    health.observe_inventory(engine, car)
+    assert health.snapshot(engine, car)["active_error_count"] == 0

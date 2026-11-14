@@ -128,7 +128,8 @@ class IntegrationHealth:
             elif any(v.get("value") not in (None, {}, []) for v in candidates):
                 self._recover(vehicle, job)
 
-    def snapshot(self, engine, car):
+    def observe_inventory(self, engine, car):
+        """Update identity findings at the existing inventory event."""
         key = car.vin.lower()
         if not car.model and "vehicle_identity" not in self.findings.get(key, {}):
             self._record(key, "vehicle_identity", "vehicle_identity_missing")
@@ -139,6 +140,9 @@ class IntegrationHealth:
                 self._record(key, "inventory_fallback", "graphql_inventory_unavailable")
         else:
             self._recover(key, "inventory_fallback")
+
+    def snapshot(self, engine, car):
+        key = car.vin.lower()
         findings = list(self.findings.get(key, {}).values())
         remaining = getattr(engine.transport, "remaining_calls", None)
         quota = getattr(engine.transport, "quota", None)

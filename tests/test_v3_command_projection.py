@@ -179,7 +179,15 @@ def test_guided_readback_only_uses_known_changed_comfort_state(value, expected):
         configure_discovery_readback,
     )
 
-    car = NS(climate_state=value, climate_captured=NOW, readings={})
+    car = NS(
+        readings={
+            "climatisationState": {
+                "value": value,
+                "captured": NOW.isoformat(),
+                "family": "cariad",
+            }
+        }
+    )
     row = CommandRecord.begin("climate", "start", "route", NOW.timestamp())
     configure_discovery_readback(row, car, {})
     assert bool(row.readback_attribute) is expected
@@ -269,3 +277,25 @@ def test_data_act_never_verifies_command_even_with_fresh_capture(
     assert row.state == "accepted_unconfirmed"
     car.readings[attribute]["family"] = "cariad"
     assert reconcile_readback(row, car, NOW)
+
+
+def test_display_source_does_not_hide_native_command_evidence():
+    from custom_components.audiconnect.v3.command_readback import reconcile_readback
+
+    row = record("charging", "start")
+    native = {
+        "value": "charging",
+        "family": "cariad",
+        "captured": NOW.isoformat(),
+    }
+    display = {
+        "value": "off",
+        "family": "eu_data_act",
+        "captured": (NOW + timedelta(seconds=1)).isoformat(),
+    }
+    car = NS(
+        readings={"chargingState": display},
+        family_readings={"chargingState": {"cariad": native, "eu_data_act": display}},
+    )
+    assert reconcile_readback(row, car, NOW)
+    assert car.readings["chargingState"] is display

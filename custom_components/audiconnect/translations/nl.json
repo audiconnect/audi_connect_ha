@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Meld je aan met het oorspronkelijke Audi-account. Het account kon niet worden geverifieerd of komt niet overeen met deze integratie.",
       "already_configured": "Dit account is al geconfigureerd",
       "reauth_successful": "Herauthenticatie is geslaagd",
       "reconfigure_successful": "Herconfiguratie is geslaagd",

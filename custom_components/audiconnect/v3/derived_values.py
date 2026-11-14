@@ -11,22 +11,24 @@ from .freshness import timestamp_is_fresh
 
 
 def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
+    from .attribute_runtime import record_observation
+
     def record(ident, value, captured, job, path):
-        if value is None or not accepts(car.readings.get(ident), captured):
-            return
-        fresh = timestamp_is_fresh(captured, observed_at)
-        car.readings[ident] = {
-            "value": value,
-            "captured": captured,
-            "observed": observed_at.isoformat(),
-            "fresh": fresh,
-            "path": path,
-            "job": job,
-            "family": "cariad",
-            "status": "verified" if fresh else "readable_but_stale",
-        }
-        # Derived observations need no extra API route; HA setup can see them
-        # directly while the original batch job remains in the polling plan.
+        if value is not None:
+            record_observation(
+                car,
+                profile,
+                ident,
+                value,
+                captured,
+                observed_at,
+                path,
+                job,
+                "cariad",
+                fresh=timestamp_is_fresh(captured, observed_at),
+                operation="cariad.climate.status.batch",
+                persist_evidence=False,
+            )
 
     # Independent historical aliases use the original HA keys. Preserve
     # existing source timestamps rather than inventing new observations.

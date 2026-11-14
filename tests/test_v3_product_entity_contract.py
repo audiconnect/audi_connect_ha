@@ -309,7 +309,7 @@ def test_alias_projection_uses_same_family_preference_as_observation_writer():
     )
     descriptor = ATTRIBUTES["TOTAL_RANGE"]
     assert projection_reading(car, descriptor, registry=registry, now=now)[0] == (
-        "measuredTotalRange"
+        "TOTAL_RANGE"
     )
     car.readings["measuredTotalRange"]["captured"] = (
         now - timedelta(hours=3)

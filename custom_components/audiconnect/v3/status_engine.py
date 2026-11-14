@@ -32,6 +32,8 @@ from .read_discovery import (
     MAX_EXTRA_INITIAL_REQUESTS,
     MAX_EXTRA_PERIODIC_REQUESTS,
     read_excluded,
+    record_data_act_fields,
+    DATA_ACT_DATASET,
 )
 from .status_planner import status_groups
 
@@ -66,6 +68,7 @@ class StatusEngine:
         operation_request,
         api_record,
         notify=None,
+        apply_identity=None,
     ):
         self.hass = hass
         self.entry = entry
@@ -79,6 +82,8 @@ class StatusEngine:
         self._operation_request = operation_request
         self._api_record = api_record
         self._notify = notify
+        self._apply_identity = apply_identity
+        self._data_act_identity_attempt_at = None
         self._data_act_task = None
         self.last_cloud_poll_success = None
         self.last_cloud_poll_attempt = None
@@ -193,8 +198,10 @@ class StatusEngine:
                 continue
             self._data_act_success_at = now
             if result is not None:
-                payload, delivered = result
-                samples.append((car, profile, payload, datetime.now(UTC), delivered))
+                payload, delivered, marker = result
+                samples.append(
+                    (car, profile, payload, datetime.now(UTC), delivered, marker)
+                )
         return samples
 
     def invalidate_trip_poll(self, vin: str) -> None:
@@ -256,7 +263,7 @@ class StatusEngine:
             return
         now = time.monotonic()
         key = car.vin.lower()
-        last = self._trip_poll_at.get(key)
+        due = self._trip_poll_at.get(key)
         profile = self.profiles[key]
         # Retry missing scopes at the ordinary poll cadence, not a 3-hour
         # penalty after a quota/transport/partial-response failure.
@@ -269,10 +276,12 @@ class StatusEngine:
             if car.context.auth != "legacy"
             else ["shortterm_current", "longterm_current"]
         )
-        interval = 10800 if all(car.trips.get(scope) for scope in expected) else 900
-        if last is not None and now - last < interval:
+        if due is not None and now < due:
             return
-        self._trip_poll_at[key] = now
+        # Reserve the bounded retry before I/O. Only a complete successful
+        # cycle extends it; cached trip scopes alone never prove success.
+        self._trip_poll_at[key] = now + 900
+        complete = True
         if car.context.auth == "legacy":
             from .trips import normalize_mbb_trips
             from datetime import timedelta
@@ -304,8 +313,11 @@ class StatusEngine:
                 if reply.status in (401, 403, 429) or reply.status >= 500:
                     break
                 if not 200 <= reply.status < 300:
+                    complete = False
                     continue
-                for suffix, trip in normalize_mbb_trips(reply.data).items():
+                trips = normalize_mbb_trips(reply.data)
+                complete &= bool(trips)
+                for suffix, trip in trips.items():
                     state_key = kind.lower() + "_" + suffix
                     previous = _capture_in_utc(
                         car.trips.get(state_key, {}).get("timestamp")
@@ -313,6 +325,9 @@ class StatusEngine:
                     incoming = _capture_in_utc(trip.get("timestamp"))
                     if incoming and (not previous or incoming >= previous):
                         car.trips[state_key] = trip
+            else:
+                if complete and all(car.trips.get(scope) for scope in expected):
+                    self._trip_poll_at[key] = now + 10800
             return
         profile = self.profiles[car.vin.lower()]
         available = (
@@ -337,11 +352,19 @@ class StatusEngine:
             self._api_record(profile, ident, family, method, reply, car.vin)
             if reply.status in (401, 403, 429) or reply.status >= 500:
                 break
-            if 200 <= reply.status < 300:
-                if ident == "cariad.mobility.status.tripStatistics":
-                    observe_read_only(car, profile, reply.data, reply.observed_at)
-                else:
-                    observe_cariad_trip(car, ident, reply.data)
+            if not 200 <= reply.status < 300:
+                complete = False
+                continue
+            if ident == "cariad.mobility.status.tripStatistics":
+                observe_read_only(car, profile, reply.data, reply.observed_at)
+            elif not observe_cariad_trip(car, ident, reply.data):
+                # An unchanged/older valid snapshot is still a successful read.
+                from .trips import normalize_cariad_trip
+
+                complete &= normalize_cariad_trip(reply.data)[0] is not None
+        else:
+            if complete and all(car.trips.get(scope) for scope in expected):
+                self._trip_poll_at[key] = now + 10800
 
     async def poll(self) -> list[V3Vehicle]:
         self.last_cloud_poll_attempt = datetime.now(UTC)
@@ -386,18 +409,23 @@ class StatusEngine:
     async def _collect_data_act(self):
         from .attribute_runtime import observe_data_act, remove_family_observations
 
+        before = self.data_act_poll_status()
+        changed = discovery_changed = False
+        previous_attempt = self._data_act_attempt_at
         try:
             samples = await self._poll_data_act()
-            changed = False
             client = getattr(self.auth, "data_act_client", None)
             denied = getattr(client, "denied_vins", ())
             revoked = getattr(client, "authorization_required", False) is True
             for key, car in self.vehicles.items():
                 if key in self.profiles and (revoked or car.vin.upper() in denied):
+                    discovery_changed |= bool(
+                        self.profiles[key].job_schema.pop(DATA_ACT_DATASET, None)
+                    )
                     changed |= remove_family_observations(
                         car, self.profiles[key], "eu_data_act", datetime.now(UTC)
                     )
-            for car, profile, payload, observed, delivered in samples:
+            for car, profile, payload, observed, delivered, marker in samples:
                 key = car.vin.lower()
                 if (
                     self.vehicles.get(key) is car
@@ -406,17 +434,76 @@ class StatusEngine:
                     and not revoked
                     and car.vin.upper() not in denied
                 ):
+                    discovery_changed |= record_data_act_fields(
+                        profile, payload, observed
+                    )
                     changed |= observe_data_act(
                         car, profile, payload, observed, delivered
                     )
-            if changed:
-                self._update_capture_projection()
-                if self._notify is not None:
-                    self._notify()
+                    client.acknowledge(car.vin, marker)
+            if self._data_act_attempt_at != previous_attempt:
+                changed |= await self._enrich_data_act_identity(client)
         except Exception:
             # Optional provider errors must not invalidate native data or expose
             # response content and credentials in logs.
             self._data_act_processing_failed = True
+        if changed:
+            self._update_capture_projection()
+        if self._notify is not None:
+            if changed:
+                self._notify()
+            elif discovery_changed or before != self.data_act_poll_status():
+                self._notify(reconcile_registry=False)
+
+    async def _enrich_data_act_identity(self, client):
+        """Bound identity enrichment to the existing optional family task."""
+        from .data_act import DataActUnavailable, IDENTITY_OPERATION
+
+        if self._apply_identity is None or client.authorization_required:
+            return False
+        now = datetime.now(UTC)
+        if client.quota.retry_at and now < client.quota.retry_at:
+            return False
+        missing = {
+            key: car
+            for key, car in self.vehicles.items()
+            if car.inventory_present
+            and key in self.profiles
+            and (not car.model or not car.model_year)
+            and car.vin.upper() not in client.denied_vins
+        }
+        if not missing or (
+            self._data_act_identity_attempt_at
+            and now - self._data_act_identity_attempt_at < timedelta(hours=1)
+        ):
+            return False
+        self._data_act_identity_attempt_at = now
+        try:
+            rows = await client.identity_rows(car.vin for car in missing.values())
+        except DataActUnavailable:
+            return False
+        changed = False
+        for row in rows:
+            car = missing.get(row["vin"].lower())
+            if (
+                car is None
+                or self.vehicles.get(car.vin.lower()) is not car
+                or not car.inventory_present
+                or car.vin.lower() not in self.profiles
+            ):
+                continue
+            candidate = V3Vehicle.from_data_act(row, car.country)
+            changed |= self._apply_identity(
+                car,
+                self.profiles[car.vin.lower()],
+                candidate,
+                IDENTITY_OPERATION,
+                now,
+                fill_missing=True,
+            )
+        if changed and self.storage is not None:
+            await self.storage.async_save(self.profiles)
+        return changed
 
     async def async_stop_data_act(self):
         task = self._data_act_task
@@ -451,10 +538,10 @@ class StatusEngine:
                 car.readings["model"] = {
                     "value": car.model,
                     "captured": None,
-                    "observed": now.isoformat(),
+                    "observed": car.identity_observed_at or now.isoformat(),
                     "status": "readable_but_stale",
-                    "family": "cariad",
-                    "path": "graphql.vehicle.media",
+                    "family": (car.identity_operation or "graphql").split(".")[0],
+                    "path": car.identity_operation or "graphql.vehicle.media",
                     "job": None,
                 }
 

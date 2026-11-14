@@ -1482,6 +1482,7 @@ class AudiConnectV3Panel extends HTMLElement {
     if (!p)
       return '<section class="card"><h2>End-user validation</h2><p>No discovery status loaded.</p></section>';
     const health = this.capabilityStatus.integration_health || {};
+    const dataAct = this.capabilityStatus.data_act_discovery || {};
     const timing = this.capabilityStatus.end_user_timing || {};
     const candidates = this.capabilityStatus.end_user_candidates || [];
     const candidate = this.nextEndUserCandidate();
@@ -1513,6 +1514,11 @@ class AudiConnectV3Panel extends HTMLElement {
             `<tr><td><button data-action="open-capability" data-capability="${escapeHTML(cap)}">${escapeHTML(domainName(cap))}</button></td><td>${c.jobs_assessed}/${c.jobs_total}</td><td>${c.attributes_normalized}/${c.attributes_total}</td></tr>`,
         )
         .join("")}</tbody></table></div>
+      ${
+        dataAct.fields_observed
+          ? `<details><summary>EU Data Act · ${escapeHTML(dataAct.fields_observed)} fields observed · ${escapeHTML(dataAct.fields_mapped)} mapped · ${escapeHTML(dataAct.fields_normalized)} normalized</summary><p>${escapeHTML(dataAct.fields_unmapped)} fields need mapping review. Discovery is not support or command evidence.${dataAct.truncated ? " Inventory is bounded or redacted." : ""}</p><div class="coverage-table"><table><thead><tr><th>Field / UUID</th><th>Canonical attribute</th><th>Evidence</th></tr></thead><tbody>${(dataAct.fields || []).map((f) => `<tr><td>${escapeHTML(f.field)}<div class="subline">${escapeHTML(f.key)}</div></td><td>${escapeHTML(f.attribute || "—")}</td><td>${escapeHTML(friendly(f.status))}</td></tr>`).join("")}</tbody></table></div></details>`
+          : ""
+      }
       <h3>3 · Control discovery &amp; physical verification</h3>
       <div class="actions"><button data-action="discovery-mode" data-mode="guided" class="${!this.expertDiscovery ? "primary" : ""}">Guided</button><button data-action="discovery-mode" data-mode="expert" class="${this.expertDiscovery ? "primary" : ""}">Expert · selective</button></div>
       <p>${escapeHTML(p.controls_route_available ?? rows.filter((c) => c.eligible).length)} routes available · ${escapeHTML(p.controls_dispatch_ready ?? 0)} dispatch ready · ${escapeHTML(p.controls_physically_verified ?? 0)} physically verified / ${escapeHTML(p.controls_catalog_applicable ?? 0)} catalog applicable · ${escapeHTML(p.controls_ineligible ?? 0)} ineligible · ${this.skippedControls.size} skipped · ${candidates.filter((c) => !this.skippedControls.has(c.capability + "." + c.action)).length} ready to test</p>

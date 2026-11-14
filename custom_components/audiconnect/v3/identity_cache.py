@@ -20,9 +20,15 @@ def validate_identity(row, region, vin=None):
         not isinstance(model, str)
         or not 0 < len(model) <= 120
         or model.strip().lower()
-        in ("", "unknown", "invalid", "unavailable", "unsupported", "error")
+        in ("", "unknown", "invalid", "unavailable", "unsupported", "error", "vehicle")
         or source
-        not in ("audi_long_name", "audi_short_name", "cariad_model", "cariad_carModel")
+        not in (
+            "audi_long_name",
+            "audi_short_name",
+            "cariad_model",
+            "cariad_carModel",
+            "eu_data_act_modelName",
+        )
         or not isinstance(year, str)
         or (
             year
@@ -37,13 +43,18 @@ def validate_identity(row, region, vin=None):
         return {}
     from .transport import IDENTITY_OPERATIONS, INVENTORY_OPERATION, GARAGE_OPERATION
 
+    from .data_act import IDENTITY_OPERATION
+
+    operations = IDENTITY_OPERATIONS | {IDENTITY_OPERATION}
     operation = row.get("operation", INVENTORY_OPERATION)
-    if operation not in IDENTITY_OPERATIONS or operation.endswith(".images"):
+    if source == "eu_data_act_modelName":
+        operation = IDENTITY_OPERATION
+    elif operation not in IDENTITY_OPERATIONS or operation.endswith(".images"):
         operation = (
             GARAGE_OPERATION if source.startswith("cariad_") else INVENTORY_OPERATION
         )
     year_operation = row.get("year_operation")
-    if year_operation not in IDENTITY_OPERATIONS or year_operation.endswith(".images"):
+    if year_operation not in operations or year_operation.endswith(".images"):
         year_operation = operation if year else None
     return {
         "model": model,

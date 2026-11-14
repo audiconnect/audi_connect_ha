@@ -183,9 +183,12 @@ async def ws_status(hass, connection, msg):
                     )["payload"]
         if hasattr(engine, "health"):
             report["integration_health"] = engine.health.snapshot(engine, vehicle)
-        from .read_discovery import user_test_candidates
+        from .read_discovery import data_act_discovery, user_test_candidates
 
         report["end_user_progress"] = engine.discovery_progress(vehicle, profile)
+        report["data_act_discovery"] = data_act_discovery(
+            vehicle, profile, include_fields=True
+        )
         report["end_user_candidates"] = [
             {
                 "label": label,

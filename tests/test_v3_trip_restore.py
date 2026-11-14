@@ -308,3 +308,58 @@ def test_native_trip_history_exposes_rows_without_recording_large_attribute():
         e.unique_id.endswith("_sensor_shortterm_trip_zero_emission_distance")
         for e in offered
     )
+
+
+def test_trip_failed_cycle_retries_even_with_cached_scopes(monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    stamp = datetime.now(UTC).isoformat()
+    transport = NS(
+        remaining_calls=100,
+        request=AsyncMock(
+            return_value=NS(
+                status=200,
+                observed_at=datetime.now(UTC),
+                data={"data": [{"tripEndTimestamp": stamp, "mileage_km": 35}]},
+            )
+        ),
+    )
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+    from custom_components.audiconnect.v3.trips import CARIAD_TRIP_OPERATIONS
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    profile = DevelopmentProfile(registry, car.context)
+    records = []
+
+    def request(car, ident):
+        op = registry.operations[ident]
+        return op["family"], op["method"], op["path"].format(VIN=car.vin), None
+
+    engine = NS(
+        transport=transport,
+        _trip_poll_at={},
+        profiles={VIN.lower(): profile},
+        _operation_request=request,
+        _api_record=lambda profile, ident, *args: records.append(ident),
+    )
+    asyncio.run(StatusEngine._poll_trips(engine, car))
+    assert records == [*CARIAD_TRIP_OPERATIONS, "cariad.mobility.status.tripStatistics"]
+    assert transport.request.await_count == 4
+    assert car.trips["shortterm_current"]["mileage"] == 35
+    asyncio.run(StatusEngine._poll_trips(engine, car))
+    assert transport.request.await_count == 4
+    from custom_components.audiconnect.v3 import status_engine as status_module
+
+    due = engine._trip_poll_at[VIN.lower()]
+    monkeypatch.setattr(status_module.time, "monotonic", lambda: due)
+    transport.request.return_value = NS(status=503, data={})
+    asyncio.run(StatusEngine._poll_trips(engine, car))
+    assert transport.request.await_count == 5
+    assert engine._trip_poll_at[VIN.lower()] == due + 900
+    assert car.trips["shortterm_current"]["mileage"] == 35

@@ -213,11 +213,26 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _reauth_account_matches(self, identifier, *, password_login=False):
+        """Never replace credentials of a different existing account."""
+        entry = self._reauth_entry
+        expected = entry.unique_id or (
+            entry.data.get(CONF_USERNAME) if password_login else None
+        )
+        return bool(
+            isinstance(expected, str)
+            and isinstance(identifier, str)
+            and expected
+            and expected.lower() == identifier.lower()
+        )
+
     async def _finish_password_login(
         self, username: str, password: str
     ) -> ConfigFlowResult:
         """Persist a username/password entry (or update it on reauth)."""
         if self._reauth_entry is not None:
+            if not self._reauth_account_matches(username, password_login=True):
+                return self.async_abort(reason="wrong_account")
             # Schedule the reload ourselves: async_update_reload_and_abort is
             # deprecated (HA 2026.12) for entries that register an update
             # listener, which this integration does.
@@ -359,7 +374,10 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             # Approved but no refresh token issued; do not persist a dead entry.
             return self.async_abort(reason="device_auth_failed")
 
+        identifier = self._connection.account_identifier()
         if self._reauth_entry is not None:
+            if not self._reauth_account_matches(identifier):
+                return self.async_abort(reason="wrong_account")
             # Schedule the reload ourselves (see _finish_password_login). A
             # token reauth only changes the refresh token, which the
             # update listener deliberately ignores, so the reload has to be
@@ -373,7 +391,6 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        identifier = self._connection.account_identifier()
         if identifier:
             await self.async_set_unique_id(identifier.lower())
             self._abort_if_unique_id_configured()
