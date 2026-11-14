@@ -1,6 +1,6 @@
 # Engineering Documentation
 
-The upstream [Audi Connect README](../readme.md) remains the authoritative user guide for installation, configuration and vehicle controls.
+Start with the [Audi Connect README](../readme.md) for installation and product status. The [V2 user guide](V2_USER_GUIDE.md) retains detailed options, controls, services and dashboard examples. The [contribution guide](../CONTRIBUTING.md) explains how to extend coverage safely.
 
 ## V3 engineering and release
 

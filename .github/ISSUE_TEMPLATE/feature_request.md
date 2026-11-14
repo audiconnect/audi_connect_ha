@@ -1,30 +1,23 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
+about: Suggest a user-facing improvement
 title: ""
 labels: ""
 assignees: ""
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## What would you like to do?
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+Describe the use case, current limitation and expected behavior.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## Vehicle and environment (if relevant)
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+- Audi model / year:
+- Powertrain (ICE/PHEV/BEV):
+- Account region:
+- Home Assistant and integration versions:
+- Runtime (V2/V3):
 
-**Logfile**
-How to enable audiconnect debugging?
-Settings > Integrations > Audi Connect > Enable Debug Logging
-Run service refresh_cloud_data
-Disable Debug Logging
+## Additional context
 
-**Your Vehicle Details**
-Model:
-Year:
-Type (ICE/PHEV/BEV):
+For an observed API path or field, use the Capability discovery template. Do not post credentials, VINs, locations, raw responses or private trip history.
