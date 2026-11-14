@@ -134,7 +134,7 @@ Starting is unproven. It appeared to work once, but the car had a target well ab
 
 Timed charging is not exposed either, for the same reason: it goes through the same command as start and stop.
 
-Use `Target state of charge` instead. Raising it above the current level starts a charge and lowering it below stops one, which is the lever that behaved consistently in every direction under testing. The car's departure timers are the other reliable route, and are reported here but not yet writable.
+On the historical test vehicle, changing the target state of charge above or below the current level affected charging. This is not a universal start/stop mechanism: location profiles, timers and vehicle-specific settings may govern the result. Use the appropriate target or timer only when supported and verify the actual charging state. Do not bypass a rejected write or treat a setting change as physical confirmation.
 
 ## Climatisation
 

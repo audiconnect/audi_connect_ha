@@ -2,7 +2,7 @@
 
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
-[![HACS][hacsbadge]](hacs)
+[![HACS][hacsbadge]][hacs]
 
 Connect your Audi to Home Assistant. See vehicle status, charging, climate, trips and other available features through native Home Assistant entities.
 
