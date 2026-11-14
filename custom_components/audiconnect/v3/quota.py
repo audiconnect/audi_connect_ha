@@ -73,7 +73,6 @@ class QuotaBudget:
                         pass
             self.retry_at = max(self.retry_at or now, delay)
 
-
     def rate_limit_checkpoint(self) -> dict:
         """Optional account backoff only; no credentials or response content."""
         if not self.rate_limit_streak or self.retry_at is None:

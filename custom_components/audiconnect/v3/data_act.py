@@ -199,9 +199,7 @@ class DataActClient:
         except DataActUnavailable:
             if self.quota.rate_limit_streak:
                 if self.quota.retry_at is None:
-                    self.quota.retry_at = (
-                        datetime.now(UTC) + self.quota.recovery_delay
-                    )
+                    self.quota.retry_at = datetime.now(UTC) + self.quota.recovery_delay
             elif not self.reauth_pending:
                 self.delivery_states[vin] = "unavailable"
             raise
