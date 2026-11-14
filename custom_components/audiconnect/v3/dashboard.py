@@ -186,8 +186,31 @@ async def ws_status(hass, connection, msg):
         from .read_discovery import data_act_discovery, user_test_candidates
 
         for family in report["family_discovery"]:
+            # The shared report remains structural. Only the admin WS projection
+            # adds masked scalar values from the same in-memory observations.
+            for observation in family["observations"]:
+                ident = observation["attribute"]
+                sample = (
+                    getattr(vehicle, "family_readings", {})
+                    .get(ident, {})
+                    .get(family["id"])
+                )
+                if sample is None and observation["selected"]:
+                    sample = vehicle.readings.get(ident)
+                if sample and type(sample.get("value")) in (str, int, float, bool):
+                    observation["normalized_value"] = engine.redact_evidence(
+                        sample["value"], vehicle.vin
+                    )["payload"]
+                if sample:
+                    observation["source_field"] = engine.redact_evidence(
+                        sample.get("path"), vehicle.vin
+                    )["payload"]
             if family["auth"] == "eu_data_act" and hasattr(engine, "status"):
                 family["health"] = engine.status.data_act_poll_status()
+            elif hasattr(getattr(engine, "auth", None), "identity_auth_evidence"):
+                family["auth_context"] = engine.auth.identity_auth_evidence(
+                    family["id"]
+                )
         report["end_user_progress"] = engine.discovery_progress(vehicle, profile)
         report["data_act_discovery"] = data_act_discovery(
             vehicle, profile, include_fields=True

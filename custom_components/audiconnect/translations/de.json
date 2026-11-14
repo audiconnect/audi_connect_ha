@@ -141,9 +141,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Verbinden / erneut verbinden",
-          "data_act_disconnect": "Trennen"
+        "description": "Wählen Sie Verbinden zur Prüfung der Portal-Zugangsdaten oder Trennen zum Entfernen der lokalen Zugangsdaten. Die native Audi-Verbindung und Portalanfrage bleiben unverändert.",
+        "data": {
+          "action": "Verbindung"
         }
       },
       "data_act_credentials": {
@@ -153,10 +153,6 @@
           "email": "Portal-E-Mail",
           "password": "Portal-Passwort"
         }
-      },
-      "data_act_disconnect": {
-        "title": "EU Data Act trennen",
-        "description": "Lokale Portal-Zugangsdaten entfernen und Abfragen beenden. Die Anfrage im Portal wird nicht widerrufen."
       }
     },
     "error": {
@@ -185,6 +181,12 @@
         "start_window_heating": "Fensterheizung starten",
         "stop_window_heating": "Stoppen Sie die Fensterheizung",
         "is_moving": "In Bewegung"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Verbinden / erneut verbinden",
+        "disconnect": "Trennen"
       }
     }
   },

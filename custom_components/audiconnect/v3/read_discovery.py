@@ -131,12 +131,15 @@ def data_act_discovery(car, profile, *, include_fields=False):
             "key": key,
             "field": name,
             "attribute": ident,
+            "detail": bool(mapping.get("detail")) if ident else False,
+            "unit": mapping.get("unit") if ident else None,
             "status": state,
         }
     counts = {
         "fields_observed": len(rows),
         "fields_mapped": sum(row["attribute"] is not None for row in rows.values()),
         "fields_unmapped": sum(row["attribute"] is None for row in rows.values()),
+        "fields_detail_mapped": sum(row["detail"] for row in rows.values()),
         "fields_normalized": sum(
             row["status"] == "normalized" for row in rows.values()
         ),

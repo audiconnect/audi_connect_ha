@@ -112,9 +112,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Verbinden / opnieuw verbinden",
-          "data_act_disconnect": "Verbinding verbreken"
+        "description": "Kies verbinden of opnieuw verbinden om de portaalgegevens te controleren, of verbreek de verbinding om lokale inloggegevens te verwijderen en Data Act-uitlezing te stoppen. De native Audi-verbinding en portaal-aanvraag blijven ongewijzigd.",
+        "data": {
+          "action": "Verbinding"
         }
       },
       "data_act_credentials": {
@@ -124,10 +124,6 @@
           "email": "Portal-e-mailadres",
           "password": "Portal-wachtwoord"
         }
-      },
-      "data_act_disconnect": {
-        "title": "EU Data Act verbreken",
-        "description": "Verwijder de lokale portalcredentials en stop Data Act-uitlezing. De aanvraag in het portaal wordt niet ingetrokken."
       }
     },
     "error": {
@@ -602,6 +598,14 @@
     "device_tracker": {
       "v3_position": {
         "name": "Positie"
+      }
+    }
+  },
+  "selector": {
+    "data_act_action": {
+      "options": {
+        "connect": "Verbinden / opnieuw verbinden",
+        "disconnect": "Verbinding verbreken"
       }
     }
   }

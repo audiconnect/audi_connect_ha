@@ -94,9 +94,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Connecter / reconnecter",
-          "data_act_disconnect": "Déconnecter"
+        "description": "Choisissez connecter pour vérifier les identifiants ou déconnecter pour supprimer les identifiants locaux. La connexion Audi native et la demande du portail restent inchangées.",
+        "data": {
+          "action": "Connexion"
         }
       },
       "data_act_credentials": {
@@ -106,10 +106,6 @@
           "email": "E-mail du portail",
           "password": "Mot de passe du portail"
         }
-      },
-      "data_act_disconnect": {
-        "title": "Déconnecter EU Data Act",
-        "description": "Supprimer les identifiants locaux et arrêter les lectures Data Act. La demande dans le portail n’est pas révoquée."
       }
     },
     "error": {
@@ -132,6 +128,12 @@
         "stop_preheater": "Arrêter préchauffage",
         "start_window_heating": "Démarrer chauffage des fenêtres",
         "stop_window_heating": "Arrêter chauffage des fenêtres"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Connecter / reconnecter",
+        "disconnect": "Déconnecter"
       }
     }
   },

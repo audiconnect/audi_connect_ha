@@ -910,28 +910,28 @@ class OptionsFlowHandler(OptionsFlow):
     async def async_step_data_act(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage only the optional portal connection; keep native credentials."""
+        """Manage the optional source using a normal HA form, not an options menu."""
         if user_input is not None:
-            if user_input.get("action") == "disconnect":
+            if user_input["action"] == "disconnect":
                 options = dict(self._pending_options or self.config_entry.options)
                 for key in ("v3_data_act_email", "v3_data_act_password"):
                     options.pop(key, None)
                 options["v3_data_act_enabled"] = False
                 return self.async_create_entry(title="", data=options)
             return await self.async_step_data_act_credentials()
-        return self.async_show_menu(
-            step_id="data_act",
-            menu_options=["data_act_credentials", "data_act_disconnect"],
-        )
-
-    async def async_step_data_act_disconnect(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        if user_input is not None:
-            return await self.async_step_data_act({"action": "disconnect"})
         return self.async_show_form(
-            step_id="data_act_disconnect",
-            data_schema=vol.Schema({}),
+            step_id="data_act",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action", default="connect"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=["connect", "disconnect"],
+                            translation_key="data_act_action",
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
         )
 
     async def _validate_data_act_credentials(self, email: str, password: str) -> None:

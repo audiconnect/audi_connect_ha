@@ -1,5 +1,6 @@
 """Private VIN-scoped manufacturer metadata; never an authorization source."""
 
+import re
 from datetime import datetime
 from .vehicle import model_family_from_name, select_vehicle_image
 
@@ -16,18 +17,28 @@ def validate_identity(row, region, vin=None):
         return {}
     model, source, year = row.get("model"), row.get("source"), row.get("year", "")
     stamp = row.get("observed_at")
+    from .data_act import IDENTITY_OPERATION
+
+    optional = (
+        row.get("operation") == IDENTITY_OPERATION
+        and isinstance(source, str)
+        and bool(re.fullmatch(r"eu_data_act_[A-Za-z0-9_./~-]{1,220}", source))
+    )
     if (
         not isinstance(model, str)
         or not 0 < len(model) <= 120
         or model.strip().lower()
         in ("", "unknown", "invalid", "unavailable", "unsupported", "error", "vehicle")
-        or source
-        not in (
-            "audi_long_name",
-            "audi_short_name",
-            "cariad_model",
-            "cariad_carModel",
-            "eu_data_act_modelName",
+        or (
+            not optional
+            and source
+            not in (
+                "audi_long_name",
+                "audi_short_name",
+                "cariad_model",
+                "cariad_carModel",
+                "eu_data_act_modelName",
+            )
         )
         or not isinstance(year, str)
         or (
@@ -43,11 +54,9 @@ def validate_identity(row, region, vin=None):
         return {}
     from .transport import IDENTITY_OPERATIONS, INVENTORY_OPERATION, GARAGE_OPERATION
 
-    from .data_act import IDENTITY_OPERATION
-
     operations = IDENTITY_OPERATIONS | {IDENTITY_OPERATION}
     operation = row.get("operation", INVENTORY_OPERATION)
-    if source == "eu_data_act_modelName":
+    if optional or source == "eu_data_act_modelName":
         operation = IDENTITY_OPERATION
     elif operation not in IDENTITY_OPERATIONS or operation.endswith(".images"):
         operation = (

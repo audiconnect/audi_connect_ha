@@ -4,6 +4,8 @@ No V2 runtime imports, no automatic vehicle commands or position requests.
 """
 
 from __future__ import annotations
+
+import re
 from datetime import UTC, datetime
 from typing import Any
 from .freshness import capture_age_minutes, timestamp_is_fresh
@@ -482,6 +484,25 @@ def data_act_observations(payload, now, registry):
             value = mapping["values"].get(str(raw))
             if value is None:
                 continue
+        elif mapping.get("presence"):
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            value = True
+        elif mapping.get("token"):
+            if not isinstance(raw, str) or not re.fullmatch(
+                r"[A-Za-z0-9_.:-]{1,80}", raw
+            ):
+                continue
+            if raw.lower() in {
+                "unknown",
+                "invalid",
+                "unsupported",
+                "unavailable",
+                "error",
+                "notavailable",
+            }:
+                continue
+            value = raw
         else:
             try:
                 value = float(raw)
@@ -494,9 +515,10 @@ def data_act_observations(payload, now, registry):
                 continue
             if "scale" in mapping:
                 value = round(value * mapping["scale"] + mapping["offset"], 2)
-        value, _ = normalize_attribute_value(ATTRIBUTES[ident], value, None)
-        if value is None:
-            continue
+        if not mapping.get("detail"):
+            value, _ = normalize_attribute_value(ATTRIBUTES[ident], value, None)
+            if value is None:
+                continue
         captured = item.get("timestampUtc")
         if capture_age_minutes(captured, now) is None:
             captured = None
@@ -536,7 +558,7 @@ def observe_data_act(vehicle, profile, payload, observed_at, delivered_at):
             sample["captured"],
             observed_at,
             sample["path"],
-            ATTRIBUTES[ident]["job"],
+            ATTRIBUTES[ident]["job"] if ident in ATTRIBUTES else None,
             "eu_data_act",
             fresh=timestamp_is_fresh(sample["captured"], observed_at),
             operation="eu_data_act.dataset",

@@ -181,6 +181,22 @@ class CapabilityRegistry:
                 or not 0 <= family.get("priority", 100) <= 1000
             ):
                 raise RegistryError("Invalid API family priority")
+        for family_id, definition in self.families.items():
+            mappings = definition.get("identity_mappings", {})
+            if not isinstance(mappings, dict):
+                raise RegistryError("Invalid identity mappings")
+            for operation, fields in mappings.items():
+                if (
+                    not isinstance(operation, str)
+                    or not operation.startswith(family_id + ".")
+                    or not isinstance(fields, dict)
+                    or set(fields) - {"model", "model_year"}
+                    or any(
+                        not isinstance(path, str) or not path or len(path) > 220
+                        for path in fields.values()
+                    )
+                ):
+                    raise RegistryError("Invalid identity mapping")
         for op in self.operations.values():
             if not isinstance(op, dict):
                 raise RegistryError("Malformed operation")
@@ -254,6 +270,14 @@ class CapabilityRegistry:
                     op = self.operations.get(ref)
                     if op is None or (op["method"] == "GET") != (aspect == "status"):
                         raise RegistryError("Invalid operation reference")
+
+    def identity_fields(self, family, operation, payload):
+        """Resolve declared OEM field paths, without inventing identity."""
+        paths = self.families[family].get("identity_mappings", {}).get(operation, {})
+        return {
+            field: (read_json_path(payload, path), path)
+            for field, path in paths.items()
+        }
 
     @classmethod
     def from_json_file(cls, path: Path) -> CapabilityRegistry:

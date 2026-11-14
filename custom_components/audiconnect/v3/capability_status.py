@@ -514,6 +514,16 @@ def family_discovery(vehicle, profile, rows, operations):
         for field in dataset["fields"]
     }
     canonical = {row["attribute"]: row for row in rows if row.get("entity_key")}
+    # Read-only source details use the same observation lifecycle, but no HA entity.
+    detail_attributes = {
+        mapping["attribute"]
+        for definition in profile.registry.families.values()
+        for mapping in definition.get("observations", {}).values()
+        if mapping.get("detail")
+    }
+    for ident in detail_attributes:
+        if ident in vehicle.readings:
+            canonical[ident] = {"status": vehicle.readings[ident]["status"]}
     now = datetime.now(UTC)
     result = []
     for family, definition in profile.registry.families.items():
@@ -537,6 +547,8 @@ def family_discovery(vehicle, profile, rows, operations):
                     "path": path,
                     "type": field["type"],
                     "quality": field.get("quality"),
+                    "unit": dataset_field.get("unit") if dataset_field else None,
+                    "detail": bool(dataset_field and dataset_field.get("detail")),
                     "mapping": (
                         dataset_field["status"]
                         if dataset_field
@@ -566,6 +578,7 @@ def family_discovery(vehicle, profile, rows, operations):
             observations.append(
                 {
                     "attribute": ident,
+                    "detail": ident in detail_attributes,
                     "captured": sample.get("captured"),
                     "observed_at": sample.get("observed"),
                     "selected": is_selected,
@@ -590,9 +603,14 @@ def family_discovery(vehicle, profile, rows, operations):
                 "fields_mapped": sum(
                     bool(field["attributes"]) for field in fields.values()
                 ),
-                "normalized": len(observations),
-                "selected": sum(row["selected"] for row in observations),
-                "fresh": sum(row["fresh"] for row in observations),
+                "normalized": sum(not row["detail"] for row in observations),
+                "normalized_details": sum(row["detail"] for row in observations),
+                "selected": sum(
+                    row["selected"] and not row["detail"] for row in observations
+                ),
+                "fresh": sum(
+                    row["fresh"] and not row["detail"] for row in observations
+                ),
                 "truncated": any(evidence.get("truncated") for _, evidence in schemas),
                 "schema_results": [
                     {

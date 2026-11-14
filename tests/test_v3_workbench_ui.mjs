@@ -1853,3 +1853,52 @@ test("Source selector and discovery are driven by backend registry, including fu
   assert.match(p.shadowRoot.innerHTML, /test_field/);
   assert.doesNotMatch(p.shadowRoot.innerHTML, /value="eu_data_act"/);
 });
+
+test("Selecting a source shows its alternative observations and actual scalar values", () => {
+  const p = new Panel();
+  p.selected = "entry";
+  p.vin = "VIN1";
+  p.entries = [
+    { entry_id: "entry", vehicles: [{ vin: "VIN1", api_family: "cariad" }] },
+  ];
+  p.capabilityStatus = {
+    rows: [],
+    family_discovery: [
+      {
+        id: "eu_data_act",
+        label: "EU Data Act",
+        fields_observed: 2,
+        fields_mapped: 1,
+        normalized: 1,
+        selected: 0,
+        fresh: 0,
+        operations: 1,
+        tested_operations: 1,
+        observations: [
+          {
+            attribute: "stateOfCharge",
+            normalized_value: 52,
+            source_field: "source-uuid",
+            status: "alternative",
+            selected: false,
+          },
+        ],
+        fields: [
+          {
+            path: "unmapped_field",
+            operation: "eu_data_act.dataset",
+            mapping: "mapping_missing",
+          },
+        ],
+      },
+    ],
+  };
+  p.apiFamily = "eu_data_act";
+  p.step = 1;
+  p.render();
+  assert.match(p.shadowRoot.innerHTML, /<details open><summary>EU Data Act/);
+  assert.match(p.shadowRoot.innerHTML, /<td>52<\/td>/);
+  assert.match(p.shadowRoot.innerHTML, /source-uuid/);
+  assert.match(p.shadowRoot.innerHTML, /unmapped_field/);
+  assert.match(p.shadowRoot.innerHTML, /includes alternatives/);
+});

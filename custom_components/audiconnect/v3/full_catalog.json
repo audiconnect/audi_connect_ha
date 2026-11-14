@@ -25,7 +25,35 @@
       "poll_interval_minutes": 30,
       "host_owner": "authorized_data_act_portal_session",
       "notes": "Read-only dataset provider; no control or generic request executor.",
+      "identity_mappings": {
+        "eu_data_act.identity.vehicles": {
+          "model": "modelName",
+          "model_year": "modelYear"
+        }
+      },
       "observations": {
+        "9da735bb-c5d5-39f8-bf53-0fa2a367aa8f": {
+          "field": "charging_state",
+          "attribute": "chargingState",
+          "values": {
+            "off": "off",
+            "charging": "charging",
+            "completed": "completed",
+            "error": "error",
+            "conservationCharging": "conservationCharging",
+            "charching": "charging"
+          }
+        },
+        "c17ead4f-09b8-357f-ac2b-38c448ab88c4": {
+          "field": "parking_lights",
+          "attribute": "parking_light",
+          "values": {
+            "2": false,
+            "3": true,
+            "4": true,
+            "5": true
+          }
+        },
         "cf28f7d9-6201-30b8-82e5-a461968d30dc": {
           "field": "remaining_charging_time",
           "attribute": "remainingChargingTime",
@@ -189,6 +217,492 @@
             "locked": "locked",
             "unlocked": "unlocked"
           }
+        },
+        "33d2c35b-8aac-3509-bb88-807682055b1b": {
+          "field": "tyre_pressure_actual_rear_left",
+          "attribute": "tyre_pressure_actual_rear_left_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "a86e735b-5f04-336a-8dc7-8fb189d02cd2": {
+          "field": "tyre_pressure_differential_front_right",
+          "attribute": "tyre_pressure_differential_front_right_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "d607f5ff-cacb-3460-a8eb-8ca16d4acc08": {
+          "field": "maintenance_interval_monthly_mileage",
+          "attribute": "maintenance_interval_monthly_mileage_detail",
+          "detail": true,
+          "unit": "km",
+          "min": 0,
+          "max": 100000
+        },
+        "4c81b70a-b304-3df3-bb25-53cbc10e7236": {
+          "field": "charging_state_error_code",
+          "attribute": "charging_state_error_code_detail",
+          "detail": true,
+          "min": 0,
+          "max": 65534
+        },
+        "f8bbe94d-06e1-3311-bf8f-c0c99cc67d48": {
+          "field": "parking_brake",
+          "attribute": "parking_brake_detail",
+          "detail": true,
+          "values": {
+            "0": false,
+            "1": true
+          }
+        },
+        "db768a8b-7aed-3851-801a-fe9e0c13e372": {
+          "field": "oil_level_min_warning",
+          "attribute": "oil_level_min_warning_detail",
+          "detail": true,
+          "values": {
+            "0": false,
+            "1": true
+          }
+        },
+        "8a188a0b-24ea-34a9-9d6b-ed089547a128": {
+          "field": "remaining_charging_time_target_soc",
+          "attribute": "remaining_charging_time_target_soc_detail",
+          "detail": true,
+          "min": 0,
+          "max": 10080
+        },
+        "97aa3271-7b36-322f-b913-d4bf5ab31633": {
+          "field": "maintenance_interval_inspection_warning",
+          "attribute": "maintenance_interval_inspection_warning_detail",
+          "detail": true,
+          "values": {
+            "0": false,
+            "1": true
+          }
+        },
+        "b38e35e9-b2e9-38ce-9b14-27e6066ab888": {
+          "field": "state_service_hatch",
+          "attribute": "state_service_hatch_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "351e9e10-b831-391e-9fc4-ccacc8cd3eba": {
+          "field": "tyre_pressure_differential_spare_tyre",
+          "attribute": "tyre_pressure_differential_spare_tyre_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "937bf8d6-bd3e-306e-af30-8a8a4cc14644": {
+          "field": "locked_state_front_engine_bonnet",
+          "attribute": "locked_state_front_engine_bonnet_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "0f43f2e7-3556-36a9-8271-a60bc54afad8": {
+          "field": "echo",
+          "attribute": "echo_detail",
+          "detail": true,
+          "presence": true
+        },
+        "3611b9e7-c6f3-39ef-b700-1f650dde7979": {
+          "field": "safe_state_front_right_door",
+          "attribute": "safe_state_front_right_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "97c7b448-13e7-3266-a6be-7487caf1a354": {
+          "field": "charging_mode",
+          "attribute": "preferredChargeMode",
+          "token": true
+        },
+        "b6c6d710-53c3-3a5d-a23c-5a5141681d30": {
+          "field": "led_color",
+          "attribute": "plugledColor",
+          "token": true
+        },
+        "acdd25b5-8d20-3dbc-83f7-e5b8436e0362": {
+          "field": "last_battery_charger_update_trigger",
+          "attribute": "last_battery_charger_update_trigger_detail",
+          "detail": true,
+          "token": true
+        },
+        "a105604b-c44c-30da-b1c9-14bb9c48c714": {
+          "field": "oil_level_status",
+          "attribute": "oil_level_status_detail",
+          "detail": true,
+          "values": {
+            "0": "invalid",
+            "1": "valid",
+            "2": "unsupported"
+          }
+        },
+        "6e36232f-4c55-3688-9948-a3a6ae056db1": {
+          "field": "locked_state_rear_right_door",
+          "attribute": "locked_state_rear_right_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "053496dc-0a8e-3e0c-93fd-055e622d3f99": {
+          "field": "bem_level",
+          "attribute": "bem_level_detail",
+          "detail": true,
+          "unit": "%",
+          "min": 1,
+          "max": 100
+        },
+        "60c81e02-4825-3aab-8da8-b8b07f251623": {
+          "field": "open_state_rear_right_door",
+          "attribute": "right_rear_door_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "80e4fc45-1bf3-35eb-99b0-e956fd5ae5f0": {
+          "field": "active_warnings_in_instrument_cluster_fff",
+          "attribute": "active_warnings_in_instrument_cluster_fff_detail",
+          "detail": true,
+          "unit": "Hex (Interpreted)",
+          "min": 0,
+          "max": 2147483646
+        },
+        "78fdf808-7917-335f-a44b-f4ad582f98bc": {
+          "field": "oil_level_dipstick_indicator_function",
+          "attribute": "oil_level_dipstick_indicator_function_detail",
+          "detail": true,
+          "values": {
+            "0": false,
+            "1": true
+          }
+        },
+        "1416247c-df11-3685-b839-65d87cf97bcb": {
+          "field": "safe_state_rear_right_door",
+          "attribute": "safe_state_rear_right_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "8ab83a99-d382-3ce1-9470-d98612e85066": {
+          "field": "tyre_pressure_required_front_right",
+          "attribute": "tyre_pressure_required_front_right_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "d5e199c6-cdd5-31c3-b3d1-915c78662521": {
+          "field": "safe_state_rear_left_door",
+          "attribute": "safe_state_rear_left_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "21e084ad-51bf-3461-a521-49a544720c91": {
+          "field": "locked_state_front_right_door",
+          "attribute": "locked_state_front_right_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "cff28415-8084-34e0-ad91-db191e5ff3b6": {
+          "field": "state_sunroof_motor_hood_1",
+          "attribute": "state_sunroof_motor_hood_1_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "5f913493-351d-3aa8-a1c5-20506d9d7f9a": {
+          "field": "tyre_pressure_actual_rear_right",
+          "attribute": "tyre_pressure_actual_rear_right_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "d9f36adc-1840-37da-8ca1-7c2d789bcf9e": {
+          "field": "maintenance_interval_distance_until_oil_change",
+          "attribute": "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
+          "min": -100000,
+          "max": 100000
+        },
+        "a59fa6dd-c0e8-35af-afc0-1f411c33c78c": {
+          "field": "tyre_pressure_differential_rear_left",
+          "attribute": "tyre_pressure_differential_rear_left_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "42b1c47b-e1d1-375f-a76f-32ab0177f03e": {
+          "field": "maintenance_interval__time_until_oil_change",
+          "attribute": "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+          "min": -3650,
+          "max": 3650
+        },
+        "d7d35c0a-706c-3f28-a61a-c3b002116a25": {
+          "field": "tyre_pressure_differential_rear_right",
+          "attribute": "tyre_pressure_differential_rear_right_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "5497c6f9-d22e-3bfc-886e-d1279a6be410": {
+          "field": "tyre_pressure_required_rear_left",
+          "attribute": "tyre_pressure_required_rear_left_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "b43ff74c-2505-3a38-bf98-78c817fbaf96": {
+          "field": "scr_range",
+          "attribute": "service_adblue_distance",
+          "min": 0,
+          "max": 10000
+        },
+        "78e92351-cf56-3c15-96d3-9b63d62ca618": {
+          "field": "oil_level_additional_oil_level",
+          "attribute": "oil_level_additional_oil_level_detail",
+          "detail": true,
+          "unit": "%",
+          "min": 0,
+          "max": 100
+        },
+        "be03dca4-16fb-3072-82bd-17064bd423b9": {
+          "field": "tyre_pressure_actual_front_right",
+          "attribute": "tyre_pressure_actual_front_right_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "769f98fd-b821-367e-8434-e2c92fc5c52e": {
+          "field": "energy_flow",
+          "attribute": "energy_flow",
+          "values": {
+            "0": false,
+            "1": true,
+            "on": true,
+            "off": false,
+            "active": true,
+            "inactive": false,
+            "true": true,
+            "false": false
+          }
+        },
+        "7e35b2a4-8f31-30a7-848d-3af7bb1c5e55": {
+          "field": "fuel_level__accuracy",
+          "attribute": "fuel_level_accuracy_detail",
+          "detail": true,
+          "values": {
+            "0": "measured",
+            "1": "estimated"
+          }
+        },
+        "0bb971a6-12ef-3382-9b99-5ed0a52f18e9": {
+          "field": "open_state_front_right_door",
+          "attribute": "right_front_door_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "fd600221-7965-3396-96d7-82a840a2831c": {
+          "field": "maintenance_interval__time_until_inspection",
+          "attribute": "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+          "min": -3650,
+          "max": 3650
+        },
+        "92346806-a547-3014-b291-476c90558e53": {
+          "field": "safe_state_tailgate",
+          "attribute": "safe_state_tailgate_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "940aad2a-eb21-3e5c-b0c6-8ff4b395f917": {
+          "field": "safe_state_front_engine_bonnet",
+          "attribute": "safe_state_front_engine_bonnet_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "9c390ebd-cc97-3f18-8e47-82dcc44a514e": {
+          "field": "led_state",
+          "attribute": "led_state_detail",
+          "detail": true,
+          "token": true
+        },
+        "a56a4e27-7d8d-3434-a746-4736c3b5a496": {
+          "field": "external_power_supply_state",
+          "attribute": "externalPower",
+          "values": {
+            "available": "available",
+            "unavailable": "unavailable",
+            "connected": "available",
+            "disconnected": "unavailable"
+          }
+        },
+        "fcbbc9c5-d302-3019-a293-07a0123e3f53": {
+          "field": "tyre_pressure_required_rear_right",
+          "attribute": "tyre_pressure_required_rear_right_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "c4a26fd6-c08f-3921-bb8c-23fab6751c54": {
+          "field": "tyre_pressure_actual_front_left",
+          "attribute": "tyre_pressure_actual_front_left_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "1403559a-d939-3ec2-96c6-c2e8e6d0bd13": {
+          "field": "tyre_pressure_actual_spare_tyre",
+          "attribute": "tyre_pressure_actual_spare_tyre_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "a8bd75f4-e8d2-3c8b-973d-b2d15d9a1d46": {
+          "field": "state_sunroof_motor_hood_3",
+          "attribute": "state_sunroof_motor_hood_3_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "f17c58f9-8763-3cd3-9cc6-c34e74482308": {
+          "field": "scr_number_of_engine_starts",
+          "attribute": "scr_number_of_engine_starts_detail",
+          "detail": true,
+          "min": 0,
+          "max": 15
+        },
+        "db6919e8-430a-35dc-a930-14d289be6985": {
+          "field": "locked_state_front_left_door",
+          "attribute": "locked_state_front_left_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "c046a189-1068-3f8a-b00b-8bc4b9b4c6e0": {
+          "field": "tyre_pressure_required_spare_tyre",
+          "attribute": "tyre_pressure_required_spare_tyre_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "fc0dab76-59ca-31bd-8845-e4b39d485b71": {
+          "field": "locked_state__rear_left_door",
+          "attribute": "locked_state_rear_left_door_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "6d90f88e-b7bf-3b1e-a306-c0e1c0c29c6e": {
+          "field": "state_spoiler",
+          "attribute": "state_spoiler_detail",
+          "detail": true,
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
+        "1e4d13b5-ce70-3429-a545-796f40775f92": {
+          "field": "tyre_pressure_required_front_left",
+          "attribute": "tyre_pressure_required_front_left_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "0b7f22d9-1703-35f5-94cc-0c58a42fcbb4": {
+          "field": "maintenance_interval_oil_change_warning",
+          "attribute": "maintenance_interval_oil_change_warning_detail",
+          "detail": true,
+          "values": {
+            "0": false,
+            "1": true
+          }
+        },
+        "ac86e00b-7fa1-3a59-b481-aa7cfc49b0d9": {
+          "field": "maintenance_interval_distance_until_inspection",
+          "attribute": "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+          "min": -100000,
+          "max": 100000
+        },
+        "69729e19-7b1a-3189-8e11-b4b31ab7601a": {
+          "field": "tyre_pressure_differential_front_left",
+          "attribute": "tyre_pressure_differential_front_left_detail",
+          "detail": true,
+          "min": 2,
+          "max": 1000,
+          "unit": "reported"
+        },
+        "173589ce-e437-3c6e-a0ec-6df704586fd7": {
+          "field": "trueness",
+          "attribute": "trueness_detail",
+          "detail": true,
+          "values": {
+            "fair": "fair",
+            "good": "good",
+            "none": "none",
+            "weak": "weak"
+          }
+        },
+        "8d4cb2b4-a4f5-3285-9cc4-fc6709ada6fd": {
+          "field": "oil_level_total_max",
+          "attribute": "oil_level_total_max_detail",
+          "detail": true,
+          "unit": "l",
+          "min": 0,
+          "max": 100
+        },
+        "61118afe-a4e4-3750-b1ad-2b38ff1d349b": {
+          "field": "charging_reason_trigger",
+          "attribute": "charging_reason_trigger_detail",
+          "detail": true,
+          "token": true
         }
       }
     },
@@ -937,8 +1451,12 @@
       "delivery": "manual",
       "priority": 0,
       "request_mode": "charge_mode",
-      "request_variables": { "VALUE": "string" },
-      "parameter_bindings": { "VALUE": "value" },
+      "request_variables": {
+        "VALUE": "string"
+      },
+      "parameter_bindings": {
+        "VALUE": "value"
+      },
       "input_schema": {
         "value": {
           "type": "string",
@@ -946,7 +1464,9 @@
           "required": true
         }
       },
-      "request_body": { "preferredChargeMode": "{VALUE}" },
+      "request_body": {
+        "preferredChargeMode": "{VALUE}"
+      },
       "confirmation": "vehicle_readback",
       "legacy_compatible": true
     },

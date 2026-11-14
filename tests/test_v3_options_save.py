@@ -190,6 +190,12 @@ async def test_data_act_credentials_change_only_after_successful_source_auth():
     assert result["data"]["scan_interval"] == 20
     result = await flow.async_step_init({"v3_data_act_password": "bypass"})
     assert result["data"]["v3_data_act_password"] == "synthetic-password"
+    result = await flow.async_step_data_act()
+    assert result["step_id"] == "data_act"
+    assert {key.schema for key in result["data_schema"].schema} == {"action"}
+    result = await flow.async_step_data_act({"action": "connect"})
+    assert result["step_id"] == "data_act_credentials"
+    assert {key.schema for key in result["data_schema"].schema} == {"email", "password"}
     flow._validate_data_act_credentials = AsyncMock(
         side_effect=DataActAuthorizationRequired("rejected")
     )
@@ -204,7 +210,7 @@ async def test_data_act_credentials_change_only_after_successful_source_auth():
     )
     assert result["data"]["v3_data_act_email"] == "other@invalid.test"
     assert result["data"]["v3_data_act_password"] == "new-password"
-    result = await flow.async_step_data_act_disconnect({})
+    result = await flow.async_step_data_act({"action": "disconnect"})
     assert not result["data"]["v3_data_act_enabled"]
     assert "v3_data_act_password" not in result["data"]
     assert "v3_data_act_email" not in result["data"]
@@ -236,6 +242,13 @@ def test_v3_options_have_localized_labels_and_descriptions(language):
     form = json.loads(path.read_text())["options"]["step"]["init"]
     assert fields <= form["data"].keys()
     assert fields <= form["data_description"].keys()
+    translations = json.loads(path.read_text())
+    action = translations["options"]["step"]["data_act"]
+    assert action["description"] and action["data"]["action"]
+    assert set(translations["selector"]["data_act_action"]["options"]) == {
+        "connect",
+        "disconnect",
+    }
 
 
 @pytest.mark.asyncio

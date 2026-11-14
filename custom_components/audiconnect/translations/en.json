@@ -171,9 +171,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Connect / reconnect",
-          "data_act_disconnect": "Disconnect"
+        "description": "Choose connect/reconnect to verify portal credentials, or disconnect to remove local credentials and stop Data Act reads. Your native Audi connection and portal request are not changed.",
+        "data": {
+          "action": "Connection"
         }
       },
       "data_act_credentials": {
@@ -183,10 +183,6 @@
           "email": "Portal email",
           "password": "Portal password"
         }
-      },
-      "data_act_disconnect": {
-        "title": "Disconnect EU Data Act",
-        "description": "Remove local portal credentials and stop Data Act reads. This does not revoke your request in the portal."
       }
     },
     "error": {
@@ -215,6 +211,12 @@
         "stop_preheater": "Stop Preheater",
         "start_window_heating": "Start Window heating",
         "stop_window_heating": "Stop Windows heating"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Connect / reconnect",
+        "disconnect": "Disconnect"
       }
     }
   },

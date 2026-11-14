@@ -916,7 +916,9 @@ async def test_portal_identity_only_enriches_owned_missing_fields():
     ],
 )
 def test_portal_identity_does_not_promote_nickname_or_placeholder(row):
-    candidate = V3Vehicle.from_data_act({"vin": VIN, **row}, "BE")
+    candidate = V3Vehicle.from_data_act(
+        {"vin": VIN, **row}, "BE", CapabilityRegistry.from_json_file(catalog_path())
+    )
     assert not candidate.model
     assert not candidate.model_family
 
@@ -1066,7 +1068,9 @@ def test_optional_identity_withdrawal_preserves_native_telemetry_and_history():
 
     now = datetime.now(UTC)
     car = V3Vehicle.from_data_act(
-        {"vin": VIN, "modelName": "Audi Q8", "modelYear": 2021}, "BE"
+        {"vin": VIN, "modelName": "Audi Q8", "modelYear": 2021},
+        "BE",
+        CapabilityRegistry.from_json_file(catalog_path()),
     )
     car.identity_observed_at = now.isoformat()
     profile = DevelopmentProfile(
@@ -1157,3 +1161,133 @@ def test_portal_duration_projects_eta_only_from_selected_source():
     remove_family_observations(car, profile, "eu_data_act", now)
     project_charging_eta(car, profile, now)
     assert "charging_complete_time" not in car.readings
+
+
+def test_data_act_observed_charging_and_parking_fields_use_shared_contract():
+    from custom_components.audiconnect.v3.attribute_runtime import data_act_observations
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    rows = [
+        {
+            "key": "9da735bb-c5d5-39f8-bf53-0fa2a367aa8f",
+            "dataFieldName": "charging_state",
+            "value": "charging",
+            "timestampUtc": now.isoformat(),
+        },
+        {
+            "key": "c17ead4f-09b8-357f-ac2b-38c448ab88c4",
+            "dataFieldName": "parking_lights",
+            "value": "2",
+            "timestampUtc": now.isoformat(),
+        },
+    ]
+    result = data_act_observations({"Data": rows}, now, registry)
+    assert result["chargingState"]["value"] == "charging"
+    assert result["parking_light"]["value"] is False
+    rows[0]["value"] = "unsupported"
+    rows[1]["value"] = "1"
+    assert not data_act_observations({"Data": rows}, now, registry)
+
+
+def test_portal_identity_uses_declared_paths_and_never_role_or_nickname():
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    registry.families["eu_data_act"]["identity_mappings"][
+        "eu_data_act.identity.vehicles"
+    ] = {
+        "model": "oem.model",
+        "model_year": "oem.year",
+    }
+    row = {"vin": VIN, "modelName": "Audi Q8", "role": "owner", "nickName": "Audi Q8"}
+    car = V3Vehicle.from_data_act(row, "BE", registry)
+    assert not car.model and not car.model_year
+    row["oem"] = {"model": "Audi A6", "year": 2022}
+    car = V3Vehicle.from_data_act(row, "BE", registry)
+    assert car.model == "Audi A6"
+    assert car.model_year == "2022"
+    assert car.model_source == "eu_data_act_oem.model"
+    from custom_components.audiconnect.v3.identity_cache import (
+        capture_identity,
+        apply_cached_identity,
+        without_optional_identity,
+    )
+
+    car.identity_observed_at = datetime.now(UTC).isoformat()
+    identity = capture_identity(car)
+    assert identity["source"] == "eu_data_act_oem.model"
+    restored = V3Vehicle(VIN, "Audi vehicle", "", "", "BE")
+    apply_cached_identity(restored, identity)
+    assert restored.model == "Audi A6" and restored.identity_restored
+    assert not without_optional_identity(identity)
+
+
+def test_observed_portal_inventory_has_exact_declared_destinations():
+    """The 84 observed structural fields must never silently lose a mapping."""
+    from pathlib import Path
+
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    inventory = json.loads(
+        (
+            Path(__file__).parent / "fixtures/v3_data_act_observed_fields.json"
+        ).read_text()
+    )
+    mappings = registry.families["eu_data_act"]["observations"]
+    assert len(inventory) == 84
+    for row in inventory:
+        mapping = mappings[row["key"]]
+        assert mapping["field"] == row["name"]
+        assert mapping["attribute"] in ATTRIBUTES or (
+            mapping.get("detail") and mapping["attribute"].endswith("_detail")
+        )
+
+
+def test_portal_read_only_details_use_existing_observation_lifecycle():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        remove_family_observations,
+    )
+    from custom_components.audiconnect.v3.capability_status import build_status_report
+
+    now = datetime.now(UTC)
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    payload = {
+        "vin": VIN,
+        "Data": [
+            {
+                "key": "f8bbe94d-06e1-3311-bf8f-c0c99cc67d48",
+                "dataFieldName": "parking_brake",
+                "value": "1",
+                "timestampUtc": now.isoformat(),
+            },
+            {
+                "key": "c4a26fd6-c08f-3921-bb8c-23fab6751c54",
+                "dataFieldName": "tyre_pressure_actual_front_left",
+                "value": "2.8",
+                "timestampUtc": now.isoformat(),
+            },
+            {
+                "key": "0f43f2e7-3556-36a9-8271-a60bc54afad8",
+                "dataFieldName": "echo",
+                "value": "private-value",
+                "timestampUtc": now.isoformat(),
+            },
+        ],
+    }
+    observe_data_act(car, profile, payload, now, now.isoformat())
+    assert car.readings["parking_brake_detail"]["value"] is True
+    assert car.readings["tyre_pressure_actual_front_left_detail"]["value"] == 2.8
+    assert car.readings["echo_detail"]["value"] is True
+    source = next(
+        row
+        for row in build_status_report(car, profile)["family_discovery"]
+        if row["id"] == "eu_data_act"
+    )
+    assert source["normalized_details"] == 3
+    assert source["normalized"] == 0
+    assert "private-value" not in str(source)
+    remove_family_observations(car, profile, "eu_data_act", now)
+    assert "parking_brake_detail" not in car.readings
