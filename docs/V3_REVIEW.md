@@ -83,3 +83,45 @@ Native command-response observations with their own valid vehicle capture use th
 Review exact-head Test and Validate, both supported HA targets, archive/packaging gates, upstream review and live acceptance separately. [Release authority](V3_ARCHITECTURE_CLOSURE.md#release-authority) governs promotion. Issue [#44](https://github.com/npinguin/audi_connect_ha/issues/44) remains the stable gate; [#35](https://github.com/npinguin/audi_connect_ha/issues/35) tracks missing manufacturer identity. The upstream maintainer owns the upstream default and stable release.
 
 The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/blob/b245cd62b51b08398166932dcb4f95987b87a4e9/docs/V3_REVIEW.md) remains available at the pinned B40 source. Its historical behavior and field counts are not current B41 instructions. See the feature closure for remaining acceptance.
+
+## B43 — Reliability & Intelligence (proposed scope; HOLD)
+
+**Planning only. Product owner must explicitly authorize implementation.** B42 remains the published community-test baseline; no stable promotion, merge or release is authorized by this plan. Use the existing ownership contract and issue #44. All acceptance items below are open unless supported by exact candidate evidence.
+
+### Work packages, in implementation order
+
+| ID | Priority | Existing owner | Task for the engineer | Acceptance evidence |
+| --- | --- | --- | --- | --- |
+| C1 | P0 | Command / API / Catalog | Reproduce Q5 STOP regression B35 to B40/B42. Compare exact routes, payload, request lifecycle, status and physical measurements; investigate OEM timeout E.PA.VCF.18. No speculative alternate mutation or model hardcode. | Independently measured charging power and actual vehicle behavior; distinguish integration regression from OEM failure. |
+| C2 | P0 | Command / HA | Separate request acceptance, backend result, post-dispatch state observation and causally correlated execution. A later manual stop must not verify the earlier remote command. Do not show unconfirmed charging OFF as actual OFF. | Regression for HTTP 200 + continuing power + later manual stop; timeout, rejection, delayed/ambiguous readback, restart and superseding intents. No automatic replay. |
+| C3 | P1 | Catalog / Command / Profiles / HA | Validate charging START/STOP routes and manual/timer mode capabilities through explicit discovery. Preserve verified options when an advertised list is temporarily empty; do not invent supported modes. | Q8 and Q5 route evidence, empty mode list, restart, invalid context and explicit rediscovery cases. |
+| D1 | P1 | Status / Vehicle / Profiles / HA | Fix source selection of the newest semantically valid observation, including retained last-known samples when the newer native response is invalid and Data Act is older. | B42 SOC scenario, timestamps, equal-time conflict, invalid/sentinel, source withdrawal, restart and stale labeling. Historical values do not become live or satisfy command verification. |
+| D2 | P1 | Command / Profiles | Retain durable physical route proof independently of bounded execution history. Investigate lost climate START test detail after routine operations. | Journal rotation, restart and unrelated commands preserve discovery proof; explicit re-evaluation, authorization and operation revision still apply. |
+| A1 | P1 | API / Status / Profiles | Review existing #59 rather than duplicate it. Adapt Data Act cadence to delivery and capture age; respect Retry-After; evaluate 15-minute fallback, exponential backoff, bounded jitter, persisted cooldown and session reuse. | No request during cooldown or restart; repeated 429, session expiry, empty/old datasets, optional failure, recovery and independent native budget. |
+| A2 | P1 | API / Status | Treat multiple clients as normal; use reported remaining allowance conservatively, reserve native commands, suppress optional work when budget is low, and avoid synchronized polls. | Simulated external quota depletion and reset, absent headers, two clients, read recovery and unaffected native control reserve. No assumption of exact account/VIN/IP quota scope. |
+| A3 | P1 | API / Diagnostics / HA | Record bounded redacted request evidence by family and endpoint category: identity/auth, metadata, listing, download, native status, command; HTTP status, Retry-After, attempts, last success, next eligible time. | Rate-limit attribution without credentials, raw payloads, VIN or a second logging system; truthful optional health and freshness. |
+| E1 | P2 | Catalog / Command / HA | Validate climate temperature settings and start-with-parameters via guided discovery; keep proven start/stop routes. | Physical Q8/Q5 checks where supported; no invented parameter capability. |
+| E2 | P2 | API / Vehicle | Investigate manufacturer identity recovery (#35); use exact identity field evidence only. | Model/year/image provenance; no nickname inference; bounded requests. |
+| E3 | P2 | HA / Workbench / Docs | Review onboarding #52 and consolidate accepted changes with current contracts; update stale B41 release references. | Simple Configure → Discover → Use, existing entity IDs, no duplicate setup or obsolete instructions. |
+
+### API policy decisions to resolve before implementation
+
+- The official business Data Act API specification is not the consumer portal contract. Exact quota scope, reset period, and limits are unconfirmed. Do not hardcode a presumed manufacturer limit or bypass throttling.
+- Review #59's current two-hour fallback against the proposed 15-minute initial fallback when no server deadline exists; honor longer server deadlines and cap only the locally chosen fallback. Decide based on evidence, not merely latency preference.
+- Keep Data Act independently authorized and read-only. Native allowance remains conservatively shared where applicable. No automatic wake, retry of a vehicle mutation, implicit discovery, extra scheduler, new database or parallel state owner.
+- Confirm whether both owner clients use the Data Act portal; compare sanitized HTTP evidence and request cadence. Do not request credentials. Further Q5 B42 feedback is pending.
+
+### Acceptance and release gate
+
+- [ ] Explicit product-owner implementation GO and agreed B43 scope.
+- [ ] P0 command fixes and independent physical evidence or documented blocking uncertainty; do not label an OEM failure resolved without evidence.
+- [ ] Source continuity, command evidence and all B42 discovery/registry/history regression tests.
+- [ ] Data Act throttling, multi-client quota simulation, native isolation, restart/unload/cancellation, privacy and bounded request volume.
+- [ ] V2 default/fallback and stable HA identifiers; Q8/Q5 field evidence and supported/unsupported/unverified distinctions.
+- [ ] Simplification/ownership audit; no duplicate state or scheduler; updated documentation and governance delta ledger.
+- [ ] Exact-head full Test/Validate, Workbench, HACS/hassfest, supported HA matrix, package integrity and upstream review procedure.
+- [ ] Separate product-owner release GO; immutable HACS beta and upstream review synchronization only via existing gates. Stable issue #44 remains open until separately accepted.
+
+References: merged B42 product PR #58; open Data Act PR #59 and issues #35/#36/#44; onboarding PR #52; [Q5 STOP evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881591226), [manual STOP and mode evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881920047), [B42 tester handoff](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6883962709).
+
+Do not implement, merge dependencies, publish B43, or announce a new release while this plan is on HOLD.
