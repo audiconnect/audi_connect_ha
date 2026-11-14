@@ -1589,3 +1589,52 @@ def test_data_act_due_time_slows_when_no_new_data():
     client.quota.rate_limit_streak = 0
     client._reauth_path = "/expired"
     assert status.data_act_poll_status()["result"] == "session_refresh_pending"
+
+
+@pytest.mark.asyncio
+async def test_data_act_restored_cooldown_skips_portal_requests():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, Mock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    client = DataActClient(None)
+    client.latest = AsyncMock()
+    now = datetime.now(UTC)
+    checkpoint = {
+        "retry_at": (now + timedelta(hours=4)).isoformat(),
+        "streak": 2,
+    }
+    storage = SimpleNamespace(
+        async_load_data_act_backoff=AsyncMock(return_value=checkpoint),
+        async_save_data_act_backoff=AsyncMock(),
+    )
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    notify = Mock()
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=storage,
+        vehicles={VIN.lower(): car},
+        profiles={VIN.lower(): profile},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+        notify=notify,
+    )
+    await status._collect_data_act()
+    await status._collect_data_act()
+    storage.async_load_data_act_backoff.assert_awaited_once()
+    storage.async_save_data_act_backoff.assert_not_awaited()
+    client.latest.assert_not_awaited()
+    notify.assert_called_once_with(reconcile_registry=False)
+    report = status.data_act_poll_status()
+    assert report["result"] == "rate_limited"
+    assert report["next_poll_at"] == checkpoint["retry_at"]
