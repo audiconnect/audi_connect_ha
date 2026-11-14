@@ -234,6 +234,8 @@ async def test_optional_family_uses_existing_status_cadence_and_auth():
     await status._poll_data_act(now + timedelta(minutes=15))
     assert client.latest.await_count == 1
     await status._poll_data_act(now + timedelta(minutes=30))
+    assert client.latest.await_count == 1
+    await status._poll_data_act(now + timedelta(hours=1))
     assert client.latest.await_count == 2
     client.quota.retry_at = now + timedelta(hours=3)
     await status._poll_data_act(now + timedelta(hours=1))
@@ -1504,3 +1506,86 @@ def test_newer_stopped_charging_suppresses_older_eta_without_erasing_duration():
     ).isoformat()
     project_charging_eta(car, profile, now)
     assert "charging_complete_time" in car.readings
+
+
+def test_data_act_adaptive_backoff_and_restart_checkpoint():
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    now = datetime.now(UTC)
+    quota = DataActClient(None).quota
+    quota.observe(429, {}, now)
+    assert quota.retry_at == now + timedelta(hours=2)
+    restored = DataActClient(None).quota
+    restored.restore_rate_limit(quota.rate_limit_checkpoint())
+    with pytest.raises(RuntimeError):
+        restored.authorize(now + timedelta(hours=1), read_only=True)
+    due = restored.retry_at
+    restored.authorize(due, read_only=True)
+    restored.observe(429, {}, due)
+    assert restored.retry_at == due + timedelta(hours=4)
+    due = restored.retry_at
+    restored.authorize(due, read_only=True)
+    restored.observe(429, {"Retry-After": "86400"}, due)
+    assert restored.retry_at == due + timedelta(days=1)
+    due = restored.retry_at
+    restored.authorize(due, read_only=True)
+    restored.observe(302, {}, due)
+    assert restored.retry_at is None
+
+
+@pytest.mark.asyncio
+async def test_portal_rate_limit_keeps_delivery_and_avoids_false_unavailable():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    client = DataActClient(None)
+    client.delivery_states[VIN] = "dataset_received"
+
+    async def limited(_vin):
+        client.quota.observe(429, {}, datetime.now(UTC))
+        raise DataActUnavailable("Data Act read unavailable")
+
+    client._latest = limited
+    with pytest.raises(DataActUnavailable):
+        await client.latest(VIN)
+    assert client.delivery_states[VIN] == "dataset_received"
+    assert client.quota.rate_limit_streak == 1
+    client.quota.retry_at = None
+    client._latest = AsyncMock(return_value=None)
+    await client.latest(VIN)
+    assert client.quota.rate_limit_streak == 0
+
+
+def test_data_act_due_time_slows_when_no_new_data():
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    client = DataActClient(None)
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=None,
+        vehicles={},
+        profiles={},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+    )
+    now = datetime.now(UTC)
+    status._data_act_attempt_at = now
+    client.delivery_states[VIN] = "dataset_received"
+    assert status._data_act_due_at(client) == now + timedelta(hours=1)
+    client.delivery_states[VIN] = "no_new_dataset"
+    assert status._data_act_due_at(client) == now + timedelta(hours=2)
+    client.quota.observe(429, {"Retry-After": "10800"}, now)
+    assert status._data_act_due_at(client) == now + timedelta(hours=3)
+    assert status.data_act_poll_status()["result"] == "rate_limited"
+    client.quota.rate_limit_streak = 0
+    client._reauth_path = "/expired"
+    assert status.data_act_poll_status()["result"] == "session_refresh_pending"

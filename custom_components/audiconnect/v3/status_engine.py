@@ -48,6 +48,7 @@ DATA_ACT_CONNECTION_STATES = [
     "vehicle_access_denied",
     "subscription_unavailable",
     "rate_limited",
+    "session_refresh_pending",
     "unavailable",
 ]
 
@@ -119,6 +120,7 @@ class StatusEngine:
         self._data_act_attempt_at = None
         self._data_act_success_at = None
         self._data_act_processing_failed = False
+        self._data_act_backoff_loaded = False
 
     @property
     def transport(self):
@@ -169,6 +171,10 @@ class StatusEngine:
             result = "vehicle_access_denied"
         elif vehicle is not None and "subscription_unavailable" in deliveries:
             result = "subscription_unavailable"
+        elif getattr(client.quota, "rate_limit_streak", 0):
+            result = "rate_limited"
+        elif getattr(client, "reauth_pending", False):
+            result = "session_refresh_pending"
         elif retry and retry > datetime.now(UTC):
             result = "rate_limited"
         elif self._data_act_processing_failed or "unavailable" in deliveries:
@@ -192,10 +198,43 @@ class StatusEngine:
             if self._data_act_success_at
             else None,
             "retry_at": retry.isoformat() if retry else None,
+            "next_poll_at": self._data_act_due_at(client).isoformat()
+            if client is not None
+            and not client.authorization_required
+            and (self._data_act_attempt_at or retry)
+            else None,
+            "rate_limit_streak": getattr(client.quota, "rate_limit_streak", 0)
+            if client is not None
+            else 0,
             "delivery_states": deliveries,
             "mapped_observations": mapped,
             "selected_readings": selected,
         }
+
+    def _data_act_due_at(self, client):
+        """One account cadence; idle/empty deliveries are checked half as often."""
+        interval = next(
+            (
+                p.registry.families["eu_data_act"]["poll_interval_minutes"]
+                for p in self.profiles.values()
+            ),
+            60,
+        )
+        deliveries = set(getattr(client, "delivery_states", {}).values())
+        if deliveries and deliveries <= {
+            "no_new_dataset",
+            "no_nonempty_dataset",
+            "empty_dataset",
+            "subscription_unavailable",
+            "vehicle_access_denied",
+        }:
+            interval *= 2
+        due = (
+            self._data_act_attempt_at + timedelta(minutes=interval)
+            if self._data_act_attempt_at
+            else datetime.min.replace(tzinfo=UTC)
+        )
+        return max(due, client.quota.retry_at or due)
 
     async def _poll_data_act(self, now=None):
         """Fetch due optional family data; native quota is separate."""
@@ -209,7 +248,7 @@ class StatusEngine:
         if client.authorization_required:
             return samples
         now = now or datetime.now(UTC)
-        if client.quota.retry_at and now < client.quota.retry_at:
+        if now < self._data_act_due_at(client):
             return samples
         profiles = [
             (car, self.profiles[key])
@@ -217,13 +256,6 @@ class StatusEngine:
             if car.inventory_present and key in self.profiles
         ]
         if not profiles:
-            return samples
-        interval = profiles[0][1].registry.families["eu_data_act"][
-            "poll_interval_minutes"
-        ]
-        if self._data_act_attempt_at and now < self._data_act_attempt_at + timedelta(
-            minutes=interval
-        ):
             return samples
         self._data_act_attempt_at = now
         self._data_act_processing_failed = False
@@ -449,6 +481,13 @@ class StatusEngine:
     async def _collect_data_act(self):
         from .attribute_runtime import observe_data_act
 
+        client = getattr(self.auth, "data_act_client", None)
+        if client is not None and not self._data_act_backoff_loaded:
+            load = getattr(self.storage, "async_load_data_act_backoff", None)
+            if load is not None:
+                client.quota.restore_rate_limit(await load())
+            self._data_act_backoff_loaded = True
+        before_backoff = client.quota.rate_limit_checkpoint() if client else {}
         before = self.data_act_poll_status()
         changed = discovery_changed = False
         previous_attempt = self._data_act_attempt_at
@@ -479,7 +518,10 @@ class StatusEngine:
                         car, profile, payload, observed, delivered
                     )
                     client.acknowledge(car.vin, marker)
-            if self._data_act_attempt_at != previous_attempt:
+            if (
+                self._data_act_attempt_at != previous_attempt
+                and self._data_act_success_at == self._data_act_attempt_at
+            ):
                 changed |= await self._enrich_data_act_identity(client)
                 discovery_changed |= (
                     self._data_act_identity_attempt_at != previous_identity_attempt
@@ -494,6 +536,11 @@ class StatusEngine:
             # Optional provider errors must not invalidate native data or expose
             # response content and credentials in logs.
             self._data_act_processing_failed = True
+        if client is not None:
+            checkpoint = client.quota.rate_limit_checkpoint()
+            save = getattr(self.storage, "async_save_data_act_backoff", None)
+            if save is not None and checkpoint != before_backoff:
+                await save(checkpoint)
         if changed:
             self._update_capture_projection()
         if self._notify is not None:
@@ -555,7 +602,7 @@ class StatusEngine:
         }
         if not missing or (
             self._data_act_identity_attempt_at
-            and now - self._data_act_identity_attempt_at < timedelta(hours=1)
+            and now - self._data_act_identity_attempt_at < timedelta(hours=24)
         ):
             return False
         self._data_act_identity_attempt_at = now

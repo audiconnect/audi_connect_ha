@@ -22,7 +22,7 @@
       "label": "EU Data Act",
       "auth": "eu_data_act",
       "priority": 30,
-      "poll_interval_minutes": 30,
+      "poll_interval_minutes": 60,
       "host_owner": "authorized_data_act_portal_session",
       "notes": "Read-only dataset provider; no control or generic request executor.",
       "identity_mappings": {
