@@ -101,9 +101,7 @@
           "v3_development_workbench": "V3-Entwicklungswerkbank aktivieren",
           "runtime_version": "Laufzeitversion",
           "run_vehicle_discovery": "Fahrzeugerkennung und Steuerung testen",
-          "v3_data_act_enabled": "EU-Data-Act-Datenquelle aktivieren (experimentell)",
-          "v3_data_act_email": "Data-Act-E-Mail-Adresse (optional)",
-          "v3_data_act_password": "Data-Act-Passwort (optional)"
+          "manage_data_act": "EU Data Act verwalten"
         },
         "title": "Audi Connect-Optionen",
         "data_description": {
@@ -118,9 +116,7 @@
           "v3_development_workbench": "Die API-Entwicklungswerkbank nur im V3-Modus für Administratoren anzeigen. Standardmäßig aus; gespeicherte API-Profile bleiben erhalten.",
           "runtime_version": "V2 bleibt Standard und Rückfalloption. V3 ist experimentell und verwendet eine eigene Erkennung, Abfrage und Home-Assistant-Entitäten. Ein Wechsel zurück ist jederzeit möglich.",
           "run_vehicle_discovery": "Automatische Erkennung prüfen und verfügbare Steuerungen ausdrücklich testen. Ohne Zustimmung zur jeweiligen Aktion wird keine Fahrzeugaktion ausgeführt.",
-          "v3_data_act_enabled": "Liest nur Daten aus einer bereits autorisierten Data-Act-Anfrage. Standardmäßig aus. Fahrzeugdaten können mehrere Tage alt sein.",
-          "v3_data_act_email": "Leer lassen, um die gespeicherte myAudi-E-Mail-Adresse zu verwenden, sofern vorhanden. Es wird kein Konto und keine Einwilligung erstellt.",
-          "v3_data_act_password": "Leer lassen, um das gespeicherte Portal- oder myAudi-Passwort zu verwenden, sofern vorhanden. Beim Deaktivieren werden separate Portal-Zugangsdaten entfernt."
+          "manage_data_act": "Optionale schreibgeschützte Quelle verbinden, erneut verbinden oder trennen. Die native Audi-Anmeldung bleibt unverändert."
         }
       },
       "dealer_vehicle": {
@@ -142,11 +138,33 @@
           "warranty_expiry": "Garantieende",
           "clear": "Lokale Daten dieses Fahrzeugs löschen"
         }
+      },
+      "data_act": {
+        "title": "EU Data Act",
+        "menu_options": {
+          "data_act_credentials": "Verbinden / erneut verbinden",
+          "data_act_disconnect": "Trennen"
+        }
+      },
+      "data_act_credentials": {
+        "title": "Verbinden / erneut verbinden",
+        "description": "Geben Sie die Zugangsdaten des autorisierten Data-Act-Portals ein. Sie werden vor dem Ersetzen der Verbindung geprüft. Die Datenlieferung wird separat geprüft.",
+        "data": {
+          "email": "Portal-E-Mail",
+          "password": "Portal-Passwort"
+        }
+      },
+      "data_act_disconnect": {
+        "title": "EU Data Act trennen",
+        "description": "Lokale Portal-Zugangsdaten entfernen und Abfragen beenden. Die Anfrage im Portal wird nicht widerrufen."
       }
     },
     "error": {
       "invalid_dealer": "Bitte überprüfen Sie die Datumsangaben, die Webseite und die Feldlängen.",
-      "invalid_vehicle": "Bitte wählen Sie ein gültiges Fahrzeug aus."
+      "invalid_vehicle": "Bitte wählen Sie ein gültiges Fahrzeug aus.",
+      "data_act_credentials_required": "Bitte E-Mail und Passwort eingeben.",
+      "data_act_authorization_required": "Das Portal hat die Anmeldung abgelehnt oder erfordert eine interaktive Autorisierung. Zugangsdaten und Einwilligung prüfen.",
+      "data_act_unavailable": "Das Portal ist vorübergehend nicht verfügbar. Die bestehende Verbindung bleibt erhalten."
     },
     "abort": {
       "no_vehicle_available": "Derzeit ist kein Audi-Fahrzeug geladen."

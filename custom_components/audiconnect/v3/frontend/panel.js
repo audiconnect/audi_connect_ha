@@ -114,7 +114,7 @@ class AudiConnectV3Panel extends HTMLElement {
     this.apiHistory = [];
     this.engineeringHistory = [];
     this.executionReviews = [];
-    this.apiFamily = "vehicle";
+    this.apiFamily = "all";
     this.operationFilter = "all";
     this.searchText = "";
     this.entityFilter = "";
@@ -408,7 +408,7 @@ class AudiConnectV3Panel extends HTMLElement {
     this.executionReviews = [];
     this.capabilityStatus = { counts: {}, rows: [] };
     this.step = 1;
-    this.apiFamily = "vehicle";
+    this.apiFamily = "all";
     this.functionMode = "all";
     this.discoveryGroup = "read_only";
     this.focusOperation = "";
@@ -711,9 +711,12 @@ class AudiConnectV3Panel extends HTMLElement {
       return;
     }
     if (action === "identity-evidence") {
-      this.apiFamily = button.dataset.operation?.startsWith("cariad.")
-        ? "cariad"
-        : "graphql";
+      const family = button.dataset.operation?.split(".")[0];
+      this.apiFamily = (this.capabilityStatus.family_discovery || []).some(
+        (source) => source.id === family,
+      )
+        ? family
+        : "all";
       this.step = 4;
       this.focusOperation = button.dataset.operation || "";
       this.operationFilter = "all";
@@ -1477,12 +1480,35 @@ class AudiConnectV3Panel extends HTMLElement {
     );
   }
 
+  sourceDiscovery(families, family, detailed = true) {
+    const sources = families.filter(
+      (source) => family === "all" || source.id === family,
+    );
+    if (!sources.length) return "";
+    return `<div class="section-head"><h3>Data sources · discovery &amp; coverage</h3></div>
+      ${sources
+        .map((source) => {
+          const summary = `${escapeHTML(source.label)} · ${source.fields_observed} fields · ${source.fields_mapped} mapped · ${source.normalized} normalized · ${source.selected} selected · ${source.fresh} fresh`;
+          const health = source.health || {};
+          return `<details ${family !== "all" ? "open" : ""}><summary>${summary}</summary>
+          <p>${escapeHTML(friendly(health.result || "source evidence"))} · ${source.tested_operations}/${source.operations} operations tested${source.truncated ? " · Bounded inventory" : ""}</p>
+          ${detailed ? (source.schema_results || []).map((result) => `<div class="subline">${escapeHTML(result.source)} · HTTP ${escapeHTML(result.http_status ?? "—")} · ${escapeHTML(friendly(result.outcome || "observed"))} · ${escapeHTML(this.localTime(result.observed_at))}</div>`).join("") : ""}
+          ${
+            detailed
+              ? `<div class="coverage-table"><table><thead><tr><th>Operation / field</th><th>Mapping</th><th>Evidence</th></tr></thead><tbody>${(source.fields || []).map((field) => `<tr><td>${escapeHTML(field.path)}<div class="subline">${escapeHTML(field.operation)}</div></td><td>${escapeHTML((field.attributes || []).join(", ") || "—")}</td><td>${escapeHTML(friendly(field.mapping))} · ${escapeHTML(friendly(field.quality || "unknown"))}</td></tr>`).join("")}</tbody></table></div>
+          <div class="coverage-table"><table><thead><tr><th>Canonical attribute</th><th>Capture / delivery</th><th>Selection</th></tr></thead><tbody>${(source.observations || []).map((row) => `<tr><td>${escapeHTML(row.attribute)}</td><td>${escapeHTML(this.localTime(row.captured))}<div class="subline">Received ${escapeHTML(this.localTime(row.observed_at))}${row.delivered_at ? " · Delivered " + escapeHTML(this.localTime(row.delivered_at)) : ""}</div></td><td>${escapeHTML(friendly(row.status))} · ${row.fresh ? "fresh" : "last known"}</td></tr>`).join("")}</tbody></table></div>`
+              : ""
+          }
+          </details>`;
+        })
+        .join("")}`;
+  }
+
   endUserValidation() {
     const p = this.capabilityStatus.end_user_progress;
     if (!p)
       return '<section class="card"><h2>End-user validation</h2><p>No discovery status loaded.</p></section>';
     const health = this.capabilityStatus.integration_health || {};
-    const dataAct = this.capabilityStatus.data_act_discovery || {};
     const timing = this.capabilityStatus.end_user_timing || {};
     const candidates = this.capabilityStatus.end_user_candidates || [];
     const candidate = this.nextEndUserCandidate();
@@ -1514,11 +1540,7 @@ class AudiConnectV3Panel extends HTMLElement {
             `<tr><td><button data-action="open-capability" data-capability="${escapeHTML(cap)}">${escapeHTML(domainName(cap))}</button></td><td>${c.jobs_assessed}/${c.jobs_total}</td><td>${c.attributes_normalized}/${c.attributes_total}</td></tr>`,
         )
         .join("")}</tbody></table></div>
-      ${
-        dataAct.fields_observed
-          ? `<details><summary>EU Data Act · ${escapeHTML(dataAct.fields_observed)} fields observed · ${escapeHTML(dataAct.fields_mapped)} mapped · ${escapeHTML(dataAct.fields_normalized)} normalized</summary><p>${escapeHTML(dataAct.fields_unmapped)} fields need mapping review. Discovery is not support or command evidence.${dataAct.truncated ? " Inventory is bounded or redacted." : ""}</p><div class="coverage-table"><table><thead><tr><th>Field / UUID</th><th>Canonical attribute</th><th>Evidence</th></tr></thead><tbody>${(dataAct.fields || []).map((f) => `<tr><td>${escapeHTML(f.field)}<div class="subline">${escapeHTML(f.key)}</div></td><td>${escapeHTML(f.attribute || "—")}</td><td>${escapeHTML(friendly(f.status))}</td></tr>`).join("")}</tbody></table></div></details>`
-          : ""
-      }
+      ${this.sourceDiscovery(this.capabilityStatus.family_discovery || [], "all")}
       <h3>3 · Control discovery &amp; physical verification</h3>
       <div class="actions"><button data-action="discovery-mode" data-mode="guided" class="${!this.expertDiscovery ? "primary" : ""}">Guided</button><button data-action="discovery-mode" data-mode="expert" class="${this.expertDiscovery ? "primary" : ""}">Expert · selective</button></div>
       <p>${escapeHTML(p.controls_route_available ?? rows.filter((c) => c.eligible).length)} routes available · ${escapeHTML(p.controls_dispatch_ready ?? 0)} dispatch ready · ${escapeHTML(p.controls_physically_verified ?? 0)} physically verified / ${escapeHTML(p.controls_catalog_applicable ?? 0)} catalog applicable · ${escapeHTML(p.controls_ineligible ?? 0)} ineligible · ${this.skippedControls.size} skipped · ${candidates.filter((c) => !this.skippedControls.has(c.capability + "." + c.action)).length} ready to test</p>
@@ -1695,8 +1717,10 @@ class AudiConnectV3Panel extends HTMLElement {
     const counts = coverage.counts || {};
     const rows = coverage.rows || [];
     const vehicleFamily = car?.api_family || "cariad";
-    const family =
-      this.apiFamily === "vehicle" ? vehicleFamily : this.apiFamily;
+    const families = coverage.family_discovery || [];
+    const family = this.apiFamily === "vehicle" ? "all" : this.apiFamily;
+    const scanFamily = family === "all" ? vehicleFamily : family;
+    const selectedSource = families.find((source) => source.id === scanFamily);
     const entityLinks = coverage.entity_links || [];
     const selectedEntity = this.selectedEntityLink();
     const entityMatches = (r) =>
@@ -1826,10 +1850,7 @@ class AudiConnectV3Panel extends HTMLElement {
         (!selectedEntity || selectedEntity.operations.includes(r.operation)),
     );
     const lastSelectedResult = records.find((r) => r.operation === activeRoute);
-    const applicableFamily =
-      family === "graphql" ||
-      (["cariad", "mbb"].includes(vehicleFamily) &&
-        (family === "all" || family === vehicleFamily));
+    const applicableFamily = selectedSource?.read_scan ?? false;
     const selectedControl = this.controlRoutes.find(
       (r) => r.id === this.controlChoice,
     );
@@ -1974,11 +1995,8 @@ class AudiConnectV3Panel extends HTMLElement {
           </select></div>
           <div class="tool family-select"><label for="api-family">API family <span class="muted">· advanced</span></label>
             <select id="api-family" ${this.loading ? "disabled" : ""}>
-              <option value="vehicle" ${this.apiFamily === "vehicle" ? "selected" : ""}>This vehicle · ${escapeHTML(vehicleFamily.toUpperCase())}</option>
-              <option value="cariad" ${this.apiFamily === "cariad" ? "selected" : ""}>CARIAD · modern</option>
-              <option value="mbb" ${this.apiFamily === "mbb" ? "selected" : ""}>MBB · legacy</option>
-              <option value="graphql" ${this.apiFamily === "graphql" ? "selected" : ""}>GraphQL</option>
-              <option value="all" ${this.apiFamily === "all" ? "selected" : ""}>All API families</option>
+              <option value="all" ${family === "all" ? "selected" : ""}>This vehicle · consolidated</option>
+              ${families.map((source) => `<option value="${escapeHTML(source.id)}" ${family === source.id ? "selected" : ""}>${escapeHTML(source.label)}</option>`).join("")}
             </select></div>
         </div>
         <div class="toolbar" style="padding-top:0"><label for="global-search">Search capabilities, entities and API fields</label><input id="global-search" type="search" value="${escapeHTML(this.searchText)}" placeholder="e.g. model, charging, media.longName"></div>
@@ -2047,6 +2065,7 @@ class AudiConnectV3Panel extends HTMLElement {
               <div class="card"><div class="eyebrow">Enabled controls</div><div class="stat">${enabledCount}</div><div class="summary">${verifiedCount} locally verified</div></div>
               <div class="card"><div class="eyebrow">Needs review</div><div class="stat">${nextActions.length}</div><div class="summary"><button data-action="step-4">View evidence</button></div></div>
             </div>
+            ${this.sourceDiscovery(families, family, false)}
             <div class="section-head"><h2>Capabilities</h2><button data-action="step-2">Browse functions</button></div>
             <div class="cap-grid">${capabilityNames
               .map((cap) => {
@@ -2089,6 +2108,7 @@ class AudiConnectV3Panel extends HTMLElement {
           </section>
           <section class="card" data-view="evidence" style="margin-bottom:18px;display:${this.step === 4 ? "block" : "none"}">
             <div class="section-head"><h2>API Log</h2><span class="muted">${escapeHTML(family.toUpperCase())}</span></div>
+            ${this.step === 4 ? this.sourceDiscovery(families, family) : ""}
             <details><summary>All findings · ${findings.length}</summary>${findings.map((f, i) => `<div class="finding"><div><b>${escapeHTML(friendly(f.reason))}</b><div class="subline">${escapeHTML(f.operation || f.attribute || "Vehicle")}</div></div><button data-action="inspect-finding" data-index="${i}">Review</button></div>`).join("")}</details>
             <details><summary>Home Assistant projection & historical inventory</summary><p>${Object.entries(
               projection.counts || {},
@@ -2362,8 +2382,7 @@ class AudiConnectV3Panel extends HTMLElement {
           <section class="card" style="margin-bottom:18px;display:${this.step === 4 ? "block" : "none"}">
             <div class="eyebrow">Read-only discovery</div>
             <h2>Scan read-only functions · ${escapeHTML(family === "all" ? vehicleFamily.toUpperCase() : family.toUpperCase())}</h2>
-            <p>${family === "graphql" ? "Quick scan tests the original inventory. Full scan tests the reviewed inventory variants and image query. No vehicle commands or automatic activation." : "Quick scan uses the shared batch and a few targeted GETs. Full scan tries each distinct applicable reviewed GET route, including unmapped jobs, in batches of up to 12 calls. No vehicle commands, no automatic activation."}</p>
-            ${!applicableFamily ? '<div class="warn">This API family does not apply to the selected vehicle.</div>' : ""}
+            <p>${applicableFamily ? "Scan reviewed read-only operations. No vehicle commands or automatic activation." : "This source has no applicable manual scan. Inspect its discovery evidence above; automatic collection follows its normal cadence."}</p>
             <div class="actions"><button data-action="family-test" class="primary"
               ${this.loading || !applicableFamily ? "disabled" : ""}>Quick scan</button>
               <button data-action="family-full-test" ${this.loading || !applicableFamily ? "disabled" : ""}>Full read-only scan / continue</button></div>

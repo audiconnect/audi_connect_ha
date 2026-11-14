@@ -169,6 +169,11 @@ def attribute_status(vehicle, profile, definition, now):
                 if timestamp_is_fresh(reading.get("captured"), now)
                 else "readable_but_stale"
             )
+    if ident == "is_moving" and reading:
+        from .freshness import movement_capture_valid
+
+        if not movement_capture_valid(reading, now):
+            status, issue = "not_observed", "parking_hint_not_movement"
     if ident in getattr(profile, "attribute_disabled", ()):
         status = "disabled_by_user"
     return status, issue, contract
@@ -478,6 +483,9 @@ def build_status_report(
             "authentication": vehicle.context.auth,
         },
         "counts": counts,
+        "family_discovery": family_discovery(
+            vehicle, profile, rows, cockpit["operations"]
+        ),
         "control_actions": controls_for_vehicle,
         "pending_control": profile.discovery.active_attempt.public()
         if profile.discovery.active_attempt
@@ -489,6 +497,121 @@ def build_status_report(
             "confirmation. No VIN, tokens or response data are included."
         ),
     }
+
+
+def family_discovery(vehicle, profile, rows, operations):
+    """Project existing source evidence; never initiate discovery or cache values."""
+    from .read_discovery import DATA_ACT_DATASET, data_act_discovery
+
+    mapped_fields = {
+        (op["operation"], field["path"]): field
+        for op in operations
+        for field in op.get("fields", [])
+    }
+    dataset = data_act_discovery(vehicle, profile, include_fields=True)
+    dataset_fields = {
+        "id_" + field["key"].replace("-", "_") + "." + field["field"]: field
+        for field in dataset["fields"]
+    }
+    canonical = {row["attribute"]: row for row in rows if row.get("entity_key")}
+    now = datetime.now(UTC)
+    result = []
+    for family, definition in profile.registry.families.items():
+        sources = [op for op in operations if op.get("family") == family]
+        schemas = [
+            (job, evidence)
+            for job, evidence in getattr(profile, "job_schema", {}).items()
+            if str(evidence.get("source", "")).partition(".")[0] == family
+        ]
+        fields = {}
+        for job, evidence in schemas:
+            operation = evidence["source"]
+            for field in evidence.get("fields", []):
+                path = field["path"]
+                mapping = mapped_fields.get((operation, path), {})
+                dataset_field = (
+                    dataset_fields.get(path) if job == DATA_ACT_DATASET else None
+                )
+                fields[(job, path)] = {
+                    "operation": operation,
+                    "path": path,
+                    "type": field["type"],
+                    "quality": field.get("quality"),
+                    "mapping": (
+                        dataset_field["status"]
+                        if dataset_field
+                        else mapping.get("mapping", "not_assessed")
+                    ),
+                    "attributes": (
+                        [dataset_field["attribute"]]
+                        if dataset_field and dataset_field["attribute"]
+                        else mapping.get("attributes", [])
+                    ),
+                }
+        observations = []
+        for ident, row in canonical.items():
+            selected = attribute_reading(vehicle, ident)
+            sample = getattr(vehicle, "family_readings", {}).get(ident, {}).get(family)
+            is_selected = bool(selected) and selected.get("family") == family
+            if sample is None and is_selected:
+                sample = selected
+            if (
+                not sample
+                or sample.get("value") is None
+                or sample.get("status") == "invalid_value"
+            ):
+                continue
+            if is_selected and row["status"] not in ("verified", "readable_but_stale"):
+                continue
+            observations.append(
+                {
+                    "attribute": ident,
+                    "captured": sample.get("captured"),
+                    "observed_at": sample.get("observed"),
+                    "selected": is_selected,
+                    "status": row["status"] if is_selected else "alternative",
+                    "fresh": timestamp_is_fresh(sample.get("captured"), now),
+                    "delivered_at": sample.get("delivered_at"),
+                }
+            )
+        operation_ids = {op["operation"] for op in sources}
+        tested_ids = {op["operation"] for op in sources if op["tested"]}
+        schema_ids = {evidence["source"] for _, evidence in schemas}
+        result.append(
+            {
+                "id": family,
+                "label": definition.get("label", family.upper()),
+                "auth": definition.get("auth"),
+                "read_scan": bool(definition.get("executor"))
+                and any(op.get("applicability") == "applicable" for op in sources),
+                "operations": len(operation_ids | schema_ids),
+                "tested_operations": len(tested_ids | schema_ids),
+                "fields_observed": len(fields),
+                "fields_mapped": sum(
+                    bool(field["attributes"]) for field in fields.values()
+                ),
+                "normalized": len(observations),
+                "selected": sum(row["selected"] for row in observations),
+                "fresh": sum(row["fresh"] for row in observations),
+                "truncated": any(evidence.get("truncated") for _, evidence in schemas),
+                "schema_results": [
+                    {
+                        key: evidence.get(key)
+                        for key in (
+                            "source",
+                            "http_status",
+                            "outcome",
+                            "observed_at",
+                            "latest_field_count",
+                        )
+                    }
+                    for _, evidence in schemas
+                ],
+                "fields": list(fields.values()),
+                "observations": observations,
+            }
+        )
+    return result
 
 
 def _cockpit(vehicle, profile, rows, controls):
@@ -1231,6 +1354,15 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
         "pending_engineering_test": pending_summary,
         "unresolved_normal_commands": unresolved,
         "capabilities": summaries,
+        "family_discovery": [
+            {
+                key: value
+                for key, value in family.items()
+                if key not in ("fields", "observations", "schema_results")
+            }
+            for family in report["family_discovery"]
+            if family["id"] in base_registry.families
+        ],
         "attributes": {
             ident: attribute_status(vehicle, profile, definition, datetime.now(UTC))[0]
             for ident, definition in CANONICAL_ATTRIBUTES.items()

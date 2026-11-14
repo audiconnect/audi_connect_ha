@@ -165,7 +165,10 @@ async def test_user_discovery_never_dispatches_without_exact_single_action_conse
 
 
 @pytest.mark.asyncio
-async def test_optional_data_act_credentials_retained_only_for_same_email():
+async def test_data_act_credentials_change_only_after_successful_source_auth():
+    from unittest.mock import AsyncMock
+    from custom_components.audiconnect.v3.data_act import DataActAuthorizationRequired
+
     flow = OptionsFlowHandler()
     flow.handler = "test-audi-entry"
     flow._test_entry = SimpleNamespace(
@@ -182,15 +185,26 @@ async def test_optional_data_act_credentials_retained_only_for_same_email():
             async_get_known_entry=lambda _id: flow._test_entry
         )
     )
-    result = await flow.async_step_init(
-        {"v3_data_act_enabled": True, "v3_data_act_password": ""}
-    )
+    result = await flow.async_step_init({"scan_interval": 20})
     assert result["data"]["v3_data_act_password"] == "synthetic-password"
-    result = await flow.async_step_init(
-        {"v3_data_act_enabled": True, "v3_data_act_email": "other@invalid.test"}
+    assert result["data"]["scan_interval"] == 20
+    result = await flow.async_step_init({"v3_data_act_password": "bypass"})
+    assert result["data"]["v3_data_act_password"] == "synthetic-password"
+    flow._validate_data_act_credentials = AsyncMock(
+        side_effect=DataActAuthorizationRequired("rejected")
     )
-    assert not result["data"]["v3_data_act_password"]
-    result = await flow.async_step_init({"v3_data_act_enabled": False})
+    result = await flow.async_step_data_act_credentials(
+        {"email": "other@invalid.test", "password": "wrong"}
+    )
+    assert result["errors"]["base"] == "data_act_authorization_required"
+    assert flow.config_entry.options["v3_data_act_password"] == "synthetic-password"
+    flow._validate_data_act_credentials = AsyncMock()
+    result = await flow.async_step_data_act_credentials(
+        {"email": "other@invalid.test", "password": "new-password"}
+    )
+    assert result["data"]["v3_data_act_email"] == "other@invalid.test"
+    assert result["data"]["v3_data_act_password"] == "new-password"
+    result = await flow.async_step_data_act_disconnect({})
     assert not result["data"]["v3_data_act_enabled"]
     assert "v3_data_act_password" not in result["data"]
     assert "v3_data_act_email" not in result["data"]

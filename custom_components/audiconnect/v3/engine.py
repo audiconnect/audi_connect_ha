@@ -29,7 +29,7 @@ from .registry import CapabilityRegistry, selective_status_path
 from .product_contract import entity_projection_report
 from .transport import GARAGE_OPERATION, V3Response, V3Transport, INVENTORY_OPERATION
 from .vehicle import V3Vehicle
-from .attribute_runtime import planned_jobs
+from .attribute_runtime import invalidate_attribute, planned_jobs
 from .custom_attributes import (
     MAX_CUSTOM_ATTRIBUTES,
     attributes_for,
@@ -91,6 +91,8 @@ class V3Engine:
         self.health = IntegrationHealth()
         self.cloud_refresh_vin: str | None = None
         self.projected_entities: dict[str, set[str]] = {}
+        self._registry_task = None
+        self._registry_dirty = False
         self.commands = CommandEngine(
             auth=self.auth,
             transport=lambda: self.transport,
@@ -252,9 +254,12 @@ class V3Engine:
             if parsed.vin.lower() not in self.vehicles:
                 loader = getattr(self.storage, "async_identity", None)
                 if loader is not None:
-                    apply_cached_identity(
-                        parsed, await loader(parsed.vin.lower(), parsed.country)
-                    )
+                    cached = await loader(parsed.vin.lower(), parsed.country)
+                    if getattr(self.auth, "data_act_client", None) is None:
+                        from .identity_cache import without_optional_identity
+
+                        cached = without_optional_identity(cached)
+                    apply_cached_identity(parsed, cached)
             vehicle = self.vehicles.get(parsed.vin.lower(), parsed)
             old_context = vehicle.context
             if parsed.model and not parsed.identity_restored:
@@ -332,9 +337,11 @@ class V3Engine:
                 await self.trip_archive.restore({key: known[key] for key in missing})
             except (OSError, ValueError):
                 _LOGGER.warning("Unable to restore private Audi trip archive")
-        from .identity_cache import capture_identity
+        from .identity_cache import capture_identity, withdraw_optional_identity
 
         for key, car in known.items():
+            if getattr(self.auth, "data_act_client", None) is None:
+                withdraw_optional_identity(car, self.profiles[key])
             identity = capture_identity(car)
             if identity:
                 self.profiles[key].manufacturer_identity = identity
@@ -1031,9 +1038,9 @@ class V3Engine:
 
     def api_results_for(self, vin: str, family: str = "all") -> list[dict[str, Any]]:
         car = self.require_vehicle(vin)
-        if family not in ("all", "cariad", "mbb", "graphql"):
-            raise ValueError("Unknown API family")
         profile = self.profiles[car.vin.lower()]
+        if family != "all" and family not in profile.registry.families:
+            raise ValueError("Unknown API family")
         return [
             {"operation": ident, **record}
             for ident, record in reversed(list(profile.api_observations.items()))
@@ -1402,13 +1409,20 @@ class V3Engine:
             and coordinator is not None
             and hasattr(self.hass, "async_create_task")
         ):
-            from .registry_lifecycle import async_apply_v3_entity_visibility
+            self._registry_dirty = True
+            if self._registry_task is None or self._registry_task.done():
+                self._registry_task = self.hass.async_create_task(
+                    self._reconcile_registry(), eager_start=False
+                )
 
-            self.hass.async_create_task(
-                async_apply_v3_entity_visibility(
-                    self.hass, self.entry, True, expected_engine=self
-                ),
-                eager_start=False,
+    async def _reconcile_registry(self):
+        """Coalesce bursts of local notifications, retaining a final update."""
+        from .registry_lifecycle import async_apply_v3_entity_visibility
+
+        while self._registry_dirty:
+            self._registry_dirty = False
+            await async_apply_v3_entity_visibility(
+                self.hass, self.entry, True, expected_engine=self
             )
 
     async def activate_attribute_route(
@@ -1435,7 +1449,11 @@ class V3Engine:
             raise ValueError(
                 "Test the route and verify fresh vehicle data before activation"
             )
-        car.family_readings.pop(attribute, None)
+        if (
+            attribute in profile.attribute_disabled
+            or profile.attribute_routes.get(attribute) != route
+        ):
+            invalidate_attribute(car, attribute)
         profile.attribute_disabled.discard(attribute)
         profile.attribute_routes[attribute] = route
         profile.attribute_drafts[attribute] = route
@@ -1449,7 +1467,7 @@ class V3Engine:
         profile = self.profiles[car.vin.lower()]
         if attribute not in attributes_for(profile):
             raise ValueError("Unknown attribute")
-        car.family_readings.pop(attribute, None)
+        invalidate_attribute(car, attribute)
         if disabled:
             profile.attribute_disabled.add(attribute)
             previous = profile.attribute_routes.pop(attribute, None)

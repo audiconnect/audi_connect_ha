@@ -10,8 +10,38 @@ from .registry import read_json_path
 from .freshness import timestamp_is_fresh
 
 
+def project_charging_eta(car, profile, observed_at):
+    """A derived timestamp follows the selected duration, not a second source cache."""
+    from .attribute_runtime import _valid_capture, invalidate_attribute
+
+    ident = "charging_complete_time"
+    remaining = car.readings.get("remainingChargingTime", {})
+    invalidate_attribute(car, ident)
+    if ident in getattr(profile, "attribute_disabled", ()):
+        return
+    stamp = _valid_capture(remaining.get("captured"), observed_at)
+    if stamp is None:
+        return
+    minutes = remaining.get("value")
+    if remaining.get("status") == "invalid_value":
+        car.readings[ident] = {
+            **remaining,
+            "reason": remaining.get("reason") or "invalid_remaining_charging_time",
+        }
+    elif type(minutes) in (int, float) and 0 < minutes <= 10080:
+        car.readings[ident] = {
+            **remaining,
+            "value": (stamp + timedelta(minutes=minutes)).isoformat(),
+        }
+
+
 def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
-    from .attribute_runtime import record_observation, _valid_capture
+    from .attribute_runtime import (
+        record_observation,
+        _valid_capture,
+        commit_observation,
+        invalidate_attribute,
+    )
 
     def record(ident, value, captured, job, path):
         if value is not None:
@@ -40,29 +70,17 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
         ("max_charge_current", "chargingCurrentLimitA"),
     ):
         row = car.readings.get(source)
-        if row and accepts(car.readings.get(ident), row.get("captured"), observed_at):
-            car.readings[ident] = dict(row)
-    remaining = car.readings.get("remainingChargingTime", {})
+        if row and ident not in getattr(profile, "attribute_disabled", ()):
+            commit_observation(
+                car,
+                ident,
+                {**row, "family": row.get("family", "")},
+                getattr(profile, "registry", None),
+                observed_at,
+            )
     from .attribute_runtime import record_invalid_observation
 
-    stamp = _valid_capture(remaining.get("captured"), observed_at)
-    minutes = remaining.get("value")
-    if stamp and accepts(
-        car.readings.get("charging_complete_time"), remaining["captured"], observed_at
-    ):
-        if remaining.get("status") == "invalid_value":
-            car.readings["charging_complete_time"] = {
-                **remaining,
-                "reason": remaining.get("reason") or "invalid_remaining_charging_time",
-            }
-        elif type(minutes) in (int, float) and 0 < minutes <= 10080:
-            car.readings["charging_complete_time"] = {
-                **remaining,
-                "value": (stamp + timedelta(minutes=minutes)).isoformat(),
-            }
-        elif type(minutes) in (int, float):
-            # A zero duration has no future ETA; clear an outdated estimate.
-            car.readings.pop("charging_complete_time", None)
+    project_charging_eta(car, profile, observed_at)
 
     # Complementary identity fields are present even if manufacturer media is null.
     from .vehicle import normalize_powertrain
@@ -519,14 +537,14 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                 "active_charging_profile_min_soc": "minSOC_pct",
             }
             for ident, key in keys.items():
-                car.readings.pop(ident, None)
+                invalidate_attribute(car, ident)
                 if active:
                     record(ident, active.get(key), captured, "chargingProfiles", path)
             for ident in (
                 "preferred_charging_time_start",
                 "preferred_charging_time_end",
             ):
-                car.readings.pop(ident, None)
+                invalidate_attribute(car, ident)
             if active and active["preferredChargingTimes"]:
                 times = active["preferredChargingTimes"]
                 window = next((x for x in times if x.get("enabled") is True), None)
@@ -644,4 +662,4 @@ def observe_derived(car, profile, payload: dict, observed_at, accepts) -> None:
                     path,
                 )
             elif accepts(car.readings.get(ident), captured, observed_at):
-                car.readings.pop(ident, None)
+                invalidate_attribute(car, ident)

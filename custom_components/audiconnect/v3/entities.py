@@ -53,7 +53,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ..const import DOMAIN
 from .auth import configured_spin
-from .freshness import reading_freshness_attributes
+from .freshness import movement_capture_valid, reading_freshness_attributes
 from .coordinator_clean import V3CleanCoordinator
 from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
 from .command_readback import command_attributes, last_known_climate, projected_state
@@ -1380,11 +1380,7 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
         reading = self.vehicle.readings.get(self.attribute["id"])
         if not reading:
             return None
-        if self.attribute["id"] == "is_moving" and (
-            reading.get("path")
-            in ("parkingposition HTTP 204", "parkingposition parked sample")
-            or _reading_age_minutes(reading.get("captured")) is None
-        ):
+        if self.attribute["id"] == "is_moving" and not movement_capture_valid(reading):
             return None
         value = reading.get("value")
         if isinstance(value, bool):

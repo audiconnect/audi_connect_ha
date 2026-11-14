@@ -154,7 +154,7 @@ def test_parking_uses_shared_observations_without_inventing_motion_capture():
     from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
 
     vehicle = car()
-    profile = SimpleNamespace(registry=None)
+    profile = SimpleNamespace(registry=None, attribute_evidence={}, job_discovery={})
     now = datetime.now(UTC)
     stamp = (now - timedelta(minutes=10)).isoformat()
     reply = SimpleNamespace(
@@ -172,6 +172,12 @@ def test_parking_uses_shared_observations_without_inventing_motion_capture():
     moving = V3ReadOnlyBinarySensor(coordinator(), vehicle, ATTRIBUTES["is_moving"])
     assert moving.is_on is None
     assert not moving.available
+    from custom_components.audiconnect.v3.capability_status import attribute_status
+
+    assert (
+        attribute_status(vehicle, profile, ATTRIBUTES["is_moving"], now)[0]
+        == "not_observed"
+    )
     assert (
         vehicle.family_readings["park_time"]["cariad"] is vehicle.readings["park_time"]
     )

@@ -7,6 +7,7 @@ Never execute a user-provided absolute URL or untrusted Authorization header.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -17,6 +18,21 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
 from .quota import QuotaBudget
+
+MAX_NATIVE_RESPONSE_BYTES = 10_000_000
+
+
+async def read_bounded_body(response, limit):
+    """Bound the actual decoded stream, including chunked/compressed responses."""
+    if response.content_length is not None and response.content_length > limit:
+        raise ValueError("Audi response exceeds size limit")
+    body = bytearray()
+    async for chunk in response.content.iter_chunked(65536):
+        if len(body) + len(chunk) > limit:
+            raise ValueError("Audi response exceeds size limit")
+        body.extend(chunk)
+    return bytes(body)
+
 
 INVENTORY_OPERATION = "graphql.inventory.vehicleList"
 GARAGE_OPERATION = "cariad.inventory.vehicles"
@@ -546,13 +562,9 @@ class V3Transport:
                     self.quota.observe(
                         response.status, response.headers, datetime.now(UTC)
                     )
-                    raw = await response.text()
+                    raw = await read_bounded_body(response, MAX_NATIVE_RESPONSE_BYTES)
                     try:
-                        payload = (
-                            await response.json(content_type=None)
-                            if raw.strip()
-                            else None
-                        )
+                        payload = json.loads(raw) if raw.strip() else None
                     except (ValueError, TypeError):
                         payload = None
                     timestamp = datetime.now(UTC)

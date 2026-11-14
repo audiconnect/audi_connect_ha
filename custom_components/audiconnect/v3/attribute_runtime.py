@@ -194,7 +194,8 @@ def _select_observation(vehicle, ident, candidates, registry, now):
 def commit_observation(vehicle, ident, row, registry, now):
     """Keep one sample per family; choose from the same set in either arrival order."""
     # An implausible capture at receipt must never become valid merely by aging.
-    if _valid_capture(row.get("captured"), now) is None:
+    received = _capture_in_utc(row.get("observed")) or now
+    if _valid_capture(row.get("captured"), received) is None:
         row["captured"] = None
         if row.get("status") == "verified":
             row["status"] = "readable_but_stale"
@@ -207,6 +208,12 @@ def commit_observation(vehicle, ident, row, registry, now):
     candidates[family] = row
     _select_observation(vehicle, ident, candidates, registry, now)
     return True
+
+
+def invalidate_attribute(vehicle, ident):
+    """A route/enablement change invalidates both current and competing samples."""
+    vehicle.readings.pop(ident, None)
+    vehicle.family_readings.pop(ident, None)
 
 
 def refresh_family_observations(vehicle, profile, now):
@@ -251,6 +258,8 @@ def record_invalid_observation(
     profile=None,
 ) -> None:
     """An explicit invalid sample invalidates only the originating family."""
+    if ident in getattr(profile, "attribute_disabled", ()):
+        return
     commit_observation(
         vehicle,
         ident,
@@ -287,6 +296,8 @@ def record_observation(
     delivered_at=None,
 ):
     """Return whether the family accepted the sample, not whether it won selection."""
+    if ident in getattr(profile, "attribute_disabled", ()):
+        return False
     status = "verified" if fresh else "readable_but_stale"
     row = {
         "value": value,
@@ -395,6 +406,8 @@ def observe_read_only(
     mapped = fresh_count = 0
     for row in extract_attributes(payload):
         ident = row["id"]
+        if ident in getattr(profile, "attribute_disabled", ()):
+            continue
         selected = profile.attribute_routes.get(ident)
         if selected and selected != "cariad.selectivestatus.batch":
             continue

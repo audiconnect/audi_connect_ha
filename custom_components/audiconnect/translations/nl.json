@@ -75,11 +75,9 @@
           "edit_local_dealer": "Dealer en onderhoudsgegevens bewerken",
           "runtime_version": "Uitvoeringsversie",
           "v3_development_workbench": "V3 Development Workbench inschakelen",
-          "v3_data_act_enabled": "EU Data Act-fallback inschakelen (experimenteel)",
-          "v3_data_act_email": "Data Act-e-mailadres (optioneel)",
-          "v3_data_act_password": "Data Act-wachtwoord (optioneel)",
           "filter_vins": "Uitgesloten VIN's",
-          "run_vehicle_discovery": "Voertuigdetectie en bediening testen"
+          "run_vehicle_discovery": "Voertuigdetectie en bediening testen",
+          "manage_data_act": "EU Data Act beheren"
         },
         "title": "Audi Connect-opties",
         "data_description": {
@@ -87,11 +85,9 @@
           "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
           "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen.",
           "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard.",
-          "v3_data_act_enabled": "Alleen lezen uit een bestaande, geautoriseerde Data Act-aanvraag. Standaard uit. De gegevens kunnen dagen oud zijn.",
-          "v3_data_act_email": "Leeg gebruikt het bestaande myAudi-e-mailadres indien aanwezig. Geen nieuw account of toestemming wordt aangemaakt.",
-          "v3_data_act_password": "Leeg behoudt het eerder opgegeven wachtwoord of gebruikt het bestaande myAudi-wachtwoord indien aanwezig. Uitschakelen verwijdert de afzonderlijke portalgegevens.",
           "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
-          "run_vehicle_discovery": "Bekijk automatische detectie en test beschikbare bediening expliciet. Zonder toestemming voor de specifieke actie wordt geen voertuigactie uitgevoerd."
+          "run_vehicle_discovery": "Bekijk automatische detectie en test beschikbare bediening expliciet. Zonder toestemming voor de specifieke actie wordt geen voertuigactie uitgevoerd.",
+          "manage_data_act": "Verbind, herstel of verbreek de optionele alleen-lezenbron. De native Audi-login blijft ongewijzigd."
         }
       },
       "dealer_vehicle": {
@@ -113,11 +109,33 @@
           "warranty_expiry": "Einde garantie",
           "clear": "Gegevens van deze wagen verwijderen"
         }
+      },
+      "data_act": {
+        "title": "EU Data Act",
+        "menu_options": {
+          "data_act_credentials": "Verbinden / opnieuw verbinden",
+          "data_act_disconnect": "Verbinding verbreken"
+        }
+      },
+      "data_act_credentials": {
+        "title": "Verbinden / opnieuw verbinden",
+        "description": "Vul de gegevens van het geautoriseerde Data Act-portaal in. We controleren deze voordat de bestaande verbinding wordt vervangen. De datalevering wordt afzonderlijk gecontroleerd.",
+        "data": {
+          "email": "Portal-e-mailadres",
+          "password": "Portal-wachtwoord"
+        }
+      },
+      "data_act_disconnect": {
+        "title": "EU Data Act verbreken",
+        "description": "Verwijder de lokale portalcredentials en stop Data Act-uitlezing. De aanvraag in het portaal wordt niet ingetrokken."
       }
     },
     "error": {
       "invalid_dealer": "Controleer datum, website en lengte van de velden.",
-      "invalid_vehicle": "Selecteer een geldig voertuig."
+      "invalid_vehicle": "Selecteer een geldig voertuig.",
+      "data_act_credentials_required": "Vul beide gegevens in.",
+      "data_act_authorization_required": "Het portaal weigert de login of vereist interactieve autorisatie. Controleer de gegevens en toestemming in het portaal en probeer opnieuw.",
+      "data_act_unavailable": "Het portaal is tijdelijk niet beschikbaar. De bestaande verbinding blijft behouden; probeer later opnieuw."
     },
     "abort": {
       "no_vehicle_available": "Er is nog geen Audi-voertuig geladen."

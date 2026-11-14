@@ -46,7 +46,7 @@ def _visibility_lock(hass, entry_id):
 
 
 def _visibility_store(hass, entry_id):
-    return Store(hass, 1, f"audiconnect_v3_{entry_id}_hidden_entities")
+    return Store(hass, 1, f"audiconnect_v3_{entry_id}_hidden_entities", private=True)
 
 
 async def async_remove_visibility(hass, entry_id):

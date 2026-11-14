@@ -895,6 +895,11 @@ async def test_portal_identity_only_enriches_owned_missing_fields():
     assert car.identity_operation == "eu_data_act.identity.vehicles"
     assert capture_identity(car)["operation"] == car.identity_operation
     assert profile.manufacturer_identity["source"] == "eu_data_act_modelName"
+    schema = profile.job_schema["eu_data_act.identity.vehicles"]
+    assert schema["outcome"] == "matched_vehicle"
+    assert any(field["path"] == "modelName" for field in schema["fields"])
+    assert VIN not in str(schema)
+    assert "Audi Q8" not in str(schema)
     assert not await status._enrich_data_act_identity(client)
     client._json.assert_awaited_once()
     storage.async_save.assert_awaited_once()
@@ -945,6 +950,15 @@ def test_data_act_discovery_reuses_schema_inventory_without_raw_values():
     assert not record_data_act_fields(profile, {"Data": []}, now)
     assert data_act_discovery(car, profile)["fields_observed"] == 2
     assert not profile.attribute_routes and not profile.attribute_evidence
+    from custom_components.audiconnect.v3.capability_status import build_status_report
+
+    sources = build_status_report(car, profile)["family_discovery"]
+    source = next(item for item in sources if item["id"] == "eu_data_act")
+    assert source["fields_observed"] == 2
+    assert source["fields_mapped"] == source["normalized"] == source["selected"] == 1
+    assert source["fresh"] == 1
+    assert not source["read_scan"]
+    assert "private raw data" not in str(source)
 
 
 @pytest.mark.asyncio
@@ -1007,3 +1021,139 @@ async def test_missing_subscription_removes_only_optional_readings():
     assert car.readings["stateOfCharge"]["value"] == 80
     assert "eu_data_act" not in car.family_readings["stateOfCharge"]
     assert status.data_act_poll_status()["result"] == "subscription_unavailable"
+
+
+def test_data_act_duration_and_hood_enrichment_rejects_sentinels():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.attribute_runtime import data_act_observations
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    payload = {
+        "Data": [
+            {
+                "key": "cf28f7d9-6201-30b8-82e5-a461968d30dc",
+                "dataFieldName": "remaining_charging_time",
+                "value": "42",
+                "timestampUtc": now.isoformat(),
+            },
+            {
+                "key": "1c62bf0a-8088-332c-9399-3b8cb0573099",
+                "dataFieldName": "remaining_climatisation_time",
+                "value": "-1",
+                "timestampUtc": now.isoformat(),
+            },
+            {
+                "key": "d48ccd21-a39f-33eb-989b-d81bd23fa766",
+                "dataFieldName": "state_of_hood",
+                "value": "3",
+                "timestampUtc": now.isoformat(),
+            },
+        ]
+    }
+    result = data_act_observations(payload, now, registry)
+    assert result["remainingChargingTime"]["value"] == 42
+    assert "remainingClimatisationTime" not in result
+    assert result["hood_open"]["value"] is False
+
+
+def test_optional_identity_withdrawal_preserves_native_telemetry_and_history():
+    from custom_components.audiconnect.v3.identity_cache import (
+        capture_identity,
+        withdraw_optional_identity,
+        without_optional_identity,
+    )
+
+    now = datetime.now(UTC)
+    car = V3Vehicle.from_data_act(
+        {"vin": VIN, "modelName": "Audi Q8", "modelYear": 2021}, "BE"
+    )
+    car.identity_observed_at = now.isoformat()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    profile.manufacturer_identity = capture_identity(car)
+    assert profile.manufacturer_identity
+    assert not without_optional_identity(profile.manufacturer_identity)
+    car.readings["stateOfCharge"] = {"value": 80, "family": "cariad"}
+    car.trip_history.append({"startMileage": 1, "overallMileage": 2})
+    assert withdraw_optional_identity(car, profile)
+    assert not car.model and not car.model_year and not profile.manufacturer_identity
+    assert car.readings["stateOfCharge"]["value"] == 80
+    assert len(car.trip_history) == 1
+    assert not withdraw_optional_identity(car, profile)
+
+    car = V3Vehicle(VIN, "Audi Q8", "Audi Q8", "q8", "BE")
+    car.model_source = "audi_long_name"
+    car.identity_operation = "graphql.inventory.vehicleList"
+    car.identity_observed_at = now.isoformat()
+    car.model_year = "2021"
+    car.year_operation = "eu_data_act.identity.vehicles"
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    profile.manufacturer_identity = capture_identity(car)
+    assert withdraw_optional_identity(car, profile)
+    assert car.model == "Audi Q8" and not car.model_year
+    assert profile.manufacturer_identity["model"] == "Audi Q8"
+    assert not profile.manufacturer_identity["year"]
+
+
+@pytest.mark.asyncio
+async def test_native_and_portal_share_a_bounded_response_reader():
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.data_act import read_bounded
+    from custom_components.audiconnect.v3.transport import read_bounded_body
+
+    async def chunks(_size):
+        yield b"ab"
+        yield b"cd"
+
+    response = SimpleNamespace(
+        content_length=None, content=SimpleNamespace(iter_chunked=chunks)
+    )
+    assert await read_bounded_body(response, 4) == b"abcd"
+    with pytest.raises(ValueError, match="size limit"):
+        await read_bounded_body(response, 3)
+    with pytest.raises(DataActUnavailable, match="too large"):
+        await read_bounded(response, 3)
+    response.content_length = 10
+    with pytest.raises(ValueError, match="size limit"):
+        await read_bounded_body(response, 4)
+
+
+def test_portal_duration_projects_eta_only_from_selected_source():
+    from custom_components.audiconnect.v3.derived_values import project_charging_eta
+
+    now = datetime.now(UTC)
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    payload = {
+        "vin": VIN,
+        "Data": [
+            {
+                "key": "cf28f7d9-6201-30b8-82e5-a461968d30dc",
+                "dataFieldName": "remaining_charging_time",
+                "value": "30",
+                "timestampUtc": now.isoformat(),
+            }
+        ],
+    }
+    observe_data_act(car, profile, payload, now, now.isoformat())
+    project_charging_eta(car, profile, now)
+    assert (
+        car.readings["charging_complete_time"]["value"]
+        == (now + timedelta(minutes=30)).isoformat()
+    )
+    assert car.readings["charging_complete_time"]["family"] == "eu_data_act"
+    assert "charging_complete_time" not in car.family_readings
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        remove_family_observations,
+    )
+
+    remove_family_observations(car, profile, "eu_data_act", now)
+    project_charging_eta(car, profile, now)
+    assert "charging_complete_time" not in car.readings

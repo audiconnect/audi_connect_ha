@@ -22,7 +22,8 @@ from custom_components.audiconnect.v3 import registry_lifecycle as lifecycle
 class MemoryStore:
     state = {}
 
-    def __init__(self, _hass, _version, key):
+    def __init__(self, _hass, _version, key, *, private=False):
+        assert private
         self.key = key
 
     async def async_load(self):
@@ -493,5 +494,41 @@ def test_registry_visibility_serializes_and_ignores_stale_runtime(monkeypatch):
             None, entry, True, expected_engine=engine
         )
         assert events[-1] == ("finish", False)
+
+    asyncio.run(scenario())
+
+
+def test_registry_notifications_coalesce_and_keep_final_change(monkeypatch):
+    from custom_components.audiconnect.v3.engine import V3Engine
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+        calls = []
+
+        async def apply(hass, entry, enabled, *, expected_engine):
+            calls.append(enabled)
+            started.set()
+            if len(calls) == 1:
+                await release.wait()
+
+        monkeypatch.setattr(lifecycle, "async_apply_v3_entity_visibility", apply)
+        engine = V3Engine.__new__(V3Engine)
+        engine.hass = NS(async_create_task=lambda coro, **_: asyncio.create_task(coro))
+        engine.entry = NS(
+            runtime_data=NS(coordinator=NS(async_update_listeners=lambda: None))
+        )
+        engine._registry_task = None
+        engine._registry_dirty = False
+        for _ in range(10):
+            engine._notify_discovery_change()
+        await started.wait()
+        for _ in range(10):
+            engine._notify_discovery_change()
+        release.set()
+        await engine._registry_task
+        assert calls == [True, True]
+        engine._notify_discovery_change(reconcile_registry=False)
+        assert calls == [True, True]
 
     asyncio.run(scenario())

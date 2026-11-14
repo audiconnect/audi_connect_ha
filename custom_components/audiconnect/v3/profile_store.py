@@ -503,7 +503,9 @@ class V3ProfileStorage:
 
         if not isinstance(entry_id, str) or not entry_id:
             raise DevelopmentProfileError("Missing HA entry identifier")
-        self._store = Store(hass, 1, f"audiconnect_v3_{entry_id}_profiles")
+        self._store = Store(
+            hass, 1, f"audiconnect_v3_{entry_id}_profiles", private=True
+        )
         self._write_lock = asyncio.Lock()
 
     async def async_remove(self) -> None:

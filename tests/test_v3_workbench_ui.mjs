@@ -211,6 +211,7 @@ test("HA-native Workbench groups by the vehicle's API family", () => {
       },
     ],
   };
+  panel.apiFamily = "cariad";
   panel.render();
   assert.match(panel.shadowRoot.innerHTML, /ha-font-family-body/);
   assert.match(panel.shadowRoot.innerHTML, /Audi Engineering Dashboard/);
@@ -1813,4 +1814,42 @@ test("pending engineering review retains disabled Test buttons and identifies th
   assert.match(html, /data-action="end-user-yes"[^>]*disabled[^>]*>Test/);
   assert.match(html, /Finish the pending engineering test above/);
   assert.match(html, /Edit API/);
+});
+
+test("Source selector and discovery are driven by backend registry, including future families", () => {
+  const p = new Panel();
+  p.selected = "entry";
+  p.vin = "VIN1";
+  p.entries = [
+    { entry_id: "entry", vehicles: [{ vin: "VIN1", api_family: "cariad" }] },
+  ];
+  p.capabilityStatus = {
+    rows: [],
+    family_discovery: [
+      {
+        id: "future_source",
+        label: "Future source",
+        fields_observed: 1,
+        fields_mapped: 0,
+        normalized: 0,
+        selected: 0,
+        fresh: 0,
+        operations: 0,
+        tested_operations: 0,
+        fields: [
+          {
+            path: "test_field",
+            operation: "future_source.read",
+            mapping: "not_assessed",
+          },
+        ],
+      },
+    ],
+  };
+  p.step = 4;
+  p.render();
+  assert.match(p.shadowRoot.innerHTML, /This vehicle · consolidated/);
+  assert.match(p.shadowRoot.innerHTML, /value="future_source"/);
+  assert.match(p.shadowRoot.innerHTML, /test_field/);
+  assert.doesNotMatch(p.shadowRoot.innerHTML, /value="eu_data_act"/);
 });

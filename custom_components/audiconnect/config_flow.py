@@ -841,23 +841,19 @@ class OptionsFlowHandler(OptionsFlow):
             submitted = user_input
             user_input = {**self.config_entry.options, **submitted}
             user_input.setdefault("runtime_version", "v2")
-            if user_input["runtime_version"] != "v3_climate":
-                user_input.pop("v3_data_act_enabled", None)
-            if user_input.get("v3_data_act_enabled", False):
-                # Blank password retains the current portal credential. It is
-                # never sent back as a default to the browser.
-                if not submitted.get("v3_data_act_password"):
-                    same_email = user_input.get("v3_data_act_email", "") == (
-                        self.config_entry.options.get("v3_data_act_email", "")
-                    )
-                    user_input["v3_data_act_password"] = (
-                        self.config_entry.options.get("v3_data_act_password", "")
-                        if same_email
-                        else ""
-                    )
-            else:
-                user_input.pop("v3_data_act_email", None)
-                user_input.pop("v3_data_act_password", None)
+            # Source credentials can only change through the dedicated flow.
+            for key in (
+                "v3_data_act_enabled",
+                "v3_data_act_email",
+                "v3_data_act_password",
+            ):
+                user_input.pop(key, None)
+                if (
+                    user_input["runtime_version"] == "v3_climate"
+                    and key in self.config_entry.options
+                ):
+                    user_input[key] = self.config_entry.options[key]
+            manage_data_act = bool(user_input.pop("manage_data_act", False))
             # Workbench is opt-in and belongs only to the V3 runtime. Leave
             # existing custom API profiles untouched when it is turned off.
             if user_input["runtime_version"] != "v3_climate":
@@ -890,6 +886,9 @@ class OptionsFlowHandler(OptionsFlow):
             # OptionsFlow replaces all options; preserve per-vehicle metadata.
             if "local_dealers" in self.config_entry.options:
                 user_input["local_dealers"] = self.config_entry.options["local_dealers"]
+            if manage_data_act and user_input["runtime_version"] == "v3_climate":
+                self._pending_options = user_input
+                return await self.async_step_data_act()
             if (
                 run_discovery
                 and user_input["runtime_version"] == "v3_climate"
@@ -906,6 +905,86 @@ class OptionsFlowHandler(OptionsFlow):
         # dashboard, never inside this account configuration wizard.
         return self.async_show_form(
             step_id="init", data_schema=self._options_schema(self.config_entry.options)
+        )
+
+    async def async_step_data_act(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage only the optional portal connection; keep native credentials."""
+        if user_input is not None:
+            if user_input.get("action") == "disconnect":
+                options = dict(self._pending_options or self.config_entry.options)
+                for key in ("v3_data_act_email", "v3_data_act_password"):
+                    options.pop(key, None)
+                options["v3_data_act_enabled"] = False
+                return self.async_create_entry(title="", data=options)
+            return await self.async_step_data_act_credentials()
+        return self.async_show_menu(
+            step_id="data_act",
+            menu_options=["data_act_credentials", "data_act_disconnect"],
+        )
+
+    async def async_step_data_act_disconnect(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return await self.async_step_data_act({"action": "disconnect"})
+        return self.async_show_form(
+            step_id="data_act_disconnect",
+            data_schema=vol.Schema({}),
+        )
+
+    async def _validate_data_act_credentials(self, email: str, password: str) -> None:
+        """Use the existing bounded portal authenticator, with an isolated session."""
+        from aiohttp import ClientSession, CookieJar
+        from .v3.data_act_auth import DataActPortalLogin
+        from .v3.quota import QuotaBudget
+
+        country = (self.config_entry.data.get(CONF_REGION) or "DE").upper()
+        async with ClientSession(cookie_jar=CookieJar()) as session:
+            login = DataActPortalLogin(session, email, password, country)
+            await login.authenticate(QuotaBudget(reserve=0))
+
+    async def async_step_data_act_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        from .v3.data_act import DataActAuthorizationRequired, DataActUnavailable
+
+        options = dict(self._pending_options or self.config_entry.options)
+        email = options.get("v3_data_act_email") or self.config_entry.data.get(
+            CONF_USERNAME, ""
+        )
+        errors = {}
+        if user_input is not None:
+            email = user_input.get("email", "").strip()
+            password = user_input.get("password", "")
+            if not email or not password:
+                errors["base"] = "data_act_credentials_required"
+            else:
+                try:
+                    await self._validate_data_act_credentials(email, password)
+                except DataActAuthorizationRequired:
+                    errors["base"] = "data_act_authorization_required"
+                except DataActUnavailable:
+                    errors["base"] = "data_act_unavailable"
+                else:
+                    options.update(
+                        v3_data_act_enabled=True,
+                        v3_data_act_email=email,
+                        v3_data_act_password=password,
+                    )
+                    return self.async_create_entry(title="", data=options)
+        return self.async_show_form(
+            step_id="data_act_credentials",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("email", default=email): TextSelector(),
+                    vol.Required("password"): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            errors=errors,
         )
 
     def _options_schema(self, values: dict[str, Any]) -> vol.Schema:
@@ -937,20 +1016,7 @@ class OptionsFlowHandler(OptionsFlow):
 
         if values.get("runtime_version", "v2") == "v3_climate":
             schema[vol.Optional("edit_local_dealer", default=False)] = bool
-            schema[
-                vol.Optional(
-                    "v3_data_act_enabled",
-                    default=values.get("v3_data_act_enabled", False),
-                )
-            ] = bool
-            schema[
-                vol.Optional(
-                    "v3_data_act_email", default=values.get("v3_data_act_email", "")
-                )
-            ] = TextSelector()
-            schema[vol.Optional("v3_data_act_password", default="")] = TextSelector(
-                TextSelectorConfig(type=TextSelectorType.PASSWORD)
-            )
+            schema[vol.Optional("manage_data_act", default=False)] = bool
             schema[vol.Optional("run_vehicle_discovery", default=False)] = bool
             schema[
                 vol.Required(

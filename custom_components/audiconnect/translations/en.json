@@ -99,9 +99,7 @@
           "runtime_version": "Runtime",
           "v3_development_workbench": "Enable V3 Development Workbench",
           "run_vehicle_discovery": "Vehicle discovery and control acceptance",
-          "v3_data_act_enabled": "Enable EU Data Act fallback (experimental)",
-          "v3_data_act_email": "Data Act email (optional)",
-          "v3_data_act_password": "Data Act password (optional)"
+          "manage_data_act": "Manage EU Data Act"
         },
         "title": "Audi Connect Options",
         "data_description": {
@@ -114,9 +112,7 @@
           "runtime_version": "V2 retains historical stable functionality. V3 — Experimental uses independent capability discovery, polling, API configuration and Home Assistant entities. Switch back here at any time.",
           "v3_development_workbench": "Show the administrator-only API Development Workbench in the sidebar only while V3 is active. Off by default; saved experimental API profiles are kept.",
           "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action.",
-          "v3_data_act_enabled": "Read only from an existing authorized Data Act request. Off by default. Vehicle measurements can be days old.",
-          "v3_data_act_email": "Leave empty to reuse the existing myAudi email, if stored. No new account or consent is created.",
-          "v3_data_act_password": "Leave empty to keep the stored portal password or reuse the existing myAudi password, if stored. Disabling removes separate portal credentials."
+          "manage_data_act": "Connect, reconnect or disconnect the optional read-only portal source. Native Audi login is unchanged."
         }
       },
       "dealer_vehicle": {
@@ -172,12 +168,34 @@
         "data": {
           "inspected": "I inspected the vehicle and acknowledge the prior command outcome"
         }
+      },
+      "data_act": {
+        "title": "EU Data Act",
+        "menu_options": {
+          "data_act_credentials": "Connect / reconnect",
+          "data_act_disconnect": "Disconnect"
+        }
+      },
+      "data_act_credentials": {
+        "title": "Connect / reconnect",
+        "description": "Enter the credentials for the authorized Data Act portal. They are verified before replacing the existing connection. Subscription delivery is checked separately.",
+        "data": {
+          "email": "Portal email",
+          "password": "Portal password"
+        }
+      },
+      "data_act_disconnect": {
+        "title": "Disconnect EU Data Act",
+        "description": "Remove local portal credentials and stop Data Act reads. This does not revoke your request in the portal."
       }
     },
     "error": {
       "invalid_dealer": "Check date, website and field lengths.",
       "invalid_vehicle": "Select a valid vehicle.",
-      "discovery_test_failed": "The action could not be completed. Check the current vehicle state and try again only after the pending outcome has been resolved."
+      "discovery_test_failed": "The action could not be completed. Check the current vehicle state and try again only after the pending outcome has been resolved.",
+      "data_act_credentials_required": "Enter both portal email and password.",
+      "data_act_authorization_required": "The portal rejected sign-in or requires interactive authorization. Check credentials and consent in the portal, then retry.",
+      "data_act_unavailable": "The portal is temporarily unavailable. Keep the existing connection and try again later."
     },
     "abort": {
       "no_vehicle_available": "No Audi vehicle is currently loaded."

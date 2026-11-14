@@ -3,6 +3,7 @@
   "brand": "audi",
   "api_families": {
     "cariad": {
+      "label": "CARIAD · modern",
       "auth": "auth0",
       "priority": 10,
       "host_owner": "audi_auth_session",
@@ -10,6 +11,7 @@
       "executor": "cariad_v1"
     },
     "graphql": {
+      "label": "GraphQL",
       "auth": "auth0",
       "priority": 10,
       "host_owner": "audi_auth_session",
@@ -17,12 +19,33 @@
       "executor": "graphql_v1"
     },
     "eu_data_act": {
+      "label": "EU Data Act",
       "auth": "eu_data_act",
       "priority": 30,
       "poll_interval_minutes": 30,
       "host_owner": "authorized_data_act_portal_session",
       "notes": "Read-only dataset provider; no control or generic request executor.",
       "observations": {
+        "cf28f7d9-6201-30b8-82e5-a461968d30dc": {
+          "field": "remaining_charging_time",
+          "attribute": "remainingChargingTime",
+          "min": 0,
+          "max": 10080
+        },
+        "1c62bf0a-8088-332c-9399-3b8cb0573099": {
+          "field": "remaining_climatisation_time",
+          "attribute": "remainingClimatisationTime",
+          "min": 0,
+          "max": 10080
+        },
+        "d48ccd21-a39f-33eb-989b-d81bd23fa766": {
+          "field": "state_of_hood",
+          "attribute": "hood_open",
+          "values": {
+            "2": true,
+            "3": false
+          }
+        },
         "506cb83e-f99f-3af3-bbeb-0429b69a78d9": {
           "field": "battery_state_report.soc",
           "attribute": "stateOfCharge",
@@ -170,6 +193,7 @@
       }
     },
     "mbb": {
+      "label": "MBB · legacy",
       "auth": "legacy",
       "priority": 20,
       "host_owner": "legacy_home_region",

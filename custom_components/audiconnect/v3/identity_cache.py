@@ -73,6 +73,55 @@ def validate_identity(row, region, vin=None):
     }
 
 
+def without_optional_identity(row):
+    """Keep native manufacturer metadata; optional fields require portal access."""
+    from .data_act import IDENTITY_OPERATION
+
+    if (
+        row.get("operation") == IDENTITY_OPERATION
+        or row.get("source") == "eu_data_act_modelName"
+    ):
+        return {}
+    if row.get("year_operation") == IDENTITY_OPERATION:
+        return {**row, "year": "", "year_operation": None}
+    return row
+
+
+def withdraw_optional_identity(car, profile):
+    """Withdraw only portal-owned identity, never native observations or trips."""
+    from .data_act import IDENTITY_OPERATION
+
+    before = car.context
+    changed = False
+    if (
+        car.identity_operation == IDENTITY_OPERATION
+        or car.model_source == "eu_data_act_modelName"
+    ):
+        if car.name == car.model:
+            car.name = "Audi vehicle"
+        car.model = car.model_family = car.model_source = ""
+        car.identity_operation = car.identity_observed_at = None
+        car.identity_restored = False
+        car.registry_model = None
+        car.readings.pop("model", None)
+        car.family_readings.pop("model", None)
+        changed = True
+    if car.year_operation == IDENTITY_OPERATION:
+        car.model_year = ""
+        car.year_operation = None
+        changed = True
+    saved = profile.manufacturer_identity
+    retained = without_optional_identity(saved)
+    if retained != saved:
+        profile.manufacturer_identity = retained
+        changed = True
+    if before != car.context:
+        # Applicability is context-scoped; archive old control evidence without
+        # discarding independent native telemetry or the VIN trip archive.
+        profile.rebind_context(car.context)
+    return changed
+
+
 def apply_cached_identity(car, row):
     identity = validate_identity(row, car.country, car.vin)
     if (

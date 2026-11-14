@@ -24,3 +24,24 @@ Compare exact installed versions and runtime contexts. Diagnostics distinguish c
 Prior upstream contributions are retained. The candidate adds the independent V3 runtime, native HA projection, optional Workbench, regression coverage and source inventory. The existing upstream release metadata and pipeline remain authoritative; no stable promotion or default-runtime change is requested. Review exact-head Test/Validate, the existing packaging checks and the relevant real-vehicle acceptance separately. The upstream review branch is not a published HACS release. Use the existing upstream PR and fork candidate workflow; see the [release authority](V3_ARCHITECTURE_CLOSURE.md#release-authority).
 
 Source inventories, normalized attribute counts, entity counts and ownership contracts are implementation evidence, not physical vehicle certification. Vehicle metadata has worked earlier but can be absent from OEM responses; backend or authorization context may be involved, with no confirmed root cause. Charging controls, model/market compatibility, V2 parity, HA lifecycle and rollback, quota and optional Data Act live acceptance remain explicit release gates. The legacy upstream read-only probe service remains available in V2; in V3 use independent read discovery and Workbench instead.
+
+## B37 engineering closure — multi-source acceptance candidate
+
+B36 is the measured runtime baseline: first authorized Data Act delivery, 84 bounded structural fields, 19 mapped/normalized, 2 selected; 64/101 canonical attributes normalized, none fresh. 125 registered entities, 98 offered, 394 complete odometer-interval trip records. One poll is not a soak test. No raw owner diagnostics retained in the repository.
+
+B37 corrects the existing owners rather than adding a new runtime, source scheduler, entity contract or dashboard:
+
+- Registry-driven source selector and consolidated coverage; existing schema and observation evidence supply source mapping, capture, receipt, delivery and selection. Parking hints do not count as movement.
+- Dedicated portal connect/reconnect/disconnect options; validate credentials before replacing working settings. Existing native authentication stays separate. The optional source's actionable status is visible in the existing integration status attributes and Workbench, not a native account reauthentication trigger.
+- Record privacy-safe portal identity schema and outcome; never use nickname or VIN inference. On terminal authorization loss or explicit disconnect, remove optional identity and observations, retaining native measurements and trips. Missing dataset subscription removes dataset readings, not independently authorized identity.
+- Invalidate both selected and competing readings when a mapping changes or is disabled. Ignore late disabled-route responses. Re-activation requires a new normal read. Derive ETA from the currently selected duration, not an independent cache. Coalesce registry reconciliation and preserve historical entity IDs and user choices.
+- Share one bounded response-body reader across native and optional transport. Mark profile and registry storage private; no raw datasets are persisted.
+- Add exact UUID/name mappings for minute-based charging/climate durations and explicit hood status; invalid/sentinel values do not become telemetry. Source: [community Data Act dictionary](https://github.com/TA2k/ioBroker.vw-connect/blob/master/lib/euDataActDictionary.json). These are candidates pending real vehicle evidence, not guaranteed extra live fields.
+
+### Acceptance gates
+
+The experimental HACS candidate requires exact-head Test/Validate, the existing release-only delta and pinned merged source, both HA compatibility targets, archive verification and the preceding beta's upstream review source. No stable release is implied.
+
+Live acceptance remains necessary: upgrade/restart and V2 rollback; source authentication and revocation; native and optional freshness after a ride and active charging; model identity from actual OEM fields; physical control evidence; registry/trip preservation; independent ICE/PHEV/BEV and regional coverage. Unknown charging enums, maintenance signs, tyre units, ambiguous door states, oil validity and BEM semantics stay unmapped until evidence exists. This is not a reason to create a second model or to fabricate support.
+
+Existing issue #44 remains the stable release gate. Do not equate passed synthetic tests, HTTP acceptance, or assessed schema coverage with vehicle support. B37 is an engineering correction and acceptance candidate, not a claim of zero remaining product or upstream debt.

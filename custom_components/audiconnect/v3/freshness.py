@@ -40,6 +40,15 @@ def capture_age_minutes(captured: Any, now: datetime | None = None) -> float | N
     return max(0.0, delta / 60) if delta >= -300 else None
 
 
+def movement_capture_valid(reading, now=None):
+    """Parking response hints are not a physical movement measurement."""
+    return (
+        reading.get("path")
+        not in ("parkingposition HTTP 204", "parkingposition parked sample")
+        and capture_age_minutes(reading.get("captured"), now) is not None
+    )
+
+
 def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
     """Describe a reported sample, independently of its projected HA state."""
     row = row or {}
