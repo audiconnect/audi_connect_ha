@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Sign in with the original Audi account. The account could not be verified or does not match this integration.",
       "already_configured": "Account has already been configured",
       "reauth_successful": "Re-authentication was successful",
       "reconfigure_successful": "Reconfiguration was successful",
@@ -91,23 +92,31 @@
         "data": {
           "scan_initial": "Cloud Update at Startup",
           "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
-          "climate_quick_start": "Quick start climate using car-stored settings",
           "update_sleep": "Cloud Refresh Delay",
           "scan_interval": "Scan Interval",
           "filter_vins": "Excluded VINs",
           "edit_local_dealer": "Edit dealer and local service details",
-          "experimental_commands": "Enable experimental vehicle controls"
+          "runtime_version": "Runtime",
+          "v3_development_workbench": "Enable V3 Development Workbench",
+          "run_vehicle_discovery": "Vehicle discovery and control acceptance",
+          "v3_data_act_enabled": "Enable EU Data Act fallback (experimental)",
+          "v3_data_act_email": "Data Act email (optional)",
+          "v3_data_act_password": "Data Act password (optional)"
         },
         "title": "Audi Connect Options",
         "data_description": {
           "scan_initial": "Perform a cloud update immediately upon startup.",
-          "climate_quick_start": "When the climate card is switched on, send a bodyless CARIAD start request using settings already stored in the vehicle. Does not send the temperature shown in Home Assistant. Optional workaround for newer cars; leave disabled unless needed.",
           "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
           "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud.",
           "scan_interval": "Minutes between cloud polling updates.",
           "filter_vins": "Comma-separated VIN list to exclude from setup and updates.",
           "edit_local_dealer": "Open the form to save dealership, service appointment and warranty details locally, without any Audi API requests.",
-          "experimental_commands": "Show additional user-triggered CARIAD charging, window heating and wake-up actions. Off by default. Verify real operation; HTTP 200 is not proof the vehicle acted."
+          "runtime_version": "V2 retains historical stable functionality. V3 — Experimental uses independent capability discovery, polling, API configuration and Home Assistant entities. Switch back here at any time.",
+          "v3_development_workbench": "Show the administrator-only API Development Workbench in the sidebar only while V3 is active. Off by default; saved experimental API profiles are kept.",
+          "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action.",
+          "v3_data_act_enabled": "Read only from an existing authorized Data Act request. Off by default. Vehicle measurements can be days old.",
+          "v3_data_act_email": "Leave empty to reuse the existing myAudi email, if stored. No new account or consent is created.",
+          "v3_data_act_password": "Leave empty to keep the stored portal password or reuse the existing myAudi password, if stored. Disabling removes separate portal credentials."
         }
       },
       "dealer_vehicle": {
@@ -129,11 +138,46 @@
           "warranty_expiry": "Warranty expiry",
           "clear": "Remove this vehicle's local details"
         }
+      },
+      "discovery_vehicle": {
+        "title": "Select vehicle for discovery",
+        "data": {
+          "vehicle": "Vehicle"
+        }
+      },
+      "discovery": {
+        "title": "Vehicle discovery",
+        "description": "{vehicle}: {read_state}. Read assessment {read}% ({assessed}/{total}); physically verified controls {verified}/{controls} catalog candidates. Read assessment is not proof of vehicle support. Refresh is read-only. No remaining eligible tests in this session. Finish or refresh read discovery.",
+        "data": {
+          "action": "Next action"
+        }
+      },
+      "discovery_consent": {
+        "title": "Discover vehicle function?",
+        "description": "{vehicle} — {action}. Verified {verified}/{controls}; skipped {skipped}. This authorizes this specific physical action on the vehicle and may unlock or lock doors, change charging or climate operation, or flash lights. Ensure the vehicle is safely parked, you are authorized and present, nobody is endangered, and you can inspect and restore its state. Only a definitively rejected command may use one reviewed equivalent route. No automatic repeat after uncertainty and no other action.",
+        "data": {
+          "accept": "Discover this function?"
+        }
+      },
+      "discovery_review": {
+        "title": "Did it work?",
+        "description": "{vehicle}: {action}. Transport result: {transport}. Check the actual vehicle, not just its cloud response. OK saves the working route. Not OK records failure. Not sure leaves the action pending; no additional physical test is sent.",
+        "data": {
+          "outcome": "Observed outcome"
+        }
+      },
+      "discovery_recover": {
+        "title": "Resolve pending command",
+        "description": "{vehicle}: previous {action} outcome is uncertain. Inspect the actual vehicle before acknowledging. This sends no new command and does not certify success.",
+        "data": {
+          "inspected": "I inspected the vehicle and acknowledge the prior command outcome"
+        }
       }
     },
     "error": {
       "invalid_dealer": "Check date, website and field lengths.",
-      "invalid_vehicle": "Select a valid vehicle."
+      "invalid_vehicle": "Select a valid vehicle.",
+      "discovery_test_failed": "The action could not be completed. Check the current vehicle state and try again only after the pending outcome has been resolved."
     },
     "abort": {
       "no_vehicle_available": "No Audi vehicle is currently loaded."
@@ -310,6 +354,470 @@
           "name": "Vehicle",
           "description": "The Audi vehicle to stop the engine on."
         }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "v3_last_update_time": {
+        "name": "Last vehicle capture"
+      },
+      "v3_shortterm_current": {
+        "name": "Short-term trip data"
+      },
+      "v3_shortterm_reset": {
+        "name": "Short-term trip data since reset"
+      },
+      "v3_longterm_current": {
+        "name": "Long-term trip data"
+      },
+      "v3_longterm_reset": {
+        "name": "Long-term trip data since reset"
+      },
+      "v3_model": {
+        "name": "Model"
+      },
+      "v3_mileage": {
+        "name": "Odometer"
+      },
+      "v3_service_adblue_distance": {
+        "name": "AdBlue range"
+      },
+      "v3_range": {
+        "name": "Total range"
+      },
+      "v3_hybrid_range": {
+        "name": "Combined range"
+      },
+      "v3_service_inspection_time": {
+        "name": "Service inspection time"
+      },
+      "v3_service_inspection_distance": {
+        "name": "Service inspection distance"
+      },
+      "v3_oil_change_time": {
+        "name": "Oil change time"
+      },
+      "v3_oil_change_distance": {
+        "name": "Oil change distance"
+      },
+      "v3_oil_level": {
+        "name": "Oil level percentage"
+      },
+      "v3_charging_state": {
+        "name": "Charging state"
+      },
+      "v3_charging_mode": {
+        "name": "Charging mode"
+      },
+      "v3_charging_type": {
+        "name": "Charging type"
+      },
+      "v3_energy_flow": {
+        "name": "Energy flow"
+      },
+      "v3_max_charge_current": {
+        "name": "Maximum charging current"
+      },
+      "v3_charging_current_limit_a": {
+        "name": "Charging AC current limit"
+      },
+      "v3_charging_current_limit_mode": {
+        "name": "Charging current mode"
+      },
+      "v3_charging_plug_auto_unlock": {
+        "name": "Unlock charging plug after charge"
+      },
+      "v3_vehicle_reported_online": {
+        "name": "Vehicle reported connectivity"
+      },
+      "v3_vehicle_reported_active": {
+        "name": "Vehicle reported activity"
+      },
+      "v3_primary_engine_type": {
+        "name": "Primary engine type"
+      },
+      "v3_secondary_engine_type": {
+        "name": "Secondary engine type"
+      },
+      "v3_primary_engine_range": {
+        "name": "Primary engine range"
+      },
+      "v3_secondary_engine_range": {
+        "name": "Secondary engine range"
+      },
+      "v3_primary_engine_range_percent": {
+        "name": "Primary engine level"
+      },
+      "v3_car_type": {
+        "name": "Vehicle type"
+      },
+      "v3_secondary_engine_range_percent": {
+        "name": "Secondary engine level"
+      },
+      "v3_charging_power": {
+        "name": "Charging power"
+      },
+      "v3_actual_charge_rate": {
+        "name": "Charging rate"
+      },
+      "v3_tank_level": {
+        "name": "Fuel level"
+      },
+      "v3_state_of_charge": {
+        "name": "Battery state of charge"
+      },
+      "v3_remaining_charging_time": {
+        "name": "Remaining charging time"
+      },
+      "v3_charging_complete_time": {
+        "name": "Charging completion time"
+      },
+      "v3_target_state_of_charge": {
+        "name": "Target state of charge"
+      },
+      "v3_external_power": {
+        "name": "External power"
+      },
+      "v3_plug_led_color": {
+        "name": "Plug LED color"
+      },
+      "v3_doors_trunk_status": {
+        "name": "Doors and trunk status"
+      },
+      "v3_climatisation_state": {
+        "name": "Climate state"
+      },
+      "v3_outdoor_temperature": {
+        "name": "Outdoor temperature"
+      },
+      "v3_park_time": {
+        "name": "Park time"
+      },
+      "v3_position_last_updated": {
+        "name": "Position last updated"
+      },
+      "v3_remaining_climatisation_time": {
+        "name": "Climate remaining time"
+      },
+      "v3_preheater_duration": {
+        "name": "Auxiliary heating duration"
+      },
+      "v3_preheater_remaining": {
+        "name": "Auxiliary heating remaining time"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Active charging profile target"
+      },
+      "v3_active_charging_profile_name": {
+        "name": "Active charging profile"
+      },
+      "v3_active_charging_profile_min_soc": {
+        "name": "Active charging profile minimum charge"
+      },
+      "v3_preferred_charging_time_start": {
+        "name": "Preferred charging window start"
+      },
+      "v3_preferred_charging_time_end": {
+        "name": "Preferred charging window end"
+      },
+      "v3_climatisation_timer_enabled_count": {
+        "name": "Climate timers enabled"
+      },
+      "v3_next_climatisation_timer_local": {
+        "name": "Next climate timer"
+      },
+      "v3_charging_timer_enabled_count": {
+        "name": "Charging timers enabled"
+      },
+      "v3_vehicle_data_freshness": {
+        "name": "Vehicle data freshness"
+      },
+      "v3_vehicle_data_age": {
+        "name": "Vehicle data age"
+      },
+      "v3_cloud_last_successful_poll": {
+        "name": "Cloud last successful poll"
+      },
+      "v3_local_dealer": {
+        "name": "Dealer"
+      },
+      "v3_service_overview": {
+        "name": "Service overview"
+      },
+      "v3_api_requests_remaining": {
+        "name": "API requests remaining"
+      },
+      "v3_last_trip": {
+        "name": "Last trip"
+      },
+      "v3_last_trip_distance": {
+        "name": "Last trip distance"
+      },
+      "v3_last_trip_duration": {
+        "name": "Last trip duration"
+      },
+      "v3_last_trip_average_speed": {
+        "name": "Last trip average speed"
+      },
+      "v3_last_trip_average_fuel_consumption": {
+        "name": "Last trip average fuel consumption"
+      },
+      "v3_last_trip_average_electric_consumption": {
+        "name": "Last trip average electric consumption"
+      },
+      "v3_last_trip_fuel_consumption": {
+        "name": "Last trip fuel consumption"
+      },
+      "v3_last_trip_electric_consumption": {
+        "name": "Last trip electric consumption"
+      },
+      "v3_longterm_trip_distance": {
+        "name": "Long-term trip distance"
+      },
+      "v3_longterm_trip_duration": {
+        "name": "Long-term trip duration"
+      },
+      "v3_longterm_trip_average_speed": {
+        "name": "Long-term trip average speed"
+      },
+      "v3_longterm_trip_average_fuel_consumption": {
+        "name": "Long-term trip average fuel consumption"
+      },
+      "v3_longterm_trip_average_electric_consumption": {
+        "name": "Long-term trip average electric consumption"
+      },
+      "v3_longterm_trip_fuel_consumption": {
+        "name": "Long-term trip fuel consumption"
+      },
+      "v3_longterm_trip_electric_consumption": {
+        "name": "Long-term trip electric consumption"
+      },
+      "v3_shortterm_trip_distance": {
+        "name": "Short-term trip distance"
+      },
+      "v3_shortterm_trip_duration": {
+        "name": "Short-term trip duration"
+      },
+      "v3_shortterm_trip_average_speed": {
+        "name": "Short-term trip average speed"
+      },
+      "v3_shortterm_trip_average_fuel_consumption": {
+        "name": "Short-term trip average fuel consumption"
+      },
+      "v3_shortterm_trip_average_electric_consumption": {
+        "name": "Short-term trip average electric consumption"
+      },
+      "v3_shortterm_trip_fuel_consumption": {
+        "name": "Short-term trip fuel consumption"
+      },
+      "v3_shortterm_trip_electric_consumption": {
+        "name": "Short-term trip electric consumption"
+      },
+      "v3_last_trip_zero_emission_distance": {
+        "name": "Last trip zero-emission distance"
+      },
+      "v3_shortterm_trip_zero_emission_distance": {
+        "name": "Short-term trip zero-emission distance"
+      },
+      "v3_longterm_trip_zero_emission_distance": {
+        "name": "Long-term trip zero-emission distance"
+      },
+      "v3_trip_history": {
+        "name": "Trip history"
+      },
+      "v3_discovery_coverage": {
+        "name": "Discovery coverage"
+      },
+      "v3_integration_status": {
+        "name": "Integration status"
+      },
+      "v3_last_error": {
+        "name": "Last error"
+      },
+      "v3_door_status": {
+        "name": "Door status"
+      },
+      "v3_window_status": {
+        "name": "Window status"
+      },
+      "v3_electric_range": {
+        "name": "Electric range"
+      },
+      "v3_fuel_range": {
+        "name": "Fuel range"
+      }
+    },
+    "binary_sensor": {
+      "v3_plug_state": {
+        "name": "Charging plug"
+      },
+      "v3_plug_lock_state": {
+        "name": "Charging plug lock"
+      },
+      "v3_glass_surface_heating": {
+        "name": "Window heating"
+      },
+      "v3_sun_roof": {
+        "name": "Sun roof"
+      },
+      "v3_roof_cover": {
+        "name": "Roof cover"
+      },
+      "v3_parking_light": {
+        "name": "Vehicle lights"
+      },
+      "v3_any_window_open": {
+        "name": "Windows"
+      },
+      "v3_any_door_unlocked": {
+        "name": "Door locks"
+      },
+      "v3_any_door_open": {
+        "name": "Doors"
+      },
+      "v3_trunk_unlocked": {
+        "name": "Trunk lock"
+      },
+      "v3_trunk_open": {
+        "name": "Trunk"
+      },
+      "v3_hood_open": {
+        "name": "Hood"
+      },
+      "v3_left_front_door_open": {
+        "name": "Left front door"
+      },
+      "v3_right_front_door_open": {
+        "name": "Right front door"
+      },
+      "v3_left_rear_door_open": {
+        "name": "Left rear door"
+      },
+      "v3_right_rear_door_open": {
+        "name": "Right rear door"
+      },
+      "v3_left_front_window_open": {
+        "name": "Left front window"
+      },
+      "v3_right_front_window_open": {
+        "name": "Right front window"
+      },
+      "v3_left_rear_window_open": {
+        "name": "Left rear window"
+      },
+      "v3_right_rear_window_open": {
+        "name": "Right rear window"
+      },
+      "v3_braking_status": {
+        "name": "Braking status"
+      },
+      "v3_oil_level_binary": {
+        "name": "Oil level warning"
+      },
+      "v3_is_moving": {
+        "name": "Vehicle moving"
+      },
+      "v3_integration_problem": {
+        "name": "Integration problem"
+      },
+      "v3_charging_ready": {
+        "name": "Charging ready"
+      }
+    },
+    "button": {
+      "v3_refresh_vehicle_data": {
+        "name": "Request fresh vehicle data"
+      },
+      "v3_flash_lights": {
+        "name": "Flash lights"
+      },
+      "v3_start_charging_modern": {
+        "name": "Start charging"
+      },
+      "v3_stop_charging_modern": {
+        "name": "Stop charging"
+      },
+      "v3_start_window_heating_modern": {
+        "name": "Start window heating"
+      },
+      "v3_stop_window_heating_modern": {
+        "name": "Stop window heating"
+      },
+      "v3_wake_vehicle_modern": {
+        "name": "Wake vehicle"
+      },
+      "v3_start_engine": {
+        "name": "Start engine"
+      },
+      "v3_stop_engine": {
+        "name": "Stop engine"
+      },
+      "v3_v3_refresh_cloud": {
+        "name": "Refresh cloud data"
+      }
+    },
+    "switch": {
+      "v3_preheater_active": {
+        "name": "Auxiliary heating"
+      },
+      "v3_climatisation_window_heating": {
+        "name": "Climate window heating enabled"
+      },
+      "v3_climatisation_at_unlock": {
+        "name": "Climate at unlock"
+      },
+      "v3_climatisation_zone_front_left": {
+        "name": "Climate front left zone"
+      },
+      "v3_climatisation_zone_front_right": {
+        "name": "Climate front right zone"
+      },
+      "v3_climatisation_zone_rear_left": {
+        "name": "Climate rear left zone"
+      },
+      "v3_climatisation_zone_rear_right": {
+        "name": "Climate rear right zone"
+      },
+      "v3_climate_quick_control": {
+        "name": "Climate power"
+      },
+      "v3_charging": {
+        "name": "Charging"
+      },
+      "v3_window_heating": {
+        "name": "Window heating"
+      }
+    },
+    "number": {
+      "v3_target_state_of_charge": {
+        "name": "Target state of charge"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Current location charge target"
+      },
+      "v3_charge_profile_target_soc": {
+        "name": "Profile {profile_id} charge target"
+      }
+    },
+    "select": {
+      "v3_charge_mode": {
+        "name": "Preferred charge mode"
+      }
+    },
+    "climate": {
+      "v3_climatisation": {
+        "name": "Climate"
+      }
+    },
+    "lock": {
+      "v3_lock": {
+        "name": "Central locking"
+      }
+    },
+    "device_tracker": {
+      "v3_position": {
+        "name": "Position"
       }
     }
   }

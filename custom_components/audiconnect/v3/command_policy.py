@@ -1,0 +1,200 @@
+"""Eligibility for historical CARIAD commands; no model-only permission."""
+
+from __future__ import annotations
+
+from .auth import configured_spin
+
+
+def charge_mode_fallback_candidate(car):
+    """V2 enum fallback only for an explicit empty list and a readable mode."""
+    options = car.readings.get("availableChargeModes", {})
+    preferred = car.readings.get("preferredChargeMode", {})
+    return (
+        options.get("family") != "eu_data_act"
+        and preferred.get("family") != "eu_data_act"
+        and options.get("value") == []
+        and options.get("status") != "invalid_value"
+        and preferred.get("value") in ("manual", "timer")
+        and preferred.get("status") != "invalid_value"
+    )
+
+
+def locally_verified_charge_modes(profile):
+    """Current built-in route revision proof, not a claim about OEM options."""
+    if profile is None:
+        return []
+    from .operation_revision import operation_revision
+
+    operation = profile.registry.operations.get("cariad.charging.mode")
+    if operation is None:
+        return []
+    revision = operation_revision(operation)
+    return [
+        mode
+        for mode in ("manual", "timer")
+        if getattr(profile, "verified_charge_modes", {}).get(mode) == revision
+    ]
+
+
+def charge_mode_evidence(car, profile):
+    """Safe enum capability evidence; never include the car\'s current setting."""
+    return {
+        "locally_verified_modes": locally_verified_charge_modes(profile),
+        "writable_modes": supported_charge_modes(car, profile),
+        "empty_list_fallback": charge_mode_fallback_candidate(car),
+    }
+
+
+def supported_charge_modes(car, profile=None):
+    """Advertised modes first; V2 fallback requires current local route proof."""
+    row = car.readings.get("availableChargeModes", {})
+    values = row.get("value")
+    if (
+        row.get("family") == "eu_data_act"
+        or row.get("status") == "invalid_value"
+        or not isinstance(values, list)
+    ):
+        return []
+    if values:
+        return [mode for mode in ("manual", "timer") if mode in values]
+    if profile is None or not charge_mode_fallback_candidate(car):
+        return []
+    from .operation_revision import operation_revision
+
+    key, route = "charging.set_charge_mode", "cariad.charging.mode"
+    operation = profile.registry.operations.get(route)
+    if (
+        operation is not None
+        and profile.active.get(key) == route
+        and profile.control_results.get(route) == "worked"
+        and profile.active_revisions.get(key) == operation_revision(operation)
+    ):
+        return locally_verified_charge_modes(profile)
+    return []
+
+
+def eligible_operation(car, auth, capability, aspect, *, profile=None):
+    reported = car.advertised_capabilities
+    impaired = car.impaired_capabilities
+
+    def supports(*keys):
+        return any(k in reported and k not in impaired for k in keys)
+
+    def readable(key):
+        row = car.readings.get(key, {})
+        return row.get("value") is not None and row.get("family") != "eu_data_act"
+
+    if not auth.uses_auth0:
+        if capability == "access" and aspect in ("lock", "unlock"):
+            if (
+                readable("doorLockStatus") or readable("any_door_unlocked")
+            ) and configured_spin(auth):
+                return "mbb.access." + aspect
+            return None
+        if (
+            capability == "climate"
+            and aspect in ("start", "start_with_settings", "stop")
+            and (not car.legacy_cariad or car.legacy_api_level != 1)
+        ):
+            if (
+                car.climate_state is not None
+                and car.readings.get("climatisationState", {}).get("family")
+                != "eu_data_act"
+            ):
+                return "mbb.climate.stop" if aspect == "stop" else "mbb.climate.start"
+            return None
+        if not car.legacy_cariad or (capability == "remote" and aspect == "wake"):
+            return None
+        # Other historical commands already use the legacy IDK bearer against CARIAD.
+    if capability == "remote" and aspect in ("engine_start", "engine_stop"):
+        # Retain the historical remote-engine capability restriction. Never
+        # infer permission from an engine, region, or PIN alone.
+        model = (car.model or "").strip().lower()
+        family = (car.model_family or "").strip().lower()
+        from .vehicle import powertrain_identity
+
+        identity = powertrain_identity(car)
+        if (
+            getattr(car, "identity_restored", False)
+            or not model
+            or not (car.car_type or "").strip()
+            or identity["value"] != "combustion"
+            or (not auth.uses_auth0 and not car.legacy_cariad)
+            or model.startswith(("q8", "audi q8"))
+            or family.startswith(("q8", "audi q8"))
+            or (car.car_type or "").strip().lower()
+            in {"electric", "hybrid", "phev", "plug-in hybrid", "plug_in_hybrid"}
+            or not supports("remoteEngineStart")
+            or not configured_spin(auth)
+        ):
+            return None
+        return "cariad.remote." + aspect
+    if (
+        capability == "access"
+        and aspect in ("lock", "unlock")
+        and (
+            supports("access", "remoteLockUnlock")
+            or (readable("doorLockStatus") and "access" not in impaired)
+        )
+        and configured_spin(auth)
+    ):
+        return "cariad.access." + aspect
+    if capability == "climate":
+        if aspect.startswith("preheater_"):
+            if supports("auxiliaryHeating", "hybridCarAuxiliaryHeating") and (
+                aspect == "preheater_stop" or configured_spin(auth)
+            ):
+                return "cariad.climate." + aspect
+        elif supports("climatisation") or (
+            car.climate_state is not None
+            and car.readings.get("climatisationState", {}).get("family")
+            != "eu_data_act"
+            and "climatisation" not in impaired
+        ):
+            return {
+                "start": "cariad.climate.start.stored",
+                "stop": "cariad.climate.stop",
+                "start_with_settings": "cariad.climate.start.vehicle_settings",
+                "set_settings": "cariad.climate.settings",
+                "window_heating_start": "cariad.climate.window_heating_start",
+                "window_heating_stop": "cariad.climate.window_heating_stop",
+            }.get(aspect)
+    if capability == "charging" and (
+        supports("charging")
+        or (readable("chargingState") and "charging" not in impaired)
+    ):
+        # A generic charging capability does not prove all parameter writes.
+        if aspect == "set_target_soc":
+            if not readable("targetstateOfCharge"):
+                return None
+            value = car.readings.get("targetstateOfCharge", {}).get("value")
+            if type(value) not in (int, float) or not 0 <= value <= 100:
+                return None
+        elif aspect == "set_charge_mode":
+            if not supported_charge_modes(car, profile):
+                return None
+        elif aspect == "set_location_charge_target" and not any(
+            type(row.get("id")) is int
+            and type(row.get("targetSOC_pct")) in (int, float)
+            and 0 <= row["targetSOC_pct"] <= 100
+            for row in getattr(car, "charging_profiles", ())
+            if isinstance(row, dict)
+        ):
+            return None
+        return {
+            "start": "cariad.charging.start",
+            "stop": "cariad.charging.stop",
+            "set_target_soc": "cariad.charging.settings",
+            "set_charge_mode": "cariad.charging.mode",
+            "set_location_charge_target": "cariad.charging.profiles",
+        }.get(aspect)
+    if capability == "remote":
+        if aspect == "wake" and supports("vehicleWakeUp", "vehicleWakeUpTrigger"):
+            return "cariad.remote.wake"
+        if aspect == "refresh" and supports(
+            "vehicleWakeUp", "vehicleWakeUpTrigger", "vehicleStatus"
+        ):
+            return "cariad.remote.refresh"
+        if aspect == "flash" and supports("honkAndFlash") and car.position is not None:
+            return "cariad.remote.flash"
+    return None

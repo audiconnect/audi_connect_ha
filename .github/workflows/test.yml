@@ -23,3 +23,24 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - name: Node Workbench syntax and interaction tests
+        run: |
+          node --check custom_components/audiconnect/v3/frontend/panel.js
+          node --test tests/test_v3_workbench_ui.mjs
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install pinned Ruff
+        run: pip install ruff==0.17.4
+      - name: Ruff lint (complete concise report)
+        run: ruff check --output-format concise .
+      - name: Run upstream pre-commit hooks
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure

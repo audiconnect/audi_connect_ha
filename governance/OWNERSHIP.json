@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "scope": "v3 active runtime",
+  "owners": {
+    "engine": {
+      "paths": ["engine.py", "runtime.py"],
+      "responsibility": "composition, public facade and inventory/profile orchestration; remaining orchestration cleanup tracked"
+    },
+    "status": {
+      "paths": [
+        "status_engine.py",
+        "attribute_runtime.py",
+        "read_discovery.py",
+        "freshness.py",
+        "derived_values.py",
+        "legacy_read_mappings.py",
+        "legacy_values.py",
+        "trips.py",
+        "parking.py",
+        "status_planner.py",
+        "trip_archive.py",
+        "structured_details.py",
+        "access_summary.py"
+      ],
+      "responsibility": "read-only polling and observations"
+    },
+    "command": {
+      "paths": [
+        "command_engine.py",
+        "command_journal.py",
+        "control_resolution.py",
+        "command_policy.py",
+        "command_payloads.py",
+        "action_discovery.py",
+        "request_status.py",
+        "legacy_commands.py",
+        "command_readback.py",
+        "command_parameters.py"
+      ],
+      "responsibility": "fast control resolution, explicit tests, execution and confirmation"
+    },
+    "api": {
+      "paths": [
+        "auth.py",
+        "transport.py",
+        "quota.py",
+        "family_executors.py",
+        "data_act.py",
+        "data_act_auth.py"
+      ],
+      "responsibility": "authentication, transport, quota and protocols"
+    },
+    "catalog": {
+      "paths": [
+        "registry.py",
+        "full_catalog.json",
+        "historical_catalog.py",
+        "attribute_contracts.json",
+        "attribute_contracts.py",
+        "api_value_mappings.json",
+        "api_value_mappings.py",
+        "attribute_routes.py",
+        "operation_revision.py",
+        "custom_attributes.py",
+        "binary_contracts.json"
+      ],
+      "responsibility": "operation and attribute definitions/validation"
+    },
+    "profiles": {
+      "paths": [
+        "development_profiles.py",
+        "profile_store.py",
+        "api_observations.py",
+        "identity_cache.py"
+      ],
+      "responsibility": "bindings and evidence persistence"
+    },
+    "vehicle": {
+      "paths": ["vehicle.py"],
+      "responsibility": "vehicle state"
+    },
+    "ha": {
+      "paths": [
+        "coordinator_clean.py",
+        "ha_platforms.py",
+        "entities.py",
+        "service_commands.py",
+        "registry_lifecycle.py",
+        "product_contract.py",
+        "product_entities.json"
+      ],
+      "responsibility": "HA projection and scheduling"
+    },
+    "workbench": {
+      "paths": ["dashboard.py", "frontend/panel.js", "entity_traceability.py"],
+      "responsibility": "admin engineering UX"
+    },
+    "diagnostics": {
+      "paths": [
+        "capability_status.py",
+        "response_preview.py",
+        "integration_health.py"
+      ],
+      "responsibility": "read-only reporting and redaction"
+    }
+  },
+  "migration_exclusions": ["__init__.py"],
+  "status": "partial closure; remaining generic catalog/status work tracked",
+  "change_policy": {
+    "principle": "simplify_before_adding",
+    "canonical_policy": "docs/V3_ARCHITECTURE_CLOSURE.md#mandatory-engineering-principle-simplify-before-adding",
+    "review_required": true,
+    "review_evidence": [
+      "existing_owner_and_contract",
+      "cleanup_or_no_cleanup_reason",
+      "justification_and_retirement_condition_for_new_complexity",
+      "regression_and_remaining_validation",
+      "operation_pattern_classification_and_exception_justification_when_applicable",
+      "single_authoritative_owner_and_removed_duplicate_state",
+      "maintainability_evidence_runtime_paths_and_contracts",
+      "user_journey_and_native_HA_presentation_evidence"
+    ],
+    "review_blockers": [
+      "unjustified_parallel_implementation",
+      "duplicate_source_of_truth",
+      "permanent_workaround_layer",
+      "speculative_capability_lockout",
+      "unowned_or_overlapping_responsibility",
+      "avoidable_user_configuration_or_technical_labels"
+    ],
+    "preserve": [
+      "HA_entity_identity_and_user_preferences",
+      "V2_rollback",
+      "security_and_quota_boundaries",
+      "release_gates",
+      "ordinary_use_without_workbench_or_duplicate_entities"
+    ],
+    "enforcement": "existing PR review; ownership and contract regression tests; no additional workflow",
+    "generic_operation_pattern": {
+      "target_percent": 80,
+      "target_kind": "design_target_not_release_gate",
+      "measurement": "unique_supported_operation_variants; generic_plus_parameterized_generic / all_classified; exclude duplicate aliases and reference-only rows",
+      "classification": ["generic", "parameterized_generic", "exceptional"],
+      "shared_contract": [
+        "request_template",
+        "typed_parameters",
+        "family_executor",
+        "response_extraction",
+        "value_transformation",
+        "command_lifecycle",
+        "evidence_and_projection"
+      ],
+      "exceptions": "document observed constraint, existing owner, focused regression evidence; preserve security and quota"
+    },
+    "workbench": {
+      "principle": "template_driven_direct_field_editing",
+      "views": ["overview", "capabilities", "configure_and_test", "api_log"],
+      "source": "backend_operation_definition",
+      "navigation": "select_edit_execute_inspect_same_screen",
+      "details": "foldable_optional_complex_fields",
+      "validation": "basic_frontend_syntax_and_types; existing_backend_authoritative",
+      "preserve": [
+        "draft_values_on_error",
+        "explicit_activation",
+        "physical_command_consent",
+        "vehicle_scope"
+      ],
+      "prohibit": [
+        "parallel_frontend_catalog",
+        "mandatory_read_wizard",
+        "bespoke_editor_per_standard_operation"
+      ],
+      "engineering_lifecycle": {
+        "analysis": "overview, capabilities, api_log; show unsupported, not_observed, failed and explicitly disabled separately",
+        "design": "backend operation template, editable fields and folded optional details",
+        "test": "isolated candidate evidence, no production data or binding change; explicit physical approval for commands",
+        "release": "explicit activation of validated local binding; portable local definition export/import implemented; physical acceptance remains open; software release separate",
+        "cleanup": "retire obsolete experiments and superseded executable paths; retain historical evidence and required migrations"
+      }
+    }
+  }
+}

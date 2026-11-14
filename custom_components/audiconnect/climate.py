@@ -44,13 +44,20 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     runtime_data: AudiRuntimeData = config_entry.runtime_data
-    async_add_entities(
-        AudiClimate(runtime_data.coordinator, config_vehicle.vehicle)
-        for config_vehicle in runtime_data.account.config_vehicles
-        if should_create_entity(
-            hass, "climate", "climatisation", config_vehicle.vehicle, _ATTR_KEY
-        )
-    )
+    from .v3.engine import V3Engine
+
+    if isinstance(runtime_data.v3, V3Engine):
+        from .v3.ha_platforms import setup as v3_setup
+
+        v3_setup("climate", config_entry, async_add_entities)
+        return
+
+    entities = []
+    for config_vehicle in runtime_data.account.config_vehicles:
+        vehicle = config_vehicle.vehicle
+        if should_create_entity(hass, "climate", "climatisation", vehicle, _ATTR_KEY):
+            entities.append(AudiClimate(runtime_data.coordinator, vehicle))
+    async_add_entities(entities)
 
 
 class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
@@ -166,21 +173,9 @@ class AudiClimate(AudiEntity, ClimateEntity, RestoreEntity):
 
     async def async_turn_on(self, *, force_temperature: bool = False) -> None:
         connection = self.coordinator.account.connection
-        # Some CARIAD cars accept start only with no body: use stored car
-        # settings when explicitly enabled. Never silently override user temp.
-        entry = getattr(self.coordinator, "config_entry", None)
-        options = getattr(entry, "options", {}) if entry is not None else {}
-        data = getattr(entry, "data", {}) if entry is not None else {}
-        quick_start = bool(options.get("climate_quick_start", False))
-        service = getattr(connection, "_audi_service", None)
-        modern_api = (
-            bool(getattr(service, "uses_auth0", False)) or data.get("api_level", 0) == 1
-        )
-        temperature = (
-            None
-            if quick_start and modern_api and not force_temperature
-            else self.native_target_temperature
-        )
+        # V2 always uses its historical temperature-bearing start.
+        # Bodyless route discovery belongs to the experimental V3 workbench.
+        temperature = self.native_target_temperature
         if not await connection.start_climate_control(
             self._vehicle.vin, temp_c=temperature
         ):

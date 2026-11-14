@@ -155,6 +155,25 @@ async def async_get_config_entry_diagnostics(
     if runtime is None:
         return result
 
+    # Clean V3 has no AudiAccount, V2 vehicle state, or legacy HTTP client.
+    # Export only bounded capability evidence and polling facts.
+    if getattr(runtime, "v3", None) is not None:
+        # Historical V2 test loaders import this module under a synthetic
+        # package without a v3 submodule. No V3 dependency is needed when
+        # the entry is running V2.
+        from .v3.engine import V3Engine
+    else:
+        V3Engine = ()  # type: ignore[assignment]
+    if isinstance(getattr(runtime, "v3", None), V3Engine):
+        result["runtime"] = {
+            "last_update_success": bool(
+                getattr(runtime.coordinator, "last_update_success", False)
+            ),
+            "v3": runtime.v3.diagnostics(),
+            "active_ha_platforms": [str(x) for x in runtime.loaded_platforms],
+        }
+        return result
+
     account = runtime.account
     connection = account.connection
     coordinator = runtime.coordinator
@@ -185,6 +204,7 @@ async def async_get_config_entry_diagnostics(
             getattr(api, "vcf_remaining_calls_last_observed", None)
         ),
         "vehicle_count": len(vehicles),
+        "v3": {"mode": "v2", "capabilities": []},
         "vehicles": [
             {
                 **_vehicle_snapshot(vehicle, idx, uses_auth0),

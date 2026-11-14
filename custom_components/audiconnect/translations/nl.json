@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Meld je aan met het oorspronkelijke Audi-account. Het account kon niet worden geverifieerd of komt niet overeen met deze integratie.",
       "already_configured": "Dit account is al geconfigureerd",
       "reauth_successful": "Herauthenticatie is geslaagd",
       "reconfigure_successful": "Herconfiguratie is geslaagd",
@@ -72,13 +73,25 @@
         "data": {
           "scan_interval": "Scaninterval",
           "edit_local_dealer": "Dealer en onderhoudsgegevens bewerken",
-          "experimental_commands": "Experimentele voertuigbediening inschakelen"
+          "runtime_version": "Uitvoeringsversie",
+          "v3_development_workbench": "V3 Development Workbench inschakelen",
+          "v3_data_act_enabled": "EU Data Act-fallback inschakelen (experimenteel)",
+          "v3_data_act_email": "Data Act-e-mailadres (optioneel)",
+          "v3_data_act_password": "Data Act-wachtwoord (optioneel)",
+          "filter_vins": "Uitgesloten VIN's",
+          "run_vehicle_discovery": "Voertuigdetectie en bediening testen"
         },
         "title": "Audi Connect-opties",
         "data_description": {
-          "scan_interval": "(Minuten) Opnieuw opstarten vereist om het nieuwe scaninterval van kracht te laten worden.",
+          "scan_interval": "Minuten tussen cloudupdates.",
           "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
-          "experimental_commands": "Toont optionele, door de gebruiker te bedienen CARIAD-functies zoals laden, ruitverwarming en wagen wekken. Standaard uit. Verifieer acties fysiek; API HTTP 200 is geen bewijs van uitvoering."
+          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen.",
+          "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard.",
+          "v3_data_act_enabled": "Alleen lezen uit een bestaande, geautoriseerde Data Act-aanvraag. Standaard uit. De gegevens kunnen dagen oud zijn.",
+          "v3_data_act_email": "Leeg gebruikt het bestaande myAudi-e-mailadres indien aanwezig. Geen nieuw account of toestemming wordt aangemaakt.",
+          "v3_data_act_password": "Leeg behoudt het eerder opgegeven wachtwoord of gebruikt het bestaande myAudi-wachtwoord indien aanwezig. Uitschakelen verwijdert de afzonderlijke portalgegevens.",
+          "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
+          "run_vehicle_discovery": "Bekijk automatische detectie en test beschikbare bediening expliciet. Zonder toestemming voor de specifieke actie wordt geen voertuigactie uitgevoerd."
         }
       },
       "dealer_vehicle": {
@@ -108,6 +121,470 @@
     },
     "abort": {
       "no_vehicle_available": "Er is nog geen Audi-voertuig geladen."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "v3_last_update_time": {
+        "name": "Laatste voertuigmeting"
+      },
+      "v3_shortterm_current": {
+        "name": "Ritgegevens korte termijn"
+      },
+      "v3_shortterm_reset": {
+        "name": "Ritgegevens korte termijn sinds reset"
+      },
+      "v3_longterm_current": {
+        "name": "Ritgegevens lange termijn"
+      },
+      "v3_longterm_reset": {
+        "name": "Ritgegevens lange termijn sinds reset"
+      },
+      "v3_model": {
+        "name": "Model"
+      },
+      "v3_mileage": {
+        "name": "Kilometerstand"
+      },
+      "v3_service_adblue_distance": {
+        "name": "AdBlue-rijbereik"
+      },
+      "v3_range": {
+        "name": "Totaal rijbereik"
+      },
+      "v3_hybrid_range": {
+        "name": "Gecombineerd rijbereik"
+      },
+      "v3_service_inspection_time": {
+        "name": "Tijd tot onderhoud"
+      },
+      "v3_service_inspection_distance": {
+        "name": "Afstand tot onderhoud"
+      },
+      "v3_oil_change_time": {
+        "name": "Tijd tot olieverversing"
+      },
+      "v3_oil_change_distance": {
+        "name": "Afstand tot olieverversing"
+      },
+      "v3_oil_level": {
+        "name": "Oliepeil in procent"
+      },
+      "v3_charging_state": {
+        "name": "Laadstatus"
+      },
+      "v3_charging_mode": {
+        "name": "Laadmodus"
+      },
+      "v3_charging_type": {
+        "name": "Laadtype"
+      },
+      "v3_energy_flow": {
+        "name": "Energiestroom"
+      },
+      "v3_max_charge_current": {
+        "name": "Maximale laadstroom"
+      },
+      "v3_charging_current_limit_a": {
+        "name": "AC-laadstroomlimiet"
+      },
+      "v3_charging_current_limit_mode": {
+        "name": "Laadstroommodus"
+      },
+      "v3_charging_plug_auto_unlock": {
+        "name": "Laadstekker ontgrendelen na laden"
+      },
+      "v3_vehicle_reported_online": {
+        "name": "Gemelde voertuigverbinding"
+      },
+      "v3_vehicle_reported_active": {
+        "name": "Gemelde voertuigactiviteit"
+      },
+      "v3_primary_engine_type": {
+        "name": "Primair aandrijvingstype"
+      },
+      "v3_secondary_engine_type": {
+        "name": "Secundair aandrijvingstype"
+      },
+      "v3_primary_engine_range": {
+        "name": "Primair rijbereik"
+      },
+      "v3_secondary_engine_range": {
+        "name": "Secundair rijbereik"
+      },
+      "v3_primary_engine_range_percent": {
+        "name": "Primair energieniveau"
+      },
+      "v3_car_type": {
+        "name": "Voertuigtype"
+      },
+      "v3_secondary_engine_range_percent": {
+        "name": "Secundair energieniveau"
+      },
+      "v3_charging_power": {
+        "name": "Laadvermogen"
+      },
+      "v3_actual_charge_rate": {
+        "name": "Laadsnelheid"
+      },
+      "v3_tank_level": {
+        "name": "Brandstofniveau"
+      },
+      "v3_state_of_charge": {
+        "name": "Batterijlaadniveau"
+      },
+      "v3_remaining_charging_time": {
+        "name": "Resterende laadtijd"
+      },
+      "v3_charging_complete_time": {
+        "name": "Einde laadsessie"
+      },
+      "v3_target_state_of_charge": {
+        "name": "Gewenst laadniveau"
+      },
+      "v3_external_power": {
+        "name": "Externe stroomvoorziening"
+      },
+      "v3_plug_led_color": {
+        "name": "Kleur laadstekker-led"
+      },
+      "v3_doors_trunk_status": {
+        "name": "Status deuren en koffer"
+      },
+      "v3_climatisation_state": {
+        "name": "Klimaatstatus"
+      },
+      "v3_outdoor_temperature": {
+        "name": "Buitentemperatuur"
+      },
+      "v3_park_time": {
+        "name": "Parkeertijdstip"
+      },
+      "v3_position_last_updated": {
+        "name": "Laatste positie-update"
+      },
+      "v3_remaining_climatisation_time": {
+        "name": "Resterende klimaattijd"
+      },
+      "v3_preheater_duration": {
+        "name": "Duur standverwarming"
+      },
+      "v3_preheater_remaining": {
+        "name": "Resterende standverwarmingstijd"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Laaddoel actief profiel"
+      },
+      "v3_active_charging_profile_name": {
+        "name": "Actief laadprofiel"
+      },
+      "v3_active_charging_profile_min_soc": {
+        "name": "Minimumlading actief profiel"
+      },
+      "v3_preferred_charging_time_start": {
+        "name": "Begin gewenst laadvenster"
+      },
+      "v3_preferred_charging_time_end": {
+        "name": "Einde gewenst laadvenster"
+      },
+      "v3_climatisation_timer_enabled_count": {
+        "name": "Actieve klimaattimers"
+      },
+      "v3_next_climatisation_timer_local": {
+        "name": "Volgende klimaattimer"
+      },
+      "v3_charging_timer_enabled_count": {
+        "name": "Actieve laadtimers"
+      },
+      "v3_vehicle_data_freshness": {
+        "name": "Actualiteit voertuiggegevens"
+      },
+      "v3_vehicle_data_age": {
+        "name": "Leeftijd voertuiggegevens"
+      },
+      "v3_cloud_last_successful_poll": {
+        "name": "Laatste succesvolle cloudopvraging"
+      },
+      "v3_local_dealer": {
+        "name": "Dealer"
+      },
+      "v3_service_overview": {
+        "name": "Onderhoudsoverzicht"
+      },
+      "v3_api_requests_remaining": {
+        "name": "Resterende API-aanvragen"
+      },
+      "v3_last_trip": {
+        "name": "Laatste rit"
+      },
+      "v3_last_trip_distance": {
+        "name": "Afstand (laatste rit)"
+      },
+      "v3_last_trip_duration": {
+        "name": "Duur (laatste rit)"
+      },
+      "v3_last_trip_average_speed": {
+        "name": "Gemiddelde snelheid (laatste rit)"
+      },
+      "v3_last_trip_average_fuel_consumption": {
+        "name": "Gemiddeld brandstofverbruik (laatste rit)"
+      },
+      "v3_last_trip_average_electric_consumption": {
+        "name": "Gemiddeld elektriciteitsverbruik (laatste rit)"
+      },
+      "v3_last_trip_fuel_consumption": {
+        "name": "Brandstofverbruik (laatste rit)"
+      },
+      "v3_last_trip_electric_consumption": {
+        "name": "Elektriciteitsverbruik (laatste rit)"
+      },
+      "v3_longterm_trip_distance": {
+        "name": "Afstand (lange termijn)"
+      },
+      "v3_longterm_trip_duration": {
+        "name": "Duur (lange termijn)"
+      },
+      "v3_longterm_trip_average_speed": {
+        "name": "Gemiddelde snelheid (lange termijn)"
+      },
+      "v3_longterm_trip_average_fuel_consumption": {
+        "name": "Gemiddeld brandstofverbruik (lange termijn)"
+      },
+      "v3_longterm_trip_average_electric_consumption": {
+        "name": "Gemiddeld elektriciteitsverbruik (lange termijn)"
+      },
+      "v3_longterm_trip_fuel_consumption": {
+        "name": "Brandstofverbruik (lange termijn)"
+      },
+      "v3_longterm_trip_electric_consumption": {
+        "name": "Elektriciteitsverbruik (lange termijn)"
+      },
+      "v3_shortterm_trip_distance": {
+        "name": "Afstand (korte termijn)"
+      },
+      "v3_shortterm_trip_duration": {
+        "name": "Duur (korte termijn)"
+      },
+      "v3_shortterm_trip_average_speed": {
+        "name": "Gemiddelde snelheid (korte termijn)"
+      },
+      "v3_shortterm_trip_average_fuel_consumption": {
+        "name": "Gemiddeld brandstofverbruik (korte termijn)"
+      },
+      "v3_shortterm_trip_average_electric_consumption": {
+        "name": "Gemiddeld elektriciteitsverbruik (korte termijn)"
+      },
+      "v3_shortterm_trip_fuel_consumption": {
+        "name": "Brandstofverbruik (korte termijn)"
+      },
+      "v3_shortterm_trip_electric_consumption": {
+        "name": "Elektriciteitsverbruik (korte termijn)"
+      },
+      "v3_last_trip_zero_emission_distance": {
+        "name": "Emissievrije afstand (laatste rit)"
+      },
+      "v3_shortterm_trip_zero_emission_distance": {
+        "name": "Emissievrije afstand (korte termijn)"
+      },
+      "v3_longterm_trip_zero_emission_distance": {
+        "name": "Emissievrije afstand (lange termijn)"
+      },
+      "v3_trip_history": {
+        "name": "Ritgeschiedenis"
+      },
+      "v3_discovery_coverage": {
+        "name": "Detectiedekking"
+      },
+      "v3_integration_status": {
+        "name": "Integratiestatus"
+      },
+      "v3_last_error": {
+        "name": "Laatste fout"
+      },
+      "v3_door_status": {
+        "name": "Deurstatus"
+      },
+      "v3_window_status": {
+        "name": "Raamstatus"
+      },
+      "v3_electric_range": {
+        "name": "Elektrisch rijbereik"
+      },
+      "v3_fuel_range": {
+        "name": "Rijbereik op brandstof"
+      }
+    },
+    "binary_sensor": {
+      "v3_plug_state": {
+        "name": "Laadstekker"
+      },
+      "v3_plug_lock_state": {
+        "name": "Laadstekkervergrendeling"
+      },
+      "v3_glass_surface_heating": {
+        "name": "Ruitverwarming"
+      },
+      "v3_sun_roof": {
+        "name": "Schuifdak"
+      },
+      "v3_roof_cover": {
+        "name": "Dakafdekking"
+      },
+      "v3_parking_light": {
+        "name": "Voertuigverlichting"
+      },
+      "v3_any_window_open": {
+        "name": "Ramen"
+      },
+      "v3_any_door_unlocked": {
+        "name": "Deurvergrendelingen"
+      },
+      "v3_any_door_open": {
+        "name": "Deuren"
+      },
+      "v3_trunk_unlocked": {
+        "name": "Koffervergrendeling"
+      },
+      "v3_trunk_open": {
+        "name": "Koffer"
+      },
+      "v3_hood_open": {
+        "name": "Motorkap"
+      },
+      "v3_left_front_door_open": {
+        "name": "Deur linksvoor"
+      },
+      "v3_right_front_door_open": {
+        "name": "Deur rechtsvoor"
+      },
+      "v3_left_rear_door_open": {
+        "name": "Deur linksachter"
+      },
+      "v3_right_rear_door_open": {
+        "name": "Deur rechtsachter"
+      },
+      "v3_left_front_window_open": {
+        "name": "Raam linksvoor"
+      },
+      "v3_right_front_window_open": {
+        "name": "Raam rechtsvoor"
+      },
+      "v3_left_rear_window_open": {
+        "name": "Raam linksachter"
+      },
+      "v3_right_rear_window_open": {
+        "name": "Raam rechtsachter"
+      },
+      "v3_braking_status": {
+        "name": "Remstatus"
+      },
+      "v3_oil_level_binary": {
+        "name": "Oliepeilwaarschuwing"
+      },
+      "v3_is_moving": {
+        "name": "Voertuig in beweging"
+      },
+      "v3_integration_problem": {
+        "name": "Integratieprobleem"
+      },
+      "v3_charging_ready": {
+        "name": "Klaar om te laden"
+      }
+    },
+    "button": {
+      "v3_refresh_vehicle_data": {
+        "name": "Nieuwe voertuiggegevens opvragen"
+      },
+      "v3_flash_lights": {
+        "name": "Lichten laten knipperen"
+      },
+      "v3_start_charging_modern": {
+        "name": "Laden starten"
+      },
+      "v3_stop_charging_modern": {
+        "name": "Laden stoppen"
+      },
+      "v3_start_window_heating_modern": {
+        "name": "Ruitverwarming starten"
+      },
+      "v3_stop_window_heating_modern": {
+        "name": "Ruitverwarming stoppen"
+      },
+      "v3_wake_vehicle_modern": {
+        "name": "Voertuig wekken"
+      },
+      "v3_start_engine": {
+        "name": "Motor starten"
+      },
+      "v3_stop_engine": {
+        "name": "Motor stoppen"
+      },
+      "v3_v3_refresh_cloud": {
+        "name": "Cloudgegevens vernieuwen"
+      }
+    },
+    "switch": {
+      "v3_preheater_active": {
+        "name": "Standverwarming"
+      },
+      "v3_climatisation_window_heating": {
+        "name": "Klimaat met ruitverwarming"
+      },
+      "v3_climatisation_at_unlock": {
+        "name": "Klimaat bij ontgrendelen"
+      },
+      "v3_climatisation_zone_front_left": {
+        "name": "Klimaatzone linksvoor"
+      },
+      "v3_climatisation_zone_front_right": {
+        "name": "Klimaatzone rechtsvoor"
+      },
+      "v3_climatisation_zone_rear_left": {
+        "name": "Klimaatzone linksachter"
+      },
+      "v3_climatisation_zone_rear_right": {
+        "name": "Klimaatzone rechtsachter"
+      },
+      "v3_climate_quick_control": {
+        "name": "Klimaat aan/uit"
+      },
+      "v3_charging": {
+        "name": "Laden"
+      },
+      "v3_window_heating": {
+        "name": "Ruitverwarming"
+      }
+    },
+    "number": {
+      "v3_target_state_of_charge": {
+        "name": "Gewenst laadniveau"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Laaddoel huidige locatie"
+      },
+      "v3_charge_profile_target_soc": {
+        "name": "Laaddoel profiel {profile_id}"
+      }
+    },
+    "select": {
+      "v3_charge_mode": {
+        "name": "Gewenste laadmodus"
+      }
+    },
+    "climate": {
+      "v3_climatisation": {
+        "name": "Klimaat"
+      }
+    },
+    "lock": {
+      "v3_lock": {
+        "name": "Centrale vergrendeling"
+      }
+    },
+    "device_tracker": {
+      "v3_position": {
+        "name": "Positie"
+      }
     }
   }
 }

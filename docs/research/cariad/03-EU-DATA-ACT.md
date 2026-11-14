@@ -93,7 +93,7 @@ The dictionary is a **possible field universe**, not evidence that the user's Au
 
 ## Integration design
 
-Introduce an optional **read-only** provider that maps known Data Act fields into a normalized observation model. It should never overwrite newer BFF observations for the same semantic field. The provider's scope is supplemental **historical/aggregate information**, fallback where explicitly valid, and debugging of missing coverage—not a replacement for myAudi command or live charging status.
+Introduce an optional **read-only** provider that maps known Data Act fields into a normalized observation model. It should never overwrite newer BFF observations for the same semantic field. The provider's scope is supplemental **historical/aggregate information**, independently selected read observations, explicit manufacturer metadata when available, and debugging of missing coverage—not a replacement for myAudi command or live charging status.
 
 Suggested source selection per measurement:
 
@@ -119,3 +119,13 @@ Avoid blindly preferring BFF if its measurement timestamp is older than the Data
 - [One-off versus continuous trip reconstruction](https://github.com/jmap42591/raval-trips)
 
 Continue with [04 — Freshness and availability](04-FRESHNESS-AND-AVAILABILITY.md).
+
+## Narrow implementation candidate
+
+The optional dataset reader uses an independently authorized portal session; it does not create consent or subscriptions. One metadata lookup, one listing and at most one new ZIP per read. No automatic retries or raw archive retention. The first mapping is current SOC only, using exact public field IDs; other SOC-at-start, mileage (multiple units/identities), target settings and command state are intentionally excluded. The existing Status observation writer and HA freshness contract own publication. An isolated authorized session and real Q8 dataset are still required before enabling the provider. The consumer portal behavior and sample field identities were compared against MIT-licensed community references above; no external client implementation is imported.
+
+Owner-supplied Q8 dataset review (private original not retained in the repository): 91 field rows, 91 individual timestamps, about 35 hours delivery delay. Sparse UUID/name mappings now include current SOC, odometer, fuel, combined/primary/secondary range and actual oil percentage. Synthetic tests reproduce the schema with invented values and VIN, never the original dataset. Service signs, temperature scaling, lock/window aggregation, timer semantics, and invalid remaining-time sentinels remain outside the first mapping. No per-model routing.
+
+## B34 identity candidate
+
+The consented vehicle list is read by the same optional API session, using `/proxy_api/consent/me/vehicles?viewPosition=FRONT_LEFT`. Community clients reference an explicit `modelName` property, but also use nickname fields for display; a nickname is never manufacturer metadata. Only exact known VIN matches, recognized Audi model labels and explicit validated year values are eligible for missing-field enrichment. No actual Q8 portal identity response has yet been captured. The relation endpoint is not queried merely to obtain a nickname. The existing identity owner and HA Model entity retain provenance, with at most one account-level identity read per hour when needed. No identity claim from the private 91-field ZIP or invented model/year.

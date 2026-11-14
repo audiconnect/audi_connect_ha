@@ -1,0 +1,4802 @@
+{
+  "schema_version": 1,
+  "source_ref": "a0f188647e857c16392c75bb3826d9ec6c9e28ec",
+  "review_branch": "fix/v3-b7-unavailable-v2-parity",
+  "generated_from": [
+    "sensor.py",
+    "binary_sensor.py",
+    "button.py",
+    "switch.py",
+    "number.py",
+    "select.py",
+    "lock.py",
+    "climate.py",
+    "device_tracker.py",
+    "services.yaml",
+    "v3/historical_catalog.py",
+    "v3/full_catalog.json",
+    "v3/attribute_contracts.json"
+  ],
+  "status_key": "v3_implementation",
+  "meaning": "Code-declared vs independent V3 code, never physical Q8 confirmation. Exactly 109 V2 source entity slots are listed; the independent historical API reference inventory happens to have 110 raw refs.",
+  "v2_platforms": [
+    "binary_sensor",
+    "button",
+    "climate",
+    "sensor",
+    "device_tracker",
+    "lock",
+    "number",
+    "select",
+    "switch"
+  ],
+  "v3_platforms": [
+    "binary_sensor",
+    "button",
+    "climate",
+    "sensor",
+    "device_tracker",
+    "lock",
+    "number",
+    "select",
+    "switch"
+  ],
+  "v2_services": [
+    "set_local_dealer",
+    "refresh_vehicle_data",
+    "execute_vehicle_action",
+    "start_climate_control",
+    "start_auxiliary_heating",
+    "set_location_charge_target",
+    "set_charge_mode",
+    "set_target_soc",
+    "start_engine",
+    "stop_engine",
+    "refresh_cloud_data"
+  ],
+  "v2_execute_vehicle_actions": [
+    "lock",
+    "unlock",
+    "start_climatisation",
+    "stop_climatisation",
+    "start_charger",
+    "start_timed_charger",
+    "stop_charger",
+    "start_preheater",
+    "stop_preheater",
+    "start_window_heating",
+    "stop_window_heating"
+  ],
+  "counts": {
+    "source_sensor_keys": 57,
+    "source_binary_keys": 23,
+    "source_button_keys": 9,
+    "source_switch_keys": 7,
+    "source_number_keys": 2,
+    "source_sensor_extras": 6,
+    "source_dynamic_profile_number": true,
+    "historical_refs": 110,
+    "historical_with_paths": 53,
+    "historical_without_paths": 57,
+    "metadata_contracts": 72,
+    "api_jobs": 23,
+    "v2_services": 11,
+    "v2_action_options": 11,
+    "entity_rows": 109,
+    "control_workstreams": 19,
+    "v3_only_controls": 1,
+    "v3_platforms_forwarded": 9,
+    "v3_native_controls_readiness": "implemented_conditional_unverified",
+    "fixbranch_additional_entity_rows": 1,
+    "v3_code_path_classifications": {
+      "mapped_conditional": 87,
+      "candidate_after_manual_proof": 22
+    },
+    "v3_api_operations": 62,
+    "binary_metadata_contracts": 23
+  },
+  "entities": [
+    {
+      "id": "sensor.last_update_time",
+      "platform": "sensor",
+      "key": "last_update_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_last_update_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["last_update_time"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.shortterm_current",
+      "platform": "sensor",
+      "key": "shortterm_current",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_shortterm_current",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["shortterm_current"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/trips.py, v3/engine.py, v3/entities.py",
+      "remaining_gap": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.shortterm_reset",
+      "platform": "sensor",
+      "key": "shortterm_reset",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_shortterm_reset",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["shortterm_reset"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/trips.py, v3/engine.py, v3/entities.py",
+      "remaining_gap": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.longterm_current",
+      "platform": "sensor",
+      "key": "longterm_current",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_longterm_current",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["longterm_current"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/trips.py, v3/engine.py, v3/entities.py",
+      "remaining_gap": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.longterm_reset",
+      "platform": "sensor",
+      "key": "longterm_reset",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_longterm_reset",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["longterm_reset"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/trips.py, v3/engine.py, v3/entities.py",
+      "remaining_gap": "MBB current/reset and CARIAD current/last supported; CARIAD reset history not established.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.model",
+      "platform": "sensor",
+      "key": "model",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_model",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["model"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.mileage",
+      "platform": "sensor",
+      "key": "mileage",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_mileage",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": "total_increasing",
+        "precision": 0
+      },
+      "historical_ids": ["UTC_TIME_AND_KILOMETER_STATUS", "mileage"],
+      "historical_paths": ["measurements.odometerStatus.value.odometer"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.service_adblue_distance",
+      "platform": "sensor",
+      "key": "service_adblue_distance",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_service_adblue_distance",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": ["ADBLUE_RANGE", "service_adblue_distance"],
+      "historical_paths": ["measurements.rangeStatus.value.adBlueRange"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.range",
+      "platform": "sensor",
+      "key": "range",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_range",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": ["TOTAL_RANGE", "range"],
+      "historical_paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.hybrid_range",
+      "platform": "sensor",
+      "key": "hybrid_range",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_hybrid_range",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": ["hybridRange"],
+      "historical_paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.service_inspection_time",
+      "platform": "sensor",
+      "key": "service_inspection_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_service_inspection_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "d",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [
+        "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+        "service_inspection_time"
+      ],
+      "historical_paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.inspectionDue_days"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.service_inspection_distance",
+      "platform": "sensor",
+      "key": "service_inspection_distance",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_service_inspection_distance",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": [
+        "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+        "service_inspection_distance"
+      ],
+      "historical_paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.inspectionDue_km"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.oil_change_time",
+      "platform": "sensor",
+      "key": "oil_change_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_oil_change_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "d",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [
+        "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+        "oil_change_time"
+      ],
+      "historical_paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.oilServiceDue_days"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.oil_change_distance",
+      "platform": "sensor",
+      "key": "oil_change_distance",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_oil_change_distance",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": [
+        "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
+        "oil_change_distance"
+      ],
+      "historical_paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.oilServiceDue_km"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.oil_level",
+      "platform": "sensor",
+      "key": "oil_level",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_oil_level",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["OIL_LEVEL_DIPSTICKS_PERCENTAGE", "oil_level"],
+      "historical_paths": ["oilLevel.oilLevelStatus.value.value"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_state",
+      "platform": "sensor",
+      "key": "charging_state",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_state",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["chargingState"],
+      "historical_paths": ["charging.chargingStatus.value.chargingState"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["chargingState"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_mode",
+      "platform": "sensor",
+      "key": "charging_mode",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_mode",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["chargeMode", "preferredChargeMode"],
+      "historical_paths": [
+        "charging.chargingStatus.value.chargeMode",
+        "charging.chargeMode.value.preferredChargeMode"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_type",
+      "platform": "sensor",
+      "key": "charging_type",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_type",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["charging_type"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.energy_flow",
+      "platform": "sensor",
+      "key": "energy_flow",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_energy_flow",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["energy_flow"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/legacy_values.py, v3/legacy_read_mappings.py, v3/entities.py",
+      "remaining_gap": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.max_charge_current",
+      "platform": "sensor",
+      "key": "max_charge_current",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_max_charge_current",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "A",
+        "device_class": "current",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["max_charge_current"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_current_limit_a",
+      "platform": "sensor",
+      "key": "charging_current_limit_a",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_current_limit_a",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "A",
+        "device_class": "current",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["chargingCurrentLimitA"],
+      "historical_paths": [
+        "charging.chargingSettings.value.maxChargeCurrentAC_A"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_current_limit_mode",
+      "platform": "sensor",
+      "key": "charging_current_limit_mode",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_current_limit_mode",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["chargingCurrentLimitMode"],
+      "historical_paths": [
+        "charging.chargingSettings.value.maxChargeCurrentAC"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_plug_auto_unlock",
+      "platform": "sensor",
+      "key": "charging_plug_auto_unlock",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_plug_auto_unlock",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["chargingPlugAutoUnlock"],
+      "historical_paths": [
+        "charging.chargingSettings.value.autoUnlockPlugWhenChargedAC"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.vehicle_reported_online",
+      "platform": "sensor",
+      "key": "vehicle_reported_online",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_vehicle_reported_online",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["vehicleReportedOnline"],
+      "historical_paths": [
+        "readiness.readinessStatus.value.connectionState.isOnline"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.vehicle_reported_active",
+      "platform": "sensor",
+      "key": "vehicle_reported_active",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_vehicle_reported_active",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["vehicleReportedActive"],
+      "historical_paths": [
+        "readiness.readinessStatus.value.connectionState.isActive"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.primary_engine_type",
+      "platform": "sensor",
+      "key": "primary_engine_type",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_primary_engine_type",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["primary_engine_type"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.secondary_engine_type",
+      "platform": "sensor",
+      "key": "secondary_engine_type",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_secondary_engine_type",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["secondary_engine_type"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.primary_engine_range",
+      "platform": "sensor",
+      "key": "primary_engine_range",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_primary_engine_range",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": ["primaryEngineRange"],
+      "historical_paths": [
+        "fuelStatus.rangeStatus.value.primaryEngine.remainingRange_km"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.secondary_engine_range",
+      "platform": "sensor",
+      "key": "secondary_engine_range",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_secondary_engine_range",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "km",
+        "device_class": "distance",
+        "state_class": null,
+        "precision": 0
+      },
+      "historical_ids": ["secondaryEngineRange"],
+      "historical_paths": [
+        "fuelStatus.rangeStatus.value.secondaryEngine.remainingRange_km"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.primary_engine_range_percent",
+      "platform": "sensor",
+      "key": "primary_engine_range_percent",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_primary_engine_range_percent",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["primaryEngineRangePercent"],
+      "historical_paths": [
+        "fuelStatus.rangeStatus.value.primaryEngine.currentSOC_pct"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.car_type",
+      "platform": "sensor",
+      "key": "car_type",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_car_type",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["carType"],
+      "historical_paths": ["fuelStatus.rangeStatus.value.carType"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.secondary_engine_range_percent",
+      "platform": "sensor",
+      "key": "secondary_engine_range_percent",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_secondary_engine_range_percent",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["secondaryEngineRangePercent"],
+      "historical_paths": [
+        "fuelStatus.rangeStatus.value.secondaryEngine.currentSOC_pct"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_power",
+      "platform": "sensor",
+      "key": "charging_power",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_power",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "kW",
+        "device_class": "power",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["chargingPower"],
+      "historical_paths": ["charging.chargingStatus.value.chargePower_kW"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["chargingPower"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.actual_charge_rate",
+      "platform": "sensor",
+      "key": "actual_charge_rate",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_actual_charge_rate",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["actualChargeRate"],
+      "historical_paths": ["charging.chargingStatus.value.chargeRate_kmph"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["actualChargeRate"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.tank_level",
+      "platform": "sensor",
+      "key": "tank_level",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_tank_level",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["TANK_LEVEL_IN_PERCENTAGE", "tank_level"],
+      "historical_paths": [
+        "measurements.fuelLevelStatus.value.currentFuelLevel_pct"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.state_of_charge",
+      "platform": "sensor",
+      "key": "state_of_charge",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_state_of_charge",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": "battery",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["stateOfCharge"],
+      "historical_paths": ["charging.batteryStatus.value.currentSOC_pct"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["stateOfCharge"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.remaining_charging_time",
+      "platform": "sensor",
+      "key": "remaining_charging_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_remaining_charging_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["remainingChargingTime"],
+      "historical_paths": [
+        "charging.chargingStatus.value.remainingChargingTimeToComplete_min"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["remainingChargingTime"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_complete_time",
+      "platform": "sensor",
+      "key": "charging_complete_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_complete_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["charging_complete_time"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.target_state_of_charge",
+      "platform": "sensor",
+      "key": "target_state_of_charge",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_target_state_of_charge",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["targetstateOfCharge"],
+      "historical_paths": ["charging.chargingSettings.value.targetSOC_pct"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["targetstateOfCharge"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.external_power",
+      "platform": "sensor",
+      "key": "external_power",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_external_power",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["externalPower"],
+      "historical_paths": ["charging.plugStatus.value.externalPower"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["externalPower"],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.plug_led_color",
+      "platform": "sensor",
+      "key": "plug_led_color",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_plug_led_color",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["plug_led_color"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.doors_trunk_status",
+      "platform": "sensor",
+      "key": "doors_trunk_status",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_doors_trunk_status",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["doors_trunk_status"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.climatisation_state",
+      "platform": "sensor",
+      "key": "climatisation_state",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_climatisation_state",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["climatisationState"],
+      "historical_paths": [
+        "climatisation.auxiliaryHeatingStatus.value.climatisationState",
+        "climatisation.climatisationStatus.value.climatisationState"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.outdoor_temperature",
+      "platform": "sensor",
+      "key": "outdoor_temperature",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_outdoor_temperature",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "°C",
+        "device_class": "temperature",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["outdoor_temperature"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/legacy_values.py, v3/legacy_read_mappings.py, v3/entities.py",
+      "remaining_gap": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.park_time",
+      "platform": "sensor",
+      "key": "park_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_park_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["park_time"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "remaining_gap": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.position_last_updated",
+      "platform": "sensor",
+      "key": "position_last_updated",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_position_last_updated",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": "timestamp",
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["position_last_updated"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "remaining_gap": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.remaining_climatisation_time",
+      "platform": "sensor",
+      "key": "remaining_climatisation_time",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_remaining_climatisation_time",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "min",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["remainingClimatisationTime"],
+      "historical_paths": [
+        "climatisation.climatisationStatus.value.remainingClimatisationTime_min"
+      ],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.preheater_duration",
+      "platform": "sensor",
+      "key": "preheater_duration",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_preheater_duration",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "min",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["preheater_duration"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "CARIAD auxiliary-heating or MBB preheater status payload required; no invented duration.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "CARIAD auxiliary-heating or MBB preheater status payload required; no invented duration.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.preheater_remaining",
+      "platform": "sensor",
+      "key": "preheater_remaining",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_preheater_remaining",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "min",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["preheater_remaining"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "CARIAD auxiliary-heating or MBB preheater status payload required; no invented duration.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "CARIAD auxiliary-heating or MBB preheater status payload required; no invented duration.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.active_charging_profile_target_soc",
+      "platform": "sensor",
+      "key": "active_charging_profile_target_soc",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_active_charging_profile_target_soc",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": "measurement",
+        "precision": null
+      },
+      "historical_ids": ["active_charging_profile_target_soc"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.active_charging_profile_name",
+      "platform": "sensor",
+      "key": "active_charging_profile_name",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_active_charging_profile_name",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["active_charging_profile_name"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.active_charging_profile_min_soc",
+      "platform": "sensor",
+      "key": "active_charging_profile_min_soc",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_active_charging_profile_min_soc",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": "%",
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["active_charging_profile_min_soc"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.preferred_charging_time_start",
+      "platform": "sensor",
+      "key": "preferred_charging_time_start",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_preferred_charging_time_start",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["preferred_charging_time_start"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.preferred_charging_time_end",
+      "platform": "sensor",
+      "key": "preferred_charging_time_end",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_preferred_charging_time_end",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["preferred_charging_time_end"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.climatisation_timer_enabled_count",
+      "platform": "sensor",
+      "key": "climatisation_timer_enabled_count",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_climatisation_timer_enabled_count",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["climatisation_timer_enabled_count"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.next_climatisation_timer_local",
+      "platform": "sensor",
+      "key": "next_climatisation_timer_local",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_next_climatisation_timer_local",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["next_climatisation_timer_local"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.charging_timer_enabled_count",
+      "platform": "sensor",
+      "key": "charging_timer_enabled_count",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_charging_timer_enabled_count",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": ["charging_timer_enabled_count"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.vehicle_data_freshness",
+      "platform": "sensor",
+      "key": "vehicle_data_freshness",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_vehicle_data_freshness",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.vehicle_data_age",
+      "platform": "sensor",
+      "key": "vehicle_data_age",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_vehicle_data_age",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.cloud_last_successful_poll",
+      "platform": "sensor",
+      "key": "cloud_last_successful_poll",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_cloud_last_successful_poll",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.local_dealer",
+      "platform": "sensor",
+      "key": "local_dealer",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_local_dealer",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.service_overview",
+      "platform": "sensor",
+      "key": "service_overview",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{vin_lower}_sensor_service_overview",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "sensor.api_requests_remaining",
+      "platform": "sensor",
+      "key": "api_requests_remaining",
+      "source": "sensor.py",
+      "v2_unique_id_template": "{entry_id}_api_requests_remaining",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "v2_meta": {
+        "unit": null,
+        "device_class": null,
+        "state_class": null,
+        "precision": null
+      },
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Live quota or restored display-only quota; actual HA restart verification pending.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/transport.py",
+      "remaining_gap": "Live quota or restored display-only quota; actual HA restart verification pending.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.plug_state",
+      "platform": "binary_sensor",
+      "key": "plug_state",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_plug_state",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["plugState"],
+      "historical_paths": ["charging.plugStatus.value.plugConnectionState"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["plugState"],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.plug_lock_state",
+      "platform": "binary_sensor",
+      "key": "plug_lock_state",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_plug_lock_state",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["plugLockState"],
+      "historical_paths": ["charging.plugStatus.value.plugLockState"],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/historical_catalog.py, v3/attribute_runtime.py, v3/entities.py",
+      "remaining_gap": "Requires applicable Audi response and actual HA state/readback; no live proof.",
+      "automated_evidence": {
+        "raw_parser_fixture": ["plugLockState"],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.glass_surface_heating",
+      "platform": "binary_sensor",
+      "key": "glass_surface_heating",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_glass_surface_heating",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["glass_surface_heating"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/legacy_values.py, v3/legacy_read_mappings.py, v3/entities.py",
+      "remaining_gap": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.sun_roof",
+      "platform": "binary_sensor",
+      "key": "sun_roof",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_sun_roof",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["sun_roof"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.roof_cover",
+      "platform": "binary_sensor",
+      "key": "roof_cover",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_roof_cover",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["roof_cover"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.parking_light",
+      "platform": "binary_sensor",
+      "key": "parking_light",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_parking_light",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["parking_light"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.any_window_open",
+      "platform": "binary_sensor",
+      "key": "any_window_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_any_window_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["any_window_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.any_door_unlocked",
+      "platform": "binary_sensor",
+      "key": "any_door_unlocked",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_any_door_unlocked",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["any_door_unlocked"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.any_door_open",
+      "platform": "binary_sensor",
+      "key": "any_door_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_any_door_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["any_door_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.trunk_unlocked",
+      "platform": "binary_sensor",
+      "key": "trunk_unlocked",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_trunk_unlocked",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["trunk_unlocked"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.trunk_open",
+      "platform": "binary_sensor",
+      "key": "trunk_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_trunk_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["trunk_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.hood_open",
+      "platform": "binary_sensor",
+      "key": "hood_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_hood_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["hood_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.left_front_door_open",
+      "platform": "binary_sensor",
+      "key": "left_front_door_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_left_front_door_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["left_front_door_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.right_front_door_open",
+      "platform": "binary_sensor",
+      "key": "right_front_door_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_right_front_door_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["right_front_door_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.left_rear_door_open",
+      "platform": "binary_sensor",
+      "key": "left_rear_door_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_left_rear_door_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["left_rear_door_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.right_rear_door_open",
+      "platform": "binary_sensor",
+      "key": "right_rear_door_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_right_rear_door_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["right_rear_door_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.left_front_window_open",
+      "platform": "binary_sensor",
+      "key": "left_front_window_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_left_front_window_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["left_front_window_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.right_front_window_open",
+      "platform": "binary_sensor",
+      "key": "right_front_window_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_right_front_window_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["right_front_window_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.left_rear_window_open",
+      "platform": "binary_sensor",
+      "key": "left_rear_window_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_left_rear_window_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["left_rear_window_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.right_rear_window_open",
+      "platform": "binary_sensor",
+      "key": "right_rear_window_open",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_right_rear_window_open",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["right_rear_window_open"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.braking_status",
+      "platform": "binary_sensor",
+      "key": "braking_status",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_braking_status",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["braking_status"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/legacy_values.py, v3/legacy_read_mappings.py, v3/entities.py",
+      "remaining_gap": "Historical MBB source; modern equivalent not established where the source does not expose it.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.oil_level_binary",
+      "platform": "binary_sensor",
+      "key": "oil_level_binary",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_oil_level_binary",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["oil_level_binary"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/derived_values.py, v3/legacy_values.py, v3/entities.py",
+      "remaining_gap": "Source-dependent normalized/derived values; complete component evidence required for negative security states.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "binary_sensor.is_moving",
+      "platform": "binary_sensor",
+      "key": "is_moving",
+      "source": "binary_sensor.py",
+      "v2_unique_id_template": "{vin_lower}_binary_sensor_is_moving",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": ["is_moving"],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "remaining_gap": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "v2_binary_description_comparison",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.refresh_vehicle_data",
+      "platform": "button",
+      "key": "refresh_vehicle_data",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_refresh_vehicle_data",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.flash_lights",
+      "platform": "button",
+      "key": "flash_lights",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_flash_lights",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.start_charging_modern",
+      "platform": "button",
+      "key": "start_charging_modern",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_start_charging_modern",
+      "v2_experimental": true,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.stop_charging_modern",
+      "platform": "button",
+      "key": "stop_charging_modern",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_stop_charging_modern",
+      "v2_experimental": true,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.start_window_heating_modern",
+      "platform": "button",
+      "key": "start_window_heating_modern",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_start_window_heating_modern",
+      "v2_experimental": true,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.stop_window_heating_modern",
+      "platform": "button",
+      "key": "stop_window_heating_modern",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_stop_window_heating_modern",
+      "v2_experimental": true,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.wake_vehicle_modern",
+      "platform": "button",
+      "key": "wake_vehicle_modern",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_wake_vehicle_modern",
+      "v2_experimental": true,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.start_engine",
+      "platform": "button",
+      "key": "start_engine",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_start_engine",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "button.stop_engine",
+      "platform": "button",
+      "key": "stop_engine",
+      "source": "button.py",
+      "v2_unique_id_template": "{vin_lower}_button_stop_engine",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.preheater_active",
+      "platform": "switch",
+      "key": "preheater_active",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_preheater_active",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.climatisation_window_heating",
+      "platform": "switch",
+      "key": "climatisation_window_heating",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_climatisation_window_heating",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.climatisation_at_unlock",
+      "platform": "switch",
+      "key": "climatisation_at_unlock",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_climatisation_at_unlock",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.climatisation_zone_front_left",
+      "platform": "switch",
+      "key": "climatisation_zone_front_left",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_climatisation_zone_front_left",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.climatisation_zone_front_right",
+      "platform": "switch",
+      "key": "climatisation_zone_front_right",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_climatisation_zone_front_right",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.climatisation_zone_rear_left",
+      "platform": "switch",
+      "key": "climatisation_zone_rear_left",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_climatisation_zone_rear_left",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "switch.climatisation_zone_rear_right",
+      "platform": "switch",
+      "key": "climatisation_zone_rear_right",
+      "source": "switch.py",
+      "v2_unique_id_template": "{vin_lower}_switch_climatisation_zone_rear_right",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "number.target_state_of_charge",
+      "platform": "number",
+      "key": "target_state_of_charge",
+      "source": "number.py",
+      "v2_unique_id_template": "{vin_lower}_number_target_state_of_charge",
+      "v2_experimental": false,
+      "v2_dynamic": true,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P0",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "number.active_charging_profile_target_soc",
+      "platform": "number",
+      "key": "active_charging_profile_target_soc",
+      "source": "number.py",
+      "v2_unique_id_template": "{vin_lower}_number_active_charging_profile_target_soc",
+      "v2_experimental": false,
+      "v2_dynamic": true,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "number.charge_profile_{profile_id}_target_soc",
+      "platform": "number",
+      "key": "charge_profile_{profile_id}_target_soc",
+      "source": "number.py",
+      "v2_unique_id_template": "{vin_lower}_number_charge_profile_{profile_id}_target_soc",
+      "v2_experimental": false,
+      "v2_dynamic": true,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "select.charge_mode",
+      "platform": "select",
+      "key": "charge_mode",
+      "source": "select.py",
+      "v2_unique_id_template": "{vin_lower}_select_charge_mode",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "climate.climatisation",
+      "platform": "climate",
+      "key": "climatisation",
+      "source": "climate.py",
+      "v2_unique_id_template": "{vin_lower}_climate_climatisation",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "lock.lock",
+      "platform": "lock",
+      "key": "lock",
+      "source": "lock.py",
+      "v2_unique_id_template": "{vin_lower}_lock_lock",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "candidate_after_manual_proof",
+      "notes": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "priority": "P1",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py, v3/engine.py, v3/full_catalog.json",
+      "remaining_gap": "Reviewed route and native entity exist; per-vehicle capability, consent and functional confirmation required.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    },
+    {
+      "id": "device_tracker.position",
+      "platform": "device_tracker",
+      "key": "position",
+      "source": "device_tracker.py",
+      "v2_unique_id_template": "{vin_lower}_device_tracker_position",
+      "v2_experimental": false,
+      "v2_dynamic": false,
+      "historical_ids": [],
+      "historical_paths": [],
+      "v3_implementation": "mapped_conditional",
+      "notes": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "priority": "P2",
+      "q8_v3_verified": false,
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "remaining_gap": "Parking endpoint only, quota/registry eligibility; movement is a recent endpoint indication, not live GPS.",
+      "automated_evidence": {
+        "raw_parser_fixture": [],
+        "ha_metadata": "not_assessed_by_this_check",
+        "physical_q8": "not_verified"
+      }
+    }
+  ],
+  "source_references": [
+    {
+      "id": "TOTAL_RANGE",
+      "platform": "sensor",
+      "entity_key": "range",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "TANK_LEVEL_IN_PERCENTAGE",
+      "platform": "sensor",
+      "entity_key": "tank_level",
+      "capability": "vehicle_status",
+      "job": "measurements",
+      "paths": ["measurements.fuelLevelStatus.value.currentFuelLevel_pct"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "UTC_TIME_AND_KILOMETER_STATUS",
+      "platform": "sensor",
+      "entity_key": "mileage",
+      "capability": "vehicle_status",
+      "job": "measurements",
+      "paths": ["measurements.odometerStatus.value.odometer"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+      "platform": "sensor",
+      "entity_key": "service_inspection_time",
+      "capability": "service",
+      "job": "vehicleHealthInspection",
+      "paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.inspectionDue_days"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "MAINTENANCE_INTERVAL_DISTANCE_TO_INSPECTION",
+      "platform": "sensor",
+      "entity_key": "service_inspection_distance",
+      "capability": "service",
+      "job": "vehicleHealthInspection",
+      "paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.inspectionDue_km"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+      "platform": "sensor",
+      "entity_key": "oil_change_time",
+      "capability": "service",
+      "job": "vehicleHealthInspection",
+      "paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.oilServiceDue_days"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "MAINTENANCE_INTERVAL_DISTANCE_TO_OIL_CHANGE",
+      "platform": "sensor",
+      "entity_key": "oil_change_distance",
+      "capability": "service",
+      "job": "vehicleHealthInspection",
+      "paths": [
+        "vehicleHealthInspection.maintenanceStatus.value.oilServiceDue_km"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "OIL_LEVEL_DIPSTICKS_PERCENTAGE",
+      "platform": "sensor",
+      "entity_key": "oil_level",
+      "capability": "vehicle_status",
+      "job": "oilLevel",
+      "paths": ["oilLevel.oilLevelStatus.value.value"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "ADBLUE_RANGE",
+      "platform": "sensor",
+      "entity_key": "service_adblue_distance",
+      "capability": "vehicle_status",
+      "job": "measurements",
+      "paths": ["measurements.rangeStatus.value.adBlueRange"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "LIGHT_STATUS",
+      "platform": "sensor",
+      "entity_key": "vehicle_lights",
+      "capability": "vehicle_status",
+      "job": "vehicleLights",
+      "paths": ["vehicleLights.lightsStatus.value.lights"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "doorLockStatus",
+      "platform": "sensor",
+      "entity_key": "door_lock_status",
+      "capability": "access",
+      "job": "access",
+      "paths": ["access.accessStatus.value.doorLockStatus"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "carType",
+      "platform": "sensor",
+      "entity_key": "car_type",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.carType"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "engineTypeFirstEngine",
+      "platform": "sensor",
+      "entity_key": "engine_type_first_engine",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.primaryEngine.type"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "primaryEngineRange",
+      "platform": "sensor",
+      "entity_key": "primary_engine_range",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.primaryEngine.remainingRange_km"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "primaryEngineRangePercent",
+      "platform": "sensor",
+      "entity_key": "primary_engine_range_percent",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.primaryEngine.currentSOC_pct"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "engineTypeSecondEngine",
+      "platform": "sensor",
+      "entity_key": "engine_type_second_engine",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.secondaryEngine.type"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "secondaryEngineRange",
+      "platform": "sensor",
+      "entity_key": "secondary_engine_range",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": [
+        "fuelStatus.rangeStatus.value.secondaryEngine.remainingRange_km"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "secondaryEngineRangePercent",
+      "platform": "sensor",
+      "entity_key": "secondary_engine_range_percent",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.secondaryEngine.currentSOC_pct"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "hybridRange",
+      "platform": "sensor",
+      "entity_key": "hybrid_range",
+      "capability": "vehicle_status",
+      "job": "fuelStatus",
+      "paths": ["fuelStatus.rangeStatus.value.totalRange_km"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "stateOfCharge",
+      "platform": "sensor",
+      "entity_key": "state_of_charge",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.batteryStatus.value.currentSOC_pct"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingState",
+      "platform": "sensor",
+      "entity_key": "charging_state",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingStatus.value.chargingState"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargeMode",
+      "platform": "sensor",
+      "entity_key": "charging_mode",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingStatus.value.chargeMode"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingPower",
+      "platform": "sensor",
+      "entity_key": "charging_power",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingStatus.value.chargePower_kW"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "actualChargeRate",
+      "platform": "sensor",
+      "entity_key": "actual_charge_rate",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingStatus.value.chargeRate_kmph"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargeType",
+      "platform": "sensor",
+      "entity_key": "charge_type",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingStatus.value.chargeType"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "targetstateOfCharge",
+      "platform": "sensor",
+      "entity_key": "target_state_of_charge",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingSettings.value.targetSOC_pct"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "plugState",
+      "platform": "binary_sensor",
+      "entity_key": "plug_state",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.plugStatus.value.plugConnectionState"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "remainingChargingTime",
+      "platform": "sensor",
+      "entity_key": "remaining_charging_time",
+      "capability": "charging",
+      "job": "charging",
+      "paths": [
+        "charging.chargingStatus.value.remainingChargingTimeToComplete_min"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "plugLockState",
+      "platform": "binary_sensor",
+      "entity_key": "plug_lock_state",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.plugStatus.value.plugLockState"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "externalPower",
+      "platform": "sensor",
+      "entity_key": "external_power",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.plugStatus.value.externalPower"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "plugledColor",
+      "platform": "sensor",
+      "entity_key": "plugled_color",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.plugStatus.value.ledColor"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationState",
+      "platform": "sensor",
+      "entity_key": "climatisation_state",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.auxiliaryHeatingStatus.value.climatisationState",
+        "climatisation.climatisationStatus.value.climatisationState"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "remainingClimatisationTime",
+      "platform": "sensor",
+      "entity_key": "remaining_climatisation_time",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationStatus.value.remainingClimatisationTime_min"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "preferredChargeMode",
+      "platform": "sensor",
+      "entity_key": "charging_mode",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargeMode.value.preferredChargeMode"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "availableChargeModes",
+      "platform": "diagnostic_only",
+      "entity_key": "charging_mode",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargeMode.value.availableChargeModes"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationTargetTemperatureC",
+      "platform": "sensor",
+      "entity_key": "climatisation_target_temperature_c",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.targetTemperature_C"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationTargetTemperatureF",
+      "platform": "sensor",
+      "entity_key": "climatisation_target_temperature_f",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.targetTemperature_F"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationWindowHeatingEnabled",
+      "platform": "sensor",
+      "entity_key": "climatisation_window_heating_enabled",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.windowHeatingEnabled"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationAtUnlock",
+      "platform": "sensor",
+      "entity_key": "climatisation_at_unlock",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.climatizationAtUnlock"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationWithoutExternalPower",
+      "platform": "sensor",
+      "entity_key": "climatisation_without_external_power",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.climatisationWithoutExternalPower"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationZoneFrontLeft",
+      "platform": "sensor",
+      "entity_key": "climatisation_zone_front_left",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.zoneFrontLeftEnabled"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationZoneFrontRight",
+      "platform": "sensor",
+      "entity_key": "climatisation_zone_front_right",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.zoneFrontRightEnabled"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationZoneRearLeft",
+      "platform": "sensor",
+      "entity_key": "climatisation_zone_rear_left",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.zoneRearLeftEnabled"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationZoneRearRight",
+      "platform": "sensor",
+      "entity_key": "climatisation_zone_rear_right",
+      "capability": "climate",
+      "job": "climatisation",
+      "paths": [
+        "climatisation.climatisationSettings.value.zoneRearRightEnabled"
+      ],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingCurrentLimitA",
+      "platform": "sensor",
+      "entity_key": "charging_current_limit_a",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingSettings.value.maxChargeCurrentAC_A"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingCurrentLimitMode",
+      "platform": "sensor",
+      "entity_key": "charging_current_limit_mode",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingSettings.value.maxChargeCurrentAC"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingPlugAutoUnlock",
+      "platform": "sensor",
+      "entity_key": "charging_plug_auto_unlock",
+      "capability": "charging",
+      "job": "charging",
+      "paths": ["charging.chargingSettings.value.autoUnlockPlugWhenChargedAC"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "vehicleReportedOnline",
+      "platform": "sensor",
+      "entity_key": "vehicle_reported_online",
+      "capability": "vehicle_status",
+      "job": "readiness",
+      "paths": ["readiness.readinessStatus.value.connectionState.isOnline"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "vehicleReportedActive",
+      "platform": "sensor",
+      "entity_key": "vehicle_reported_active",
+      "capability": "vehicle_status",
+      "job": "readiness",
+      "paths": ["readiness.readinessStatus.value.connectionState.isActive"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingProfiles",
+      "platform": "diagnostic_only",
+      "entity_key": "charging_profiles",
+      "capability": "charging",
+      "job": "chargingProfiles",
+      "paths": ["chargingProfiles.chargingProfilesStatus.value.profiles"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "chargingTimers",
+      "platform": "diagnostic_only",
+      "entity_key": "charging_timers",
+      "capability": "charging",
+      "job": "chargingTimers",
+      "paths": ["chargingTimers.chargingTimersStatus.value.timers"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "climatisationTimers",
+      "platform": "diagnostic_only",
+      "entity_key": "climatisation_timers",
+      "capability": "climate",
+      "job": "climatisationTimers",
+      "paths": ["climatisationTimers.climatisationTimersStatus.value.timers"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "userCapabilities",
+      "platform": "diagnostic_only",
+      "entity_key": "user_capabilities",
+      "capability": "vehicle_status",
+      "job": "userCapabilities",
+      "paths": ["userCapabilities.capabilitiesStatus.value"],
+      "has_explicit_path": true
+    },
+    {
+      "id": "last_update_time",
+      "platform": "sensor",
+      "entity_key": "last_update_time",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "shortterm_current",
+      "platform": "sensor",
+      "entity_key": "shortterm_current",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "shortterm_reset",
+      "platform": "sensor",
+      "entity_key": "shortterm_reset",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "longterm_current",
+      "platform": "sensor",
+      "entity_key": "longterm_current",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "longterm_reset",
+      "platform": "sensor",
+      "entity_key": "longterm_reset",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "model",
+      "platform": "sensor",
+      "entity_key": "model",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "mileage",
+      "platform": "sensor",
+      "entity_key": "mileage",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "service_adblue_distance",
+      "platform": "sensor",
+      "entity_key": "service_adblue_distance",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "range",
+      "platform": "sensor",
+      "entity_key": "range",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "service_inspection_time",
+      "platform": "sensor",
+      "entity_key": "service_inspection_time",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "service_inspection_distance",
+      "platform": "sensor",
+      "entity_key": "service_inspection_distance",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "oil_change_time",
+      "platform": "sensor",
+      "entity_key": "oil_change_time",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "oil_change_distance",
+      "platform": "sensor",
+      "entity_key": "oil_change_distance",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "oil_level",
+      "platform": "sensor",
+      "entity_key": "oil_level",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "charging_type",
+      "platform": "sensor",
+      "entity_key": "charging_type",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "energy_flow",
+      "platform": "sensor",
+      "entity_key": "energy_flow",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "max_charge_current",
+      "platform": "sensor",
+      "entity_key": "max_charge_current",
+      "capability": "charging",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "primary_engine_type",
+      "platform": "sensor",
+      "entity_key": "primary_engine_type",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "secondary_engine_type",
+      "platform": "sensor",
+      "entity_key": "secondary_engine_type",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "tank_level",
+      "platform": "sensor",
+      "entity_key": "tank_level",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "charging_complete_time",
+      "platform": "sensor",
+      "entity_key": "charging_complete_time",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "plug_led_color",
+      "platform": "sensor",
+      "entity_key": "plug_led_color",
+      "capability": "charging",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "doors_trunk_status",
+      "platform": "sensor",
+      "entity_key": "doors_trunk_status",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "outdoor_temperature",
+      "platform": "sensor",
+      "entity_key": "outdoor_temperature",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "park_time",
+      "platform": "sensor",
+      "entity_key": "park_time",
+      "capability": "mobility",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "position_last_updated",
+      "platform": "sensor",
+      "entity_key": "position_last_updated",
+      "capability": "mobility",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "preheater_duration",
+      "platform": "sensor",
+      "entity_key": "preheater_duration",
+      "capability": "climate",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "preheater_remaining",
+      "platform": "sensor",
+      "entity_key": "preheater_remaining",
+      "capability": "climate",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "active_charging_profile_target_soc",
+      "platform": "sensor",
+      "entity_key": "active_charging_profile_target_soc",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "active_charging_profile_name",
+      "platform": "sensor",
+      "entity_key": "active_charging_profile_name",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "active_charging_profile_min_soc",
+      "platform": "sensor",
+      "entity_key": "active_charging_profile_min_soc",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "preferred_charging_time_start",
+      "platform": "sensor",
+      "entity_key": "preferred_charging_time_start",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "preferred_charging_time_end",
+      "platform": "sensor",
+      "entity_key": "preferred_charging_time_end",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "climatisation_timer_enabled_count",
+      "platform": "sensor",
+      "entity_key": "climatisation_timer_enabled_count",
+      "capability": "climate",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "next_climatisation_timer_local",
+      "platform": "sensor",
+      "entity_key": "next_climatisation_timer_local",
+      "capability": "climate",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "charging_timer_enabled_count",
+      "platform": "sensor",
+      "entity_key": "charging_timer_enabled_count",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "glass_surface_heating",
+      "platform": "binary_sensor",
+      "entity_key": "glass_surface_heating",
+      "capability": "climate",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "sun_roof",
+      "platform": "binary_sensor",
+      "entity_key": "sun_roof",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "roof_cover",
+      "platform": "binary_sensor",
+      "entity_key": "roof_cover",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "parking_light",
+      "platform": "binary_sensor",
+      "entity_key": "parking_light",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "any_window_open",
+      "platform": "binary_sensor",
+      "entity_key": "any_window_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "any_door_open",
+      "platform": "binary_sensor",
+      "entity_key": "any_door_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "trunk_unlocked",
+      "platform": "binary_sensor",
+      "entity_key": "trunk_unlocked",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "trunk_open",
+      "platform": "binary_sensor",
+      "entity_key": "trunk_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "hood_open",
+      "platform": "binary_sensor",
+      "entity_key": "hood_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "left_front_door_open",
+      "platform": "binary_sensor",
+      "entity_key": "left_front_door_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "right_front_door_open",
+      "platform": "binary_sensor",
+      "entity_key": "right_front_door_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "left_rear_door_open",
+      "platform": "binary_sensor",
+      "entity_key": "left_rear_door_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "right_rear_door_open",
+      "platform": "binary_sensor",
+      "entity_key": "right_rear_door_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "left_front_window_open",
+      "platform": "binary_sensor",
+      "entity_key": "left_front_window_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "right_front_window_open",
+      "platform": "binary_sensor",
+      "entity_key": "right_front_window_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "left_rear_window_open",
+      "platform": "binary_sensor",
+      "entity_key": "left_rear_window_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "right_rear_window_open",
+      "platform": "binary_sensor",
+      "entity_key": "right_rear_window_open",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "braking_status",
+      "platform": "binary_sensor",
+      "entity_key": "braking_status",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "oil_level_binary",
+      "platform": "binary_sensor",
+      "entity_key": "oil_level_binary",
+      "capability": "service",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "is_moving",
+      "platform": "binary_sensor",
+      "entity_key": "is_moving",
+      "capability": "vehicle_status",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    },
+    {
+      "id": "any_door_unlocked",
+      "platform": "binary_sensor",
+      "entity_key": "any_door_unlocked",
+      "capability": "access",
+      "job": null,
+      "paths": [],
+      "has_explicit_path": false
+    }
+  ],
+  "api_jobs": [
+    "access",
+    "activeVentilation",
+    "auxiliaryHeating",
+    "batteryChargingCare",
+    "batterySupport",
+    "charging",
+    "chargingProfiles",
+    "chargingTimers",
+    "climatisation",
+    "climatisationTimers",
+    "departureProfiles",
+    "departureTimers",
+    "fuelStatus",
+    "honkAndFlash",
+    "hybridCarAuxiliaryHeating",
+    "lvBattery",
+    "measurements",
+    "oilLevel",
+    "readiness",
+    "userCapabilities",
+    "vehicleHealthInspection",
+    "vehicleHealthWarnings",
+    "vehicleLights"
+  ],
+  "v3_operations": [
+    {
+      "id": "cariad.climate.status.batch",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs={JOBS}",
+      "request_mode": null,
+      "delivery": "existing_poll"
+    },
+    {
+      "id": "cariad.climate.status.probe",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.climate.status",
+      "method": "GET",
+      "family": "mbb",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater",
+      "request_mode": null,
+      "delivery": "existing_poll"
+    },
+    {
+      "id": "cariad.climate.start.stored",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/start",
+      "request_mode": "bodyless",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.start.vehicle_settings",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/start",
+      "request_mode": "climate_start_settings",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.stop",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/stop",
+      "request_mode": "bodyless",
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.climate.start",
+      "method": "POST",
+      "family": "mbb",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater/actions",
+      "request_mode": "mbb_climate_start",
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.climate.stop",
+      "method": "POST",
+      "family": "mbb",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater/actions",
+      "request_mode": "mbb_climate_stop",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.access",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=access",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.activeVentilation",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=activeVentilation",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.auxiliaryHeating",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=auxiliaryHeating",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.batteryChargingCare",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=batteryChargingCare",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.batterySupport",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=batterySupport",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.charging",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=charging",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.chargingProfiles",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=chargingProfiles",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.chargingTimers",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=chargingTimers",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.climatisation",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.climatisationTimers",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisationTimers",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.departureProfiles",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=departureProfiles",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.departureTimers",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=departureTimers",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.fuelStatus",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=fuelStatus",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.honkAndFlash",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=honkAndFlash",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.hybridCarAuxiliaryHeating",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=hybridCarAuxiliaryHeating",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.lvBattery",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=lvBattery",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.measurements",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=measurements",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.oilLevel",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=oilLevel",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.readiness",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=readiness",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.userCapabilities",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=userCapabilities",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.vehicleHealthInspection",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=vehicleHealthInspection",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.vehicleHealthWarnings",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=vehicleHealthWarnings",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.vehicleLights",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=vehicleLights",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.charging.status.charger",
+      "method": "GET",
+      "family": "mbb",
+      "path": "/fs-car/bs/batterycharge/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/charger",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.climate.status.climater",
+      "method": "GET",
+      "family": "mbb",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.climate.status.preheater",
+      "method": "GET",
+      "family": "mbb",
+      "path": "/fs-car/bs/rs/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/status",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.charging.status.departure_timer",
+      "method": "GET",
+      "family": "mbb",
+      "path": "/fs-car/bs/departuretimer/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/timer",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.vehicle_status.status.vehicle_data",
+      "method": "GET",
+      "family": "mbb",
+      "path": "/fs-car/vehicleMgmt/vehicledata/v2/{TYPE}/{COUNTRY}/vehicles/{VIN}/",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.mobility.status.parkingPosition",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/parkingposition",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.mobility.status.tripStatistics",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=tripStatistics",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.remote.wake",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/vehiclewakeuptrigger",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.start",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/start",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.stop",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/stop",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.start.combined",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/start-stop",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.stop.combined",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/start-stop",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.access.lock",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/access/lock",
+      "request_mode": "secure_spin",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.access.unlock",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/access/unlock",
+      "request_mode": "secure_spin",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.window_heating_start",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/windowheating/start",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.window_heating_stop",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/windowheating/stop",
+      "request_mode": "json",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.settings",
+      "method": "PUT",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/settings",
+      "request_mode": "charging_settings_update",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.mode",
+      "method": "PUT",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/mode",
+      "request_mode": "charge_mode",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.charging.profiles",
+      "method": "PUT",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/profiles",
+      "request_mode": "charging_profile_update",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.settings",
+      "method": "PUT",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/settings",
+      "request_mode": "climate_settings_update",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.remote.refresh",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/vehiclewakeup",
+      "request_mode": "bodyless",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.remote.flash",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/honkandflash",
+      "request_mode": "flash",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.preheater_start",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/auxiliaryheating/start",
+      "request_mode": "auxiliary_start",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.climate.preheater_stop",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/auxiliaryheating/stop",
+      "request_mode": "bodyless",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.remote.engine_start",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/engine/{VIN}/start",
+      "request_mode": "engine_start",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.remote.engine_stop",
+      "method": "POST",
+      "family": "cariad",
+      "path": "/vehicle/v1/engine/{VIN}/stop",
+      "request_mode": "bodyless",
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.access.lock",
+      "method": "POST",
+      "family": "mbb",
+      "path": "/api/bs/rlu/v1/vehicles/{VIN}/lock",
+      "request_mode": "mbb_rlu",
+      "delivery": "manual"
+    },
+    {
+      "id": "mbb.access.unlock",
+      "method": "POST",
+      "family": "mbb",
+      "path": "/api/bs/rlu/v1/vehicles/{VIN}/unlock",
+      "request_mode": "mbb_rlu",
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.mobility.status.shortTerm",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/trips/{VIN}/shortterm",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.mobility.status.longTerm",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/trips/{VIN}/longterm",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.mobility.status.lastTrip",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/trips/{VIN}/shortterm/last",
+      "request_mode": null,
+      "delivery": "manual"
+    }
+  ],
+  "control_workstreams": [
+    {
+      "name": "Cloud refresh",
+      "covered_by": "button.refresh_vehicle_data, service.refresh_cloud_data",
+      "current_gap": "Live functional acceptance pending. Separate native cloud GET and historical remote refresh POST; no conflation.",
+      "priority": "P0",
+      "acceptance": "GET cloud refresh plus separate POST wake/requestID workflow",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/engine.py, v3/entities.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Remote vehicle refresh / Wake",
+      "covered_by": "button.wake_vehicle_modern, service.refresh_vehicle_data",
+      "current_gap": "Live functional acceptance pending. Reviewed wake and refresh routes, quota/cooldown/request-ID guards.",
+      "priority": "P0",
+      "acceptance": "Explicit wake POST, JSON {}, bounded cooldown, requestID outcome",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/engine.py, v3/request_status.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Flash lights",
+      "covered_by": "button.flash_lights",
+      "current_gap": "Live functional acceptance pending. Native flash button, explicit capability and parked location required.",
+      "priority": "P1",
+      "acceptance": "Capability honkAndFlash, physical test; never expose horn without explicit scope",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/command_policy.py, v3/entities.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Start climatisation (stored)",
+      "covered_by": "climate.climatisation, service.start_climate_control",
+      "current_gap": "Live functional acceptance pending. Stored/bodyless CARIAD start plus MBB parameterized start.",
+      "priority": "P0",
+      "acceptance": "No settings -> bodyless POST, requestID lifecycle and state readback",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/engine.py, v3/legacy_commands.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Climate target temperature/settings start",
+      "covered_by": "climate.climatisation, service.start_climate_control",
+      "current_gap": "Live functional acceptance pending. 15–30 C setpoint, restore, temperature-bearing start; no start while off.",
+      "priority": "P0",
+      "acceptance": "V2 current temp in climate entity; only explicit setting changes use validated payload",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/legacy_commands.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Stop climatisation",
+      "covered_by": "climate.climatisation, service.execute_vehicle_action",
+      "current_gap": "Live functional acceptance pending. CARIAD and MBB stop; backend confirmation distinct from car state.",
+      "priority": "P0",
+      "acceptance": "Keep original ID, readback required",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/engine.py, v3/legacy_commands.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Window heating action on/off",
+      "covered_by": "button.start_window_heating_modern/button.stop_window_heating_modern",
+      "current_gap": "Live functional acceptance pending. Explicit window heat start/stop with separate buttons.",
+      "priority": "P1",
+      "acceptance": "Independent button test & status",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/full_catalog.json",
+      "code_path_present": true
+    },
+    {
+      "name": "Window heating settings + at unlock + 4 zones",
+      "covered_by": "switch.climatisation_window_heating / climatisation_at_unlock / 4 zone switches",
+      "current_gap": "Live functional acceptance pending. Six persisted setting switches and reviewed settings PUT.",
+      "priority": "P1",
+      "acceptance": "GET settings then PUT reviewed body, no blind overwrite",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/engine.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Start/Stop charging",
+      "covered_by": "button.start_charging_modern/button.stop_charging_modern, service.execute_vehicle_action",
+      "current_gap": "Live functional acceptance pending. Explicit charging start/stop with bounded request status.",
+      "priority": "P0",
+      "acceptance": "Separate start/stop, no blind retries, explicit selection",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/engine.py, v3/request_status.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Timed charging",
+      "covered_by": "service.execute_vehicle_action(start_timed_charger)",
+      "current_gap": "Live functional acceptance pending. Timed charging through reviewed execute-action routing; verify actual schedule effect.",
+      "priority": "P1",
+      "acceptance": "V2 semantics when supported, no guessed payload",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/ha_platforms.py, v3/engine.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Charge mode manual/timer",
+      "covered_by": "select.charge_mode, service.set_charge_mode",
+      "current_gap": "Live functional acceptance pending. Native charge mode select and parameterized PUT.",
+      "priority": "P0",
+      "acceptance": "PreferredChargeMode, not current chargeMode; preserve mode options",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/engine.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Global charge target",
+      "covered_by": "number.target_state_of_charge, service.set_target_soc",
+      "current_gap": "Live functional acceptance pending. Native 20–100% number, step 5 and reviewed target PUT.",
+      "priority": "P0",
+      "acceptance": "20–100%, step 5; read-modify-write, readback",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/engine.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Current location charge target",
+      "covered_by": "number.active_charging_profile_target_soc, service.set_location_charge_target",
+      "current_gap": "Live functional acceptance pending. Active profile ID resolved from reported profiles.",
+      "priority": "P1",
+      "acceptance": "Resolve current charging profile ID from vehicle, don't guess",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/derived_values.py, v3/entities.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Individual profile charge target",
+      "covered_by": "number.charge_profile_{profile_id}_target_soc",
+      "current_gap": "Live functional acceptance pending. Per-profile numbers use immutable ID, not profile name.",
+      "priority": "P1",
+      "acceptance": "Stable unique_id based on immutable profile id; no name-key",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Preheater on/off",
+      "covered_by": "switch.preheater_active, service.execute_vehicle_action",
+      "current_gap": "Live functional acceptance pending. Preheater switch and CARIAD auxiliary routes; legacy data parsed independently.",
+      "priority": "P1",
+      "acceptance": "Legacy auth, security and status readback",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/legacy_values.py, v3/full_catalog.json",
+      "code_path_present": true
+    },
+    {
+      "name": "Auxiliary heating with duration",
+      "covered_by": "service.start_auxiliary_heating",
+      "current_gap": "Live functional acceptance pending. Explicit duration and S-PIN guarded auxiliary service.",
+      "priority": "P1",
+      "acceptance": "Duration 10–60m step10, compatibility and auth checks",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/engine.py, v3/full_catalog.json",
+      "code_path_present": true
+    },
+    {
+      "name": "Lock/Unlock",
+      "covered_by": "lock.lock, service.execute_vehicle_action",
+      "current_gap": "Live functional acceptance pending. CARIAD PIN body and MBB challenge-response RLU; bounded completion.",
+      "priority": "P0",
+      "acceptance": "Actual lock state, requestID, S-PIN and no retries",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/legacy_commands.py, v3/engine.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Start/Stop engine",
+      "covered_by": "button.start_engine/button.stop_engine, service.start_engine/service.stop_engine",
+      "current_gap": "Live functional acceptance pending. Capability-restricted engine start/stop; no model-only permission.",
+      "priority": "P2",
+      "acceptance": "Never auto-enable on Q8 without OEM capability and risk review",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/command_policy.py, v3/engine.py",
+      "code_path_present": true
+    },
+    {
+      "name": "Local dealer management",
+      "covered_by": "service.set_local_dealer, sensor.local_dealer",
+      "current_gap": "Live functional acceptance pending. Local dealer and service overview, config-only.",
+      "priority": "P1",
+      "acceptance": "Local-only data, no Audi cloud request",
+      "status": "open_not_q8_proven",
+      "implementation_evidence": "v3/entities.py, v3/ha_platforms.py",
+      "code_path_present": true
+    }
+  ],
+  "recorder_repair_entity_keys": [
+    "service_inspection_time",
+    "oil_change_distance",
+    "primary_engine_range",
+    "secondary_engine_range",
+    "tank_level",
+    "state_of_charge",
+    "hybrid_range",
+    "secondary_engine_range_percent",
+    "service_inspection_distance",
+    "oil_change_time",
+    "remaining_climatisation_time",
+    "primary_engine_range_percent",
+    "range"
+  ],
+  "diagnostic_comparison": {
+    "v2": {
+      "registered_entities": 90,
+      "disabled_entities": 0,
+      "observed_state_fields": 29,
+      "vehicle_fields": 26,
+      "last_update_success": true,
+      "observed_status_presence": [
+        "stateOfCharge",
+        "chargingState",
+        "plugState",
+        "climatisationState",
+        "remainingClimatisationTime",
+        "position",
+        "last_update_time",
+        "userCapabilities"
+      ],
+      "observed_absence": [
+        "chargingPower",
+        "shortterm_current",
+        "longterm_current"
+      ]
+    },
+    "v3_b7": {
+      "registered_entities": 90,
+      "disabled_entities": 59,
+      "observed_jobs": 14,
+      "total_jobs": 23,
+      "api_status": 207,
+      "climate_readable": false,
+      "climate_api_value": "invalid"
+    },
+    "source_note": "Two November 11 user diagnostics; exact names/VIN intentionally excluded."
+  },
+  "release_gate": {
+    "v2_source_inventory_complete": true,
+    "v3_static_parity_proven": false,
+    "v3_live_q8_parity_proven": false,
+    "v3_v2_v3_v2_registry_rollback_proven": false,
+    "full_release_allowed": false,
+    "test_release_code_complete": false,
+    "test_release_policy": "Code-complete V2 and prior-fix coverage plus passing CI; physical Q8 and rollback required for stable only."
+  },
+  "v3_only_controls": [
+    {
+      "platform": "switch",
+      "key": "climate_quick_control",
+      "source": "switch.py",
+      "description": "V3-exclusive quick switch. Not a source V2-declared switch and not counted as a V2 parity row."
+    }
+  ],
+  "ha_identity_and_presentation": {
+    "canonical_unique_id_pattern": "{vin_lower}_{platform}_{historical_v2_key}",
+    "same_config_entry_required": true,
+    "same_ha_device_registry_identifiers_required": true,
+    "same_entity_id_unique_id_and_platform_required": true,
+    "same_service_ids_schemas_required": true,
+    "runtime_option_switch_requires_config_entry_reload": true,
+    "enable_disable_historical_registry_entries_during_switch": false,
+    "restore_own_previous_integration_disable_records": true,
+    "user_disabled_entities_unchanged": true,
+    "vehicle_sensor_diagnostic_categories_removed_in_patch": 15,
+    "vehicle_binary_diagnostic_categories_removed_in_patch": 0,
+    "technical_cloud_diagnostics_still_category_diagnostic": true,
+    "v2_account_auth_owner_shared_with_v3_implemented": true,
+    "all_nine_ha_platforms_implemented_in_v3": true,
+    "all_historical_ha_entities_available_in_v3": false,
+    "full_ha_identity_runtime_acceptance_proven": false,
+    "architecture_doc": "docs/V3_SHARED_ACCOUNT_AND_HA_ENTITY_CONTRACT.md",
+    "all_nine_ha_platforms_forwarded_in_v3": true,
+    "all_nine_ha_platforms_functional_parity_proven": false,
+    "v2_business_logic_mutated_for_v3": false,
+    "v3_business_implementation_owns_ha_entities": true,
+    "request_id_pendingrequests_followup_implemented": true,
+    "request_id_physical_vehicle_readback_proven": false
+  },
+  "latest_candidate_notes": "Post-b8: independent V3 catalog, local read-only extensions, typed reviewed controls, command history, context invalidation, 59-operation inventory, raw Q8 fixture and binary metadata comparison; static/live parity remain unproven.",
+  "product_scope_exclusions": {
+    "temporary_runtime_probes": [
+      "probe_api_paths",
+      "probe_vehicle_health",
+      "probe_trip_data",
+      "refresh_trip_data"
+    ],
+    "v3_product_probes": false,
+    "trip_data": "bounded_normal_poll",
+    "reason": "User explicitly excluded runtime engineering test actions from V3 product.",
+    "v2_product_probes": false,
+    "retired_v2_probe_implementation": "Removed from production; V3 Workbench owns bounded read-only discovery."
+  },
+  "source_comparison": "docs/V2_V3_SOURCE_COMPARISON.json",
+  "fixbranch_additional_entities": [
+    {
+      "id": "sensor.last_trip",
+      "v3_implementation": "mapped_conditional",
+      "implementation_evidence": "v3/trips.py, v3/entities.py, v3/engine.py",
+      "remaining_gap": "CARIAD last-trip response required; no fabricated fallback"
+    }
+  ],
+  "reviewed_implementation_ref": "04de25996372fec825c0118b86ba48fb3800d70b",
+  "automated_evidence_scope": {
+    "raw_q8_parser_fields": [
+      "stateOfCharge",
+      "chargingState",
+      "chargingPower",
+      "actualChargeRate",
+      "chargeType",
+      "targetstateOfCharge",
+      "plugState",
+      "plugLockState",
+      "externalPower",
+      "plugledColor",
+      "remainingChargingTime",
+      "doorLockStatus"
+    ],
+    "raw_q8_parser_test": "tests/test_v3_differential_parity.py",
+    "binary_metadata_test": "tests/test_v3_binary_metadata_parity.py",
+    "limitations": "Raw values and HA binary metadata are separate from entity state behavior, actual HA recorder migration and physical acceptance."
+  }
+}

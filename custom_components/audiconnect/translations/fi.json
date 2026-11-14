@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Kirjaudu alkuperäisellä Audi-tilillä. Tiliä ei voitu vahvistaa tai se ei vastaa tätä integraatiota.",
       "already_configured": "Tili on jo määritetty",
       "reauth_successful": "Uudelleentodennus onnistui",
       "reconfigure_successful": "Uudelleenmääritys onnistui",
