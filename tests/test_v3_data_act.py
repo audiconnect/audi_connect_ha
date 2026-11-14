@@ -555,6 +555,8 @@ async def test_vehicle_denial_is_scoped_and_not_retried():
     assert await client.latest(VIN) is None
     client._json.assert_awaited_once()
     assert not client.authorization_required
+    assert client.denied_vins == {VIN}
+    assert client.delivery_states[VIN] == "vehicle_access_denied"
     other = "WAUZZZ4M0MD123457"
     client._json = AsyncMock(return_value={})
     assert await client.latest(other) is None
@@ -732,3 +734,40 @@ def test_data_act_status_counts_only_canonical_observations():
     result = status.data_act_poll_status()
     assert result["mapped_observations"] == 1
     assert result["selected_readings"] == 0
+
+
+def test_data_act_account_status_is_derived_from_channel_state():
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    client = DataActClient(None)
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=None,
+        vehicles={VIN.lower(): car},
+        profiles={},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+    )
+    assert status.data_act_poll_status()["result"] == "initializing"
+    status._data_act_attempt_at = datetime.now(UTC)
+    for delivery, expected in (
+        ("dataset_received", "dataset_received"),
+        ("vehicle_access_denied", "vehicle_access_denied"),
+        ("subscription_unavailable", "no_new_dataset"),
+        ("unavailable", "unavailable"),
+    ):
+        client.delivery_states[VIN] = delivery
+        report = status.data_act_poll_status()
+        assert report["result"] == expected
+        assert report["delivery_states"] == {delivery: 1}
+    client.authorization_required = True
+    assert status.data_act_poll_status()["result"] == "authorization_required"

@@ -115,19 +115,25 @@
       "cleanup_or_no_cleanup_reason",
       "justification_and_retirement_condition_for_new_complexity",
       "regression_and_remaining_validation",
-      "operation_pattern_classification_and_exception_justification_when_applicable"
+      "operation_pattern_classification_and_exception_justification_when_applicable",
+      "single_authoritative_owner_and_removed_duplicate_state",
+      "maintainability_evidence_runtime_paths_and_contracts",
+      "user_journey_and_native_HA_presentation_evidence"
     ],
     "review_blockers": [
       "unjustified_parallel_implementation",
       "duplicate_source_of_truth",
       "permanent_workaround_layer",
-      "speculative_capability_lockout"
+      "speculative_capability_lockout",
+      "unowned_or_overlapping_responsibility",
+      "avoidable_user_configuration_or_technical_labels"
     ],
     "preserve": [
       "HA_entity_identity_and_user_preferences",
       "V2_rollback",
       "security_and_quota_boundaries",
-      "release_gates"
+      "release_gates",
+      "ordinary_use_without_workbench_or_duplicate_entities"
     ],
     "enforcement": "existing PR review; ownership and contract regression tests; no additional workflow",
     "generic_operation_pattern": {

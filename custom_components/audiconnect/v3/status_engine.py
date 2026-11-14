@@ -89,7 +89,7 @@ class StatusEngine:
         self._legacy_route_backoff = {}
         self._data_act_attempt_at = None
         self._data_act_success_at = None
-        self._data_act_result = "not_configured"
+        self._data_act_processing_failed = False
 
     @property
     def transport(self):
@@ -119,8 +119,27 @@ class StatusEngine:
                     selected += (
                         car.readings.get(ident, {}).get("family") == "eu_data_act"
                     )
+        # Account health is a projection, not a second provider state machine.
+        if client is None:
+            result = (
+                "credentials_required"
+                if getattr(self.auth, "data_act_configured", False) is True
+                else "not_configured"
+            )
+        elif client.authorization_required:
+            result = "authorization_required"
+        elif retry and retry > datetime.now(UTC):
+            result = "rate_limited"
+        elif self._data_act_processing_failed or "unavailable" in deliveries:
+            result = "unavailable"
+        elif "dataset_received" in deliveries:
+            result = "dataset_received"
+        elif set(deliveries) == {"vehicle_access_denied"}:
+            result = "vehicle_access_denied"
+        else:
+            result = "no_new_dataset" if self._data_act_attempt_at else "initializing"
         return {
-            "result": self._data_act_result,
+            "result": result,
             "last_attempt": self._data_act_attempt_at.isoformat()
             if self._data_act_attempt_at
             else None,
@@ -135,24 +154,17 @@ class StatusEngine:
 
     async def _poll_data_act(self, now=None):
         """Fetch due optional family data; native quota is separate."""
-        from .data_act import DataActUnavailable, DataActVehicleDenied
+        from .data_act import DataActUnavailable
 
         samples = []
 
         client = getattr(self.auth, "data_act_client", None)
         if client is None:
-            self._data_act_result = (
-                "credentials_required"
-                if getattr(self.auth, "data_act_configured", False) is True
-                else "not_configured"
-            )
             return samples
         if client.authorization_required:
-            self._data_act_result = "authorization_required"
             return samples
         now = now or datetime.now(UTC)
         if client.quota.retry_at and now < client.quota.retry_at:
-            self._data_act_result = "rate_limited"
             return samples
         profiles = [
             (car, self.profiles[key])
@@ -169,25 +181,13 @@ class StatusEngine:
         ):
             return samples
         self._data_act_attempt_at = now
-        self._data_act_result = "no_new_dataset"
+        self._data_act_processing_failed = False
         for car, profile in profiles:
             if car.vin.upper() in getattr(client, "denied_vins", ()):
-                if self._data_act_result == "no_new_dataset":
-                    self._data_act_result = "vehicle_access_denied"
                 continue
             try:
                 result = await client.latest(car.vin)
-            except DataActVehicleDenied:
-                self._data_act_result = "vehicle_access_denied"
-                continue
             except DataActUnavailable:
-                self._data_act_result = (
-                    "authorization_required"
-                    if client.authorization_required
-                    else "rate_limited"
-                    if client.quota.retry_at
-                    else "unavailable"
-                )
                 if client.authorization_required or client.quota.retry_at:
                     break
                 continue
@@ -195,7 +195,6 @@ class StatusEngine:
             if result is not None:
                 payload, delivered = result
                 samples.append((car, profile, payload, datetime.now(UTC), delivered))
-                self._data_act_result = "dataset_received"
         return samples
 
     def invalidate_trip_poll(self, vin: str) -> None:
@@ -375,11 +374,6 @@ class StatusEngine:
         if self._data_act_task is not None and not self._data_act_task.done():
             return
         if getattr(self.auth, "data_act_client", None) is None:
-            self._data_act_result = (
-                "credentials_required"
-                if getattr(self.auth, "data_act_configured", False) is True
-                else "not_configured"
-            )
             return
         create_task = getattr(self.entry, "async_create_background_task", None)
         if create_task is not None and self.hass is not None:
@@ -422,7 +416,7 @@ class StatusEngine:
         except Exception:
             # Optional provider errors must not invalidate native data or expose
             # response content and credentials in logs.
-            self._data_act_result = "unavailable"
+            self._data_act_processing_failed = True
 
     async def async_stop_data_act(self):
         task = self._data_act_task

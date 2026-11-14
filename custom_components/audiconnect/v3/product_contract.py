@@ -525,43 +525,35 @@ def engine_role(vehicle, role):
     )
 
 
-def canonical_entity_name(key, vehicle=None):
-    """Integration-owned product label; source, lifecycle and API family are metadata."""
+def canonical_entity_presentation(key, vehicle=None):
+    """One product label and translation identity, including range-role aliases."""
     from .attribute_contracts import binary_contract_for, contract_for
 
     definition = product_inventory()["entities"].get(key)
     if definition is None:
-        return None
-    platform, _, entity = key.partition(".")
-    if vehicle is not None and entity in (
-        "primary_engine_range",
-        "secondary_engine_range",
-    ):
-        role = engine_role(vehicle, entity.split("_", 1)[0])
-        if role:
-            return "Electric range" if role == "electric" else "Fuel range"
-    if definition.get("name"):
-        return definition["name"]
-    if platform == "sensor":
-        return contract_for(entity).get("name")
-    if platform == "binary_sensor":
-        return binary_contract_for(entity).get("name")
-    return None
-
-
-def canonical_entity_translation_key(key, vehicle=None):
-    """Stable HA translation identity, independent of VIN and API family."""
-    if key not in product_inventory()["entities"]:
-        return None
-    _, _, ident = key.partition(".")
+        return None, None
+    platform, _, ident = key.partition(".")
     if vehicle is not None and ident in (
         "primary_engine_range",
         "secondary_engine_range",
     ):
         role = engine_role(vehicle, ident.split("_", 1)[0])
         if role:
-            ident = role + "_range"
-    return "v3_" + ident.replace("_{profile_id}", "")
+            return role.capitalize() + " range", "v3_" + role + "_range"
+    name = definition.get("name")
+    if not name and platform == "sensor":
+        name = contract_for(ident).get("name")
+    if not name and platform == "binary_sensor":
+        name = binary_contract_for(ident).get("name")
+    return name, "v3_" + ident.replace("_{profile_id}", "")
+
+
+def canonical_entity_name(key, vehicle=None):
+    return canonical_entity_presentation(key, vehicle)[0]
+
+
+def canonical_entity_translation_key(key, vehicle=None):
+    return canonical_entity_presentation(key, vehicle)[1]
 
 
 def stateful_controls():

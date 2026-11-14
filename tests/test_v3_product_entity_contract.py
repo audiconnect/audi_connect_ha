@@ -395,3 +395,25 @@ def test_native_entity_translations_match_product_contract():
                 assert ("{profile_id}" in name) == (
                     "{profile_id}" in description["name"]
                 )
+
+
+def test_product_presentation_and_categories_have_one_contract():
+    from custom_components.audiconnect.v3.entities import _product_description
+    from custom_components.audiconnect.v3.product_contract import (
+        canonical_entity_category,
+        canonical_entity_presentation,
+    )
+
+    for key in product_inventory()["entities"]:
+        kwargs = {"profile_id": 42} if "{profile_id}" in key else {}
+        description = _product_description(key, **kwargs)
+        label, translation = canonical_entity_presentation(key)
+        assert description.name == label.format(**kwargs)
+        assert description.translation_key == translation
+        assert description.entity_category == canonical_entity_category(key)
+
+    car = NS(readings={"primary_engine_type": {"value": "electric"}})
+    assert canonical_entity_presentation("sensor.primary_engine_range", car) == (
+        "Electric range",
+        "v3_electric_range",
+    )

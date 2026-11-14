@@ -6,6 +6,17 @@ Preserve V2 as the default and independent fallback. V3 must remain opt-in until
 
 The release objective is 100% agreed functional scope and V2 parity, zero known defects and zero known technical debt. This is a release gate, not a claim about current completeness. Unsupported OEM functionality is not a verified product feature; missing OEM evidence remains explicit and is not a reason to invent values or silently remove scope.
 
+### Four review criteria for every improvement
+
+| Criterion       | Required evidence                                                                       |
+| --------------- | --------------------------------------------------------------------------------------- |
+| Simplification  | Remove duplicate state, paths or decisions; explain any unavoidable added complexity.   |
+| Ownership       | One existing owner per responsibility and authoritative contract; no parallel writer.   |
+| Maintainability | Declarative mappings, bounded state, native HA mechanisms, focused tests and rollback.  |
+| User experience | Ordinary use needs no Workbench, duplicate integration, API knowledge or entity rename. |
+
+Use the existing PR review, not an additional workflow or a second governance catalog. Show before/after runtime impact, user-visible outcome and remaining live acceptance. Provider problems must be actionable without exposing credentials or making another channel unavailable. The Workbench remains optional and administrator-only.
+
 ### Authoritative responsibilities
 
 | Owner           | Responsibility                                             |
@@ -36,7 +47,7 @@ The machine-readable owner inventory is [OWNERSHIP.json](../governance/OWNERSHIP
 6. Close storage, migrations, diagnostics, tests and documentation drift.
 7. Verify exact-head CI, feature parity, representative ICE/PHEV/BEV and supported market/API contexts, restart/rollback, quota, privacy and physical acceptance.
 
-Every change must state its existing owner, what complexity is removed, remaining validation and regressions. A new provider is not a new framework: API owns optional compatible sessions and family transport; Catalog owns one read priority per family and sparse mappings; Status owns observation selection and freshness; Vehicle and HA own stable VIN-scoped data and entity contracts. Provider authorization and market context determine eligibility, never entity identity. A fresh preferred read family cannot be displaced by a lower-priority equivalent observation; stale fallback must not regress a valid vehicle capture. Invalid observations from another family cannot erase a valid sample. Family priority does not select or authorize commands. Retain operation-specific command safety and explicit activation; a read fallback cannot authorize or verify a command. No mock runtime values, speculative command routes, compatibility stubs or accepted debt. Maintainability is not a line-count target. The 80% declarative operation target is a design measure, not a release gate.
+Every change must state its existing owner, what complexity is removed, remaining validation and regressions. A new provider is not a new framework: API owns optional compatible sessions and family transport; Catalog owns one read priority per family and sparse mappings; Status owns observation selection and freshness; Vehicle and HA own stable VIN-scoped data and entity contracts. Provider authorization and market context determine eligibility, never entity identity. A fresh preferred read family cannot be displaced by a lower-priority equivalent observation; stale fallback must not regress a valid vehicle capture. Invalid observations from another family cannot erase a valid sample. Family priority does not select or authorize commands. Retain operation-specific command safety and explicit activation; a read fallback cannot authorize or verify a command. No mock runtime values, speculative command routes, compatibility stubs or accepted debt. Every PR must identify the existing owner, removed duplication or simplified control flow, and the reason for any remaining necessary complexity. Compare runtime state, executable paths, and ownership before and after; do not count translations, documentation, or tests as runtime complexity. A new persistent or mutable state owner requires explicit justification and a retirement condition. Maintainability is not a line-count target. The 80% declarative operation target is a design measure, not a release gate.
 
 ### Release authority
 

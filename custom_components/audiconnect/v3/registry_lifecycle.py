@@ -153,31 +153,32 @@ async def _apply_visibility(hass, entry, enabled):
         if not key or not hasattr(current, "hidden_by"):
             continue
         localized = (getattr(current, "translation_key", None) or "").startswith("v3_")
+        updates = {}
         if not enabled:
             if (
                 uid in disabled_compat
                 and current.disabled_by == er.RegistryEntryDisabler.INTEGRATION
             ):
-                registry.async_update_entity(entity_id, disabled_by=None)
+                updates["disabled_by"] = None
             if (
                 uid in hidden | stateful_hidden
                 and current.hidden_by == er.RegistryEntryHider.INTEGRATION
             ):
-                registry.async_update_entity(entity_id, hidden_by=None)
+                updates["hidden_by"] = None
             if uid in categories:
                 previous, applied = categories[uid]
                 if getattr(current.entity_category, "value", None) == applied:
-                    registry.async_update_entity(
-                        entity_id,
-                        entity_category=EntityCategory(previous) if previous else None,
+                    updates["entity_category"] = (
+                        EntityCategory(previous) if previous else None
                     )
-            name_updates = {"translation_key": None} if localized else {}
+            if localized:
+                updates["translation_key"] = None
             if uid in names and hasattr(current, "original_name"):
                 previous, applied = names[uid]
                 if current.original_name == applied or localized:
-                    name_updates["original_name"] = previous
-            if name_updates:
-                registry.async_update_entity(entity_id, **name_updates)
+                    updates["original_name"] = previous
+            if updates:
+                registry.async_update_entity(entity_id, **updates)
             continue
         if engine is None:
             continue
@@ -185,14 +186,12 @@ async def _apply_visibility(hass, entry, enabled):
         definition = product_inventory()["entities"].get(key)
         if car is None and (not definition or definition.get("scope") != "account"):
             continue
-        updates = {}
         # HA owns localized runtime labels. Clean historical labels only until
         # native registration supplies its translation key. User names and IDs
         # are never rewritten.
-        label = canonical_entity_name(key, car)
+        label = None if localized else canonical_entity_name(key, car)
         if (
             label
-            and not localized
             and "{profile_id}" not in label
             and hasattr(current, "original_name")
             and current.original_name != label
@@ -220,20 +219,13 @@ async def _apply_visibility(hass, entry, enabled):
         # Stateful aliases are hidden only when a switch can actually be
         # projected. Restore integration-owned visibility if evidence is absent
         # on a later setup; never override a user-hidden or disabled entry.
-        if (
-            car is not None
-            and uid in stateful_hidden
-            and not superseded_control_button(engine, car, key)
-        ):
+        superseded = car is not None and superseded_control_button(engine, car, key)
+        if car is not None and uid in stateful_hidden and not superseded:
             if current.hidden_by == er.RegistryEntryHider.INTEGRATION:
                 updates["hidden_by"] = None
             stateful_hidden.discard(uid)
             stateful_reviewed.discard(uid)
-        elif (
-            car is not None
-            and uid not in stateful_reviewed
-            and superseded_control_button(engine, car, key)
-        ):
+        elif superseded and uid not in stateful_reviewed:
             stateful_reviewed.add(uid)
             if current.hidden_by is None and current.disabled_by is None:
                 updates["hidden_by"] = er.RegistryEntryHider.INTEGRATION

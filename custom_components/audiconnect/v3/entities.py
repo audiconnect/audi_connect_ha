@@ -63,8 +63,7 @@ from .product_contract import (
     projection_reading,
     compatibility_hidden,
     canonical_entity_category,
-    canonical_entity_name,
-    canonical_entity_translation_key,
+    canonical_entity_presentation,
     stateful_controls,
     stateful_reading,
     superseded_control_button,
@@ -87,21 +86,23 @@ _DESCRIPTIONS = {
 
 
 def _product_description(
-    key, vehicle=None, *, fallback=None, local=False, profile_id=None
+    key, vehicle=None, *, fallback=None, local=False, profile_id=None, category=None
 ):
     """HA owns translations; the product contract remains the English fallback."""
     platform, _, ident = key.partition(".")
-    label = None if local else canonical_entity_name(key, vehicle)
+    label, translation = (
+        (None, None) if local else canonical_entity_presentation(key, vehicle)
+    )
     label = label or fallback or ident.replace("_", " ").capitalize()
     placeholders = {"profile_id": str(profile_id)} if profile_id is not None else None
     if placeholders:
         label = label.format(**placeholders)
+    category = category or (None if local else canonical_entity_category(key))
     return _DESCRIPTIONS[platform](
         key=ident,
+        entity_category=EntityCategory(category) if category else None,
         name=label,
-        translation_key=None
-        if local
-        else canonical_entity_translation_key(key, vehicle),
+        translation_key=translation,
         translation_placeholders=placeholders,
     )
 
@@ -534,8 +535,6 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
 
 
 class V3HealthSensor(V3BaseEntity, SensorEntity):
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
     def __init__(self, coordinator, vehicle, kind):
         super().__init__(coordinator, vehicle)
         self.kind = kind
@@ -578,7 +577,6 @@ class V3HealthSensor(V3BaseEntity, SensorEntity):
 
 
 class V3IntegrationProblem(V3BaseEntity, BinarySensorEntity):
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     entity_description = _product_description("binary_sensor.integration_problem")
 
@@ -665,8 +663,6 @@ class V3AccessSummary(V3BaseEntity, SensorEntity):
 
 
 class V3StatusSensor(V3BaseEntity, SensorEntity):
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
     def __init__(self, coordinator: V3CleanCoordinator, vehicle: V3Vehicle, kind: str):
         super().__init__(coordinator, vehicle)
         self.kind = kind
@@ -908,7 +904,6 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
 
     entity_description = _product_description("sensor.api_requests_remaining")
     _attr_icon = "mdi:api"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator, vehicle, entry_id):
         super().__init__(coordinator, vehicle)
@@ -970,7 +965,6 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
 class V3CloudRefreshButton(V3BaseEntity, ButtonEntity):
     entity_description = _product_description("button.v3_refresh_cloud")
     _attr_icon = "mdi:cloud-refresh"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator: V3CleanCoordinator, vehicle: V3Vehicle):
         super().__init__(coordinator, vehicle)
@@ -1051,6 +1045,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             vehicle,
             fallback=contract.get("name"),
             local=bool(attribute.get("local")),
+            category=contract.get("category"),
         )
         self._attr_native_unit_of_measurement = contract.get("unit")
         self._attr_icon = contract.get("icon")
@@ -1060,8 +1055,6 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             self._attr_state_class = SensorStateClass(contract["state_class"])
         if contract.get("precision") is not None:
             self._attr_suggested_display_precision = contract["precision"]
-        if contract.get("category") == "diagnostic":
-            self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def available(self) -> bool:
@@ -1356,12 +1349,11 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
             vehicle,
             fallback=contract.get("name"),
             local=bool(attribute.get("local")),
+            category=contract.get("category"),
         )
         if contract.get("device_class"):
             self._attr_device_class = BinarySensorDeviceClass(contract["device_class"])
         self._attr_icon = contract.get("icon")
-        if contract.get("category") == "diagnostic":
-            self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def available(self) -> bool:
@@ -1446,8 +1438,6 @@ class V3ControlButton(V3BaseEntity, ButtonEntity):
             "button." + self.key, fallback=label
         )
         self._attr_unique_id = f"{vehicle.vin.lower()}_button_{self.key}"
-        category = canonical_entity_category("button." + self.key)
-        self._attr_entity_category = EntityCategory(category) if category else None
         if superseded_control_button(coordinator.engine, vehicle, "button." + self.key):
             self._attr_entity_registry_visible_default = False
         if self.key == "wake_vehicle_modern":
@@ -1858,7 +1848,6 @@ class V3ParkedTracker(V3BaseEntity, TrackerEntity):
     """V2-compatible GPS entity for the car's last PARKED position, not live GPS."""
 
     entity_description = _product_description("device_tracker.position")
-    _attr_entity_category = None
     _attr_icon = "mdi:car"
     _attr_should_poll = False
     _attr_source_type = SourceType.GPS
@@ -1929,9 +1918,6 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
     """V2 global charge-target identity; command gated by V3 route evidence."""
 
     entity_description = _product_description("number.target_state_of_charge")
-    _attr_entity_category = EntityCategory(
-        canonical_entity_category("number.target_state_of_charge")
-    )
     _attr_device_class = NumberDeviceClass.BATTERY
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_native_min_value = 20
@@ -2117,8 +2103,6 @@ class V3PreheaterSwitch(V3BaseEntity, SwitchEntity):
 
 
 class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
-    _attr_entity_category = EntityCategory.CONFIG
-
     def __init__(self, coordinator, vehicle, descriptor):
         super().__init__(coordinator, vehicle)
         key, self.reading, self.field = descriptor
@@ -2174,9 +2158,6 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
     """V2 select identity, independent preferred-mode source and command gate."""
 
     entity_description = _product_description("select.charge_mode")
-    _attr_entity_category = EntityCategory(
-        canonical_entity_category("select.charge_mode")
-    )
     _attr_icon = "mdi:battery-clock"
 
     def __init__(self, coordinator: V3CleanCoordinator, vehicle: V3Vehicle):

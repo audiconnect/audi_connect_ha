@@ -144,9 +144,21 @@ def test_v2_source_remains_unmodified_and_v3_owns_categories():
         "charging_timer_enabled_count",
     ):
         assert contract_for(key).get("category") != "diagnostic"
-    v3 = (root / "v3" / "entities.py").read_text()
-    assert "_attr_entity_category = EntityCategory.DIAGNOSTIC" in v3
-    assert 'if contract.get("category") == "diagnostic"' in v3
+    from homeassistant.const import EntityCategory
+
+    from custom_components.audiconnect.v3.entities import _product_description
+
+    # Test the actual native description, not the old implementation syntax.
+    for key in ("integration_status", "vehicle_data_age", "last_error"):
+        assert (
+            _product_description("sensor." + key).entity_category
+            == EntityCategory.DIAGNOSTIC
+        )
+    assert _product_description("sensor.mileage").entity_category is None
+    assert (
+        _product_description("number.target_state_of_charge").entity_category
+        == EntityCategory.CONFIG
+    )
 
 
 def test_exact_pilot_retirement_and_single_account_refresh_anchor(monkeypatch):

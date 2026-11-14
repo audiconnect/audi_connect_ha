@@ -114,8 +114,16 @@ class DataActClient:
         self._request_lock = asyncio.Lock()
         self._identifiers = {}
         self._last_file = {}
-        self.denied_vins = set()
         self.delivery_states = {}
+
+    @property
+    def denied_vins(self):
+        """A denial is a terminal delivery state, not a second mutable cache."""
+        return {
+            vin
+            for vin, state in self.delivery_states.items()
+            if state == "vehicle_access_denied"
+        }
 
     async def _get(self, path, *, limit, headers=None, allow_empty=False):
         async with self._request_lock:
@@ -175,7 +183,6 @@ class DataActClient:
         try:
             result = await self._latest(vin)
         except DataActVehicleDenied:
-            self.denied_vins.add(vin)
             self.delivery_states[vin] = "vehicle_access_denied"
             self._identifiers.pop(vin, None)
             self._last_file.pop(vin, None)
@@ -221,8 +228,6 @@ class DataActClient:
             self.delivery_states[vin] = "subscription_unavailable"
             return None
         files = result.get("files") if isinstance(result, dict) else result
-        if files is None:
-            raise DataActUnavailable("Invalid Data Act listing")
         if not isinstance(files, list) or len(files) > 2000:
             raise DataActUnavailable("Invalid Data Act listing")
         content = []
