@@ -106,24 +106,32 @@ class StatusEngine:
         """Current runtime coordinator attempts, including failed cycles."""
         return self._poll_cycles
 
-    def data_act_poll_status(self):
-        """Safe account-level scheduler status; no dataset or session contents."""
+    def data_act_poll_status(self, vehicle=None):
+        """Safe scheduler status, account-wide or scoped to one vehicle."""
         client = getattr(self.auth, "data_act_client", None)
         retry = client.quota.retry_at if client is not None else None
         states = getattr(client, "delivery_states", {})
         deliveries = {}
         mapped = selected = 0
         for car in self.vehicles.values():
-            if not car.inventory_present:
+            if not car.inventory_present or (
+                vehicle is not None and car is not vehicle
+            ):
                 continue
             state = states.get(car.vin.upper())
             if state is not None:
                 deliveries[state] = deliveries.get(state, 0) + 1
             for ident, families in car.family_readings.items():
-                if "eu_data_act" in families and not ident.endswith("_detail"):
+                sample = families.get("eu_data_act", {})
+                if (
+                    not sample.get("detail")
+                    and sample.get("value") is not None
+                    and sample.get("status") != "invalid_value"
+                ):
                     mapped += 1
                     selected += (
                         car.readings.get(ident, {}).get("family") == "eu_data_act"
+                        and car.readings[ident].get("value") is not None
                     )
         # Account health is a projection, not a second provider state machine.
         if client is None:
@@ -134,6 +142,10 @@ class StatusEngine:
             )
         elif client.authorization_required:
             result = "authorization_required"
+        elif vehicle is not None and "vehicle_access_denied" in deliveries:
+            result = "vehicle_access_denied"
+        elif vehicle is not None and "subscription_unavailable" in deliveries:
+            result = "subscription_unavailable"
         elif retry and retry > datetime.now(UTC):
             result = "rate_limited"
         elif self._data_act_processing_failed or "unavailable" in deliveries:
@@ -148,6 +160,7 @@ class StatusEngine:
             result = "no_new_dataset" if self._data_act_attempt_at else "initializing"
         return {
             "result": result,
+            "scope": "vehicle" if vehicle is not None else "account",
             "last_attempt": self._data_act_attempt_at.isoformat()
             if self._data_act_attempt_at
             else None,

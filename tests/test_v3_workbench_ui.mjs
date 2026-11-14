@@ -1896,9 +1896,63 @@ test("Selecting a source shows its alternative observations and actual scalar va
   p.apiFamily = "eu_data_act";
   p.step = 1;
   p.render();
-  assert.match(p.shadowRoot.innerHTML, /<details open><summary>EU Data Act/);
+  assert.match(p.shadowRoot.innerHTML, /<details><summary>EU Data Act/);
   assert.match(p.shadowRoot.innerHTML, /<td>52<\/td>/);
   assert.match(p.shadowRoot.innerHTML, /source-uuid/);
   assert.match(p.shadowRoot.innerHTML, /unmapped_field/);
   assert.match(p.shadowRoot.innerHTML, /includes alternatives/);
+});
+
+test("Capability matrix shows actual, missing and invalid source evidence without requests", () => {
+  const p = new Panel();
+  const rows = [
+    {
+      attribute: "stateOfCharge",
+      entity_key: "sensor.state_of_charge",
+      capability: "charging",
+      metadata: { name: "Battery level" },
+      status: "readable_but_stale",
+      entity_ids: [],
+    },
+  ];
+  const families = [
+    {
+      id: "cariad",
+      label: "CARIAD",
+      priority: 10,
+      observations: [
+        {
+          attribute: "stateOfCharge",
+          normalized_value: 0,
+          selected: true,
+          valid: true,
+          fresh: false,
+          captured: "2026-11-14T08:00:00Z",
+        },
+      ],
+    },
+    {
+      id: "future_source",
+      label: "Future source",
+      priority: 20,
+      declared_attributes: ["stateOfCharge"],
+    },
+    {
+      id: "eu_data_act",
+      label: "EU Data Act",
+      priority: 30,
+      observations: [
+        { attribute: "stateOfCharge", selected: false, valid: false },
+      ],
+    },
+  ];
+  const html = p.capabilityMatrix(rows, families);
+  assert.match(html, /Priority 10/);
+  assert.match(html, /Future source/);
+  assert.match(html, /Priority 30/);
+  assert.match(html, /✓ 0/);
+  assert.match(html, /Mapped · no value/);
+  assert.match(html, /Invalid value/);
+  assert.match(html, /Last known/);
+  assert.match(html, /data-action="select-attribute"/);
 });

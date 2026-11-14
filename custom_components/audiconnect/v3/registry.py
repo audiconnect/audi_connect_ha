@@ -7,6 +7,8 @@ Model/region refinements are optional: generic operations always remain defined.
 from __future__ import annotations
 
 import json
+import math
+from uuid import UUID
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -182,6 +184,8 @@ class CapabilityRegistry:
             ):
                 raise RegistryError("Invalid API family priority")
         for family_id, definition in self.families.items():
+            if "observations" in definition:
+                self._validate_observations(definition["observations"])
             mappings = definition.get("identity_mappings", {})
             if not isinstance(mappings, dict):
                 raise RegistryError("Invalid identity mappings")
@@ -270,6 +274,93 @@ class CapabilityRegistry:
                     op = self.operations.get(ref)
                     if op is None or (op["method"] == "GET") != (aspect == "status"):
                         raise RegistryError("Invalid operation reference")
+
+    def _validate_observations(self, mappings):
+        """Validate declarative read-only source mappings before runtime use."""
+        from .historical_catalog import ATTRIBUTES
+
+        def finite(value):
+            return type(value) in (int, float) and math.isfinite(value)
+
+        if not isinstance(mappings, dict):
+            raise RegistryError("Invalid observation mappings")
+        for key, mapping in mappings.items():
+            try:
+                valid_key = isinstance(key, str) and str(UUID(key)) == key
+            except ValueError:
+                valid_key = False
+            if not valid_key or not isinstance(mapping, dict):
+                raise RegistryError("Invalid observation key or mapping")
+            ident = mapping.get("attribute")
+            field = mapping.get("field")
+            detail = mapping.get("detail", False)
+            if (
+                not isinstance(field, str)
+                or not field
+                or not isinstance(ident, str)
+                or type(detail) is not bool
+                or (detail and ident in ATTRIBUTES)
+                or (not detail and ident not in ATTRIBUTES)
+                or (
+                    "capability" in mapping
+                    and (
+                        not detail
+                        or not isinstance(mapping["capability"], str)
+                        or mapping["capability"] not in self.capabilities
+                    )
+                )
+                or ("unit" in mapping and not isinstance(mapping["unit"], str))
+                or set(mapping)
+                - {
+                    "field",
+                    "attribute",
+                    "detail",
+                    "capability",
+                    "unit",
+                    "values",
+                    "min",
+                    "max",
+                    "scale",
+                    "offset",
+                    "presence",
+                    "token",
+                }
+            ):
+                raise RegistryError("Invalid observation destination")
+            modes = sum(
+                name in mapping for name in ("values", "min", "presence", "token")
+            )
+            if modes != 1:
+                raise RegistryError("Ambiguous observation conversion")
+            if "values" in mapping:
+                values = mapping["values"]
+                if (
+                    not isinstance(values, dict)
+                    or not values
+                    or any(
+                        not isinstance(k, str)
+                        or type(v) not in (str, bool, int, float)
+                        or (type(v) in (int, float) and not finite(v))
+                        for k, v in values.items()
+                    )
+                ):
+                    raise RegistryError("Invalid observation enum")
+            elif "min" in mapping:
+                if (
+                    not finite(mapping["min"])
+                    or not finite(mapping.get("max"))
+                    or mapping["min"] > mapping["max"]
+                    or ("scale" in mapping) != ("offset" in mapping)
+                    or (
+                        "scale" in mapping
+                        and not all(finite(mapping[k]) for k in ("scale", "offset"))
+                    )
+                ):
+                    raise RegistryError("Invalid observation numeric conversion")
+            elif mapping.get("presence", mapping.get("token")) is not True:
+                raise RegistryError("Invalid observation conversion flag")
+            if "min" not in mapping and set(mapping) & {"max", "scale", "offset"}:
+                raise RegistryError("Unexpected observation numeric conversion")
 
     def identity_fields(self, family, operation, payload):
         """Resolve declared OEM field paths, without inventing identity."""

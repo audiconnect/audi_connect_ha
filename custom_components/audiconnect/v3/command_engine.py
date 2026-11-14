@@ -292,20 +292,24 @@ class CommandEngine:
                 ):
                     car.last_command_result = record.state
 
+    def binding_snapshot(self, car, profile):
+        """Resolve one vehicle's controls without network or profile mutation."""
+        return {
+            f"{capability}.{action}": control_decision(
+                car, profile, self.auth, capability, action
+            )
+            for capability, definition in profile.registry.capabilities.items()
+            for action in (definition.get("control") or {})
+        }
+
     def refresh_bindings(self) -> None:
-        """Pure local matching; no request per control and no physical tests."""
+        """Publish the current control decisions at the runtime boundary."""
         for key, profile in self.profiles.items():
             try:
                 car = self.require_vehicle(key)
             except ValueError:
                 continue
-            profile.fast_bindings = {
-                f"{capability}.{action}": control_decision(
-                    car, profile, self.auth, capability, action
-                )
-                for capability, definition in profile.registry.capabilities.items()
-                for action in (definition.get("control") or {})
-            }
+            profile.fast_bindings = self.binding_snapshot(car, profile)
 
     def command_route(self, vin: str, aspect: str, capability: str) -> str | None:
         try:

@@ -222,6 +222,7 @@
           "field": "tyre_pressure_actual_rear_left",
           "attribute": "tyre_pressure_actual_rear_left_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -230,6 +231,7 @@
           "field": "tyre_pressure_differential_front_right",
           "attribute": "tyre_pressure_differential_front_right_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -238,6 +240,7 @@
           "field": "maintenance_interval_monthly_mileage",
           "attribute": "maintenance_interval_monthly_mileage_detail",
           "detail": true,
+          "capability": "service",
           "unit": "km",
           "min": 0,
           "max": 100000
@@ -246,6 +249,7 @@
           "field": "charging_state_error_code",
           "attribute": "charging_state_error_code_detail",
           "detail": true,
+          "capability": "charging",
           "min": 0,
           "max": 65534
         },
@@ -253,6 +257,7 @@
           "field": "parking_brake",
           "attribute": "parking_brake_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "values": {
             "0": false,
             "1": true
@@ -262,6 +267,7 @@
           "field": "oil_level_min_warning",
           "attribute": "oil_level_min_warning_detail",
           "detail": true,
+          "capability": "service",
           "values": {
             "0": false,
             "1": true
@@ -271,6 +277,7 @@
           "field": "remaining_charging_time_target_soc",
           "attribute": "remaining_charging_time_target_soc_detail",
           "detail": true,
+          "capability": "charging",
           "min": 0,
           "max": 10080
         },
@@ -278,6 +285,7 @@
           "field": "maintenance_interval_inspection_warning",
           "attribute": "maintenance_interval_inspection_warning_detail",
           "detail": true,
+          "capability": "service",
           "values": {
             "0": false,
             "1": true
@@ -287,6 +295,7 @@
           "field": "state_service_hatch",
           "attribute": "state_service_hatch_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -296,6 +305,7 @@
           "field": "tyre_pressure_differential_spare_tyre",
           "attribute": "tyre_pressure_differential_spare_tyre_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -304,6 +314,7 @@
           "field": "locked_state_front_engine_bonnet",
           "attribute": "locked_state_front_engine_bonnet_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -319,6 +330,7 @@
           "field": "safe_state_front_right_door",
           "attribute": "safe_state_front_right_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -338,12 +350,14 @@
           "field": "last_battery_charger_update_trigger",
           "attribute": "last_battery_charger_update_trigger_detail",
           "detail": true,
+          "capability": "charging",
           "token": true
         },
         "a105604b-c44c-30da-b1c9-14bb9c48c714": {
           "field": "oil_level_status",
           "attribute": "oil_level_status_detail",
           "detail": true,
+          "capability": "service",
           "values": {
             "0": "invalid",
             "1": "valid",
@@ -354,6 +368,7 @@
           "field": "locked_state_rear_right_door",
           "attribute": "locked_state_rear_right_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -363,6 +378,7 @@
           "field": "bem_level",
           "attribute": "bem_level_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "unit": "%",
           "min": 1,
           "max": 100
@@ -379,6 +395,7 @@
           "field": "active_warnings_in_instrument_cluster_fff",
           "attribute": "active_warnings_in_instrument_cluster_fff_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "unit": "Hex (Interpreted)",
           "min": 0,
           "max": 2147483646
@@ -387,6 +404,7 @@
           "field": "oil_level_dipstick_indicator_function",
           "attribute": "oil_level_dipstick_indicator_function_detail",
           "detail": true,
+          "capability": "service",
           "values": {
             "0": false,
             "1": true
@@ -396,6 +414,7 @@
           "field": "safe_state_rear_right_door",
           "attribute": "safe_state_rear_right_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -405,6 +424,7 @@
           "field": "tyre_pressure_required_front_right",
           "attribute": "tyre_pressure_required_front_right_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -413,6 +433,7 @@
           "field": "safe_state_rear_left_door",
           "attribute": "safe_state_rear_left_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -422,6 +443,7 @@
           "field": "locked_state_front_right_door",
           "attribute": "locked_state_front_right_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -431,6 +453,7 @@
           "field": "state_sunroof_motor_hood_1",
           "attribute": "state_sunroof_motor_hood_1_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -440,6 +463,7 @@
           "field": "tyre_pressure_actual_rear_right",
           "attribute": "tyre_pressure_actual_rear_right_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -454,6 +478,7 @@
           "field": "tyre_pressure_differential_rear_left",
           "attribute": "tyre_pressure_differential_rear_left_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -468,6 +493,7 @@
           "field": "tyre_pressure_differential_rear_right",
           "attribute": "tyre_pressure_differential_rear_right_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -476,6 +502,7 @@
           "field": "tyre_pressure_required_rear_left",
           "attribute": "tyre_pressure_required_rear_left_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -490,6 +517,7 @@
           "field": "oil_level_additional_oil_level",
           "attribute": "oil_level_additional_oil_level_detail",
           "detail": true,
+          "capability": "service",
           "unit": "%",
           "min": 0,
           "max": 100
@@ -498,6 +526,7 @@
           "field": "tyre_pressure_actual_front_right",
           "attribute": "tyre_pressure_actual_front_right_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -520,6 +549,7 @@
           "field": "fuel_level__accuracy",
           "attribute": "fuel_level_accuracy_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "values": {
             "0": "measured",
             "1": "estimated"
@@ -543,6 +573,7 @@
           "field": "safe_state_tailgate",
           "attribute": "safe_state_tailgate_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -552,6 +583,7 @@
           "field": "safe_state_front_engine_bonnet",
           "attribute": "safe_state_front_engine_bonnet_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -561,6 +593,7 @@
           "field": "led_state",
           "attribute": "led_state_detail",
           "detail": true,
+          "capability": "charging",
           "token": true
         },
         "a56a4e27-7d8d-3434-a746-4736c3b5a496": {
@@ -577,6 +610,7 @@
           "field": "tyre_pressure_required_rear_right",
           "attribute": "tyre_pressure_required_rear_right_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -585,6 +619,7 @@
           "field": "tyre_pressure_actual_front_left",
           "attribute": "tyre_pressure_actual_front_left_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -593,6 +628,7 @@
           "field": "tyre_pressure_actual_spare_tyre",
           "attribute": "tyre_pressure_actual_spare_tyre_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -601,6 +637,7 @@
           "field": "state_sunroof_motor_hood_3",
           "attribute": "state_sunroof_motor_hood_3_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -610,6 +647,7 @@
           "field": "scr_number_of_engine_starts",
           "attribute": "scr_number_of_engine_starts_detail",
           "detail": true,
+          "capability": "service",
           "min": 0,
           "max": 15
         },
@@ -617,6 +655,7 @@
           "field": "locked_state_front_left_door",
           "attribute": "locked_state_front_left_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -626,6 +665,7 @@
           "field": "tyre_pressure_required_spare_tyre",
           "attribute": "tyre_pressure_required_spare_tyre_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -634,6 +674,7 @@
           "field": "locked_state__rear_left_door",
           "attribute": "locked_state_rear_left_door_detail",
           "detail": true,
+          "capability": "access",
           "values": {
             "2": true,
             "3": false
@@ -643,6 +684,7 @@
           "field": "state_spoiler",
           "attribute": "state_spoiler_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "values": {
             "2": true,
             "3": false
@@ -652,6 +694,7 @@
           "field": "tyre_pressure_required_front_left",
           "attribute": "tyre_pressure_required_front_left_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -660,6 +703,7 @@
           "field": "maintenance_interval_oil_change_warning",
           "attribute": "maintenance_interval_oil_change_warning_detail",
           "detail": true,
+          "capability": "service",
           "values": {
             "0": false,
             "1": true
@@ -675,6 +719,7 @@
           "field": "tyre_pressure_differential_front_left",
           "attribute": "tyre_pressure_differential_front_left_detail",
           "detail": true,
+          "capability": "vehicle_status",
           "min": 2,
           "max": 1000,
           "unit": "reported"
@@ -694,6 +739,7 @@
           "field": "oil_level_total_max",
           "attribute": "oil_level_total_max_detail",
           "detail": true,
+          "capability": "service",
           "unit": "l",
           "min": 0,
           "max": 100
@@ -702,6 +748,7 @@
           "field": "charging_reason_trigger",
           "attribute": "charging_reason_trigger_detail",
           "detail": true,
+          "capability": "charging",
           "token": true
         }
       }

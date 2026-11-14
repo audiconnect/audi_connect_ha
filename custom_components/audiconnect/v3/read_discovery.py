@@ -123,8 +123,10 @@ def data_act_discovery(car, profile, *, include_fields=False):
             if ident is None
             else "disabled"
             if ident in getattr(profile, "attribute_disabled", ())
+            else "invalid_value"
+            if reading.get("path") == key and reading.get("status") == "invalid_value"
             else "normalized"
-            if reading.get("path") == key
+            if reading.get("path") == key and reading.get("value") is not None
             else "mapping_declared"
         )
         rows[(key, name)] = {

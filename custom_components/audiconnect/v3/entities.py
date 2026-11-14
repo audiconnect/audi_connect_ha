@@ -572,7 +572,7 @@ class V3HealthSensor(V3BaseEntity, SensorEntity):
         data = self._health()
         status = getattr(self.coordinator.engine, "status", None)
         if self.kind == "integration_status" and status is not None:
-            data["data_act"] = status.data_act_poll_status()
+            data["data_act"] = status.data_act_poll_status(self.vehicle)
         return data
 
 

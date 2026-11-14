@@ -77,7 +77,7 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
 def _measurement_readings(vehicle):
     """Scalar vehicle readings only; detail envelopes are not measurements."""
     for ident, row in vehicle.readings.items():
-        if ident in ("last_update_time", "model") or ident.endswith("_detail"):
+        if ident in ("last_update_time", "model") or row.get("detail"):
             continue
         value = row.get("value")
         if value is not None and not isinstance(value, (str, int, float, bool)):

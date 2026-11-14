@@ -93,13 +93,13 @@ async def ws_list(hass, connection, msg):
 @websocket_api.async_response
 async def ws_status(hass, connection, msg):
     try:
-        from .capability_status import build_status_report
+        from .capability_status import attribute_reading, build_status_report
 
         engine = _engine(hass, msg["entry_id"])
         vehicle = engine.require_vehicle(msg["vin"])
         profile = engine.profiles[vehicle.vin.lower()]
-        engine.commands.refresh_bindings()
-        report = build_status_report(vehicle, profile)
+        bindings = engine.commands.binding_snapshot(vehicle, profile)
+        report = build_status_report(vehicle, profile, fast_bindings=bindings)
         report["normal_command"] = (
             profile.last_command.snapshot() if profile.last_command else None
         )
@@ -119,7 +119,7 @@ async def ws_status(hass, connection, msg):
             or latest_by_capability.get(row.capability, row) is row
         ]
         report["command_journal"] = [row.snapshot() for row in profile.command_journal]
-        report["fast_bindings"] = profile.fast_bindings
+        report["fast_bindings"] = bindings
         from .product_contract import entity_projection_report, entity_key
 
         report["account_entity_projection"] = entity_projection_report(engine)
@@ -175,7 +175,7 @@ async def ws_status(hass, connection, msg):
             # Admin-only scalar observation trace; never add private values
             # to the shared capability report or exported diagnostics.
             for row in report["rows"]:
-                reading = vehicle.readings.get(row.get("attribute"), {})
+                reading = attribute_reading(vehicle, row.get("attribute"))
                 value = reading.get("value")
                 if row.get("entity_key") and type(value) in (str, int, float, bool):
                     row["normalized_value"] = engine.redact_evidence(
@@ -196,7 +196,7 @@ async def ws_status(hass, connection, msg):
                     .get(family["id"])
                 )
                 if sample is None and observation["selected"]:
-                    sample = vehicle.readings.get(ident)
+                    sample = attribute_reading(vehicle, ident)
                 if sample and type(sample.get("value")) in (str, int, float, bool):
                     observation["normalized_value"] = engine.redact_evidence(
                         sample["value"], vehicle.vin
@@ -206,7 +206,7 @@ async def ws_status(hass, connection, msg):
                         sample.get("path"), vehicle.vin
                     )["payload"]
             if family["auth"] == "eu_data_act" and hasattr(engine, "status"):
-                family["health"] = engine.status.data_act_poll_status()
+                family["health"] = engine.status.data_act_poll_status(vehicle)
             elif hasattr(getattr(engine, "auth", None), "identity_auth_evidence"):
                 family["auth_context"] = engine.auth.identity_auth_evidence(
                     family["id"]

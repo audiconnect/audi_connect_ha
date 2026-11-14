@@ -348,7 +348,11 @@ def test_sparse_q8_shape_maps_known_information_only():
     car = V3Vehicle(VIN, "Audi", "", "", "BE")
     profile = DevelopmentProfile(registry, car.context)
     assert observe_data_act(car, profile, payload, now, now.isoformat())
-    assert {key: row["value"] for key, row in car.readings.items()} == {
+    assert {
+        key: row["value"]
+        for key, row in car.readings.items()
+        if row["value"] is not None
+    } == {
         "stateOfCharge": 64,
         "UTC_TIME_AND_KILOMETER_STATUS": 12345,
         "TANK_LEVEL_IN_PERCENTAGE": 80,
@@ -359,6 +363,9 @@ def test_sparse_q8_shape_maps_known_information_only():
         "plugLockState": "unlocked",
     }
     assert all(row["captured"] == stamp for row in car.readings.values())
+    for ident in ("remainingChargingTime", "remainingClimatisationTime"):
+        assert car.readings[ident]["status"] == "invalid_value"
+        assert car.readings[ident]["value"] is None
     assert not profile.attribute_evidence and not profile.attribute_routes
     payload["Data"][1]["value"] = "65535"
     assert (
@@ -369,8 +376,11 @@ def test_sparse_q8_shape_maps_known_information_only():
     )
     for invalid in ("4294967295", "2147483647", "-1", "123.5"):
         payload["Data"][1]["value"] = invalid
-        assert "UTC_TIME_AND_KILOMETER_STATUS" not in data_act_observations(
-            payload, now, registry
+        assert (
+            data_act_observations(payload, now, registry)[
+                "UTC_TIME_AND_KILOMETER_STATUS"
+            ]["value"]
+            is None
         )
 
 
@@ -539,7 +549,7 @@ def test_data_act_enum_and_temperature_mappings_do_not_invent_state():
     rows = data_act_observations(payload, now, registry)
     assert rows["outdoor_temperature"]["value"] == 8.05
     assert rows["left_front_window_open"]["value"] is False
-    assert "right_front_window_open" not in rows
+    assert rows["right_front_window_open"]["value"] is None
     assert rows["plugLockState"]["value"] == "locked"
     assert "doorLockStatus" not in rows
     assert "any_door_unlocked" not in rows
@@ -1055,7 +1065,7 @@ def test_data_act_duration_and_hood_enrichment_rejects_sentinels():
     }
     result = data_act_observations(payload, now, registry)
     assert result["remainingChargingTime"]["value"] == 42
-    assert "remainingClimatisationTime" not in result
+    assert result["remainingClimatisationTime"]["value"] is None
     assert result["hood_open"]["value"] is False
 
 
@@ -1187,7 +1197,10 @@ def test_data_act_observed_charging_and_parking_fields_use_shared_contract():
     assert result["parking_light"]["value"] is False
     rows[0]["value"] = "unsupported"
     rows[1]["value"] = "1"
-    assert not data_act_observations({"Data": rows}, now, registry)
+    assert all(
+        row["value"] is None
+        for row in data_act_observations({"Data": rows}, now, registry).values()
+    )
 
 
 def test_portal_identity_uses_declared_paths_and_never_role_or_nickname():
@@ -1279,6 +1292,7 @@ def test_portal_read_only_details_use_existing_observation_lifecycle():
     }
     observe_data_act(car, profile, payload, now, now.isoformat())
     assert car.readings["parking_brake_detail"]["value"] is True
+    assert car.readings["parking_brake_detail"]["detail"] is True
     assert car.readings["tyre_pressure_actual_front_left_detail"]["value"] == 2.8
     assert car.readings["echo_detail"]["value"] is True
     source = next(
@@ -1288,6 +1302,115 @@ def test_portal_read_only_details_use_existing_observation_lifecycle():
     )
     assert source["normalized_details"] == 3
     assert source["normalized"] == 0
+    assert any(
+        row["attribute"] == "parking_brake_detail"
+        and row["capability"] == "vehicle_status"
+        for row in source["details"]
+    )
     assert "private-value" not in str(source)
     remove_family_observations(car, profile, "eu_data_act", now)
     assert "parking_brake_detail" not in car.readings
+
+
+def test_timestamped_data_act_rejection_withdraws_only_its_own_value():
+    now = datetime.now(UTC)
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    earlier = (now - timedelta(minutes=10)).isoformat()
+    record_observation(
+        car,
+        profile,
+        "stateOfCharge",
+        40,
+        earlier,
+        now,
+        "native",
+        "charging",
+        "cariad",
+        fresh=True,
+        operation="cariad.climate.status.batch",
+    )
+    payload = {"vin": VIN, "Data": [sample("52", now.isoformat())]}
+    observe_data_act(car, profile, payload, now, now.isoformat())
+    assert car.readings["stateOfCharge"]["value"] == 52
+    # Missing field is not invalidation; an older invalid value cannot replace it.
+    for incoming in ([], [sample(None, now.isoformat())], [sample("-1", earlier)]):
+        observe_data_act(
+            car, profile, {"vin": VIN, "Data": incoming}, now, now.isoformat()
+        )
+        assert car.readings["stateOfCharge"]["value"] == 52
+    payload["Data"].append(sample("53", now.isoformat()))
+    observe_data_act(car, profile, payload, now, now.isoformat())
+    assert car.readings["stateOfCharge"]["value"] == 40
+    assert (
+        car.family_readings["stateOfCharge"]["eu_data_act"]["status"] == "invalid_value"
+    )
+    from custom_components.audiconnect.v3.capability_status import build_status_report
+
+    source = next(
+        row
+        for row in build_status_report(car, profile)["family_discovery"]
+        if row["id"] == "eu_data_act"
+    )
+    assert source["priority"] == 30
+    assert "stateOfCharge" in source["declared_attributes"]
+    assert source["normalized"] == source["selected"] == 0
+    observation = next(
+        row for row in source["observations"] if row["attribute"] == "stateOfCharge"
+    )
+    assert observation["valid"] is False
+    assert observation["status"] == "invalid_value"
+
+
+def test_data_act_health_is_vehicle_scoped():
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    other = "WAUZZZ4M0MD123457"
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    denied = V3Vehicle(other, "Audi", "Q5", "q5", "DE")
+    client = DataActClient(None)
+    client.delivery_states.update(
+        {VIN: "dataset_received", other: "vehicle_access_denied"}
+    )
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=None,
+        vehicles={VIN.lower(): car, other.lower(): denied},
+        profiles={},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+    )
+    assert status.data_act_poll_status()["result"] == "dataset_received"
+    assert status.data_act_poll_status(car)["result"] == "dataset_received"
+    report = status.data_act_poll_status(denied)
+    assert report["result"] == "vehicle_access_denied"
+    assert report["delivery_states"] == {"vehicle_access_denied": 1}
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"attribute": "nonexistent"},
+        {"min": 100, "max": 0},
+        {"values": {"x": True}},
+        {"scale": 2},
+        {"detail": True},
+    ],
+)
+def test_registry_rejects_malformed_source_mappings(change):
+    from custom_components.audiconnect.v3.registry import RegistryError
+
+    raw = json.loads(catalog_path().read_text())
+    raw["api_families"]["eu_data_act"]["observations"][SOC].update(change)
+    with pytest.raises(RegistryError):
+        CapabilityRegistry(raw)

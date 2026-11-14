@@ -59,3 +59,44 @@ Keep the existing owners: account/session authentication, reviewed family execut
 For a possible myAudi web identity source, first obtain sanitized evidence of an authorized inventory operation and its response fields. Prefer the central Audi ID and regional endpoint resolution inside the reviewed transport owner. Market-specific hosts and locale belong in that adapter, not the core or canonical model. Do not allow arbitrary URLs, import browser tokens, bypass OAuth client limitations, or automatically replay unreviewed requests. Add an independent auth context only if the documented/observed operation actually requires it; reuse existing HA options/reauth, request budget, bounded response reading and source discovery. A valid same-VIN manufacturer model/year and drivetrain remain live acceptance blockers. Never promote a display nickname or infer a manufacturer model from a VIN.
 
 The B38 release is a test candidate, not an accepted stable release. After field acceptance, consolidate and remove redundant discovery/projection code, validate source failure/renewal, preserve entity contracts and trip history, and rerun the existing compatibility and upstream gates. No new runtime framework is justified.
+
+## B39 consolidation — B38 live diagnostics and engineering audit
+
+B38 Q8 baseline (HA 2026.11.1): one successful native poll, optional dataset
+received, 84 observed dataset fields mapped, 30 normalized canonical source
+observations and 28 normalized read-only details. Four Data Act observations
+selected; 64/101 canonical attributes overall, zero fresh. Registry: 126
+entries, 98 enabled runtime offers, no category drift; 394 archived trips.
+Mapping coverage is not value coverage. No private diagnostic payload is
+committed.
+
+The existing Capabilities view now compares declared source mappings, actual
+normalized observations, invalid states, capture time and selected source
+with family priority. Source columns are registry-driven; technical details
+are folded. Additional read-only source details appear in their relevant
+capability without new HA entities. Transport and source-level discovery
+remain in API Log; the guided physical verification path is retained. Ordinary
+users continue to use native HA entities.
+
+Status records timestamped rejected/conflicting Data Act samples through the
+existing observation writer, preserves valid independent native fallback and
+does not treat missing/null fields or undated rejections as invalidation.
+Declared detail metadata, rather than attribute naming, excludes informational
+details from operational freshness. Optional delivery status is vehicle-scoped
+in vehicle health and Workbench; account scheduling remains shared. The
+catalog rejects malformed observation mapping contracts at construction.
+Workbench refresh computes a local command binding snapshot without writing
+to profiles. No added polling, scheduler, persistent cache, command route,
+HA entity or required setup step.
+
+### Remaining acceptance and audit scope
+
+Identity remains open (#35); no invented metadata or unapproved authentication
+workaround. Source engineering detail labels and units do not imply physical
+semantics or support. Confirm B39 on a normal drive, active charging, optional
+disconnect/reconnect, multi-vehicle isolation, HA restart and V2 rollback.
+The existing guided validation UI remains a separate view for this candidate;
+consolidating it into four governance views and real-browser acceptance,
+config flow simplification, remaining freshness primitive duplication and
+broader extensibility audit remain tracked in #44. Stable release is NO GO.
+An experimental candidate must pass all existing release and upstream gates.
