@@ -1581,6 +1581,17 @@ def test_data_act_due_time_slows_when_no_new_data():
     status._data_act_attempt_at = now
     client.delivery_states[VIN] = "dataset_received"
     assert status._data_act_due_at(client) == now + timedelta(hours=1)
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    status.vehicles[VIN.lower()] = car
+    car.family_readings["stateOfCharge"] = {
+        "eu_data_act": {
+            "value": 52,
+            "captured": (now - timedelta(days=1)).isoformat(),
+        }
+    }
+    assert status._data_act_due_at(client) == now + timedelta(hours=2)
+    car.family_readings["stateOfCharge"]["eu_data_act"]["captured"] = now.isoformat()
+    assert status._data_act_due_at(client) == now + timedelta(hours=1)
     client.delivery_states[VIN] = "no_new_dataset"
     assert status._data_act_due_at(client) == now + timedelta(hours=2)
     client.quota.observe(429, {"Retry-After": "10800"}, now)

@@ -10,7 +10,7 @@ from typing import Any
 from .development_profiles import DevelopmentProfile, render_request
 from .transport import V3Response
 from .vehicle import V3Vehicle
-from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured
+from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured, capture_age_minutes
 from .attribute_runtime import (
     planned_jobs,
     observe_read_only,
@@ -221,13 +221,29 @@ class StatusEngine:
             60,
         )
         deliveries = set(getattr(client, "delivery_states", {}).values())
-        if deliveries and deliveries <= {
+        idle = deliveries and deliveries <= {
             "no_new_dataset",
             "no_nonempty_dataset",
             "empty_dataset",
             "subscription_unavailable",
             "vehicle_access_denied",
-        }:
+        }
+        # A newly delivered ZIP can still contain only old vehicle captures.
+        # Use the canonical observations, not file/fetch time or a second cache.
+        ages = [
+            age
+            for car in self.vehicles.values()
+            if car.inventory_present
+            for families in car.family_readings.values()
+            if (row := families.get("eu_data_act"))
+            and not row.get("detail")
+            and row.get("status") != "invalid_value"
+            and row.get("value") is not None
+            and self._data_act_attempt_at is not None
+            and (age := capture_age_minutes(row.get("captured"), self._data_act_attempt_at))
+            is not None
+        ]
+        if idle or (ages and min(ages) > 60):
             interval *= 2
         due = (
             self._data_act_attempt_at + timedelta(minutes=interval)
@@ -468,7 +484,13 @@ class StatusEngine:
     def _start_data_act(self):
         if self._data_act_task is not None and not self._data_act_task.done():
             return
-        if getattr(self.auth, "data_act_client", None) is None:
+        client = getattr(self.auth, "data_act_client", None)
+        if client is None:
+            return
+        if self._data_act_backoff_loaded and (
+            client.authorization_required
+            or datetime.now(UTC) < self._data_act_due_at(client)
+        ):
             return
         create_task = getattr(self.entry, "async_create_background_task", None)
         if create_task is not None and self.hass is not None:
