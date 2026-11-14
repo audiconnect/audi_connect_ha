@@ -108,7 +108,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 # Manufacturer identity is universal, even when the OEM label
                 # is temporarily absent. Preserve the existing model entity ID.
                 add_once(f"{vin}:model", V3ModelSensor)
-                for kind in ("integration_status", "last_error"):
+                for kind in ("integration_status", "last_error", "data_act_status"):
                     add_once(f"{vin}:health:{kind}", V3HealthSensor, kind)
                 for kind in ("door", "window"):
                     add_once(f"{vin}:access:{kind}", V3AccessSummary, kind)

@@ -100,3 +100,29 @@ consolidating it into four governance views and real-browser acceptance,
 config flow simplification, remaining freshness primitive duplication and
 broader extensibility audit remain tracked in #44. Stable release is NO GO.
 An experimental candidate must pass all existing release and upstream gates.
+
+## B40 operational UX — B39 field feedback
+
+Expose the existing Data Act delivery state in both HA options steps and a
+vehicle-scoped diagnostic entity. A configured login is not a confirmed
+delivery; an acknowledged unchanged file is not a disconnected source. The
+account wizard uses the existing account projection; an available connection
+can be kept without reauthenticating. No extra request or persistent cache.
+Optional source failures remain independent of native Audi health.
+
+Manufacturer identity and GraphQL inventory metadata findings remain in
+engineering evidence with informational severity if the native poll succeeds
+and the vehicle is present. Other failures continue to drive operational
+health. The ordinary HA last-error entity shows only an actionable active
+operational error. Rename discovery coverage to assessment without changing
+entity identity or its meaning. Position explicitly overrides the HA tracker
+base-class diagnostic category; the existing reversible registry reconciliation
+preserves the device, entity ID and history.
+
+Keep optimistic comfort/charging projections and expose requested command
+state and whether the displayed value is optimistic through the existing
+shared command metadata. Security controls remain conservative: stale lock
+status is unknown, a command acceptance is a bounded locking/unlocking
+transition, and only vehicle readback can confirm the physical state.
+No extra command requests or automatic retry. Real HA restart, device-page,
+wizard and lock/comfort action acceptance remain required.

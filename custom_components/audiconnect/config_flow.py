@@ -882,6 +882,9 @@ class OptionsFlowHandler(OptionsFlow):
                     step_id="init",
                     errors={"base": "invalid_scan_interval"},
                     data_schema=self._options_schema(user_input),
+                    description_placeholders=await self._data_act_placeholders(
+                        user_input
+                    ),
                 )
             # OptionsFlow replaces all options; preserve per-vehicle metadata.
             if "local_dealers" in self.config_entry.options:
@@ -904,28 +907,82 @@ class OptionsFlowHandler(OptionsFlow):
         # V3 owns API routes and experimental actions in its development
         # dashboard, never inside this account configuration wizard.
         return self.async_show_form(
-            step_id="init", data_schema=self._options_schema(self.config_entry.options)
+            step_id="init",
+            data_schema=self._options_schema(self.config_entry.options),
+            description_placeholders=await self._data_act_placeholders(
+                self.config_entry.options
+            ),
         )
+
+    async def _data_act_placeholders(self, values):
+        """Read the existing scheduler status; opening options never calls Audi."""
+        if values.get("runtime_version", "v2") != "v3_climate":
+            return {"data_act_status": ""}
+        engine = self._discovery_engine()
+        status = getattr(engine, "status", None)
+        report = {}
+        if not values.get("v3_data_act_enabled"):
+            state = "not_configured"
+        elif status is not None:
+            report = status.data_act_poll_status()
+            state = report["connection_state"]
+        else:
+            state = (
+                "awaiting_data"
+                if values.get("v3_data_act_email")
+                and values.get("v3_data_act_password")
+                else "credentials_required"
+            )
+        label = state.replace("_", " ").capitalize()
+        language = getattr(getattr(self.hass, "config", None), "language", None)
+        if language:
+            from homeassistant.helpers.translation import async_get_translations
+
+            translations = await async_get_translations(
+                self.hass, language, "entity", [DOMAIN]
+            )
+            label = translations.get(
+                f"component.{DOMAIN}.entity.sensor.v3_data_act_status.state.{state}",
+                label,
+            )
+        if stamp := report.get("last_success"):
+            from datetime import datetime
+            from homeassistant.util.dt import as_local
+
+            label += " · " + as_local(datetime.fromisoformat(stamp)).strftime(
+                "%Y-%m-%d %H:%M %Z"
+            )
+        return {"data_act_status": f"EU Data Act: {label}"}
 
     async def async_step_data_act(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the optional source using a normal HA form, not an options menu."""
+        options = dict(self._pending_options or self.config_entry.options)
         if user_input is not None:
+            if user_input["action"] == "keep":
+                return self.async_create_entry(title="", data=options)
             if user_input["action"] == "disconnect":
-                options = dict(self._pending_options or self.config_entry.options)
                 for key in ("v3_data_act_email", "v3_data_act_password"):
                     options.pop(key, None)
                 options["v3_data_act_enabled"] = False
                 return self.async_create_entry(title="", data=options)
             return await self.async_step_data_act_credentials()
+        configured = bool(options.get("v3_data_act_enabled"))
         return self.async_show_form(
             step_id="data_act",
+            description_placeholders=await self._data_act_placeholders(options),
             data_schema=vol.Schema(
                 {
-                    vol.Required("action", default="connect"): SelectSelector(
+                    vol.Required(
+                        "action", default="keep" if configured else "connect"
+                    ): SelectSelector(
                         SelectSelectorConfig(
-                            options=["connect", "disconnect"],
+                            options=(
+                                ["keep", "connect", "disconnect"]
+                                if configured
+                                else ["connect"]
+                            ),
                             translation_key="data_act_action",
                             mode=SelectSelectorMode.LIST,
                         )

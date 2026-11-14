@@ -113,7 +113,8 @@
           "v3_development_workbench": "Show the administrator-only API Development Workbench in the sidebar only while V3 is active. Off by default; saved experimental API profiles are kept.",
           "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action.",
           "manage_data_act": "Connect, reconnect or disconnect the optional read-only portal source. Native Audi login is unchanged."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "dealer_vehicle": {
         "title": "Choose vehicle",
@@ -171,7 +172,7 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "description": "Choose connect/reconnect to verify portal credentials, or disconnect to remove local credentials and stop Data Act reads. Your native Audi connection and portal request are not changed.",
+        "description": "{data_act_status}\n\nChoose connect/reconnect to verify portal credentials, or disconnect to remove local credentials and stop Data Act reads. Your native Audi connection and portal request are not changed.",
         "data": {
           "action": "Connection"
         }
@@ -216,7 +217,8 @@
     "data_act_action": {
       "options": {
         "connect": "Connect / reconnect",
-        "disconnect": "Disconnect"
+        "disconnect": "Disconnect",
+        "keep": "Keep current connection"
       }
     }
   },
@@ -647,7 +649,7 @@
         "name": "Trip history"
       },
       "v3_discovery_coverage": {
-        "name": "Discovery coverage"
+        "name": "Discovery assessment"
       },
       "v3_integration_status": {
         "name": "Integration status"
@@ -666,6 +668,21 @@
       },
       "v3_fuel_range": {
         "name": "Fuel range"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Not configured",
+          "credentials_required": "Credentials required",
+          "awaiting_data": "Awaiting data",
+          "connected": "Connected",
+          "partial": "Partially connected",
+          "authorization_required": "Authorization required",
+          "vehicle_access_denied": "Vehicle access denied",
+          "subscription_unavailable": "Subscription unavailable",
+          "rate_limited": "Rate limited",
+          "unavailable": "Temporarily unavailable"
+        }
       }
     },
     "binary_sensor": {

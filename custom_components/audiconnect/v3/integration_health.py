@@ -16,6 +16,16 @@ HEALTH_STATES = [
 ]
 
 
+# Metadata findings do not make a working vehicle connection unhealthy.
+_IDENTITY_FINDINGS = frozenset(
+    {
+        "vehicle_identity_missing",
+        "graphql_partial_response",
+        "graphql_inventory_unavailable",
+    }
+)
+
+
 class IntegrationHealth:
     def __init__(self):
         self.findings = {}
@@ -151,6 +161,23 @@ class IntegrationHealth:
             remaining is not None and remaining <= getattr(quota, "reserve", 8)
         ) or (retry_at is not None and retry_at > datetime.now(UTC))
         poll = engine.last_cloud_poll_succeeded
+        findings = [
+            {
+                **row,
+                "severity": (
+                    "information"
+                    if poll is True
+                    and car.inventory_present
+                    and (
+                        row["code"] in _IDENTITY_FINDINGS
+                        or row["source"] == "graphql.inventory.vehicleList"
+                    )
+                    else "error"
+                ),
+            }
+            for row in findings
+        ]
+        errors = [row for row in findings if row["severity"] == "error"]
         identity = (
             "last_known"
             if getattr(car, "identity_restored", False)
@@ -168,11 +195,25 @@ class IntegrationHealth:
             state = "cloud_unavailable"
         elif poll is None:
             state = "initializing"
-        elif findings or identity != "observed" or not car.inventory_present:
+        elif errors or not car.inventory_present:
             state = "degraded"
         else:
             state = "operational"
         last = self.last.get(key)
+        operational_error = (
+            self.poll_error
+            or (
+                state
+                if state in ("rate_limited", "cloud_unavailable", "error")
+                else None
+            )
+            or ("vehicle_not_in_inventory" if not car.inventory_present else None)
+            or (
+                max(errors, key=lambda row: row["last_seen"])["code"]
+                if errors
+                else None
+            )
+        )
         return {
             "status": state,
             "problem": state
@@ -187,7 +228,9 @@ class IntegrationHealth:
             "quota_remaining": remaining,
             "identity_status": identity,
             "active_findings": findings,
-            "active_error_count": len(findings),
+            "active_error_count": len(errors),
+            "active_finding_count": len(findings),
+            "operational_error": operational_error,
             "last_error": dict(last) if last else None,
             "poll_error": self.poll_error,
             "error_history": [dict(row) for row in self.history.get(key, [])],

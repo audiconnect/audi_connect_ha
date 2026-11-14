@@ -117,7 +117,8 @@
           "runtime_version": "V2 bleibt Standard und Rückfalloption. V3 ist experimentell und verwendet eine eigene Erkennung, Abfrage und Home-Assistant-Entitäten. Ein Wechsel zurück ist jederzeit möglich.",
           "run_vehicle_discovery": "Automatische Erkennung prüfen und verfügbare Steuerungen ausdrücklich testen. Ohne Zustimmung zur jeweiligen Aktion wird keine Fahrzeugaktion ausgeführt.",
           "manage_data_act": "Optionale schreibgeschützte Quelle verbinden, erneut verbinden oder trennen. Die native Audi-Anmeldung bleibt unverändert."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "dealer_vehicle": {
         "title": "Fahrzeug auswählen",
@@ -141,7 +142,7 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "description": "Wählen Sie Verbinden zur Prüfung der Portal-Zugangsdaten oder Trennen zum Entfernen der lokalen Zugangsdaten. Die native Audi-Verbindung und Portalanfrage bleiben unverändert.",
+        "description": "{data_act_status}\n\nWählen Sie Verbinden zur Prüfung der Portal-Zugangsdaten oder Trennen zum Entfernen der lokalen Zugangsdaten. Die native Audi-Verbindung und Portalanfrage bleiben unverändert.",
         "data": {
           "action": "Verbindung"
         }
@@ -186,7 +187,8 @@
     "data_act_action": {
       "options": {
         "connect": "Verbinden / erneut verbinden",
-        "disconnect": "Trennen"
+        "disconnect": "Trennen",
+        "keep": "Aktuelle Verbindung beibehalten"
       }
     }
   },
@@ -617,7 +619,7 @@
         "name": "Fahrtenverlauf"
       },
       "v3_discovery_coverage": {
-        "name": "Erkennungsabdeckung"
+        "name": "Discovery-Bewertung"
       },
       "v3_integration_status": {
         "name": "Integrationsstatus"
@@ -636,6 +638,21 @@
       },
       "v3_fuel_range": {
         "name": "Kraftstoffreichweite"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Nicht konfiguriert",
+          "credentials_required": "Zugangsdaten erforderlich",
+          "awaiting_data": "Warten auf Daten",
+          "connected": "Verbunden",
+          "partial": "Teilweise verbunden",
+          "authorization_required": "Autorisierung erforderlich",
+          "vehicle_access_denied": "Fahrzeugzugriff verweigert",
+          "subscription_unavailable": "Abonnement nicht verfügbar",
+          "rate_limited": "Anfragelimit erreicht",
+          "unavailable": "Vorübergehend nicht verfügbar"
+        }
       }
     },
     "binary_sensor": {

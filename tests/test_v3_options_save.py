@@ -246,6 +246,7 @@ def test_v3_options_have_localized_labels_and_descriptions(language):
     action = translations["options"]["step"]["data_act"]
     assert action["description"] and action["data"]["action"]
     assert set(translations["selector"]["data_act_action"]["options"]) == {
+        "keep",
         "connect",
         "disconnect",
     }
@@ -267,3 +268,41 @@ async def test_v3_save_preserves_hidden_v2_startup_preference():
     result = await flow.async_step_init({"scan_interval": 20})
     assert result["data"]["scan_initial"] is False
     assert result["data"]["scan_interval"] == 20
+
+
+@pytest.mark.asyncio
+async def test_data_act_wizard_reuses_runtime_status_without_authentication():
+    from unittest.mock import AsyncMock
+
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    report = {"connection_state": "connected"}
+    status = SimpleNamespace(data_act_poll_status=lambda: report)
+    options = {
+        "runtime_version": "v3_climate",
+        "v3_data_act_enabled": True,
+        "v3_data_act_email": "example@invalid.test",
+        "v3_data_act_password": "synthetic-password",
+    }
+    flow._test_entry = SimpleNamespace(
+        data={},
+        options=options,
+        runtime_data=SimpleNamespace(v3=SimpleNamespace(status=status)),
+    )
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    flow._validate_data_act_credentials = AsyncMock()
+    result = await flow.async_step_init()
+    assert result["description_placeholders"]["data_act_status"] == (
+        "EU Data Act: Connected"
+    )
+    result = await flow.async_step_data_act()
+    assert result["description_placeholders"]["data_act_status"] == (
+        "EU Data Act: Connected"
+    )
+    result = await flow.async_step_data_act({"action": "keep"})
+    assert result["data"] == options
+    flow._validate_data_act_credentials.assert_not_awaited()

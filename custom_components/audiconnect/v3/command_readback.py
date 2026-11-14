@@ -247,8 +247,18 @@ def command_attributes(profile, capability, actions, *, attribute=None):
         ),
         None,
     )
+    requested = None
+    if record is not None:
+        values = record.readback_values or []
+        if record.readback_attribute in _OPTIMISTIC:
+            requested = _OPTIMISTIC[record.readback_attribute][
+                1 if record.action == "stop" else 0
+            ]
+        elif len(values) == 1:
+            requested = values[0]
     return {
         "command_status": record.state if record else None,
+        "command_requested_state": requested,
         "command_action": record.action if record else None,
         "command_backend_result": record.backend_result if record else None,
         "command_http_status": record.http_status if record else None,

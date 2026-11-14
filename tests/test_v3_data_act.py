@@ -1414,3 +1414,34 @@ def test_registry_rejects_malformed_source_mappings(change):
     raw["api_families"]["eu_data_act"]["observations"][SOC].update(change)
     with pytest.raises(RegistryError):
         CapabilityRegistry(raw)
+
+
+def test_data_act_connection_state_distinguishes_delivery_from_configuration():
+    from custom_components.audiconnect.v3.status_engine import data_act_connection_state
+
+    cases = (
+        ("not_configured", {}, "not_configured"),
+        ("initializing", {}, "awaiting_data"),
+        ("no_new_dataset", {"no_nonempty_dataset": 1}, "awaiting_data"),
+        ("no_new_dataset", {"empty_dataset": 1}, "awaiting_data"),
+        ("dataset_received", {"dataset_received": 1}, "connected"),
+        ("no_new_dataset", {"no_new_dataset": 1}, "connected"),
+        (
+            "dataset_received",
+            {"dataset_received": 1, "vehicle_access_denied": 1},
+            "partial",
+        ),
+        (
+            "authorization_required",
+            {"dataset_received": 1},
+            "authorization_required",
+        ),
+        ("rate_limited", {"dataset_received": 1}, "rate_limited"),
+        (
+            "subscription_unavailable",
+            {"subscription_unavailable": 1},
+            "subscription_unavailable",
+        ),
+    )
+    for result, deliveries, expected in cases:
+        assert data_act_connection_state(result, deliveries) == expected

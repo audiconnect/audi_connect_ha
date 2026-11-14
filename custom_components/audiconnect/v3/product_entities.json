@@ -1309,7 +1309,7 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "diagnostic",
-      "name": "Discovery coverage"
+      "name": "Discovery assessment"
     },
     "sensor.integration_status": {
       "origin": "v3_product_extension",
@@ -1318,6 +1318,15 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "name": "Integration status",
+      "category": "diagnostic"
+    },
+    "sensor.data_act_status": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "EU Data Act",
       "category": "diagnostic"
     },
     "sensor.last_error": {

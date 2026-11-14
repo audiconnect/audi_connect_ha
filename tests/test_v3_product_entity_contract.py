@@ -55,6 +55,7 @@ def test_product_contract_covers_v2_plus_only_deliberate_extensions():
         "sensor.longterm_trip_zero_emission_distance",
         "sensor.trip_history",
         "sensor.integration_status",
+        "sensor.data_act_status",
         "sensor.last_error",
         "binary_sensor.integration_problem",
         "sensor.door_status",
@@ -171,6 +172,7 @@ def test_product_diagnostic_allowlist_is_explicit_and_vehicle_properties_are_not
         "sensor.vehicle_data_freshness",
         "button.v3_refresh_cloud",
         "sensor.integration_status",
+        "sensor.data_act_status",
         "sensor.last_error",
         "binary_sensor.integration_problem",
     }

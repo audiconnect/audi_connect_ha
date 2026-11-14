@@ -90,11 +90,12 @@
           "runtime_version": "V2 reste la version par défaut et de secours. V3 est expérimental, avec sa propre détection, ses mises à jour et ses entités Home Assistant. Le retour à V2 reste possible.",
           "run_vehicle_discovery": "Examiner la détection automatique et tester explicitement les commandes disponibles. Aucune action sur le véhicule sans consentement à cette action précise.",
           "manage_data_act": "Connecter, reconnecter ou déconnecter la source facultative en lecture seule. La connexion Audi native reste inchangée."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "data_act": {
         "title": "EU Data Act",
-        "description": "Choisissez connecter pour vérifier les identifiants ou déconnecter pour supprimer les identifiants locaux. La connexion Audi native et la demande du portail restent inchangées.",
+        "description": "{data_act_status}\n\nChoisissez connecter pour vérifier les identifiants ou déconnecter pour supprimer les identifiants locaux. La connexion Audi native et la demande du portail restent inchangées.",
         "data": {
           "action": "Connexion"
         }
@@ -133,7 +134,8 @@
     "data_act_action": {
       "options": {
         "connect": "Connecter / reconnecter",
-        "disconnect": "Déconnecter"
+        "disconnect": "Déconnecter",
+        "keep": "Conserver la connexion actuelle"
       }
     }
   },
@@ -476,7 +478,7 @@
         "name": "Historique des trajets"
       },
       "v3_discovery_coverage": {
-        "name": "Couverture de détection"
+        "name": "Évaluation de la découverte"
       },
       "v3_integration_status": {
         "name": "État de l’intégration"
@@ -495,6 +497,21 @@
       },
       "v3_fuel_range": {
         "name": "Autonomie carburant"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Non configuré",
+          "credentials_required": "Identifiants requis",
+          "awaiting_data": "En attente de données",
+          "connected": "Connecté",
+          "partial": "Partiellement connecté",
+          "authorization_required": "Autorisation requise",
+          "vehicle_access_denied": "Accès au véhicule refusé",
+          "subscription_unavailable": "Abonnement indisponible",
+          "rate_limited": "Limite de requêtes atteinte",
+          "unavailable": "Temporairement indisponible"
+        }
       }
     },
     "binary_sensor": {
