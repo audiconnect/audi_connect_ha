@@ -107,3 +107,5 @@ One coordinator-local timer expires the overlay without a vehicle request.
 Read-only telemetry never projects intent. The HA assumed-state indicator and
 explicit source/last-reported attributes distinguish estimated controls.
 No automatic replay, new store or polling owner.
+
+Routine execution outcomes never revoke or permanently block a discovered control. The Command owner retains the latest outcome and enforces bounded dispatch cooldowns; only an explicit discovery review can change physical route evidence, subject to context/revision and authorization checks. No replay, implicit rediscovery or mandatory historical-command review after restart.

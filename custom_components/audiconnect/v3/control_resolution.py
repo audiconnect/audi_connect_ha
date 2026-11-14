@@ -62,19 +62,9 @@ def control_decision(
 
     if key in profile.discovery.disabled:
         return decision("user_disabled")
-    from .command_journal import blocking_normal_command
-
     active = profile.discovery.active_attempt
     if active is not None and active.capability == capability:
         pending_reason = "engineering_command_awaiting_review"
-    else:
-        blocker = blocking_normal_command(profile, capability)
-        if blocker is not None:
-            pending_reason = (
-                "previous_vehicle_command_uncertain"
-                if blocker.state == "uncertain"
-                else "vehicle_command_in_progress"
-            )
     restricted = capability == "remote" and aspect in ("engine_start", "engine_stop")
     allowed = (
         eligible_operation(car, auth, capability, aspect, profile=profile)

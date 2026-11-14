@@ -62,7 +62,7 @@ def test_context_change_invalidates_evidence_but_preserves_pending_action():
     assert restored.command_journal[-1].state == "verified"
 
 
-def test_unresolved_capability_survives_unrelated_commands_and_restart():
+def test_old_uncertain_command_does_not_block_or_exhaust_journal():
     from custom_components.audiconnect.v3.command_journal import (
         check_command_sequence,
         unresolved_normal_commands,
@@ -75,7 +75,8 @@ def test_unresolved_capability_survives_unrelated_commands_and_restart():
     p.track_command(uncertain)
     check_command_sequence(p, 100, capability="climate", action="stop")
     with pytest.raises(RuntimeError, match="uncertain"):
-        check_command_sequence(p, 100, capability="access", action="lock")
+        check_command_sequence(p, 10, capability="access", action="lock")
+    check_command_sequence(p, 100, capability="access", action="lock")
     for i in range(HISTORY_LIMIT + 2):
         other = CommandRecord.begin(
             "climate", "start", "cariad.climate.start.stored", 100 + i * 20
@@ -85,11 +86,8 @@ def test_unresolved_capability_survives_unrelated_commands_and_restart():
         p.track_command(other)
     assert len(p.command_journal) == HISTORY_LIMIT
     restored = restore_profile(model(), p.discovery.context, p.snapshot())
-    assert [row.command_id for row in unresolved_normal_commands(restored)] == [
-        uncertain.command_id
-    ]
-    with pytest.raises(RuntimeError, match="uncertain"):
-        check_command_sequence(restored, 3000, capability="access", action="lock")
+    assert not unresolved_normal_commands(restored)
+    check_command_sequence(restored, 3000, capability="access", action="lock")
     check_command_sequence(restored, 3000, capability="charging", action="start")
 
 
@@ -115,9 +113,7 @@ def test_control_resolution_only_blocks_affected_capability():
     row = CommandRecord.begin("access", "unlock", "cariad.access.unlock", 100)
     row.state = "uncertain"
     p.track_command(row)
-    assert (
-        control_decision(car, p, auth, "access", "lock")["status"] == "pending_review"
-    )
+    assert control_decision(car, p, auth, "access", "lock") == baseline
 
 
 def test_http_outcome_is_per_command_and_survives_restart():
@@ -139,52 +135,30 @@ def test_http_outcome_is_per_command_and_survives_restart():
     )
 
 
-def test_full_protected_journal_rejects_insertion_atomically():
-    import pytest
-    from custom_components.audiconnect.v3.development_profiles import (
-        DevelopmentProfileError,
-    )
-
+def test_old_uncertain_access_records_do_not_exhaust_journal():
     p = DevelopmentProfile(model(), VehicleContext(auth="auth0", region="DE"))
     for i in range(HISTORY_LIMIT):
         record = CommandRecord.begin("access", "unlock", "cariad.access.unlock", i)
         record.state = "uncertain"
         p.track_command(record)
-    before = p.snapshot()
-    last = p.last_command
-    with pytest.raises(DevelopmentProfileError, match="journal full"):
-        p.track_command(
-            CommandRecord.begin("charging", "start", "cariad.charging.start", 100)
-        )
-    assert p.snapshot() == before
-    assert p.last_command is last
+    p.track_command(
+        CommandRecord.begin("charging", "start", "cariad.charging.start", 100)
+    )
+    assert len(p.command_journal) == HISTORY_LIMIT
     restored = restore_profile(model(), p.discovery.context, p.snapshot())
+    assert restored.last_command.command_id == p.last_command.command_id
     assert len(restored.command_journal) == HISTORY_LIMIT
-    assert restored.last_command.command_id == last.command_id
 
 
-def test_failed_engineering_journal_insert_restores_discovery_transaction():
-    import pytest
-    from custom_components.audiconnect.v3.development_profiles import (
-        DevelopmentProfileError,
-    )
-
+def test_full_routine_journal_allows_new_discovery():
     p = DevelopmentProfile(model(), VehicleContext(auth="auth0", region="DE"))
     for i in range(HISTORY_LIMIT):
         record = CommandRecord.begin("access", "unlock", "cariad.access.unlock", i)
         record.state = "uncertain"
         p.track_command(record)
-    before = p.snapshot()
-    sequence = p.discovery._sequence
-    with pytest.raises(DevelopmentProfileError, match="journal full"):
-        p.begin_test("charging", "start", "cariad.charging.start", now=100)
-    assert p.snapshot() == before
-    assert p.discovery._active is None
-    assert p.discovery._sequence == sequence
-    p.command_journal[0].state = "reviewed"
-    attempt = p.begin_test("charging", "start", "cariad.charging.start", now=101)
-    assert attempt.sequence == sequence + 1
+    attempt = p.begin_test("charging", "start", "cariad.charging.start", now=100)
     assert p.engineering_record(attempt.sequence) is not None
+    assert len(p.command_journal) == HISTORY_LIMIT
 
 
 def test_wake_budget_survives_restart_and_journal_eviction():
@@ -230,9 +204,10 @@ def test_known_access_acceptance_has_bounded_cooldown_not_permanent_review():
     assert restored.last_command.state == "accepted_unconfirmed"
     check_command_sequence(restored, 1100, capability="access", action="lock")
     row.backend_result = "transport_uncertain"
-    assert row.requires_review
+    assert not row.requires_review
     with pytest.raises(RuntimeError, match="uncertain"):
-        check_command_sequence(p, 1100, capability="access", action="lock")
+        check_command_sequence(p, 1010, capability="access", action="lock")
+    check_command_sequence(p, 1100, capability="access", action="lock")
 
 
 def test_dispatch_readiness_matches_existing_cooldown_guard():
@@ -244,3 +219,42 @@ def test_dispatch_readiness_matches_existing_cooldown_guard():
     p.track_command(row)
     assert "cooldown" in dispatch_block_reason(p, "access", "unlock", now=1010)
     assert dispatch_block_reason(p, "access", "unlock", now=1031) is None
+
+
+def test_b41_legacy_accepted_access_records_preserve_verified_routes_on_restart():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.command_journal import check_command_sequence
+    from custom_components.audiconnect.v3.control_resolution import control_decision
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE", auth_family="auth0")
+    p = DevelopmentProfile(model(), car.context, cooldown_seconds=0)
+    auth = NS(uses_auth0=True, service=NS(_spin="1234"))
+    for i, action in enumerate(("unlock", "lock")):
+        route = f"cariad.access.{action}"
+        attempt = p.begin_test("access", action, route, now=100 + i * 100)
+        p.observe_http(attempt.sequence, 200)
+        p.confirm(
+            attempt.sequence, worked=True, inspected_vehicle=True, now=101 + i * 100
+        )
+        p.choose_working("access", action, route)
+        row = CommandRecord.begin("access", action, route, 150 + i * 100)
+        row.state = "accepted_unconfirmed"
+        row.backend_result = "accepted_unconfirmed"
+        p.track_command(row)
+    saved = p.snapshot()
+    for row in saved["command_journal"]:
+        if row["origin"] == "home_assistant":
+            row.pop("http_status")
+    restored = restore_profile(model(), car.context, saved, cooldown_seconds=0)
+    assert restored.active == p.active
+    assert restored.control_results == p.control_results
+    for action in ("lock", "unlock"):
+        result = control_decision(car, restored, auth, "access", action)
+        assert result["status"] == "local_verified"
+        assert result["operation"] == f"cariad.access.{action}"
+        assert result["dispatch_ready"]
+        check_command_sequence(restored, 1000, capability="access", action=action)
+    assert restored.last_command.state == "accepted_unconfirmed"
+    assert restored.last_command.http_status is None
+    assert not restored.last_command.requires_review

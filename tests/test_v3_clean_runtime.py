@@ -1431,7 +1431,7 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     assert restored_entities[model_key].native_value == "Audi Q8 TFSI e"
     assert restored_entities[switch_key].is_on is True
     assert sum(call[1] == "POST" for call in transport.calls if len(call) > 1) == 1
-    assert restarted.profiles[VIN.lower()].last_command.state == "uncertain"
+    assert restarted.profiles[VIN.lower()].last_command.state == "accepted_unconfirmed"
     assert restarted.profiles[VIN.lower()].last_command.readback_observed_at is not None
 
 

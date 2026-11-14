@@ -63,7 +63,7 @@ def test_native_charging_settings_require_vehicle_read_and_write_evidence():
     assert all(e.entity_category.value == "config" for e in offered)
 
 
-def test_pending_control_reason_distinguishes_uncertain_from_inflight():
+def test_routine_outcomes_do_not_remove_control_routes():
     from types import SimpleNamespace as NS
     from custom_components.audiconnect.v3.control_resolution import control_decision
     from custom_components.audiconnect.v3.command_journal import CommandRecord
@@ -79,13 +79,12 @@ def test_pending_control_reason_distinguishes_uncertain_from_inflight():
     record = CommandRecord.begin("access", "unlock", "cariad.access.unlock", 10)
     profile.track_command(record)
     pending = control_decision(car, profile, auth, "access", "lock")
-    assert pending["reason"] == "vehicle_command_in_progress"
     assert pending["route_available"] is True
-    assert pending["dispatch_ready"] is False
+    assert pending["dispatch_ready"] is True
+    assert pending["operation"] == "cariad.access.lock"
     record.state = "uncertain"
     result = control_decision(car, profile, auth, "access", "lock")
-    assert result["status"] == "pending_review" and result["operation"] is None
-    assert result["reason"] == "previous_vehicle_command_uncertain"
+    assert result == pending
 
 
 def test_charge_mode_select_keeps_verified_option_when_reported_mode_differs():

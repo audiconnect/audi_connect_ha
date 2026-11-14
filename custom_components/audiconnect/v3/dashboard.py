@@ -110,7 +110,7 @@ async def ws_status(hass, connection, msg):
         from .command_journal import unresolved_normal_commands
 
         # Only the latest unresolved routine command per capability is a current
-        # warning; security review items remain visible until acknowledged.
+        # warning. Historical outcomes remain in the journal, not an interlock.
         latest_by_capability = {
             row.capability: row
             for row in getattr(profile, "command_journal", ())
@@ -119,8 +119,7 @@ async def ws_status(hass, connection, msg):
         report["unresolved_commands"] = [
             {**row.snapshot(), "review_required": row.requires_review}
             for row in unresolved_normal_commands(profile)
-            if row.requires_review
-            or latest_by_capability.get(row.capability, row) is row
+            if latest_by_capability.get(row.capability, row) is row
         ]
         report["command_journal"] = [row.snapshot() for row in profile.command_journal]
         from .structured_details import details_for

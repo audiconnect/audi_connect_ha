@@ -560,8 +560,8 @@ class DevelopmentProfile:
         """One bounded journal for both origins; failed insertion is atomic."""
         latest = record if record.origin == "home_assistant" else self.last_command
         rows = [*self.command_journal, record]
-        # Preserve the latest outcome per control as well as unresolved security
-        # and engineering evidence. Other history remains bounded.
+        # Preserve latest control outcomes and active engineering/wake evidence.
+        # Old routine failures must not consume all journal capacity.
         from .command_readback import projection_attributes
 
         latest_controls = {
@@ -576,8 +576,7 @@ class DevelopmentProfile:
                 (
                     i
                     for i, row in enumerate(rows)
-                    if not (row.origin == "home_assistant" and row.requires_review)
-                    and not (
+                    if not (
                         active is not None
                         and row.origin == "workbench"
                         and row.engineering_sequence == active.sequence
@@ -591,7 +590,7 @@ class DevelopmentProfile:
             )
             if index is None:
                 raise DevelopmentProfileError(
-                    "Command journal full of unresolved commands"
+                    "Command journal full of protected evidence"
                 )
             rows.pop(index)
         self.command_journal[:] = rows

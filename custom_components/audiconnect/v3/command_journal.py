@@ -128,17 +128,11 @@ class CommandRecord:
 
     @property
     def requires_review(self) -> bool:
-        """Uncertain security mutations require explicit review."""
-        return self.state == "pending" or (
-            self.state in ("uncertain", "accepted_unconfirmed")
-            and not self.known_access_acceptance
-            and (
-                self.capability == "access"
-                or (
-                    self.capability == "remote"
-                    and self.action in ("engine_start", "engine_stop")
-                )
-            )
+        """Only explicit discovery experiments require physical review."""
+        return self.origin == "workbench" and self.state in (
+            "pending",
+            "uncertain",
+            "accepted_unconfirmed",
         )
 
     @property
@@ -166,16 +160,9 @@ class CommandRecord:
         capability=None,
         action=None,
     ) -> None:
-        if self.requires_review:
-            raise RuntimeError(
-                "Previous vehicle command outcome uncertain; inspect and review it"
-            )
-        if self.known_access_acceptance and self.state in (
-            "accepted_unconfirmed",
-            "uncertain",
-        ):
+        if self.capability == "access" and self.state == "accepted_unconfirmed":
             cooldown = max(cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS)
-        if self.state == "uncertain":
+        if self.state in _UNRESOLVED:
             until = (self.completed_at or self.started_at) + max(
                 cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS
             )
@@ -363,14 +350,15 @@ class CommandRecord:
             )
         if record.state == "uncertain" and record.known_access_acceptance:
             record.state = "accepted_unconfirmed"
-        if (
-            recover_pending
-            and record.state in ("pending", "accepted_unconfirmed")
-            and not record.known_access_acceptance
-            and not (
-                record.is_wake
-                and record.state == "accepted_unconfirmed"
-                and record.backend_result == "accepted_unconfirmed"
+        if recover_pending and (
+            record.state == "pending"
+            or (
+                record.state == "accepted_unconfirmed"
+                and (
+                    record.origin == "workbench"
+                    or record.backend_result in (None, "transport_uncertain")
+                )
+                and not record.known_access_acceptance
             )
         ):
             record.state = "uncertain"  # Never replay an interrupted mutation.
@@ -400,17 +388,6 @@ def unresolved_normal_commands(profile):
     return [row for row in rows if row.origin == "home_assistant" and row.unresolved]
 
 
-def blocking_normal_command(profile, capability):
-    return next(
-        (
-            row
-            for row in reversed(unresolved_normal_commands(profile))
-            if row.capability == capability and row.requires_review
-        ),
-        None,
-    )
-
-
 def check_command_sequence(
     profile,
     now: float,
@@ -419,10 +396,7 @@ def check_command_sequence(
     action: str,
     cooldown: float = HA_COMMAND_COOLDOWN_SECONDS,
 ) -> None:
-    """Transient failures expire; security review and anti-flood limits remain."""
-    blocker = blocking_normal_command(profile, capability)
-    if blocker is not None:
-        blocker.check_next(now, cooldown=cooldown, capability=capability, action=action)
+    """Bound routine dispatch cadence without turning history into an interlock."""
     # Only the most recent action in this capability matters for a routine
     # transient failure. Keep older outcomes as history, not an interlock.
     rows = list(getattr(profile, "command_journal", ()))
@@ -438,7 +412,10 @@ def check_command_sequence(
         None,
     )
     if previous is not None and (
-        previous.state == "uncertain" or previous.known_access_acceptance
+        previous.state in _UNRESOLVED
+        or (
+            previous.capability == "access" and previous.state == "accepted_unconfirmed"
+        )
     ):
         previous.check_next(
             now, cooldown=cooldown, capability=capability, action=action
@@ -489,30 +466,13 @@ def restore_history(rows):
     """Validate bounded private history; restore unresolved commands per capability."""
     if not isinstance(rows, list) or len(rows) > HISTORY_LIMIT:
         raise ValueError("Invalid command journal length")
-    records = [CommandRecord.restore(row, recover_pending=False) for row in rows]
+    records = [CommandRecord.restore(row) for row in rows]
     if len({record.command_id for record in records}) != len(records):
         raise ValueError("Duplicate command journal ID")
     normal = next(
         (record for record in reversed(records) if record.origin == "home_assistant"),
         None,
     )
-    latest_by_capability = {}
-    for record in records:
-        if record.origin == "home_assistant":
-            latest_by_capability[record.capability] = record
-    for record in records:
-        if record.origin == "home_assistant":
-            if record.state == "pending" or (
-                record.state == "accepted_unconfirmed"
-                and latest_by_capability[record.capability] is record
-                and not record.known_access_acceptance
-                and not (
-                    record.is_wake and record.backend_result == "accepted_unconfirmed"
-                )
-            ):
-                record.state = "uncertain"
-        elif record.state in ("pending", "accepted_unconfirmed"):
-            record.state = "uncertain"
     return records, normal
 
 

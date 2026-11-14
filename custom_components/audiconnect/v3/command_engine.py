@@ -18,7 +18,6 @@ from .command_journal import (
     dispatch_block_reason,
     ENGINEERING_COMMAND_COOLDOWN_SECONDS,
     unresolved_normal_commands,
-    blocking_normal_command,
 )
 from .operation_revision import operation_revision
 from .command_parameters import (
@@ -620,10 +619,6 @@ class CommandEngine:
                 raise RuntimeError(
                     "A control experiment for this capability is awaiting physical confirmation"
                 )
-            if blocking_normal_command(p, capability) is not None:
-                raise RuntimeError(
-                    "Previous command for this capability is uncertain; inspect and review it"
-                )
             if _follow_up_to is not None:
                 parent = p.last_command
                 if (
@@ -720,11 +715,7 @@ class CommandEngine:
                 record.completed_at = max(record.started_at, time.time())
                 await self.storage.async_save(self.profiles)
                 self._notify_discovery_change()
-                advice = (
-                    "inspect and review in Engineering Dashboard"
-                    if record.requires_review
-                    else "check the vehicle; try again after the short cooldown"
-                )
+                advice = "check the vehicle; try again after the short cooldown"
                 raise RuntimeError(
                     f"Audi {capability}.{aspect}: connection error or timeout; outcome uncertain. {advice}."
                 ) from err
@@ -739,9 +730,7 @@ class CommandEngine:
                     else (record.backend_result or record.state)
                 )
                 advice = (
-                    "inspect and review in Engineering Dashboard"
-                    if record.requires_review
-                    else "check the vehicle; try again after the short cooldown"
+                    "check the vehicle; try again after the short cooldown"
                     if record.state == "uncertain"
                     else "check permissions, quota or vehicle prerequisites"
                 )
