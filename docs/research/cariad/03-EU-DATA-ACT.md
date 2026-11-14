@@ -128,7 +128,7 @@ Owner-supplied Q8 dataset review (private original not retained in the repositor
 
 ## B34 identity candidate
 
-The consented vehicle list is read by the same optional API session, using `/proxy_api/consent/me/vehicles?viewPosition=FRONT_LEFT`. Community clients reference an explicit `modelName` property, but also use nickname fields for display; a nickname is never manufacturer metadata. Only exact known VIN matches, recognized Audi model labels and explicit validated year values are eligible for missing-field enrichment. No actual Q8 portal identity response has yet been captured. The relation endpoint is not queried merely to obtain a nickname. The existing identity owner and HA Model entity retain provenance, with at most one account-level identity read per hour when needed. No identity claim from the private 91-field ZIP or invented model/year.
+The consented vehicle list is read by the same optional API session, using `/proxy_api/consent/me/vehicles?viewPosition=FRONT_LEFT`. Community clients reference an explicit `modelName` property, but also use nickname fields for display; a nickname is never manufacturer metadata. Only exact known VIN matches, recognized Audi model labels and explicit validated year values are eligible for missing-field enrichment. No actual Q8 portal identity response has yet been captured. The relation endpoint is not queried merely to obtain a nickname. The existing identity owner and HA Model entity retain provenance, with at most one account-level identity read per day when needed. No identity claim from the private 91-field ZIP or invented model/year.
 
 ## Adaptive account cadence
 
