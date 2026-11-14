@@ -134,3 +134,17 @@ def test_b28_window_envelope_cannot_make_older_vehicle_data_fresh():
         "job": "climatisation",
     }
     assert vehicle_capture_summary(car, now)["vehicle_freshness"] == "partial"
+
+
+def test_invalid_climate_capture_does_not_report_current_climate_age():
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "", "", "BE")
+    now = datetime.now(UTC)
+    car.readings["climatisationState"] = {
+        "value": None,
+        "captured": now.isoformat(),
+        "status": "invalid_value",
+    }
+    assert car.climate_captured == now
+    assert car.capture_age_minutes is None

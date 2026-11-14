@@ -531,15 +531,18 @@ class CommandEngine:
             and attempt.sequence != profile.invalidated_attempt_sequence
         ):
             profile.reject_test(attempt.sequence, now=time.time())
+        telemetry_received = False
         if guided and response is not None and record.state == "accepted_unconfirmed":
-            observe_command_response(record, vehicle, profile, family, response)
+            telemetry_received = observe_command_response(
+                record, vehicle, profile, family, response
+            )
             if (
                 record.state == "verified"
                 and attempt.sequence != profile.invalidated_attempt_sequence
             ):
                 self._confirm_working_readback(profile, attempt, record)
         await self.storage.async_save(self.profiles)
-        if guided and attempt.result in ("worked", "rejected"):
+        if telemetry_received or (guided and attempt.result in ("worked", "rejected")):
             self._notify_discovery_change()
         return {
             "sequence": attempt.sequence,
@@ -756,9 +759,10 @@ class CommandEngine:
                     f"Audi {capability}.{aspect}: connection error or timeout; outcome uncertain. {advice}."
                 ) from err
             if record.state in ("accepted_unconfirmed", "backend_completed"):
-                observe_command_response(record, car, p, family, response)
-                if record.state == "verified":
-                    car.last_command_result = "verified"
+                if observe_command_response(record, car, p, family, response):
+                    self.reconcile_commands()
+                if record.state in ("verified", "readback_mismatch"):
+                    car.last_command_result = record.state
             if record.state in ("rejected", "uncertain"):
                 record.completed_at = max(record.started_at, time.time())
             await self.storage.async_save(self.profiles)

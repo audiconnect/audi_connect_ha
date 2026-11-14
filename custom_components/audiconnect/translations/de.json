@@ -526,7 +526,7 @@
         "name": "Aktualität der Fahrzeugdaten"
       },
       "v3_vehicle_data_age": {
-        "name": "Alter der Fahrzeugdaten"
+        "name": "Alter der neuesten Fahrzeugdaten"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Letzte erfolgreiche Cloud-Abfrage"
@@ -727,9 +727,6 @@
       },
       "v3_integration_problem": {
         "name": "Integrationsproblem"
-      },
-      "v3_charging_ready": {
-        "name": "Ladebereit"
       }
     },
     "button": {

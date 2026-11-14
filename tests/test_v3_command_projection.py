@@ -247,6 +247,14 @@ def test_lock_transition_expires_without_fabricating_physical_state():
         OLD,
         now=NOW + timedelta(seconds=31),
         optimistic=False,
+    ) == (None, "command_pending")
+    assert projected_state(
+        profile,
+        "doorLockStatus",
+        "locked",
+        OLD,
+        now=NOW + timedelta(minutes=30),
+        optimistic=False,
     ) == (None, "unknown")
 
 
@@ -323,3 +331,79 @@ def test_command_requires_post_dispatch_receipt(receipt):
     assert not reconcile_readback(row, car, NOW)
     car.readings["doorLockStatus"]["observed"] = NOW.isoformat()
     assert reconcile_readback(row, car, NOW)
+
+
+def test_command_response_publishes_real_capture_without_poll_or_request_echo():
+    from custom_components.audiconnect.v3.command_readback import (
+        observe_command_response,
+    )
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.freshness import (
+        reading_freshness_attributes,
+        vehicle_capture_summary,
+    )
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "", "", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    row = record("access", "unlock")
+    row.operation = "cariad.access.unlock"
+    response = NS(
+        status=200,
+        observed_at=NEW,
+        data={
+            "access": {
+                "accessStatus": {
+                    "value": {
+                        "doorLockStatus": "unlocked",
+                        "carCapturedTimestamp": NEW.isoformat(),
+                    }
+                }
+            },
+            "charging": {
+                "batteryStatus": {
+                    "value": {
+                        "currentSOC_pct": 95,
+                        "carCapturedTimestamp": NEW.isoformat(),
+                    }
+                },
+                "chargingStatus": {
+                    "value": {"chargingState": "charging"},
+                    "requests": [{"status": "successful"}],
+                },
+            },
+            "climatisation": {
+                "climatisationStatus": {
+                    "value": {
+                        "climatisationState": "heating",
+                        "carCapturedTimestamp": OLD.isoformat(),
+                    }
+                }
+            },
+        },
+    )
+    assert observe_command_response(row, car, profile, "cariad", response)
+    assert row.state == "verified"
+    assert car.readings["doorLockStatus"]["value"] == "unlocked"
+    assert car.readings["stateOfCharge"]["value"] == 95
+    assert "chargingState" not in car.readings
+    assert "climatisationState" not in car.readings
+    assert car.readings["last_update_time"]["value"] == NEW.isoformat()
+    assert not car.v2_initial_discovery_completed
+    attrs = reading_freshness_attributes(car.readings["stateOfCharge"], now=NEW)
+    assert attrs["source_operation"] == "cariad.access.unlock"
+    assert attrs["vehicle_captured"] == NEW.isoformat()
+    assert attrs["vehicle_freshness"] == "fresh"
+    summary = vehicle_capture_summary(car, NEW)
+    assert summary["vehicle_age_minutes"] == 0
+    assert summary["source_operation"] == "cariad.access.unlock"
+    response.data = {
+        "access": {"accessStatus": {"requests": [{"status": "successful"}]}}
+    }
+    response.observed_at = NEW + timedelta(minutes=2)
+    assert not observe_command_response(row, car, profile, "cariad", response)
+    assert car.readings["last_update_time"]["value"] == NEW.isoformat()

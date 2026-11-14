@@ -592,6 +592,7 @@ def family_discovery(vehicle, profile, rows, operations):
                 {
                     "attribute": ident,
                     "detail": ident in detail_attributes,
+                    "derived_from": sample.get("derived_from"),
                     "captured": sample.get("captured"),
                     "observed_at": sample.get("observed"),
                     "selected": is_selected and valid,
@@ -602,6 +603,7 @@ def family_discovery(vehicle, profile, rows, operations):
                     if valid
                     else "invalid_value",
                     "reason": sample.get("reason"),
+                    "operation": sample.get("operation"),
                     "fresh": valid and timestamp_is_fresh(sample.get("captured"), now),
                     "delivered_at": sample.get("delivered_at"),
                 }
@@ -639,6 +641,9 @@ def family_discovery(vehicle, profile, rows, operations):
                 ),
                 "normalized_details": sum(
                     row["valid"] and row["detail"] for row in observations
+                ),
+                "derived_projections": sum(
+                    row["valid"] and bool(row["derived_from"]) for row in observations
                 ),
                 "selected": sum(
                     row["selected"] and not row["detail"] for row in observations
@@ -1063,15 +1068,6 @@ def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
                             "active": row["selected"],
                         }
                     )
-            for link in list(links):
-                if link["attribute"] == "chargingState":
-                    links.append(
-                        {
-                            **link,
-                            "entity_key": "binary_sensor.charging_ready",
-                            "attribute": "charging_ready",
-                        }
-                    )
             operation["mappings"] = links
             operation["capabilities"] = sorted(
                 set(operation["capabilities"]) | {m["capability"] for m in links}
@@ -1249,11 +1245,12 @@ def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
                 "attention": sum(r.get("capability") == name for r in next_actions),
             }
         )
-    from .freshness import capture_coverage
+    from .freshness import capture_coverage, vehicle_capture_summary
 
     return {
         "operations": operations,
         "capability_summary": summaries,
+        "vehicle_capture": vehicle_capture_summary(vehicle),
         "job_capture_coverage": capture_coverage(vehicle),
         "findings": findings,
         "next_actions": next_actions,
@@ -1427,6 +1424,40 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
             ident: attribute_status(vehicle, profile, definition, datetime.now(UTC))[0]
             for ident, definition in CANONICAL_ATTRIBUTES.items()
         },
+        # Reuse the family projection for bounded, value-free freshness evidence.
+        "capture_evidence": [
+            {
+                "family": family["id"],
+                "operation": (
+                    row["operation"]
+                    if row.get("operation") in base_registry.operations
+                    else None
+                ),
+                **{
+                    key: row[key]
+                    for key in (
+                        "attribute",
+                        "captured",
+                        "observed_at",
+                        "delivered_at",
+                        "selected",
+                        "valid",
+                        "status",
+                    )
+                },
+            }
+            for family in report["family_discovery"]
+            if family["id"] in base_registry.families
+            for row in family["observations"]
+            if row["attribute"]
+            in (
+                "stateOfCharge",
+                "chargingState",
+                "plugState",
+                "doorLockStatus",
+                "climatisationState",
+            )
+        ],
         "historically_normalized_without_current_reading": sorted(
             ident
             for ident in CANONICAL_ATTRIBUTES

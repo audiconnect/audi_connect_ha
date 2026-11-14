@@ -128,7 +128,7 @@
     {
       "path": "custom_components/audiconnect/strings.json",
       "upstream_blob": "ee7cade4b7e3141848bb82a0ce70df5a40437801",
-      "development_blob": "f7f12ec20b126ecc6a598674e4151aa318ec330c"
+      "development_blob": "dd8fdcc207ce4d1a77d760219288910fd556295c"
     },
     {
       "path": "custom_components/audiconnect/switch.py",
@@ -138,12 +138,12 @@
     {
       "path": "custom_components/audiconnect/translations/de.json",
       "upstream_blob": "5966797c9b391cb63a5304d095c6b7ae45148726",
-      "development_blob": "33261395714c789977b36d83b5166d1a087937f7"
+      "development_blob": "5357e73271da4e75bf2078bbb650c9fef071464b"
     },
     {
       "path": "custom_components/audiconnect/translations/en.json",
       "upstream_blob": "ee7cade4b7e3141848bb82a0ce70df5a40437801",
-      "development_blob": "827edbb43ea8f5c80b321dfa94efb7c9a7888627"
+      "development_blob": "348ac2cc0357a5f2d214f5a6d850586bc2cb9aeb"
     },
     {
       "path": "custom_components/audiconnect/translations/fi.json",
@@ -153,7 +153,7 @@
     {
       "path": "custom_components/audiconnect/translations/fr.json",
       "upstream_blob": "0a282e073671f34cea7d2002c5865b2a585a4855",
-      "development_blob": "bec995bc781b17976a1b25029104390b9e8f613f"
+      "development_blob": "d61f0821ce356a06d26bb6b2997164b66e44e944"
     },
     {
       "path": "custom_components/audiconnect/translations/nb.json",
@@ -163,7 +163,7 @@
     {
       "path": "custom_components/audiconnect/translations/nl.json",
       "upstream_blob": "125b1002d7779c52500131af5d1e1e80ced6a7f4",
-      "development_blob": "248ebfb71b6caa734aa49ed35773838656ea8ff3"
+      "development_blob": "1d0a108ba80f202e00a9033873d7f77c32386409"
     },
     {
       "path": "custom_components/audiconnect/translations/pt-BR.json",

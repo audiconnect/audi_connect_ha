@@ -8,7 +8,8 @@ Follow the [Audi Connect installation instructions](../readme.md) for your insta
 
 - Select the normal scan interval in the integration options. V3 always enumerates vehicles during setup; the V2-only startup update preference remains stored for rollback. Vehicle data comes from Audi's cloud: a successful HTTP refresh does not necessarily mean the vehicle has sent new measurements. Look at vehicle capture time and availability, not only the latest cloud poll. The tracker represents the last parked position, not live GPS; movement without a reliable vehicle capture remains unknown.
 - Read discovery and native controls depend on the vehicle and supported API. A missing or unavailable control is not permission to try another command. Never repeat an uncertain remote command; HTTP acceptance is not physical completion.
-- Optional EU Data Act is read-only and disabled by default in builds that include it. First obtain an authorized continuous request in Audi's official portal. Then enable the provider in the existing V3 integration options. Auth0 accounts normally do not retain a password: enter your portal email and password locally unless stored myAudi credentials are available. Do not create a second Audi integration or share credentials. Open the existing Integration status entity (or download the integration diagnostics) to inspect the Data Act channel; no Workbench is required. The delivery states distinguish subscription unavailable (check the existing portal request; current optional readings are removed until delivery resumes), no non-empty delivery (wait for Audi to deliver data), no new dataset (normal), vehicle access denied (check the authorized vehicle) and dataset received. Mapped observations show what the channel supplied; selected readings show what is used in the consolidated vehicle model. Authorization required means check your own portal login; a retry time means let the integration recover automatically, not repeatedly re-enter credentials. Native cloud status remains separate. If manufacturer identity is missing, the same portal session can also enrich the existing vehicle from explicit model metadata. The Model entity shows the source; a portal nickname is not manufacturer identity. The existing Workbench discovery view lists safe observed Data Act field identities, declared mappings, normalized evidence and mapping gaps. Initial mappings are based on the Q8 review but are not model-specific; other vehicles use the same catalog and discovery path. Actual Q8 model/year availability must be verified. Disable the provider to remove separate stored portal credentials. Measurements may be delayed by days; they do not authorize or confirm commands. Real portal sign-in and data delivery remain experimental acceptance work.
+- Optional EU Data Act is read-only and off by default. Obtain an authorized continuous request in Audi's official portal, then use Manage EU Data Act in V3 options. Enter portal credentials locally when required. The wizard and EU Data Act diagnostic show the connection and last successful delivery separately from native Audi health; Keep current connection does not reauthenticate. Connected means a delivered or acknowledged unchanged dataset, not fresh vehicle data. Awaiting data means no confirmed delivery; subscription unavailable or access denied means check the portal request; authorization required means check credentials; rate limited means allow automatic recovery. Disconnect removes local optional credentials and observations without changing native Audi login or the portal request. Data Act never authorizes or confirms commands. The Workbench exposes source mappings and timestamps; no second integration is needed.
+- Latest vehicle data age reports the newest usable measurement, not the oldest; the attributes and Workbench expose the oldest and per-job ages. Check the specific entity capture and freshness for automations. An accepted command may display a bounded optimistic comfort state or locking/unlocking transition; neither changes the vehicle capture clock. Check command status, requested state and last reported state. New valid telemetry, including command-response data, supersedes that display. A mismatch is not proof of a failed physical action.
 - V3 Engineering Workbench is administrator-only and optional. Ordinary use does not require it. Use the existing V2 runtime option to revert if necessary.
 
 For issue reports, share the model/year/powertrain, market, HA and integration versions, expected/actual behavior and sanitized integration-specific diagnostics data only. Do not upload the complete Home Assistant diagnostics wrapper, unrelated integration inventory, credentials, VIN, coordinates, private trips or raw HTTP responses.
@@ -126,3 +127,67 @@ status is unknown, a command acceptance is a bounded locking/unlocking
 transition, and only vehicle readback can confirm the physical state.
 No extra command requests or automatic retry. Real HA restart, device-page,
 wizard and lock/comfort action acceptance remain required.
+
+### B40 follow-up — measurement age and redundant readiness
+
+The existing vehicle age entity measures the latest usable scalar vehicle
+capture; preserve its ID, units and semantics. Name it Latest vehicle data age.
+Keep oldest observed age and individual job ages in existing attributes and
+show both ages in Engineering. No new freshness sensor or polling.
+
+Remove the redundant V3-only Charging ready binary sensor, its special
+projection and traceability alias. Retire the exact registry identity through
+the existing pilot retirement mechanism, preserving history and user-owned
+settings. The OEM chargingState remains normalized and visible; readiness is
+not a separate permission or actionable control. V2 remains unchanged.
+
+Workbench list age now uses the same global capture summary as native HA,
+not climate capture age. Shared diagnostics include bounded per-source capture
+evidence for SoC, charging, plug, lock and climate, without scalar values or
+source paths. This supports comparison against actual charging/locking events
+without claiming the existing data gaps have been resolved.
+
+B39 field evidence (2026-11-14): 48 fresh canonical attributes, latest capture
+16:37 local, last cloud poll 17:06. Lock readback mismatch after accepted unlock
+must remain visible; no assertion of physical failure from HTTP or mismatch.
+Use the existing bounded command projection window for lock transitions too,
+independently of command cooldown; never optimistically claim locked/unlocked.
+A newer explicit non-charging observation suppresses a superseded derived ETA,
+while preserving its underlying duration for engineering evidence.
+
+Command responses now use the same normalized observation and capture
+projection as native polling, with the actual operation as provenance.
+Only valid per-envelope vehicle captures newer than the command start are
+eligible; HTTP acceptance, request echoes and undated values never advance
+freshness or confirm physical state. The existing last-update entity updates
+immediately, independent of the cloud poll clock. Regression covers a combined
+access/charging response, stale and missing captures, and request-only echo.
+
+Source projections explicitly label derived ETA and global last update and
+retain the source operation in the matrix; direct dataset counts remain
+separate from normalized projections. Invalid climate state cannot produce a
+valid climate age. Source operation identifiers are filtered in exported
+capture evidence to the built-in registry.
+
+### B40 final field acceptance before stable promotion
+
+Use the pinned HACS candidate and restart without deleting the integration.
+Record the installed version, sanitized integration diagnostics and actual
+vehicle outcomes. Acceptance is not a requirement to make every OEM field
+available: unsupported or unproven controls must stay unavailable.
+
+| Check                   | Acceptance                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Upgrade and rollback    | IDs, user settings and trip archive retained; V2 still works                                                        |
+| Setup and Data Act      | Wizard and diagnostic agree; keep/disconnect/reconnect do not affect native auth                                    |
+| Normal driving/charging | Individual captures and global latest/oldest age agree; no old ETA treated as active                                |
+| Lock/unlock             | Actual vehicle outcome compared to accepted, pending, verified or mismatch; no fabricated state                     |
+| Climate and charging    | Native controls, optimistic feedback and real readback agree; unavailable OEM values explicitly marked              |
+| Workbench               | Source priority, derived values, operation and capture/receipt evidence consistent; no extra requests               |
+| Health and registry     | Identity warning stays in engineering; native failures remain actionable; Position ordinary, Charging ready retired |
+| Regression and release  | Exact-head tests, both HA targets, immutable candidate, upstream review and #44 acceptance                          |
+
+Keep V3 experimental if any gate is unresolved. After acceptance, freeze feature
+scope and perform maintenance only (security, regressions, OEM breaking changes).
+The upstream maintainer remains the authority for the upstream default/stable
+release. Do not claim stable certification from CI or one Q8 runtime alone.

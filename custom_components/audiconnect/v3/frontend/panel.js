@@ -1514,7 +1514,7 @@ class AudiConnectV3Panel extends HTMLElement {
             sample.valid === false
               ? "Invalid value"
               : (sample.normalized_value ?? "Not retained");
-          return `<td><b>${sample.selected && !row.detail ? "✓ " : ""}${escapeHTML(value)}</b><div class="subline">${sample.valid === false ? "Invalid" : sample.fresh ? "Fresh" : sample.captured ? "Last known" : "Capture unknown"}${sample.captured ? " · " + escapeHTML(this.localTime(sample.captured)) : ""}</div><details><summary>Source details</summary><code>${escapeHTML(sample.source_field || "—")}</code><div class="subline">Received ${escapeHTML(this.localTime(sample.observed_at))}${sample.delivered_at ? " · Delivered " + escapeHTML(this.localTime(sample.delivered_at)) : ""}</div>${sample.reason ? `<div class="subline">${escapeHTML(friendly(sample.reason))}</div>` : ""}</details></td>`;
+          return `<td><b>${sample.selected && !row.detail ? "✓ " : ""}${escapeHTML(value)}</b><div class="subline">${sample.valid === false ? "Invalid" : sample.fresh ? "Fresh" : sample.captured ? "Last known" : "Capture unknown"}${sample.captured ? " · " + escapeHTML(this.localTime(sample.captured)) : ""}</div><details><summary>Source details</summary><code>${escapeHTML(sample.source_field || "—")}</code>${sample.derived_from ? `<div class="subline">Derived from ${escapeHTML(sample.derived_from)}</div>` : ""}${sample.operation ? `<div class="subline">${escapeHTML(sample.operation)}</div>` : ""}<div class="subline">Received ${escapeHTML(this.localTime(sample.observed_at))}${sample.delivered_at ? " · Delivered " + escapeHTML(this.localTime(sample.delivered_at)) : ""}</div>${sample.reason ? `<div class="subline">${escapeHTML(friendly(sample.reason))}</div>` : ""}</details></td>`;
         })
         .join(
           "",
@@ -1533,7 +1533,7 @@ class AudiConnectV3Panel extends HTMLElement {
     return `<div class="section-head"><h3>Data sources · discovery &amp; coverage</h3></div>
       ${sources
         .map((source) => {
-          const summary = `${escapeHTML(source.label)} · ${source.fields_observed} fields · ${source.fields_mapped} mapped · ${source.normalized} normalized · ${source.normalized_details || 0} details · ${source.selected} selected · ${source.fresh} fresh`;
+          const summary = `${escapeHTML(source.label)} · ${source.fields_observed} fields · ${source.fields_mapped} mapped · ${source.normalized} normalized${source.derived_projections ? " (" + source.derived_projections + " derived)" : ""} · ${source.normalized_details || 0} details · ${source.selected} selected · ${source.fresh} fresh`;
           const health = source.health || {};
           const auth = source.auth_context || {};
           return `<details><summary>${summary}</summary>
@@ -1557,6 +1557,7 @@ class AudiConnectV3Panel extends HTMLElement {
       return '<section class="card"><h2>End-user validation</h2><p>No discovery status loaded.</p></section>';
     const health = this.capabilityStatus.integration_health || {};
     const timing = this.capabilityStatus.end_user_timing || {};
+    const capture = this.capabilityStatus.vehicle_capture || {};
     const candidates = this.capabilityStatus.end_user_candidates || [];
     const candidate = this.nextEndUserCandidate();
     const rows = p.controls || [];
@@ -1636,6 +1637,7 @@ class AudiConnectV3Panel extends HTMLElement {
       ${this.entityFilter ? this.entityInspector(this.selectedEntityLink()) : ""}
       <h3>5 · Recovery &amp; timing</h3>
       <button data-action="resume-discovery" ${this.loading ? "disabled" : ""}>Resume unresolved reads</button>
+      <p>Latest vehicle data age: ${escapeHTML(capture.vehicle_age_minutes ?? "unknown")} min · Oldest vehicle data age: ${escapeHTML(capture.oldest_observed_age_minutes ?? "unknown")} min · Based on usable vehicle measurements, not cloud receipt.</p>
       <p>Last poll: ${escapeHTML(this.localTime(timing.last_poll_attempt))} · Last success: ${escapeHTML(this.localTime(timing.last_poll_success))} · Poll interval: ${timing.poll_interval_seconds == null ? "unknown" : escapeHTML(timing.poll_interval_seconds / 60) + " min"} · Quota: ${escapeHTML(health.quota_remaining ?? "unknown")}</p>
       ${(health.active_findings || []).map((f) => `<div class="subline">${escapeHTML(friendly(f.code))} · ${escapeHTML(f.source)} ${f.http_status ? "· HTTP " + escapeHTML(f.http_status) : ""}</div>`).join("")}
       <p>Uncertain commands are never replayed automatically. Use the existing review above when needed. <button data-action="step-4">Inspect API evidence</button></p>

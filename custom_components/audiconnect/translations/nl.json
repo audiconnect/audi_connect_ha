@@ -315,7 +315,7 @@
         "name": "Actualiteit voertuiggegevens"
       },
       "v3_vehicle_data_age": {
-        "name": "Leeftijd voertuiggegevens"
+        "name": "Leeftijd recentste voertuiggegevens"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Laatste succesvolle cloudopvraging"
@@ -516,9 +516,6 @@
       },
       "v3_integration_problem": {
         "name": "Integratieprobleem"
-      },
-      "v3_charging_ready": {
-        "name": "Klaar om te laden"
       }
     },
     "button": {

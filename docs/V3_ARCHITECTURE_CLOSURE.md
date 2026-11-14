@@ -33,7 +33,7 @@ Use the existing PR review, not an additional workflow or a second governance ca
 | Diagnostics     | Read-only reporting and redaction                          |
 | Engine          | Composition and lifecycle orchestration                    |
 
-Read: API → status → vehicle → HA. Write: HA owning device → active runtime → command → API → verified readback. Engineering: discover → configure → isolated test → explicit activation. A command must never be routed to an unrelated account by VIN. Ambiguous ownership fails closed.
+Read: API → status → vehicle → HA. Write: HA owning device → active runtime → command → API → shared status writer → vehicle/HA and verified native readback. Engineering: discover → configure → isolated test → explicit activation. A command must never be routed to an unrelated account by VIN. Ambiguous ownership fails closed.
 
 The machine-readable owner inventory is [OWNERSHIP.json](../governance/OWNERSHIP.json). Its current path coverage is not evidence that all functional boundaries are closed.
 

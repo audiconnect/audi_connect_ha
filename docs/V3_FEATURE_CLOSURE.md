@@ -48,7 +48,7 @@ The sparse Q8 climate settings shape is handled by the existing settings PUT han
 
 ## Vehicle data age provenance
 
-The existing vehicle data age and freshness sensors share the newest valid vehicle capture, excluding their own derived `last_update_time` and model metadata. Age keeps its historical meaning and unit; source attribute, job, capture and observation timestamps, clock skew, oldest observed age and per-job coverage explain partial freshness. A successful cloud poll is separate and does not establish a vehicle capture. Coverage describes observed fields only, not all supported or missing fields. Use the individual reading and its capture time for automation decisions; do not interpret a zero global age as fresh SOC, access or climate data. No additional requests or entities. Live Q8 validation remains open.
+The existing Latest vehicle data age and freshness sensors share the newest valid vehicle capture, excluding their own derived `last_update_time` and model metadata. Age keeps its historical meaning and unit; source attribute, job, capture and observation timestamps, clock skew, oldest observed age and per-job coverage explain partial freshness. A successful cloud poll is separate and does not establish a vehicle capture. Coverage describes observed fields only, not all supported or missing fields. Use the individual reading and its capture time for automation decisions; do not interpret a zero global age as fresh SOC, access or climate data. No additional requests or entities. Live Q8 validation remains open.
 
 Individual telemetry sensors and binary sensors share the same capture/observation metadata (`vehicle_captured`, `age_minutes`, `cloud_observed`, `cloud_age_minutes`, `vehicle_freshness`, `verification`); live climate, access, lock, charging, preheater, position and settings entities reuse it without confusing projected commands with measurements. Existing position-specific and access-specific aliases remain compatible. The reported freshness is not a command authorization or proof of the effective projected state. Age attributes are evaluated when HA writes the entity state; use the absolute capture timestamp to calculate live age in templates. No per-entity clock timers or extra polling. Historical trip end, inventory identity and local configuration retain their distinct time semantics.
 
@@ -64,7 +64,7 @@ An accepted climate or charging command immediately publishes the existing effec
 
 ## Access command recovery
 
-A successful lock/unlock POST is not physical confirmation. Keep the native lock entity visible as locking/unlocking while awaiting readback, even while the command guard blocks a second dispatch. A matching valid newer capture verifies the command. A contrary valid lock capture at least 30 seconds after an accepted normal HA command closes the interlock as `readback_mismatch`, not a failed route or physical failure. The user can then issue a new authorized action; no command is replayed. Without new evidence, or after an uncertain transport mutation, the explicit review guard remains. The reported state and command status are separate entity attributes. The 30-second interval reuses the existing temporary error cooldown; real-car validation is required.
+A successful lock/unlock POST is not physical confirmation. Keep the native lock entity visible as locking/unlocking while awaiting readback, even while the command guard blocks a second dispatch. A matching valid newer capture verifies the command. A contrary valid lock capture at least 30 seconds after an accepted normal HA command closes the interlock as `readback_mismatch`, not a failed route or physical failure. The user can then issue a new authorized action; no command is replayed. Without new evidence, or after an uncertain transport mutation, the explicit review guard remains. The reported state and command status are separate entity attributes. The 30-second interval reuses the existing temporary error cooldown for contrary readback; the displayed transition uses the common bounded 30-minute command projection window. Real-car validation is required.
 
 ## Uniform native control metadata
 
@@ -72,7 +72,7 @@ All native V3 controls use the common entity metadata builder and command journa
 
 ## B29 lock and Workbench recovery
 
-A known HTTP 2xx normal access mutation is distinct from an uncertain transport. The existing 30-second cooldown bounds its transition and permits a subsequent explicit authorized command after the cooldown; no automatic retries or fabricated locked/unlocked state. A status GET returning unknown, pending or quota-limited does not turn acceptance into a failed mutation. A truly uncertain mutation, missing S-PIN, unapproved route or open engineering experiment still prevents unsafe dispatch. Persisted B29 access outcomes with known 2xx and only missing GET confirmation migrate to accepted-unconfirmed. A one-shot local HA state write ends the transition even without a new cloud poll. Engineering tests still require explicit review; Test buttons remain visible with a reason when blocked. The pending action and relevant command evidence are exported structurally in diagnostics without payloads, VIN, request or command IDs. Physical Q8 verification remains mandatory.
+A known HTTP 2xx normal access mutation is distinct from an uncertain transport. The existing 30-second cooldown governs subsequent explicit authorized dispatch independently of the bounded command projection window; no automatic retries or fabricated locked/unlocked state. A status GET returning unknown, pending or quota-limited does not turn acceptance into a failed mutation. A truly uncertain mutation, missing S-PIN, unapproved route or open engineering experiment still prevents unsafe dispatch. Persisted B29 access outcomes with known 2xx and only missing GET confirmation migrate to accepted-unconfirmed. A one-shot local HA state write ends the bounded transition even without a new cloud poll. Engineering tests still require explicit review; Test buttons remain visible with a reason when blocked. The pending action and relevant command evidence are exported structurally in diagnostics without payloads, VIN, request or command IDs. Physical Q8 verification remains mandatory.
 
 ## B31 charging and dispatch evidence
 
@@ -179,3 +179,36 @@ movement. A missing Data Act subscription is actionable and clears its current
 observations without removing native data. No new entity IDs, configuration,
 requests, persistent state or runtime owners. Remaining physical acceptance and
 issue #44 stay open.
+
+### B40 stabilization — field evidence and command telemetry
+
+A real, reviewed post-command telemetry envelope with its own valid capture
+clock is normalized by the same writer as the scheduled native poll. All
+eligible value groups are processed, not only the requested attribute. Old,
+undated or implausible captures and request echoes never advance freshness.
+The actual command operation is retained as source provenance. The existing
+last-update entity and age/freshness projection update immediately without a
+new request or a synthetic successful poll. A later poll cannot overwrite a
+newer observation. Native readback, not Data Act or optimistic state, confirms
+physical commands. No new runtime layer, cache, scheduler or route.
+
+B39 live Q8 evidence: five polls, 15 native transport requests, 394 preserved
+trip records; 48 fresh, 17 stale, 3 invalid, 17 not observed, 14 not tested,
+2 mapping pending (101 canonical attributes). Latest capture 29 min; oldest
+2491 min; Data Act delivered but none of its selected readings fresh. Lock
+verified historically; latest unlock HTTP 200 followed by readback mismatch,
+not proof of a failed physical action. Climate state sentinel and negative
+remaining time are invalid. Charging and access recovered after new capture;
+newer stopped charging suppresses a superseded ETA without deleting source
+evidence. Do not conflate discovery assessment (28/28) and data coverage.
+B40 requires live acceptance; identity #35, exact charging command proof,
+climate status availability and prior stable gate #44 remain open. No raw
+owner diagnostics or private values in repository.
+
+The existing age sensor retains its latest-capture semantics and ID. Invalid
+climate captures remain engineering evidence but do not report a valid climate
+age. Workbench distinguishes derived projections from received source fields.
+The ordinary EU Data Act diagnostic and wizard expose delivery state without
+reauthentication; Position is an ordinary entity and redundant Charging ready
+is retired, preserving registry history. Identity findings remain in
+engineering instead of degrading a working native poll.

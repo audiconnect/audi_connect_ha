@@ -1560,6 +1560,8 @@ class V3Engine:
                 )
             if capture["source_job"] not in V2_JOBS:
                 capture["source_job"] = None
+            if capture["source_operation"] not in self.registry.operations:
+                capture["source_operation"] = None
             # Keep historical-only evidence, without repeating current fields.
             historical = {}
             for job, rows in getattr(p, "historical_job_schema", {}).items():

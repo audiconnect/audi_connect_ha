@@ -263,7 +263,9 @@ def _array(rows, normalizer, limit):
     }
 
 
-def observe_structured(vehicle, payload, observed_at, accepts):
+def observe_structured(
+    vehicle, payload, observed_at, accepts, *, operation="cariad.climate.status.batch"
+):
     """Keep capture-aware structured readings alongside the native scalars."""
 
     from .vehicle import window_heating_active
@@ -280,6 +282,7 @@ def observe_structured(vehicle, payload, observed_at, accepts):
                     "observed": observed_at.isoformat(),
                     "path": path,
                     "family": "cariad",
+                    "operation": operation,
                     "job": path.split(".", 1)[0],
                     "status": "invalid_value"
                     if invalid

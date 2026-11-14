@@ -556,7 +556,7 @@
         "name": "Vehicle data freshness"
       },
       "v3_vehicle_data_age": {
-        "name": "Vehicle data age"
+        "name": "Latest vehicle data age"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Cloud last successful poll"
@@ -757,9 +757,6 @@
       },
       "v3_integration_problem": {
         "name": "Integration problem"
-      },
-      "v3_charging_ready": {
-        "name": "Charging ready"
       }
     },
     "button": {

@@ -406,7 +406,13 @@ def normalize_attribute_value(definition, value, conversion):
 
 
 def observe_read_only(
-    vehicle: Any, profile: Any, payload: Any, observed_at: datetime
+    vehicle: Any,
+    profile: Any,
+    payload: Any,
+    observed_at: datetime,
+    *,
+    operation="cariad.climate.status.batch",
+    complete_discovery=True,
 ) -> dict[str, int]:
     if not isinstance(payload, dict):
         return {"mapped": 0, "fresh": 0}
@@ -435,6 +441,7 @@ def observe_read_only(
                 row["job"],
                 issue,
                 profile=profile,
+                operation=operation,
             )
         if value is None:
             continue
@@ -450,7 +457,7 @@ def observe_read_only(
             row["job"],
             "cariad",
             fresh=fresh,
-            operation="cariad.climate.status.batch",
+            operation=operation,
         ):
             continue
         # A proven V2 response field is *readable* even if the vehicle's
@@ -466,11 +473,21 @@ def observe_read_only(
         fresh_count += int(fresh)
     from .derived_values import observe_derived
 
-    observe_derived(vehicle, profile, payload, observed_at, _accept_observation)
+    observe_derived(
+        vehicle,
+        profile,
+        payload,
+        observed_at,
+        _accept_observation,
+        operation=operation,
+    )
     from .structured_details import observe_structured
 
-    observe_structured(vehicle, payload, observed_at, _accept_observation)
-    vehicle.v2_initial_discovery_completed = True
+    observe_structured(
+        vehicle, payload, observed_at, _accept_observation, operation=operation
+    )
+    if complete_discovery:
+        vehicle.v2_initial_discovery_completed = True
     return {"mapped": mapped, "fresh": fresh_count}
 
 

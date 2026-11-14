@@ -37,15 +37,6 @@ def charging_active(value):
     )
 
 
-def charging_ready(value):
-    """Only explicit OEM readiness statuses, not a command permission."""
-    if not isinstance(value, str):
-        return None
-    return {"readyforcharging": True, "notreadyforcharging": False}.get(
-        value.strip().lower()
-    )
-
-
 def window_heating_active(rows):
     """Actual window state only: a positive is conclusive; off requires both known."""
     if not isinstance(rows, list) or not rows:
@@ -466,7 +457,7 @@ class V3Vehicle:
 
     @property
     def capture_age_minutes(self) -> int | None:
-        if self.climate_captured is None:
+        if self.climate_state is None or self.climate_captured is None:
             return None
         from .freshness import capture_age_minutes
 

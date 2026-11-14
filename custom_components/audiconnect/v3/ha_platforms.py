@@ -34,7 +34,6 @@ from .entities import (
     V3HealthSensor,
     V3IntegrationProblem,
     V3AccessSummary,
-    V3ChargingReady,
 )
 from .command_policy import supported_charge_modes
 from .custom_attributes import attributes_for
@@ -120,13 +119,6 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     add_once("account:quota", V3ApiQuotaSensor, entry.entry_id)
             elif platform == "binary_sensor":
                 add_once(f"{vin}:health:problem", V3IntegrationProblem)
-                from .vehicle import charging_ready
-
-                if (
-                    charging_ready(car.readings.get("chargingState", {}).get("value"))
-                    is not None
-                ):
-                    add_once(f"{vin}:charging_ready", V3ChargingReady)
             elif platform == "climate":
                 if car.climate_state is not None or any(
                     engine.control_enabled(car.vin, action)

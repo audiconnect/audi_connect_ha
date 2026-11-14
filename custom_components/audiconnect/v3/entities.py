@@ -260,6 +260,8 @@ def _climate_projection(coordinator, vehicle):
     )
     if effective is not None:
         return effective, source
+    # A sentinel is not a new valid state. Preserve the bounded historical
+    # display separately from reported capture/command verification.
     return known, known_source
 
 
@@ -623,43 +625,6 @@ class V3IntegrationProblem(V3BaseEntity, BinarySensorEntity):
         return self.coordinator.engine.health.snapshot(
             self.coordinator.engine, self.vehicle
         )["problem"]
-
-
-class V3ChargingReady(V3BaseEntity, BinarySensorEntity):
-    """Explicit reported readiness, not charging active or authorization."""
-
-    entity_description = _product_description("binary_sensor.charging_ready")
-    _attr_icon = "mdi:ev-plug-type2"
-
-    def __init__(self, coordinator, vehicle):
-        super().__init__(coordinator, vehicle)
-        self._attr_unique_id = f"{vehicle.vin.lower()}_binary_sensor_charging_ready"
-
-    @property
-    def _reading(self):
-        return self.vehicle.readings.get("chargingState", {})
-
-    @property
-    def is_on(self):
-        from .vehicle import charging_ready
-
-        return charging_ready(self._reading.get("value"))
-
-    @property
-    def available(self):
-        return (
-            super().available
-            and _reading_available(self._reading)
-            and self.is_on is not None
-        )
-
-    @property
-    def extra_state_attributes(self):
-        return {
-            "source_attribute": "chargingState",
-            **reading_freshness_attributes(self._reading),
-            "semantics": "explicit_readiness_not_charging_active_or_permission",
-        }
 
 
 class V3AccessSummary(V3BaseEntity, SensorEntity):
@@ -1739,8 +1704,7 @@ class V3LockEntity(V3BaseEntity, LockEntity):
 
     @callback
     def _schedule_pending_refresh(self):
-        from .command_journal import TEMPORARY_ERROR_COOLDOWN_SECONDS
-        from .command_readback import latest_readback_command
+        from .command_readback import OPTIMISTIC_TTL_SECONDS, latest_readback_command
 
         self._cancel_pending_refresh()
         if self.hass is None or not (self.is_locking or self.is_unlocking):
@@ -1751,7 +1715,7 @@ class V3LockEntity(V3BaseEntity, LockEntity):
         record = latest_readback_command(profile, "doorLockStatus")
         if record is None:
             return
-        delay = record.started_at + TEMPORARY_ERROR_COOLDOWN_SECONDS
+        delay = record.started_at + OPTIMISTIC_TTL_SECONDS
         delay -= datetime.now(UTC).timestamp()
         if delay > 0:
             self._pending_refresh = async_call_later(

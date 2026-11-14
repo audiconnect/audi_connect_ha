@@ -47,6 +47,8 @@ def _engine(hass: Any, entry_id: str) -> V3Engine:
 @websocket_api.websocket_command({vol.Required("type"): "audiconnect/v3/list"})
 @websocket_api.async_response
 async def ws_list(hass, connection, msg):
+    from .freshness import vehicle_capture_summary
+
     records = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         try:
@@ -66,7 +68,9 @@ async def ws_list(hass, connection, msg):
                         else "cariad",
                         "climate_state": car.climate_state,
                         "status_route": car.climate_source,
-                        "age_minutes": car.capture_age_minutes,
+                        "age_minutes": vehicle_capture_summary(car)[
+                            "vehicle_age_minutes"
+                        ],
                         "start_enabled": engine.control_enabled(car.vin, "start"),
                         "stop_enabled": engine.control_enabled(car.vin, "stop"),
                     }

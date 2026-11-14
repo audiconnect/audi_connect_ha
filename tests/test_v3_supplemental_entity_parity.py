@@ -151,7 +151,11 @@ def test_newest_vehicle_capture_keeps_older_climate_age_visible():
             "captured": (now - timedelta(hours=3)).isoformat(),
         },
     )
-    assert V3StatusSensor(co, car, "age").native_value == 0
+    age = V3StatusSensor(co, car, "age")
+    assert age.native_value == 0
+    assert age.unique_id == VIN.lower() + "_sensor_vehicle_data_age"
+    assert age.extra_state_attributes["vehicle_age_minutes"] == 0
+    assert age.extra_state_attributes["oldest_observed_age_minutes"] >= 180
     sensor = V3StatusSensor(co, car, "freshness")
     assert sensor.native_value == "partial"
     assert (

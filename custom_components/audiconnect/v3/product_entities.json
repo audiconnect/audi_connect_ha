@@ -429,7 +429,7 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "category": "diagnostic",
-      "name": "Vehicle data age"
+      "name": "Latest vehicle data age"
     },
     "sensor.cloud_last_successful_poll": {
       "origin": "v2",
@@ -1362,14 +1362,6 @@
       "metadata_contract": null,
       "freshness": "native_entity_contract",
       "name": "Window status"
-    },
-    "binary_sensor.charging_ready": {
-      "origin": "v3_product_extension",
-      "scope": "vehicle",
-      "source_attributes": ["chargingState"],
-      "metadata_contract": null,
-      "freshness": "native_entity_contract",
-      "name": "Charging ready"
     }
   },
   "retired_v3_sensors": [
@@ -1391,6 +1383,7 @@
     "plugled_color",
     "vehicle_lights"
   ],
+  "retired_v3_binary_sensors": ["charging_ready"],
   "raw_only_attributes": ["preferredChargeMode"],
   "local_extensions": "validated sensor/binary_sensor v3_custom_*",
   "default_hidden_compatibility": [

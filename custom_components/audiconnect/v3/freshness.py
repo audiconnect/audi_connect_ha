@@ -69,7 +69,13 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
             if allow_last_known
             else "stale"
         ),
-        "verification": row.get("status", "unknown"),
+        "verification": (
+            "readable_but_stale"
+            if row.get("status") == "verified" and (age is None or age > 60)
+            else row.get("status", "unknown")
+        ),
+        **({"source_operation": row["operation"]} if row.get("operation") else {}),
+        **({"derived_from": row["derived_from"]} if row.get("derived_from") else {}),
         **({"delivered_at": row["delivered_at"]} if row.get("delivered_at") else {}),
     }
 
@@ -102,6 +108,22 @@ def newest_vehicle_reading(vehicle, now: datetime | None = None):
             if newest is None or (stamp, ident) > newest[:2]:
                 newest = (stamp, ident, row)
     return newest
+
+
+def project_vehicle_capture(vehicle, now: datetime | None = None):
+    """Update the existing last-update entity after any accepted telemetry."""
+    newest = newest_vehicle_reading(vehicle, now)
+    if newest is None:
+        vehicle.readings.pop("last_update_time", None)
+        return
+    stamp, ident, source = newest
+    vehicle.readings["last_update_time"] = {
+        **source,
+        "value": stamp.isoformat(),
+        "captured": stamp.isoformat(),
+        "path": "vehicle_capture",
+        "derived_from": ident,
+    }
 
 
 def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | None:
@@ -140,6 +162,7 @@ def vehicle_capture_summary(vehicle, now: datetime | None = None):
         "source_attribute": ident,
         "source_job": row.get("job"),
         "source_family": row.get("family"),
+        "source_operation": row.get("operation"),
         "source_delivered_at": row.get("delivered_at"),
         "source_observed_at": row.get("observed"),
         "source_clock_ahead_seconds": (
