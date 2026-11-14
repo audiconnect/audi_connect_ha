@@ -651,6 +651,7 @@
           "vehicle_access_denied": "Fahrzeugzugriff verweigert",
           "subscription_unavailable": "Abonnement nicht verfügbar",
           "rate_limited": "Anfragelimit erreicht",
+          "session_refresh_pending": "Sitzungserneuerung ausstehend",
           "unavailable": "Vorübergehend nicht verfügbar"
         }
       }

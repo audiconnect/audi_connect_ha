@@ -510,6 +510,7 @@
           "vehicle_access_denied": "Accès au véhicule refusé",
           "subscription_unavailable": "Abonnement indisponible",
           "rate_limited": "Limite de requêtes atteinte",
+          "session_refresh_pending": "Renouvellement de session en attente",
           "unavailable": "Temporairement indisponible"
         }
       }

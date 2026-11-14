@@ -482,17 +482,18 @@ class StatusEngine:
         from .attribute_runtime import observe_data_act
 
         client = getattr(self.auth, "data_act_client", None)
-        if client is not None and not self._data_act_backoff_loaded:
-            load = getattr(self.storage, "async_load_data_act_backoff", None)
-            if load is not None:
-                client.quota.restore_rate_limit(await load())
-            self._data_act_backoff_loaded = True
-        before_backoff = client.quota.rate_limit_checkpoint() if client else {}
         before = self.data_act_poll_status()
         changed = discovery_changed = False
+        before_backoff = {}
         previous_attempt = self._data_act_attempt_at
         previous_identity_attempt = self._data_act_identity_attempt_at
         try:
+            if client is not None and not self._data_act_backoff_loaded:
+                load = getattr(self.storage, "async_load_data_act_backoff", None)
+                if load is not None:
+                    client.quota.restore_rate_limit(await load())
+                self._data_act_backoff_loaded = True
+            before_backoff = client.quota.rate_limit_checkpoint() if client else {}
             samples = await self._poll_data_act()
             client = getattr(self.auth, "data_act_client", None)
             changed, discovery_changed = self._withdraw_data_act(client)
@@ -540,7 +541,10 @@ class StatusEngine:
             checkpoint = client.quota.rate_limit_checkpoint()
             save = getattr(self.storage, "async_save_data_act_backoff", None)
             if save is not None and checkpoint != before_backoff:
-                await save(checkpoint)
+                try:
+                    await save(checkpoint)
+                except (RuntimeError, ValueError, OSError):
+                    self._data_act_processing_failed = True
         if changed:
             self._update_capture_projection()
         if self._notify is not None:
