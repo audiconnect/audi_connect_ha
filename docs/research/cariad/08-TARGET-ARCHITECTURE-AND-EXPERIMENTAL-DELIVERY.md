@@ -1,6 +1,6 @@
 # 08 — Target Architecture: Adaptive Audi Connect Across VW Group API Generations
 
-**Status:** Proposed strategic architecture and delivery policy — not an implemented feature and not a confirmed Volkswagen Group roadmap.
+**Status:** Proposed strategic architecture — not an active implementation plan, release authorization or confirmed Volkswagen Group roadmap. The [current architecture contract](../../V3_ARCHITECTURE_CLOSURE.md) takes precedence.
 **Date:** 2026-11-11 · **Scope:** The base Audi Connect Home Assistant integration, with an Audi-first user experience and reusable VW Group API knowledge.
 **Read alongside:** [01 — Architecture and evolution](01-ARCHITECTURE-EVOLUTION.md), [05 — Authentication and capability contracts](05-AUTH-CAPABILITIES-RELIABILITY.md), [06 — Engineering playbook](06-ENGINEERING-PLAYBOOK.md).
 
@@ -220,7 +220,7 @@ A feature may be **shipped experimental with no Audi Q8 live proof** only when i
 2. **ENG-API — API compatibility registry.** Register host+method+schema+auth/market/version, bounded discovery, negative caching, diagnostics and no guessed cross-brand access.
 3. **ENG-VEHICLE — Vehicle profile.** Build from authorized garage metadata; drivetrain/platform/generation with provenance and unknown handling.
 4. **ENG-CAPS — Feature resolver.** Normalize advertised capability IDs, roles, license, field availability and endpoint results; derive eligible HA entities automatically.
-5. **ENG-DATA — Read adapters and freshness.** Restore trip semantics first; later charging history, images, TPMS/12V/health, and delayed Data Act enrichment without false-live values.
+5. **ENG-DATA — Read adapters and freshness.** Preserve verified trip semantics; investigate remaining charging history, images, TPMS/12V/health and delayed Data Act enrichment without false-live values.
 6. **ENG-RELEASE — Experimental program.** Backward-compatible feature flags, CI tests, pre-release cadence, safe public test cases, sample redacted diagnostics, promotion/deprecation gates.
 7. **ENG-NFR — Observability and reliability.** Per-provider request budgets, 401/403/404/429/5xx discipline, schema-drift tests, startup/multi-vehicle, command confirmation and stability.
 
@@ -236,7 +236,7 @@ A feature may be **shipped experimental with no Audi Q8 live proof** only when i
 | ADR-004 | Detect and derive capabilities from authorized evidence; never require the normal end user to select API levels manually.                                      |
 | ADR-005 | EU Data Act is **consent-based, read-only and potentially days delayed**, never a command/instant-status channel.                                              |
 | ADR-006 | New features are **experimental by default** until proven; opt-in has strict privacy, authorization, request-budget and compatibility gates.                   |
-| ADR-007 | The existing `experimental_commands` contract remains backward compatible; never auto-enable experimental writes.                                              |
+| ADR-007 | Preserve user preferences and explicit command consent; never auto-enable experimental writes.                                                                 |
 | ADR-008 | Preserve original Home Assistant entity IDs and semantics during backend or flag transitions.                                                                  |
 
 **Boundary of evidence:** the architectural pressure toward VW Group normalization is a **strategic inference**, not a manufacturer promise. Everything in this document is a proposed solution design unless explicitly identified as inspected code or a sourced observation.

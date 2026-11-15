@@ -30,7 +30,7 @@
 
 - [Audi Connect #903](https://github.com/audiconnect/audi_connect_ha/issues/903): Audi authentication migration to Auth0/PKCE.
 - [Audi Connect #914](https://github.com/audiconnect/audi_connect_ha/issues/914): Auth0 climate controls using BFF on an older Audi.
-- [Audi Connect PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915): concurrent upstream work for commands, recovery and diagnostics.
+- [Audi Connect PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915): earlier upstream work for commands, recovery and diagnostics; historical source evidence.
 - [VW CarNet #1060](https://github.com/robinostlund/homeassistant-volkswagencarnet/issues/1060): HTTP 200 `/vehicle/v1/trips/.../shortterm/last` payload; trip entities can still be broken by mapping.
 - [VAG Connect #392](https://github.com/its-me-prash/vwgroup-connect-ha/issues/392): CUPRA Formentor PHEV missing trip data; corrected OLA `driving-data` route in client.
 - [VAG Connect #1310](https://github.com/its-me-prash/vwgroup-connect-ha/issues/1310): Škoda individual trip telemetry available in MyŠkoda, not CARIAD BFF.

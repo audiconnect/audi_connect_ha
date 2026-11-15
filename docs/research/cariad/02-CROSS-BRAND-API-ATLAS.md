@@ -1,6 +1,6 @@
 # 02 — Cross-Brand API Atlas: Hosts, Endpoints, Patterns and Gaps
 
-**Legend:** **CODE** = public implementation/fixture; **REPORT** = a known example request/response; **HYPOTHESIS** = pattern-based candidate only. No entry means proven Q8 PHEV access unless explicitly stated.
+**Legend:** **CODE** = public implementation/fixture; **REPORT** = a known example request/response; **HYPOTHESIS** = pattern-based candidate only. The matrix records cross-brand source evidence at the original research stage, not current Audi support. See the current catalog and acceptance gate for implemented and vehicle-tested routes.
 
 ## 1. High-value endpoint matrix
 
@@ -8,7 +8,7 @@
 | --------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
 | Status                      | Audi/VW EU CARIAD BFF        | `GET /vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=charging,measurements,...`              | CODE in Audi Connect                       | Existing core status; HTTP 207 is normal partial success              |
 | Position                    | Audi/VW EU BFF               | `GET /vehicle/v1/vehicles/{VIN}/parkingposition`                                             | CODE                                       | Position may return 204 despite parked state                          |
-| Individual/latest trips     | VW EU BFF                    | `GET /vehicle/v1/trips/{VIN}/{shortterm\|longterm\|cyclic}/last`                             | CODE + VW HTTP 200 REPORT                  | **Top Audi Auth0 GET candidate, not verified**                        |
+| Individual/latest trips     | VW EU BFF                    | `GET /vehicle/v1/trips/{VIN}/{shortterm\|longterm\|cyclic}/last`                             | CODE + VW HTTP 200 REPORT                  | **Audi current/last observed; cyclic unverified**                     |
 | Historical trip list        | VW EU BFF                    | `GET /vehicle/v1/trips/{VIN}/{shortterm\|longterm\|cyclic}?from=...&to=...`                  | CODE in ioBroker                           | Check only after proof of authorization/last-trip                     |
 | Alternative trip statistics | VW/Audi BFF                  | `GET /vehicle/v1/vehicles/{VIN}/tripstatistics?type=shortTerm`                               | CODE; multiple 404 REPORTS                 | Low priority; cooldown on 404                                         |
 | Legacy trip statistics      | Audi Connect MBB             | `GET /api/bs/tripstatistics/v1/vehicles/{VIN}/tripdata/{shortTerm\|longTerm}`                | CODE                                       | Already implemented but disabled under Auth0                          |
