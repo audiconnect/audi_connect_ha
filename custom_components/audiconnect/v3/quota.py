@@ -160,8 +160,14 @@ class NativeQuota:
         if self.read_deferred(now, family):
             raise QuotaUnavailable("Audi API family rate limited")
         remaining = self.planning_remaining(now, family)
-        if command_preparation and remaining is not None and remaining <= command_preparation:
-            raise QuotaUnavailable("Audi command preparation needs allowance for the write")
+        if (
+            command_preparation
+            and remaining is not None
+            and remaining <= command_preparation
+        ):
+            raise QuotaUnavailable(
+                "Audi command preparation needs allowance for the write"
+            )
         # After Retry-After a user-initiated command may try once. Ordinary reads
         # cannot clear a command restriction; no automatic mutation is generated.
         self._limit(family, kind).authorize(now)
@@ -176,7 +182,9 @@ class NativeQuota:
             if kind == "command":
                 row["command_attempts"] += 1
 
-    def observe(self, status, headers, now, *, family, read_only, command_preparation=0):
+    def observe(
+        self, status, headers, now, *, family, read_only, command_preparation=0
+    ):
         kind = "command" if command_preparation or not read_only else "read"
         # Use the same backoff primitive but never charge VCF allowance to reads.
         self._limit(family, kind).observe(status, headers, now)
@@ -206,7 +214,9 @@ class NativeQuota:
             return
         for family in NATIVE_FAMILIES:
             for kind in ("read", "command"):
-                self._limit(family, kind).restore_rate_limit(checkpoint.get(f"{family}:{kind}"))
+                self._limit(family, kind).restore_rate_limit(
+                    checkpoint.get(f"{family}:{kind}")
+                )
 
     def diagnostics(self):
         now = datetime.now(UTC)

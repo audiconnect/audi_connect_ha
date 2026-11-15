@@ -391,11 +391,7 @@ class V3Engine:
             await self.storage.async_save(self.profiles)
         image_reader = getattr(self.transport, "discover_vehicle_images", None)
         targets = {key: car for key, car in fresh.items() if not car.image_url}
-        if (
-            targets
-            and not garage
-            and image_reader is not None
-        ):
+        if targets and not garage and image_reader is not None:
             try:
                 async with asyncio.timeout(8):
                     images = await image_reader()
@@ -1492,11 +1488,15 @@ class V3Engine:
         quota = getattr(self.transport, "quota", None)
         retry_at = (
             min(
-                (due for family in native_status_families(car)
-                 if (due := quota.retry_for(family)) is not None),
+                (
+                    due
+                    for family in native_status_families(car)
+                    if (due := quota.retry_for(family)) is not None
+                ),
                 default=None,
             )
-            if quota is not None else None
+            if quota is not None
+            else None
         )
         progress["read_retry_at"] = retry_at.isoformat() if retry_at else None
         return progress

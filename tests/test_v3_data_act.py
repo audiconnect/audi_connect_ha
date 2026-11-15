@@ -182,7 +182,13 @@ async def test_data_act_rate_limit_is_independent_of_native_quota():
     from custom_components.audiconnect.v3.quota import NativeQuota
 
     native = NativeQuota()
-    native.observe(200, {"Vcf-Remaining-Calls": "50"}, datetime.now(UTC), family="cariad", read_only=False)
+    native.observe(
+        200,
+        {"Vcf-Remaining-Calls": "50"},
+        datetime.now(UTC),
+        family="cariad",
+        read_only=False,
+    )
     session = MagicMock()
     response = SimpleNamespace(status=429, headers={"Retry-After": "7200"})
     session.get.return_value.__aenter__.return_value = response

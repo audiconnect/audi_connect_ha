@@ -432,7 +432,9 @@ def test_native_command_preparation_uses_recent_family_evidence_only():
 def test_native_observation_and_restrictions_are_not_a_shared_read_counter():
     now = datetime(2026, 11, 15, tzinfo=UTC)
     quota = NativeQuota()
-    quota.observe(200, {"Vcf-Remaining-Calls": "7"}, now, family="cariad", read_only=False)
+    quota.observe(
+        200, {"Vcf-Remaining-Calls": "7"}, now, family="cariad", read_only=False
+    )
     for family in ("cariad", "graphql", "mbb"):
         quota.authorize(now, family=family, read_only=True)
         quota.reserve_request(family=family, read_only=True)
@@ -443,7 +445,9 @@ def test_native_observation_and_restrictions_are_not_a_shared_read_counter():
     quota.reserve_request(family="cariad", read_only=False)
     assert quota.remaining == 7
     assert quota.planning_remaining(now, "cariad") == 6
-    quota.observe(200, {"Vcf-Remaining-Calls": "42"}, now, family="cariad", read_only=False)
+    quota.observe(
+        200, {"Vcf-Remaining-Calls": "42"}, now, family="cariad", read_only=False
+    )
     assert quota.planning_remaining(now, "cariad") == 42
     quota.observe(429, {"Retry-After": "60"}, now, family="cariad", read_only=False)
     quota.observe(200, {}, now, family="graphql", read_only=True)

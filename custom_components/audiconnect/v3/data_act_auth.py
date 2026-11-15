@@ -120,7 +120,12 @@ class DataActPortalLogin:
                 headers={"Referer": referer} if referer else None,
                 allow_redirects=False,
             ) as response:
-                quota.observe(response.status, response.headers, datetime.now(UTC), allow_redirect=True)
+                quota.observe(
+                    response.status,
+                    response.headers,
+                    datetime.now(UTC),
+                    allow_redirect=True,
+                )
                 if response.status in (400, 401, 403):
                     raise DataActAuthorizationRequired("Data Act sign-in rejected")
                 if response.status >= 400:

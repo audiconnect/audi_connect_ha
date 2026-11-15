@@ -1522,9 +1522,7 @@ async def test_diagnostics_distinguish_poll_attempts_quota_and_operation_evidenc
     assert snapshot["quota_remaining"] is None
     assert snapshot["quota_scope"] == "unknown_no_header"
     transport.remaining_calls = 40
-    assert (
-        engine.diagnostics()["quota_scope"] == "last_reported_header_scope_unknown"
-    )
+    assert engine.diagnostics()["quota_scope"] == "last_reported_header_scope_unknown"
 
 
 @pytest.mark.asyncio
@@ -1588,7 +1586,9 @@ async def test_deferred_native_poll_preserves_actual_success_and_command_reserve
     count = engine.status.poll_attempt_count
     transport.quota = NativeQuota()
     now = datetime.now(UTC)
-    transport.quota.observe(429, {"Retry-After": "60"}, now, family="cariad", read_only=True)
+    transport.quota.observe(
+        429, {"Retry-After": "60"}, now, family="cariad", read_only=True
+    )
     transport.remaining_calls = 7
     transport.calls.clear()
     await engine.poll()
@@ -1601,7 +1601,13 @@ async def test_deferred_native_poll_preserves_actual_success_and_command_reserve
         engine.health.snapshot(engine, engine.vehicles[VIN.lower()])["status"]
         == "rate_limited"
     )
-    transport.quota.observe(429, {"Retry-After": "0"}, now - timedelta(seconds=1), family="cariad", read_only=True)
+    transport.quota.observe(
+        429,
+        {"Retry-After": "0"},
+        now - timedelta(seconds=1),
+        family="cariad",
+        read_only=True,
+    )
     await engine.poll()
     assert len(transport.calls) == 1
     assert engine.status.poll_attempt_count == count + 1

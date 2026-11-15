@@ -589,7 +589,9 @@ class V3Transport:
                 self.auth, method, path, body, explicit_action=explicit_action, **kwargs
             )
             self.quota.reserve_request(
-                family=family, read_only=read_only, command_preparation=command_preparation
+                family=family,
+                read_only=read_only,
+                command_preparation=command_preparation,
             )
             await self._save_quota_checkpoint(before)
             before = self.quota.rate_limit_checkpoint()
