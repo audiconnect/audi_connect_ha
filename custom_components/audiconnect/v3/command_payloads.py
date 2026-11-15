@@ -50,6 +50,7 @@ async def settings(transport: Any, vin: str, job: str, path: str) -> dict:
         "cariad",
         "GET",
         selective_status_path(vin, job),
+        command_preparation=True,
     )
     value = read_json_path(reply.data, path)
     if not 200 <= reply.status < 300 or not isinstance(value, dict) or not value:
