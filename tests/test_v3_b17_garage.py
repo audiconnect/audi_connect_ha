@@ -188,11 +188,11 @@ def test_inventory_absence_requires_complete_membership(rows, errors, expected):
 async def test_native_inventory_fallback_is_bounded_and_does_not_revoke(failure):
     from unittest.mock import AsyncMock
     from custom_components.audiconnect.v3.auth import FamilyAuthUnavailable
-    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.quota import NativeQuota
     from custom_components.audiconnect.v3.transport import V3Transport
 
     transport = object.__new__(V3Transport)
-    transport.quota = QuotaBudget(remaining=50)
+    transport.quota = NativeQuota()
     now = datetime.now(UTC)
     primary = (
         FamilyAuthUnavailable("missing")
@@ -218,11 +218,11 @@ async def test_native_inventory_fallback_is_bounded_and_does_not_revoke(failure)
 @pytest.mark.parametrize("status", [200, 429, 503])
 async def test_inventory_never_falls_back_for_valid_vin_or_rate_limit(status):
     from unittest.mock import AsyncMock
-    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.quota import NativeQuota
     from custom_components.audiconnect.v3.transport import V3Transport
 
     transport = object.__new__(V3Transport)
-    transport.quota = QuotaBudget(remaining=50)
+    transport.quota = NativeQuota()
     rows = [{"vin": VIN, "vehicle": None}]
     transport.request = AsyncMock(
         return_value=V3Response(

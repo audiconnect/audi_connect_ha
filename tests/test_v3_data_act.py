@@ -1534,7 +1534,7 @@ def test_data_act_adaptive_backoff_and_restart_checkpoint():
     assert restored.retry_at == due + timedelta(days=1)
     due = restored.retry_at
     restored.authorize(due)
-    restored.observe(302, {}, due)
+    restored.observe(302, {}, due, allow_redirect=True)
     assert restored.retry_at is None
 
 
