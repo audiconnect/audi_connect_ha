@@ -61,7 +61,12 @@ class QuotaBudget:
             self.remaining = max(0, self.remaining - 1)
 
     def observe(
-        self, status: int, headers: Mapping[str, str], now: datetime, *, accepted_empty=False
+        self,
+        status: int,
+        headers: Mapping[str, str],
+        now: datetime,
+        *,
+        accepted_empty=False,
     ) -> None:
         success = 200 <= status < (400 if self.max_recovery_delay else 300) or (
             accepted_empty and status == 404
