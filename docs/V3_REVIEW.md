@@ -2,7 +2,7 @@
 
 **Configure → Discover → Use.** V3 is experimental and opt-in within Audi Connect. V2 remains the default and fallback. Keep one account, one config entry and the existing HA devices and entity IDs.
 
-This guide describes the B41 development candidate. B40 is the preceding published test release; B41 is not yet a published or stable release. For exact release evidence and open gates, see [feature closure](V3_FEATURE_CLOSURE.md).
+This guide describes the published B42 experimental baseline and the approved B43 development scope. Neither is a stable V3 release. For exact release evidence and open gates, see [feature closure](V3_FEATURE_CLOSURE.md).
 
 ## User guide
 
@@ -97,7 +97,7 @@ The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/bl
 | C3 | P1 | Catalog / Command / Profiles / HA | Validate charging START/STOP routes and manual/timer mode capabilities through explicit discovery. Preserve verified options when an advertised list is temporarily empty; do not invent supported modes. | Q8 and Q5 route evidence, empty mode list, restart, invalid context and explicit rediscovery cases. |
 | D1 | P1 | Status / Vehicle / Profiles / HA | Fix source selection of the newest semantically valid observation, including retained last-known samples when the newer native response is invalid and Data Act is older. | B42 SOC scenario, timestamps, equal-time conflict, invalid/sentinel, source withdrawal, restart and stale labeling. Historical values do not become live or satisfy command verification. |
 | D2 | P1 | Command / Profiles | Retain durable physical route proof independently of bounded execution history. Investigate lost climate START test detail after routine operations. | Journal rotation, restart and unrelated commands preserve discovery proof; explicit re-evaluation, authorization and operation revision still apply. |
-| A1 | P1 | API / Status / Profiles | Use integrated #59 rather than duplicate it. Adapt Data Act cadence to delivery and capture age; respect Retry-After; evaluate 15-minute fallback, exponential backoff, bounded jitter, persisted cooldown and session reuse. | No request during cooldown or restart; repeated 429, session expiry, empty/old datasets, optional failure, recovery and independent native budget. |
+| A1 | P1 | API / Status / Profiles | Use integrated #59 rather than duplicate it. Validate the integrated Data Act delivery cadence, Retry-After, 15-minute exponential fallback, persisted cooldown and session reuse; consider jitter only where evidence shows synchronized calls. | No request during cooldown or restart; repeated 429, session expiry, empty/old datasets, optional failure, recovery and independent native budget. |
 | A2 | P1 | API / Status | Treat multiple clients as normal; use reported remaining allowance conservatively, reserve native commands, suppress optional work when budget is low, and avoid synchronized polls. | Simulated external quota depletion and reset, absent headers, two clients, read recovery and unaffected native control reserve. No assumption of exact account/VIN/IP quota scope. |
 | A3 | P1 | API / Diagnostics / HA | Record bounded redacted request evidence by family and endpoint category: identity/auth, metadata, listing, download, native status, command; HTTP status, Retry-After, attempts, last success, next eligible time. | Rate-limit attribution without credentials, raw payloads, VIN or a second logging system; truthful optional health and freshness. |
 | E1 | P2 | Catalog / Command / HA | Validate climate temperature settings and start-with-parameters via guided discovery; keep proven start/stop routes. | Physical Q8/Q5 checks where supported; no invented parameter capability. |
@@ -122,6 +122,6 @@ The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/bl
 - [ ] Exact-head full Test/Validate, Workbench, HACS/hassfest, supported HA matrix, package integrity and upstream review procedure.
 - [ ] Separate product-owner release GO; immutable HACS beta and upstream review synchronization only via existing gates. Stable issue #44 remains open until separately accepted.
 
-References: merged B42 product PR #58; open Data Act PR #59 and issues #35/#36/#44; onboarding PR #52; [Q5 STOP evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881591226), [manual STOP and mode evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881920047), [B42 tester handoff](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6883962709).
+References: merged B42 product PR #58; merged Data Act PR #59 and issues #35/#36/#44; merged onboarding PR #52; [Q5 STOP evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881591226), [manual STOP and mode evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881920047), [B42 tester handoff](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6883962709).
 
-Do not implement, merge dependencies, publish B43, or announce a new release while this plan is on HOLD.
+Focused, sufficiently evidenced fixes may be implemented and merged into dev after exact-head checks. Do not publish B43, change upstream delivery or announce a release until separately authorized.

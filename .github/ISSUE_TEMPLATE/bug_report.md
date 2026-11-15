@@ -1,36 +1,29 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Report incorrect or unavailable behavior
 title: ""
 labels: ""
 assignees: ""
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Expected and actual behavior
 
-**To Reproduce**
-Steps to reproduce the behavior:
+What did you expect? What happened? Does myAudi or the actual vehicle agree?
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+## Reproduction
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+Steps, frequency and whether a restart changes the behavior. Do not repeat uncertain remote commands.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+## Environment
 
-**Logfile**
-How to enable audiconnect debugging?
-Settings > Integrations > Audi Connect > Enable Debug Logging
-Run service refresh_cloud_data
-Disable Debug Logging
+- Audi model / year:
+- Powertrain (ICE/PHEV/BEV):
+- Account region:
+- Home Assistant version:
+- Audi Connect version and runtime (V2/V3):
 
-**Your Vehicle Details**
-Model:
-Year:
-Type (Gas/Hybrid/Electric):
-Region (EU/US/CA/CN):
+## Evidence
+
+Relevant, redacted integration diagnostics or a short sanitized log excerpt. Include source family, capture age and physical outcome if known. Do not post credentials, callback URLs, tokens, VINs, locations, raw HTTP responses, private trips or the full HA diagnostics wrapper.
+
+For a new field or endpoint rather than a bug, use the Capability discovery template.

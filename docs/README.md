@@ -1,6 +1,6 @@
 # Engineering Documentation
 
-The [Audi Connect README](../readme.md) is the entry point for installation and V2 operation. For the experimental V3 runtime, use the current [user and engineering guide](V3_REVIEW.md).
+Start with the [Audi Connect README](../readme.md) for installation and product status. The [V2 user guide](V2_USER_GUIDE.md) retains detailed options, controls, services and dashboard examples. The [contribution guide](../CONTRIBUTING.md) explains how to extend coverage.
 
 ## V3 engineering and release
 
