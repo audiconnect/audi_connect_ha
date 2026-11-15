@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 from .quota import optional_budget_available
@@ -327,10 +328,14 @@ class CommandEngine:
     ) -> bool:
         return self.command_route(vin, aspect, capability) is not None
 
+    def _command_allowance(self, family):
+        quota = getattr(self.transport, "quota", None)
+        return quota.planning_remaining(datetime.now(UTC), family) if quota else None
+
     def _reserve_wake(self, vin: str, operation: str) -> None:
         if operation not in ("cariad.remote.wake", "cariad.remote.refresh"):
             return
-        remaining = getattr(self.transport, "remaining_calls", None)
+        remaining = self._command_allowance("cariad")
         if not optional_budget_available(remaining):
             raise RuntimeError("Audi wake quota reserve reached")
         from .command_journal import check_wake_budget
@@ -399,7 +404,9 @@ class CommandEngine:
                 return {**result, "alternative": "paused_cooldown"}
             if delay > 0:
                 await asyncio.sleep(delay)
-            remaining = getattr(self.transport, "remaining_calls", None)
+            remaining = self._command_allowance(
+                profile.registry.operations[alternative]["family"]
+            )
             if (
                 car.context != context
                 or self.profiles.get(vin.lower()) is not profile

@@ -112,8 +112,7 @@ class DataActPortalLogin:
                 and parse_qs(parsed.query).get("state") != [self.state]
             ):
                 raise DataActUnavailable("Invalid Data Act authorization state")
-            quota.authorize(datetime.now(UTC), read_only=True)
-            quota.reserve_request()
+            quota.authorize(datetime.now(UTC))
             async with self.session.request(
                 method,
                 url,
@@ -121,7 +120,12 @@ class DataActPortalLogin:
                 headers={"Referer": referer} if referer else None,
                 allow_redirects=False,
             ) as response:
-                quota.observe(response.status, response.headers, datetime.now(UTC))
+                quota.observe(
+                    response.status,
+                    response.headers,
+                    datetime.now(UTC),
+                    allow_redirect=True,
+                )
                 if response.status in (400, 401, 403):
                     raise DataActAuthorizationRequired("Data Act sign-in rejected")
                 if response.status >= 400:

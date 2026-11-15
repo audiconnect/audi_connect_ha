@@ -15,8 +15,7 @@ from .auth import V3Auth, configured_spin, redaction_context
 from .action_discovery import validate_approval
 from .command_engine import CommandEngine
 from .command_parameters import runtime_ready
-from .status_engine import StatusEngine
-from .quota import optional_budget_available
+from .status_engine import StatusEngine, native_status_families
 from .development_profiles import DevelopmentProfile, DevelopmentProfileError
 from .profile_store import V3ProfileStorage
 from .trip_archive import V3TripArchive
@@ -79,8 +78,8 @@ class V3Engine:
     ):
         self.hass, self.entry, self.registry = hass, entry, registry
         self.auth = auth or V3Auth(hass, entry)
-        self.transport = transport or V3Transport(hass, self.auth)
         self.storage = storage or V3ProfileStorage(hass, entry.entry_id)
+        self.transport = transport or V3Transport(hass, self.auth, storage=self.storage)
         self.trip_archive = (
             V3TripArchive(hass, entry.entry_id) if storage is None else None
         )
@@ -391,14 +390,8 @@ class V3Engine:
         if fresh:
             await self.storage.async_save(self.profiles)
         image_reader = getattr(self.transport, "discover_vehicle_images", None)
-        remaining = getattr(self.transport, "remaining_calls", None)
         targets = {key: car for key, car in fresh.items() if not car.image_url}
-        if (
-            targets
-            and not garage
-            and image_reader is not None
-            and optional_budget_available(remaining)
-        ):
+        if targets and not garage and image_reader is not None:
             try:
                 async with asyncio.timeout(8):
                     images = await image_reader()
@@ -694,8 +687,6 @@ class V3Engine:
             raise ValueError("Choose a GraphQL identity template")
         validate_identity_query(query, variables)
         car = self.require_vehicle(vin)
-        if not optional_budget_available(self.transport.remaining_calls):
-            raise RuntimeError("Audi quota is low")
         response = (
             await self.transport.experiment_identity_query(query, variables)
             if variables is not None
@@ -749,8 +740,6 @@ class V3Engine:
         if operation != GARAGE_OPERATION and operation not in IDENTITY_QUERIES:
             raise ValueError("Unknown reviewed GraphQL operation")
         car = self.require_vehicle(vin)
-        if not optional_budget_available(self.transport.remaining_calls):
-            raise RuntimeError("Audi quota is low")
         response = await self.transport.test_identity_query(operation)
         is_garage = operation == GARAGE_OPERATION
         selected, candidate = self._identity_candidate(response, car, operation)
@@ -831,8 +820,6 @@ class V3Engine:
             routes = list(IDENTITY_QUERIES) if full else [INVENTORY_OPERATION]
             results = []
             for operation in routes:
-                if not optional_budget_available(self.transport.remaining_calls):
-                    break
                 results.append(await self.test_identity_operation(vin, operation))
                 if results[-1]["http_status"] in (401, 403, 429):
                     break
@@ -849,8 +836,6 @@ class V3Engine:
         if full:
             return await self._scan_catalog_reads(vehicle, profile, family)
         outcomes: list[dict[str, Any]] = []
-        if not optional_budget_available(self.transport.remaining_calls):
-            raise RuntimeError("Audi quota is low; read-only scan has been suspended")
         if family == "cariad":
             plans = [
                 (
@@ -872,8 +857,6 @@ class V3Engine:
             ]
 
         async def run_one(route_id: str, path: str, jobs: tuple[str, ...]) -> bool:
-            if not optional_budget_available(self.transport.remaining_calls):
-                return False
             try:
                 response = await self.transport.request(family, "GET", path)
             except (TimeoutError, OSError, RuntimeError, ValueError):
@@ -946,9 +929,6 @@ class V3Engine:
         for ident, template in pending:
             if attempted >= 12:
                 stopped = "batch_limit"
-                break
-            if not optional_budget_available(self.transport.remaining_calls):
-                stopped = "quota_reserve"
                 break
             path = template.format(VIN=car.vin, TYPE="Audi", COUNTRY=car.country)
             attempted += 1
@@ -1505,7 +1485,19 @@ class V3Engine:
         ):
             progress["read_state"] = "paused"
             progress["read_pause_reason"] = health["status"]
-        retry_at = getattr(getattr(self.transport, "quota", None), "retry_at", None)
+        quota = getattr(self.transport, "quota", None)
+        retry_at = (
+            min(
+                (
+                    due
+                    for family in native_status_families(car)
+                    if (due := quota.retry_for(family)) is not None
+                ),
+                default=None,
+            )
+            if quota is not None
+            else None
+        )
         progress["read_retry_at"] = retry_at.isoformat() if retry_at else None
         return progress
 
@@ -1736,7 +1728,7 @@ class V3Engine:
             "quota_scope": (
                 "unknown_no_header"
                 if self.transport.remaining_calls is None
-                else "conservative_estimate_since_last_header"
+                else "last_reported_header_scope_unknown"
             ),
             "quota_observed_at": (
                 stamp.isoformat()

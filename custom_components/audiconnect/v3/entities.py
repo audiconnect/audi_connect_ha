@@ -912,6 +912,13 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
         if last_state is not None:
             if self._restored_native_value is None and last_state.state.isdigit():
                 self._restored_native_value = int(last_state.state)
+            historical = last_state.attributes.get("last_known_remaining")
+            if (
+                self._restored_native_value is None
+                and type(historical) is int
+                and historical >= 0
+            ):
+                self._restored_native_value = historical
             stamp = last_state.attributes.get("last_observed")
             if isinstance(stamp, str):
                 self._restored_last_observed = stamp
@@ -922,9 +929,8 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
 
     @property
     def native_value(self):
-        # Restored quota is display-only; never seed V3 transport budgeting.
-        current = self.coordinator.engine.transport.remaining_calls
-        return current if current is not None else self._restored_native_value
+        # Unknown current allowance is not the last historical sensor value.
+        return self.coordinator.engine.transport.remaining_calls
 
     @property
     def extra_state_attributes(self):
@@ -934,8 +940,8 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
             return {
                 "last_observed": stamp.isoformat() if stamp else None,
                 "value_restored": False,
-                "value_source": "live_header",
-                "value_is_current": True,
+                "value_source": "last_reported_header",
+                "value_is_current": False,
             }
         return {
             "last_observed": self._restored_last_observed,
@@ -945,6 +951,7 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
             else "unknown",
             "value_is_current": False,
             "current_remaining": None,
+            "last_known_remaining": self._restored_native_value,
         }
 
 

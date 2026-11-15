@@ -10,7 +10,7 @@ import hashlib
 import re
 from .auth import service_api_level
 from .registry import read_json_path
-from .quota import QuotaUnavailable, optional_budget_available
+from .quota import QuotaUnavailable
 from .command_parameters import (
     LEGACY_CLIMATE_INPUTS,
     temperature_celsius,
@@ -137,16 +137,18 @@ async def confirm(transport, path, payload, *, delay=4, max_reads=3):
     if not isinstance(request_id, str) or not _ID.fullmatch(request_id):
         return "accepted_unconfirmed"
     for n in range(max_reads):
-        if not optional_budget_available(transport.remaining_calls):
-            return "quota_limited"
         if n:
             await asyncio.sleep(delay)
         try:
             reply = await transport.request(
                 "mbb", "GET", endpoint, explicit_action=True
             )
+        except QuotaUnavailable:
+            return "quota_limited"
         except (RuntimeError, ValueError, OSError, TimeoutError):
             return "accepted_unconfirmed"
+        if reply.status == 429:
+            return "quota_limited"
         if not 200 <= reply.status < 300:
             return "accepted_unconfirmed"
         state = read_json_path(reply.data, status_path)

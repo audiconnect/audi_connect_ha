@@ -4,58 +4,35 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from custom_components.audiconnect.v3.quota import QuotaBudget
+from custom_components.audiconnect.v3.quota import NativeQuota, RateLimit
 from custom_components.audiconnect.v3.command_journal import CommandRecord
 
 
-def test_positive_reserve_prioritizes_commands_and_bounds_recovery_reads():
+def test_server_recovery_is_bounded_and_honors_retry_after():
     now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    budget.observe(200, {"Vcf-Remaining-Calls": "8"}, now)
+    limit = RateLimit()
+    limit.observe(429, {"Retry-After": "60"}, now)
+    due = now + timedelta(minutes=1)
+    assert limit.retry_at == due
     with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=True)
-    budget.authorize(now, read_only=False)
-    budget.reserve_request()
-    assert budget.remaining == 7
-    later = now + budget.recovery_delay
-    budget.authorize(later, read_only=True)
+        limit.authorize(now)
+    limit.authorize(due)
     with pytest.raises(RuntimeError):
-        budget.authorize(later, read_only=True)
-    budget.observe(200, {}, later)
-    budget.authorize(later, read_only=False)
-    budget.observe(200, {"Vcf-Remaining-Calls": "0"}, later)
-    with pytest.raises(RuntimeError):
-        budget.authorize(later, read_only=False)
-    budget.observe(200, {"Vcf-Remaining-Calls": "42"}, later)
-    budget.authorize(later, read_only=False)
+        limit.authorize(due)
+    limit.observe(200, {}, due)
+    assert limit.retry_at is None
+    assert limit.rate_limit_streak == 0
 
 
-def test_server_throttle_overrides_positive_reserve_and_local_deadline():
+def test_actual_command_throttle_does_not_allow_replay_before_deadline():
     now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    budget.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
-    budget.observe(429, {"Vcf-Remaining-Calls": "7", "Retry-After": "60"}, now)
-    assert budget.retry_at == now + timedelta(minutes=1)
+    quota = NativeQuota()
+    quota.observe(429, {"Retry-After": "7200"}, now, family="cariad", read_only=False)
     with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=False)
-    due = budget.retry_at
+        quota.authorize(now + timedelta(hours=1), family="cariad", read_only=False)
+    quota.authorize(now + timedelta(hours=2), family="cariad", read_only=False)
     with pytest.raises(RuntimeError):
-        budget.authorize(due, read_only=False)
-    budget.authorize(due, read_only=True)
-    budget.reserve_request()
-    budget.observe(200, {}, due)
-    budget.authorize(due, read_only=False)
-
-
-def test_retry_after_honored_and_recovery_never_mutates():
-    now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    budget.observe(429, {"Retry-After": "7200"}, now)
-    with pytest.raises(RuntimeError):
-        budget.authorize(now + timedelta(hours=1), read_only=True)
-    with pytest.raises(RuntimeError):
-        budget.authorize(now + timedelta(hours=2), read_only=False)
-    budget.authorize(now + timedelta(hours=2), read_only=True)
+        quota.authorize(now + timedelta(hours=2), family="cariad", read_only=False)
 
 
 def test_pending_command_restores_uncertainty_without_replay():
@@ -408,7 +385,7 @@ def test_v2_delta_register_covers_all_production_blob_changes():
     assert observed == expected
 
 
-def test_optional_budget_policy_and_diagnostics_share_local_headroom():
+def test_optional_command_headroom_remains_local_policy():
     from custom_components.audiconnect.v3.quota import optional_budget_available
 
     assert optional_budget_available(None)
@@ -416,78 +393,74 @@ def test_optional_budget_policy_and_diagnostics_share_local_headroom():
     assert optional_budget_available(13)
     assert not optional_budget_available(19, cost=8)
     assert optional_budget_available(20, cost=8)
-    now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    budget.observe(200, {"Vcf-Remaining-Calls": "12"}, now)
-    assert budget.diagnostics() == {
-        "remaining": 12,
-        "observed_at": now.isoformat(),
-        "retry_at": None,
-        "rate_limit_streak": 0,
-        "command_reserve": 8,
-        "optional_headroom_available": False,
-    }
 
 
 def test_native_repeated_throttling_backs_off_and_resets():
     now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
+    limit = RateLimit()
     for minutes in (15, 30, 60, 120, 120):
-        budget.observe(429, {}, now)
-        assert budget.retry_at == now + timedelta(minutes=minutes)
-        now = budget.retry_at
-        budget.authorize(now, read_only=True)
-    budget.observe(200, {"Vcf-Remaining-Calls": "42"}, now)
-    assert budget.rate_limit_streak == 0
-    budget.observe(429, {}, now)
-    assert budget.retry_at == now + timedelta(minutes=15)
+        limit.observe(429, {}, now)
+        assert limit.retry_at == now + timedelta(minutes=minutes)
+        now = limit.retry_at
+        limit.authorize(now)
+    limit.observe(200, {}, now)
+    assert limit.rate_limit_streak == 0
+    limit.observe(429, {}, now)
+    assert limit.retry_at == now + timedelta(minutes=15)
 
 
-def test_preparation_uses_positive_reserve_but_keeps_allowance_for_write():
+def test_native_command_preparation_uses_recent_family_evidence_only():
     now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    budget.observe(200, {"Vcf-Remaining-Calls": "2"}, now)
+    quota = NativeQuota()
+    quota.observe(200, {"Vcf-Remaining-Calls": "3"}, now, family="mbb", read_only=False)
     with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=True)
-    budget.authorize(now, read_only=True, command_preparation=1)
-    budget.reserve_request()
-    budget.observe(200, {"Vcf-Remaining-Calls": "1"}, now)
-    with pytest.raises(RuntimeError, match="allowance for the write"):
-        budget.authorize(now, read_only=True, command_preparation=1)
-    budget.authorize(now, read_only=False)
-    budget.observe(429, {"Retry-After": "60"}, now)
-    with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=True, command_preparation=1)
+        quota.authorize(now, family="mbb", read_only=True, command_preparation=3)
+    quota.authorize(now, family="mbb", read_only=True, command_preparation=2)
+    quota.reserve_request(family="mbb", read_only=True, command_preparation=2)
+    assert quota.planning_remaining(now, "mbb") == 2
+    quota.authorize(now, family="mbb", read_only=False, command_preparation=1)
+    quota.reserve_request(family="mbb", read_only=False, command_preparation=1)
+    quota.authorize(now, family="mbb", read_only=False)
+    quota.reserve_request(family="mbb", read_only=False)
+    assert quota.remaining == 3
+    assert quota.planning_remaining(now, "mbb") == 0
+    quota.authorize(now, family="cariad", read_only=True, command_preparation=3)
+    quota.authorize(now, family="mbb", read_only=True)
+    assert quota.planning_remaining(now + timedelta(minutes=15), "mbb") is None
 
 
-def test_read_deferral_is_pure_and_tracks_actual_retry_deadline():
-    now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    assert not budget.read_deferred(now)
-    budget.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
-    deadline = budget.retry_at
-    assert budget.read_deferred(now)
-    assert not budget.read_deferred(deadline)
-    assert budget.retry_at == deadline
-    assert budget.rate_limit_streak == 0
-    budget.authorize(now, read_only=False)
-    budget.observe(429, {"Retry-After": "60"}, now)
-    assert budget.read_deferred(now)
-    assert not budget.read_deferred(now + timedelta(minutes=1))
-
-
-def test_native_command_sequence_uses_only_known_remaining_allowance():
-    now = datetime(2026, 11, 12, tzinfo=UTC)
-    budget = QuotaBudget()
-    budget.observe(200, {"Vcf-Remaining-Calls": "3"}, now)
-    with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=True, command_preparation=3)
-    budget.authorize(now, read_only=True, command_preparation=2)
-    budget.reserve_request()
-    budget.authorize(now, read_only=False, command_preparation=1)
-    budget.reserve_request()
-    budget.authorize(now, read_only=False)
-    budget.reserve_request()
-    assert budget.remaining == 0
-    with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=False)
+def test_native_observation_and_restrictions_are_not_a_shared_read_counter():
+    now = datetime(2026, 11, 15, tzinfo=UTC)
+    quota = NativeQuota()
+    quota.observe(
+        200, {"Vcf-Remaining-Calls": "7"}, now, family="cariad", read_only=False
+    )
+    for family in ("cariad", "graphql", "mbb"):
+        quota.authorize(now, family=family, read_only=True)
+        quota.reserve_request(family=family, read_only=True)
+        quota.observe(200, {}, now, family=family, read_only=True)
+    assert quota.remaining == 7
+    assert quota.planning_remaining(now, "cariad") == 7
+    assert quota.planning_remaining(now, "graphql") is None
+    quota.reserve_request(family="cariad", read_only=False)
+    assert quota.remaining == 7
+    assert quota.planning_remaining(now, "cariad") == 6
+    quota.observe(
+        200, {"Vcf-Remaining-Calls": "42"}, now, family="cariad", read_only=False
+    )
+    assert quota.planning_remaining(now, "cariad") == 42
+    quota.observe(429, {"Retry-After": "60"}, now, family="cariad", read_only=False)
+    quota.observe(200, {}, now, family="graphql", read_only=True)
+    assert quota.read_deferred(now, "cariad")
+    assert not quota.read_deferred(now, "graphql")
+    restored = NativeQuota()
+    restored.restore_rate_limit(quota.rate_limit_checkpoint())
+    assert restored.remaining is None
+    assert restored.read_deferred(now, "cariad")
+    later = now + timedelta(minutes=1)
+    restored.authorize(later, family="cariad", read_only=True)
+    restored.observe(200, {}, later, family="cariad", read_only=True)
+    assert restored.rate_limit_checkpoint()["cariad:command"]["streak"] == 1
+    restored.authorize(later, family="cariad", read_only=False)
+    restored.observe(200, {}, later, family="cariad", read_only=False)
+    assert restored.rate_limit_checkpoint() == {}

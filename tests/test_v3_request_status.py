@@ -76,9 +76,15 @@ def test_pending_or_missing_outcome_never_claims_success():
 
 
 def test_quota_and_auth_failures_stop_followup():
-    low = transport(replies=[], remaining=12)
-    assert asyncio.run(confirm(low, "VIN", "abc")) == "quota_limited"
-    low.request.assert_not_awaited()
+    low = transport(
+        replies=[response(200, {"data": [{"id": "abc", "status": "completed"}]})],
+        remaining=12,
+    )
+    assert asyncio.run(confirm(low, "VIN", "abc")) == "backend_completed"
+    low.request.assert_awaited_once()
+    limited = transport(replies=[response(429, None)])
+    assert asyncio.run(confirm(limited, "VIN", "abc")) == "quota_limited"
+    limited.request.assert_awaited_once()
     bad = transport(replies=[response(403, None)])
     assert asyncio.run(confirm(bad, "VIN", "abc")) == "unknown"
     assert bad.request.await_count == 1

@@ -49,7 +49,16 @@ def test_partial_errors_recover_only_on_matching_job_and_keep_safe_history():
 def test_poll_failure_and_quota_are_not_successful_connectivity():
     car = V3Vehicle(VIN, "Audi", "Audi Q8", "q8", "DE")
     health = IntegrationHealth()
-    engine = NS(transport=NS(remaining_calls=0), last_cloud_poll_succeeded=False)
+    from custom_components.audiconnect.v3.quota import NativeQuota
+
+    quota = NativeQuota()
+    engine = NS(
+        transport=NS(remaining_calls=0, quota=quota), last_cloud_poll_succeeded=False
+    )
+    assert health.snapshot(engine, car)["status"] == "cloud_unavailable"
+    quota.observe(
+        429, {"Retry-After": "60"}, datetime.now(UTC), family="cariad", read_only=True
+    )
     assert health.snapshot(engine, car)["status"] == "rate_limited"
     health.poll_error = "authentication_required"
     assert health.snapshot(engine, car)["status"] == "authentication_required"

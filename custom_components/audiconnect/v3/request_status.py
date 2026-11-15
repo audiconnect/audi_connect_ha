@@ -11,7 +11,8 @@ import asyncio
 import re
 from typing import Any
 
-from .quota import optional_budget_available
+from .quota import QuotaUnavailable
+
 
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 _PENDING = frozenset({"in_progress", "pending", "queued", "accepted"})
@@ -61,8 +62,6 @@ async def confirm(
     if not _ID.fullmatch(request_id):
         return "unknown"
     for attempt in range(max_reads):
-        if not optional_budget_available(transport.remaining_calls):
-            return "quota_limited"
         if attempt:
             await asyncio.sleep(delay_s)
         try:
@@ -71,9 +70,13 @@ async def confirm(
                 "GET",
                 f"/vehicle/v1/vehicles/{vin}/pendingrequests",
             )
+        except QuotaUnavailable:
+            return "quota_limited"
         except (TimeoutError, OSError, RuntimeError, ValueError):
             return "unknown"
-        if response.status in (401, 403, 429) or response.status >= 500:
+        if response.status == 429:
+            return "quota_limited"
+        if response.status in (401, 403) or response.status >= 500:
             return "unknown"
         if response.status == 204:
             continue

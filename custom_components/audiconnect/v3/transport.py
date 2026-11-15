@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -17,7 +18,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
-from .quota import QuotaBudget, optional_budget_available
+from .quota import NativeQuota
+
+_LOGGER = logging.getLogger(__name__)
 
 MAX_NATIVE_RESPONSE_BYTES = 10_000_000
 
@@ -479,13 +482,14 @@ class V3Response:
 class V3Transport:
     """Audi region host allowlist and single-connection request budget."""
 
-    def __init__(self, hass: Any, auth: V3Auth):
+    def __init__(self, hass: Any, auth: V3Auth, *, storage=None):
         self.auth = auth
         self.session = async_get_clientsession(hass)
-        self.quota = QuotaBudget()
+        self.quota = NativeQuota()
+        self._storage = storage
+        self._quota_loaded = False
         self.last_cloud_poll: datetime | None = None
         self._request_lock = asyncio.Lock()
-        self._request_count = 0
         self.executors = build_family_executors()
         self.last_inventory_metadata: V3Response | None = None
         self.last_inventory_errors: dict[str, list] = {}
@@ -503,7 +507,7 @@ class V3Transport:
 
     @property
     def request_count(self) -> int:
-        return self._request_count
+        return self.quota.request_count
 
     async def request(
         self,
@@ -566,8 +570,16 @@ class V3Transport:
                 )
             ):
                 raise ValueError("Command preparation requires a native prerequisite")
+            if not self._quota_loaded:
+                if self._storage is not None:
+                    self.quota.restore_rate_limit(
+                        await self._storage.async_load_api_backoff("native")
+                    )
+                self._quota_loaded = True
+            before = self.quota.rate_limit_checkpoint()
             self.quota.authorize(
                 datetime.now(UTC),
+                family=family,
                 read_only=read_only,
                 command_preparation=command_preparation,
             )
@@ -575,8 +587,13 @@ class V3Transport:
             plan = self.executors[family].plan(
                 self.auth, method, path, body, explicit_action=explicit_action, **kwargs
             )
-            self.quota.reserve_request()
-            self._request_count += 1
+            await self._save_quota_checkpoint(before)
+            before = self.quota.rate_limit_checkpoint()
+            self.quota.reserve_request(
+                family=family,
+                read_only=read_only,
+                command_preparation=command_preparation,
+            )
             async with asyncio.timeout(25):
                 async with self.session.request(
                     plan.method,
@@ -585,9 +602,15 @@ class V3Transport:
                     json=plan.body if plan.body is not None else None,
                     allow_redirects=False,
                 ) as response:
-                    self.quota.observe(
-                        response.status, response.headers, datetime.now(UTC)
+                    reported_remaining = self.quota.observe(
+                        response.status,
+                        response.headers,
+                        datetime.now(UTC),
+                        family=family,
+                        read_only=read_only,
+                        command_preparation=command_preparation,
                     )
+                    await self._save_quota_checkpoint(before)
                     raw = await read_bounded_body(response, MAX_NATIVE_RESPONSE_BYTES)
                     try:
                         payload = json.loads(raw) if raw.strip() else None
@@ -600,7 +623,7 @@ class V3Transport:
                         status=response.status,
                         data=payload,
                         observed_at=timestamp,
-                        remaining_calls=self.remaining_calls,
+                        remaining_calls=reported_remaining,
                         request={
                             "method": plan.method,
                             "url": plan.url,
@@ -610,6 +633,14 @@ class V3Transport:
                             else None,
                         },
                     )
+
+    async def _save_quota_checkpoint(self, before):
+        checkpoint = self.quota.rate_limit_checkpoint()
+        if self._storage is not None and checkpoint != before:
+            try:
+                await self._storage.async_save_api_backoff("native", checkpoint)
+            except (OSError, ValueError, RuntimeError):
+                _LOGGER.warning("Unable to save Audi native rate-limit checkpoint")
 
     async def discover_vehicles(self) -> list[dict[str, Any]]:
         self.last_inventory_metadata = None
@@ -655,8 +686,6 @@ class V3Transport:
             )
         # Only on unusable inventory, not missing model/media fields or quota
         # failure. The same authorized account owns both native families.
-        if not optional_budget_available(self.remaining_calls):
-            raise RuntimeError("Audi vehicle discovery unavailable; quota too low")
         response = await self.request("cariad", "GET", GARAGE_PATH)
         vehicles = garage_rows(response.data)
         if not 200 <= response.status < 300 or not vehicles:

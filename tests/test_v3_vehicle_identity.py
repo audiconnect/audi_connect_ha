@@ -111,7 +111,7 @@ def test_specific_inventory_phev_is_consistent_with_generic_hybrid_and_conflict_
     assert sensor.native_value is None and not sensor.available
 
 
-def test_incomplete_identity_retries_are_bounded_and_quota_aware():
+def test_incomplete_identity_retries_are_bounded():
     from custom_components.audiconnect.v3.status_engine import identity_refresh_due
 
     incomplete = V3Vehicle(
@@ -122,13 +122,12 @@ def test_incomplete_identity_retries_are_bounded_and_quota_aware():
     )
     complete.image_url = "https://mediaservice.audi.com/render/example.png"
     vehicles = {"a": incomplete, "b": complete}
-    assert not identity_refresh_due(vehicles, 3599, 50)
-    assert identity_refresh_due(vehicles, 3600, 50)
-    assert not identity_refresh_due(vehicles, 3600, 12)
-    assert identity_refresh_due(vehicles, 3600, None)
+    assert not identity_refresh_due(vehicles, 3599)
+    assert identity_refresh_due(vehicles, 3600)
+    assert identity_refresh_due(vehicles, 3600)
     incomplete.inventory_present = False
-    assert not identity_refresh_due(vehicles, 1800, 50)
-    assert identity_refresh_due(vehicles, 86400, 50)
+    assert not identity_refresh_due(vehicles, 1800)
+    assert identity_refresh_due(vehicles, 86400)
 
 
 def test_oem_render_selection_only_accepts_public_audi_cdn():

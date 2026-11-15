@@ -179,9 +179,16 @@ async def test_data_act_rate_limit_is_independent_of_native_quota():
     from unittest.mock import MagicMock
 
     from custom_components.audiconnect.v3.data_act import DataActClient
-    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.quota import NativeQuota
 
-    native = QuotaBudget(remaining=50)
+    native = NativeQuota()
+    native.observe(
+        200,
+        {"Vcf-Remaining-Calls": "50"},
+        datetime.now(UTC),
+        family="cariad",
+        read_only=False,
+    )
     session = MagicMock()
     response = SimpleNamespace(status=429, headers={"Retry-After": "7200"})
     session.get.return_value.__aenter__.return_value = response
@@ -192,7 +199,7 @@ async def test_data_act_rate_limit_is_independent_of_native_quota():
     with pytest.raises(DataActUnavailable):
         await client._get("/test", limit=100)
     assert session.get.call_count == 1
-    assert native.remaining == 50 and native.retry_at is None
+    assert native.remaining == 50 and native.retry_for("cariad") is None
 
 
 @pytest.mark.asyncio
@@ -200,7 +207,7 @@ async def test_optional_family_uses_existing_status_cadence_and_auth():
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
 
-    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.quota import RateLimit
     from custom_components.audiconnect.v3.status_engine import StatusEngine
 
     car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
@@ -226,7 +233,7 @@ async def test_optional_family_uses_existing_status_cadence_and_auth():
     assert status.data_act_poll_status()["result"] == "not_configured"
     client = SimpleNamespace(
         authorization_required=False,
-        quota=QuotaBudget(),
+        quota=RateLimit(),
         latest=AsyncMock(return_value=None),
     )
     auth.data_act_client = client
@@ -1516,18 +1523,18 @@ def test_data_act_adaptive_backoff_and_restart_checkpoint():
     restored = DataActClient(None).quota
     restored.restore_rate_limit(quota.rate_limit_checkpoint())
     with pytest.raises(RuntimeError):
-        restored.authorize(now + timedelta(minutes=14), read_only=True)
+        restored.authorize(now + timedelta(minutes=14))
     due = restored.retry_at
-    restored.authorize(due, read_only=True)
+    restored.authorize(due)
     restored.observe(429, {}, due)
     assert restored.retry_at == due + timedelta(minutes=30)
     due = restored.retry_at
-    restored.authorize(due, read_only=True)
+    restored.authorize(due)
     restored.observe(429, {"Retry-After": "86400"}, due)
     assert restored.retry_at == due + timedelta(days=1)
     due = restored.retry_at
-    restored.authorize(due, read_only=True)
-    restored.observe(302, {}, due)
+    restored.authorize(due)
+    restored.observe(302, {}, due, allow_redirect=True)
     assert restored.retry_at is None
 
 
@@ -1619,8 +1626,8 @@ async def test_data_act_restored_cooldown_skips_portal_requests():
         "streak": 2,
     }
     storage = SimpleNamespace(
-        async_load_data_act_backoff=AsyncMock(return_value=checkpoint),
-        async_save_data_act_backoff=AsyncMock(),
+        async_load_api_backoff=AsyncMock(return_value=checkpoint),
+        async_save_api_backoff=AsyncMock(),
     )
     car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
     profile = DevelopmentProfile(
@@ -1643,8 +1650,8 @@ async def test_data_act_restored_cooldown_skips_portal_requests():
     )
     await status._collect_data_act()
     await status._collect_data_act()
-    storage.async_load_data_act_backoff.assert_awaited_once()
-    storage.async_save_data_act_backoff.assert_not_awaited()
+    storage.async_load_api_backoff.assert_awaited_once()
+    storage.async_save_api_backoff.assert_not_awaited()
     client.latest.assert_not_awaited()
     notify.assert_called_once_with(reconcile_registry=False)
     report = status.data_act_poll_status()

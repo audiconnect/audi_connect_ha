@@ -580,21 +580,27 @@ class V3ProfileStorage:
         async with self._write_lock:
             await self._store.async_remove()
 
-    async def async_load_data_act_backoff(self) -> dict:
+    async def async_load_api_backoff(self, family) -> dict:
+        if family not in ("native", "data_act"):
+            raise ValueError("Unknown API backoff family")
+        key = family + "_backoff"
         async with self._write_lock:
             saved = await self._store.async_load() or {}
-            return saved.get("data_act_backoff", {}) if isinstance(saved, dict) else {}
+            return saved.get(key, {}) if isinstance(saved, dict) else {}
 
-    async def async_save_data_act_backoff(self, checkpoint: dict) -> None:
+    async def async_save_api_backoff(self, family, checkpoint: dict) -> None:
+        if family not in ("native", "data_act"):
+            raise ValueError("Unknown API backoff family")
+        key = family + "_backoff"
         async with self._write_lock:
             saved = await self._store.async_load() or {}
             if not isinstance(saved, dict):
                 raise DevelopmentProfileError("Invalid existing local profile store")
-            if saved.get("data_act_backoff", {}) != checkpoint:
+            if saved.get(key, {}) != checkpoint:
                 if checkpoint:
-                    saved["data_act_backoff"] = checkpoint
+                    saved[key] = checkpoint
                 else:
-                    saved.pop("data_act_backoff", None)
+                    saved.pop(key, None)
                 await self._store.async_save(saved)
 
     async def async_identity(self, vehicle_key: str, region: str) -> dict:

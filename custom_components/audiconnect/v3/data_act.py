@@ -19,7 +19,7 @@ from typing import Any
 
 from aiohttp import ClientError
 
-from .quota import QuotaBudget
+from .quota import RateLimit
 
 PORTAL = "https://eu-data-act.drivesomethinggreater.com"
 IDENTITY_OPERATION = "eu_data_act.identity.vehicles"
@@ -108,8 +108,8 @@ class DataActClient:
         self._login = login
         self._logged_in = login is None
         self._reauth_path = None
-        self.quota = QuotaBudget(
-            reserve=0,
+        self.quota = RateLimit(
+            clear_streak_on_success=False,
             recovery_delay=timedelta(minutes=15),
             max_recovery_delay=timedelta(hours=24),
         )
@@ -137,8 +137,7 @@ class DataActClient:
             if self.authorization_required:
                 raise DataActUnavailable("Data Act authorization required")
             try:
-                self.quota.authorize(datetime.now(UTC), read_only=True)
-                self.quota.reserve_request()
+                self.quota.authorize(datetime.now(UTC))
                 async with (
                     asyncio.timeout(20),
                     self.session.get(
