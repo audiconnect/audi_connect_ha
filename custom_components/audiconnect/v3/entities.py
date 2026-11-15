@@ -912,6 +912,13 @@ class V3ApiQuotaSensor(V3BaseEntity, RestoreSensor):
         if last_state is not None:
             if self._restored_native_value is None and last_state.state.isdigit():
                 self._restored_native_value = int(last_state.state)
+            historical = last_state.attributes.get("last_known_remaining")
+            if (
+                self._restored_native_value is None
+                and type(historical) is int
+                and historical >= 0
+            ):
+                self._restored_native_value = historical
             stamp = last_state.attributes.get("last_observed")
             if isinstance(stamp, str):
                 self._restored_last_observed = stamp

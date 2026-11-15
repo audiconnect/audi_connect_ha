@@ -126,6 +126,10 @@ class NativeQuota:
     def observed_at(self):
         return self._latest_report().get("at")
 
+    @property
+    def request_count(self):
+        return sum(self._requests.values())
+
     def _latest_report(self):
         return max(self._reports.values(), key=lambda row: row["at"], default={})
 
@@ -201,6 +205,8 @@ class NativeQuota:
                 "requests_since_header": 0,
                 "command_attempts": 0,
             }
+            return reported
+        return None
 
     def rate_limit_checkpoint(self):
         return {

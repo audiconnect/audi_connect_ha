@@ -490,7 +490,6 @@ class V3Transport:
         self._quota_loaded = False
         self.last_cloud_poll: datetime | None = None
         self._request_lock = asyncio.Lock()
-        self._request_count = 0
         self.executors = build_family_executors()
         self.last_inventory_metadata: V3Response | None = None
         self.last_inventory_errors: dict[str, list] = {}
@@ -508,7 +507,7 @@ class V3Transport:
 
     @property
     def request_count(self) -> int:
-        return self._request_count
+        return self.quota.request_count
 
     async def request(
         self,
@@ -588,14 +587,13 @@ class V3Transport:
             plan = self.executors[family].plan(
                 self.auth, method, path, body, explicit_action=explicit_action, **kwargs
             )
+            await self._save_quota_checkpoint(before)
+            before = self.quota.rate_limit_checkpoint()
             self.quota.reserve_request(
                 family=family,
                 read_only=read_only,
                 command_preparation=command_preparation,
             )
-            await self._save_quota_checkpoint(before)
-            before = self.quota.rate_limit_checkpoint()
-            self._request_count += 1
             async with asyncio.timeout(25):
                 async with self.session.request(
                     plan.method,
@@ -604,7 +602,7 @@ class V3Transport:
                     json=plan.body if plan.body is not None else None,
                     allow_redirects=False,
                 ) as response:
-                    self.quota.observe(
+                    reported_remaining = self.quota.observe(
                         response.status,
                         response.headers,
                         datetime.now(UTC),
@@ -625,7 +623,7 @@ class V3Transport:
                         status=response.status,
                         data=payload,
                         observed_at=timestamp,
-                        remaining_calls=self.remaining_calls,
+                        remaining_calls=reported_remaining,
                         request={
                             "method": plan.method,
                             "url": plan.url,
