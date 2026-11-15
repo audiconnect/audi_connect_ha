@@ -106,9 +106,7 @@ def status_snapshot(readings, *, family_readings=None, now=None):
     reference = now or datetime.now(UTC)
     for ident, reading in readings.items():
         candidates = [reading, *((family_readings or {}).get(ident, {}).values())]
-        native = [
-            row for row in candidates if row.get("family") in ("cariad", "mbb")
-        ]
+        native = [row for row in candidates if row.get("family") in ("cariad", "mbb")]
         if not native:
             continue
         known = last_known_observation(
