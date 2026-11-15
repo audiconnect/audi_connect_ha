@@ -225,7 +225,25 @@ class GuidedActionDiscovery:
         )
         self._active = record
         self.history.append(record)
-        self.history[:] = self.history[-self.history_limit :]
+        # Keep the latest reviewed proof of each preferred route in the
+        # existing bounded discovery history, not in the routine journal.
+        preferred = {
+            f"{attempt.capability}.{attempt.action}": attempt.sequence
+            for attempt in self.history
+            if attempt.result == "worked"
+            and self.preferred.get(f"{attempt.capability}.{attempt.action}")
+            == attempt.operation
+        }
+        while len(self.history) > self.history_limit:
+            index = next(
+                (
+                    i
+                    for i, attempt in enumerate(self.history[:-1])
+                    if attempt.sequence not in preferred.values()
+                ),
+                0,
+            )
+            self.history.pop(index)
         return record
 
     def observe_transport(self, sequence: int, *, http_status: int | None) -> None:
