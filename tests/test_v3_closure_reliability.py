@@ -427,3 +427,34 @@ def test_optional_budget_policy_and_diagnostics_share_local_headroom():
         "command_reserve": 8,
         "optional_headroom_available": False,
     }
+
+
+def test_native_repeated_throttling_backs_off_and_resets():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    for minutes in (15, 30, 60, 120, 120):
+        budget.observe(429, {}, now)
+        assert budget.retry_at == now + timedelta(minutes=minutes)
+        now = budget.retry_at
+        budget.authorize(now, read_only=True)
+    budget.observe(200, {"Vcf-Remaining-Calls": "42"}, now)
+    assert budget.rate_limit_streak == 0
+    budget.observe(429, {}, now)
+    assert budget.retry_at == now + timedelta(minutes=15)
+
+
+def test_preparation_uses_positive_reserve_but_keeps_allowance_for_write():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "2"}, now)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=True)
+    budget.authorize(now, read_only=True, command_preparation=True)
+    budget.reserve_request()
+    budget.observe(200, {"Vcf-Remaining-Calls": "1"}, now)
+    with pytest.raises(RuntimeError, match="allowance for the write"):
+        budget.authorize(now, read_only=True, command_preparation=True)
+    budget.authorize(now, read_only=False)
+    budget.observe(429, {"Retry-After": "60"}, now)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=True, command_preparation=True)

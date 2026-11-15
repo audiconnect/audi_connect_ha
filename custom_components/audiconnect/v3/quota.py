@@ -28,11 +28,17 @@ class QuotaBudget:
     max_recovery_delay: timedelta | None = None
     rate_limit_streak: int = 0
 
-    def authorize(self, now: datetime, *, read_only: bool) -> None:
+    def authorize(
+        self, now: datetime, *, read_only: bool, command_preparation: bool = False
+    ) -> None:
         """Reserve a single recovery probe before network I/O under transport lock."""
+        if command_preparation and (
+            not read_only or self.remaining is not None and self.remaining < 2
+        ):
+            raise RuntimeError("Audi command preparation needs allowance for the write")
         # A positive reserve is for explicit commands, not a hard server limit.
         if (
-            not read_only
+            (not read_only or command_preparation)
             and self.remaining is not None
             and 0 < self.remaining <= self.reserve
             and not self.rate_limit_streak
@@ -54,8 +60,12 @@ class QuotaBudget:
         if self.remaining is not None:
             self.remaining = max(0, self.remaining - 1)
 
-    def observe(self, status: int, headers: Mapping[str, str], now: datetime) -> None:
-        success = 200 <= status < (400 if self.max_recovery_delay else 300)
+    def observe(
+        self, status: int, headers: Mapping[str, str], now: datetime, *, accepted_empty=False
+    ) -> None:
+        success = 200 <= status < (400 if self.max_recovery_delay else 300) or (
+            accepted_empty and status == 404
+        )
         raw = headers.get("Vcf-Remaining-Calls")
         try:
             count = int(raw) if raw is not None else None
@@ -77,11 +87,10 @@ class QuotaBudget:
         ):
             self.retry_at = None
         if status == 429:
-            recovery = self.recovery_delay
-            if self.max_recovery_delay is not None:
-                recovery = min(
-                    recovery * 2**self.rate_limit_streak, self.max_recovery_delay
-                )
+            recovery = min(
+                self.recovery_delay * 2**self.rate_limit_streak,
+                self.max_recovery_delay or timedelta(hours=2),
+            )
             self.rate_limit_streak = min(self.rate_limit_streak + 1, 8)
             delay = now + recovery
             retry = headers.get("Retry-After")

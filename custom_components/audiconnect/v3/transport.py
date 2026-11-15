@@ -515,6 +515,7 @@ class V3Transport:
         explicit_action: bool = False,
         security_token: str | None = None,
         region_vin: str | None = None,
+        command_preparation: bool = False,
     ) -> V3Response:
         if family not in self.executors:
             raise ValueError("Unknown or unsupported V3 executor")
@@ -544,7 +545,13 @@ class V3Transport:
                 and not is_reviewed_identity_body(body)
             ):
                 validate_identity_body(body)
-            self.quota.authorize(datetime.now(UTC), read_only=read_only)
+            if command_preparation and (family != "cariad" or method != "GET"):
+                raise ValueError("Command preparation requires a native settings read")
+            self.quota.authorize(
+                datetime.now(UTC),
+                read_only=read_only,
+                command_preparation=command_preparation,
+            )
             await self.auth.ensure_ready()
             plan = self.executors[family].plan(
                 self.auth, method, path, body, explicit_action=explicit_action, **kwargs
