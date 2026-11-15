@@ -96,6 +96,16 @@ def projection_descriptor(attribute):
     return canonical if key in product_inventory()["entities"] else None
 
 
+def control_reading(vehicle, attribute, *, registry=None):
+    """Use the Status selector for a control's exact reported attribute."""
+    from .attribute_runtime import select_reading
+
+    _, row = select_reading(
+        vehicle, (attribute,), attribute, registry=registry, allow_last_known=True
+    )
+    return row or {}
+
+
 def control_projection(profile, attribute, reading, *, now=None):
     """Effective HA control state, never a physical or authorization proof.
 
@@ -373,7 +383,9 @@ def entity_availability_reason(engine, uid, key, status, state_present):
         attribute = ATTRIBUTES.get(ident)
         if not attribute:
             continue
-        _, reading = projection_reading(car, attribute)
+        _, reading = projection_reading(
+            car, attribute, registry=getattr(engine, "registry", None)
+        )
         if not reading:
             continue
         found = True
@@ -601,13 +613,13 @@ def stateful_controls():
     return product_inventory()["stateful_controls"]
 
 
-def stateful_reading(vehicle, key):
+def stateful_reading(vehicle, key, *, registry=None):
     """Shared operational state normalization, independent of write support."""
     from .attribute_runtime import last_known_observation
     from .vehicle import charging_active
 
     definition = stateful_controls()[key]
-    row = getattr(vehicle, "readings", {}).get(definition["attribute"], {})
+    row = control_reading(vehicle, definition["attribute"], registry=registry)
     known = last_known_observation(row)
     value = known.get("value")
     state = (
@@ -625,7 +637,9 @@ def stateful_reading(vehicle, key):
 
 def stateful_control_supported(engine, vehicle, key):
     definition = stateful_controls()[key]
-    _, value = stateful_reading(vehicle, key)
+    _, value = stateful_reading(
+        vehicle, key, registry=getattr(engine, "registry", None)
+    )
     return value is not None and all(
         engine.control_enabled(
             vehicle.vin, definition[action], definition["capability"]
