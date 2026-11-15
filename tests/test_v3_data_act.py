@@ -234,8 +234,6 @@ async def test_optional_family_uses_existing_status_cadence_and_auth():
     await status._poll_data_act(now + timedelta(minutes=15))
     assert client.latest.await_count == 1
     await status._poll_data_act(now + timedelta(minutes=30))
-    assert client.latest.await_count == 1
-    await status._poll_data_act(now + timedelta(hours=1))
     assert client.latest.await_count == 2
     client.quota.retry_at = now + timedelta(hours=3)
     await status._poll_data_act(now + timedelta(hours=1))
@@ -1514,15 +1512,15 @@ def test_data_act_adaptive_backoff_and_restart_checkpoint():
     now = datetime.now(UTC)
     quota = DataActClient(None).quota
     quota.observe(429, {}, now)
-    assert quota.retry_at == now + timedelta(hours=2)
+    assert quota.retry_at == now + timedelta(minutes=15)
     restored = DataActClient(None).quota
     restored.restore_rate_limit(quota.rate_limit_checkpoint())
     with pytest.raises(RuntimeError):
-        restored.authorize(now + timedelta(hours=1), read_only=True)
+        restored.authorize(now + timedelta(minutes=14), read_only=True)
     due = restored.retry_at
     restored.authorize(due, read_only=True)
     restored.observe(429, {}, due)
-    assert restored.retry_at == due + timedelta(hours=4)
+    assert restored.retry_at == due + timedelta(minutes=30)
     due = restored.retry_at
     restored.authorize(due, read_only=True)
     restored.observe(429, {"Retry-After": "86400"}, due)
@@ -1580,7 +1578,7 @@ def test_data_act_due_time_slows_when_no_new_data():
     now = datetime.now(UTC)
     status._data_act_attempt_at = now
     client.delivery_states[VIN] = "dataset_received"
-    assert status._data_act_due_at(client) == now + timedelta(hours=1)
+    assert status._data_act_due_at(client) == now + timedelta(minutes=30)
     car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
     status.vehicles[VIN.lower()] = car
     car.family_readings["stateOfCharge"] = {
@@ -1589,11 +1587,14 @@ def test_data_act_due_time_slows_when_no_new_data():
             "captured": (now - timedelta(days=1)).isoformat(),
         }
     }
-    assert status._data_act_due_at(client) == now + timedelta(hours=2)
+    # An older capture in a newly delivered dataset does not imply idle delivery.
+    assert status._data_act_due_at(client) == now + timedelta(minutes=30)
     car.family_readings["stateOfCharge"]["eu_data_act"]["captured"] = now.isoformat()
-    assert status._data_act_due_at(client) == now + timedelta(hours=1)
+    assert status._data_act_due_at(client) == now + timedelta(minutes=30)
     client.delivery_states[VIN] = "no_new_dataset"
-    assert status._data_act_due_at(client) == now + timedelta(hours=2)
+    assert status._data_act_due_at(client) == now + timedelta(hours=1)
+    client.quota.observe(429, {}, now)
+    assert status._data_act_due_at(client) == now + timedelta(minutes=15)
     client.quota.observe(429, {"Retry-After": "10800"}, now)
     assert status._data_act_due_at(client) == now + timedelta(hours=3)
     assert status.data_act_poll_status()["result"] == "rate_limited"

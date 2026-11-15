@@ -110,7 +110,7 @@ class DataActClient:
         self._reauth_path = None
         self.quota = QuotaBudget(
             reserve=0,
-            recovery_delay=timedelta(hours=2),
+            recovery_delay=timedelta(minutes=15),
             max_recovery_delay=timedelta(hours=24),
         )
         self.authorization_required = False

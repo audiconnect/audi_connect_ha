@@ -10,7 +10,7 @@ from typing import Any
 from .development_profiles import DevelopmentProfile, render_request
 from .transport import V3Response
 from .vehicle import V3Vehicle
-from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured, capture_age_minutes
+from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured
 from .attribute_runtime import (
     planned_jobs,
     observe_read_only,
@@ -212,13 +212,15 @@ class StatusEngine:
         }
 
     def _data_act_due_at(self, client):
-        """One account cadence; idle/empty deliveries are checked half as often."""
+        """Schedule from delivery evidence and the existing quota deadline."""
+        if getattr(client.quota, "rate_limit_streak", 0) and client.quota.retry_at:
+            return client.quota.retry_at
         interval = next(
             (
                 p.registry.families["eu_data_act"]["poll_interval_minutes"]
                 for p in self.profiles.values()
             ),
-            60,
+            30,
         )
         deliveries = set(getattr(client, "delivery_states", {}).values())
         idle = deliveries and deliveries <= {
@@ -228,22 +230,7 @@ class StatusEngine:
             "subscription_unavailable",
             "vehicle_access_denied",
         }
-        # A newly delivered ZIP can still contain only old vehicle captures.
-        # Use the canonical observations, not file/fetch time or a second cache.
-        ages = [
-            age
-            for car in self.vehicles.values()
-            if car.inventory_present
-            for families in car.family_readings.values()
-            if (row := families.get("eu_data_act"))
-            and not row.get("detail")
-            and row.get("status") != "invalid_value"
-            and row.get("value") is not None
-            and self._data_act_attempt_at is not None
-            and (age := capture_age_minutes(row.get("captured"), self._data_act_attempt_at))
-            is not None
-        ]
-        if idle or (ages and min(ages) > 60):
+        if idle:
             interval *= 2
         due = (
             self._data_act_attempt_at + timedelta(minutes=interval)
