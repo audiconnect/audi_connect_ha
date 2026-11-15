@@ -474,43 +474,72 @@ def restore_profile(
     revisions = saved.get("active_revisions", {})
     if not isinstance(revisions, dict):
         raise DevelopmentProfileError("Malformed route revisions")
+    # New snapshots bind every reviewed outcome, including inactive/disabled
+    # routes. Older snapshots retain their evidence where the old journal or
+    # selected revision proves it; never infer a revision from an operation ID.
+    control_revisions = saved.get("control_revisions", {})
+    if not isinstance(control_revisions, dict):
+        raise DevelopmentProfileError("Malformed control revisions")
     for key, operation in active.items():
         if "." not in key:
             raise DevelopmentProfileError("Unexpected active capability")
         capability, action = key.split(".", 1)
-        # Validate the evidence even for old, unversioned data. Do not treat
-        # the old record as proof for a changed or unknown operation revision.
         profile.choose_working(capability, action, operation)
-        if action != "status":
-            if revisions.get(key) != operation_revision(
-                profile.registry.operations[operation]
-            ):
-                # A previous revision is historical evidence, not a route
-                # that can be reactivated by choosing the same operation ID.
-                if operation in catalog.operations:
-                    row = {
-                        "operation": operation,
-                        "outcome": profile.control_results[operation],
-                        "context": asdict(old_context),
-                        "operation_revision": revisions.get(key)
-                        if isinstance(revisions.get(key), str)
-                        and len(revisions[key]) == 64
-                        and all(ch in "0123456789abcdef" for ch in revisions[key])
-                        else None,
-                    }
-                    if row not in profile.historical_control_evidence:
-                        profile.historical_control_evidence.append(row)
-                        profile.historical_control_evidence = (
-                            profile.historical_control_evidence[-50:]
-                        )
-                profile.active.pop(key, None)
-                profile.active_revisions.pop(key, None)
-                profile.discovery.preferred.pop(key, None)
-                profile.control_results.pop(operation, None)
-                if operation == "cariad.charging.mode":
-                    profile.verified_charge_modes.clear()
-            else:
+    for operation, outcome in list(profile.control_results.items()):
+        revision = control_revisions.get(operation)
+        if revision is None:
+            revision = next(
+                (
+                    record.operation_revision
+                    for record in reversed(profile.command_journal)
+                    if record.operation == operation
+                    and record.origin == "workbench"
+                    and record.state in ("verified", "physical_failed", "rejected")
+                    and record.operation_revision
+                ),
+                None,
+            )
+        if revision is None:
+            preferred = discovery.get("preferred", {})
+            revision = next(
+                (
+                    revisions.get(key)
+                    for key, selected in {**preferred, **active}.items()
+                    if selected == operation and revisions.get(key)
+                ),
+                None,
+            )
+        current = operation_revision(profile.registry.operations[operation])
+        selected_keys = [
+            key for key, selected in profile.active.items() if selected == operation
+        ]
+        if revision == current and all(
+            revisions.get(key) == current for key in selected_keys
+        ):
+            for key in selected_keys:
                 profile.discovery.preferred[key] = operation
+            continue
+        if operation in catalog.operations:
+            row = {
+                "operation": operation,
+                "outcome": outcome,
+                "context": asdict(old_context),
+                "operation_revision": revision
+                if isinstance(revision, str)
+                and len(revision) == 64
+                and all(ch in "0123456789abcdef" for ch in revision)
+                else None,
+            }
+            if row not in profile.historical_control_evidence:
+                profile.historical_control_evidence.append(row)
+        for key in selected_keys:
+            profile.active.pop(key, None)
+            profile.active_revisions.pop(key, None)
+            profile.discovery.preferred.pop(key, None)
+        profile.control_results.pop(operation, None)
+        if operation == "cariad.charging.mode":
+            profile.verified_charge_modes.clear()
+    profile.historical_control_evidence = profile.historical_control_evidence[-50:]
     pending = profile.discovery.active_attempt
     if pending is not None:
         record = profile.engineering_record(pending.sequence)
