@@ -70,6 +70,11 @@ def restore_profile(
     profile.status_readings = restore_status(
         saved.get("status_observations"), saved.get("last_known_climate")
     )
+    due = saved.get("trip_poll_due_at")
+    # Optional scheduling evidence must never prevent startup of older or
+    # malformed profiles. The status owner also bounds the future delay.
+    if type(due) in (int, float) and 0 < due < 253402300800:
+        profile.trip_poll_due_at = due
     profile.manufacturer_identity = validate_identity(
         saved.get("manufacturer_identity"), context.region
     )

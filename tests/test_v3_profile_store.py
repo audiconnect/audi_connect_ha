@@ -271,3 +271,21 @@ def test_disabled_route_revision_cannot_be_reactivated_after_upgrade(legacy_snap
     restored.discovery.enable("climate", "start")
     with pytest.raises(DevelopmentProfileError, match="test"):
         restored.choose_working("climate", "start", route)
+
+
+@pytest.mark.parametrize("due", [None, -1, True, "invalid", float("nan"), float("inf")])
+def test_invalid_trip_poll_deadline_does_not_break_profile_restore(due):
+    catalog, context, profile = fresh()
+    saved = profile.snapshot()
+    saved["trip_poll_due_at"] = due
+    assert restore_profile(catalog, context, saved).trip_poll_due_at is None
+
+
+def test_trip_poll_deadline_is_invalidated_on_context_change():
+    catalog, context, profile = fresh()
+    profile.trip_poll_due_at = 1800000000.0
+    changed = VehicleContext(auth="auth0", region="DE", model_family="q5")
+    assert restore_profile(catalog, context, profile.snapshot()).trip_poll_due_at == (
+        profile.trip_poll_due_at
+    )
+    assert restore_profile(catalog, changed, profile.snapshot()).trip_poll_due_at is None

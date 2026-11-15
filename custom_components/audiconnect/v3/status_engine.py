@@ -120,7 +120,6 @@ class StatusEngine:
         self.last_cloud_poll_succeeded = None
         self._poll_cycles = 0
         self._identity_attempt_at = None
-        self._trip_poll_at = {}
         self._legacy_route_backoff = {}
         self._data_act_attempt_at = None
         self._data_act_success_at = None
@@ -284,10 +283,6 @@ class StatusEngine:
                 )
         return samples
 
-    def invalidate_trip_poll(self, vin: str) -> None:
-        """Re-evaluate trip polling after the vehicle context changes."""
-        self._trip_poll_at.pop(vin.lower(), None)
-
     async def _poll_legacy(self, car, profile, cache) -> bool:
         """Normal MBB polling, one GET per resource, with no mutations."""
         from .legacy_read_mappings import read_routes
@@ -333,10 +328,10 @@ class StatusEngine:
         from .trips import CARIAD_TRIP_OPERATIONS, observe_cariad_trip
         from .attribute_runtime import _capture_in_utc
 
-        now = time.monotonic()
+        now = time.time()
         key = car.vin.lower()
-        due = self._trip_poll_at.get(key)
         profile = self.profiles[key]
+        due = profile.trip_poll_due_at
         # Retry missing scopes at the ordinary poll cadence, not a 3-hour
         # penalty after a quota/transport/partial-response failure.
         expected = (
@@ -348,11 +343,14 @@ class StatusEngine:
             if car.context.auth != "legacy"
             else ["shortterm_current", "longterm_current"]
         )
-        if due is not None and now < due:
+        # A future deadline beyond the maximum cadence is invalid (for
+        # example after a backward clock correction); do not defer forever.
+        if due is not None and now < due <= now + 10800:
             return
-        # Reserve the bounded retry before I/O. Only a complete successful
-        # cycle extends it; cached trip scopes alone never prove success.
-        self._trip_poll_at[key] = now + 900
+        # Reserve the bounded retry before I/O and persist via the existing
+        # profile snapshot at the end of the poll. A complete cycle alone
+        # extends it; cached trip scopes alone never prove success.
+        profile.trip_poll_due_at = now + 900
         complete = True
         if car.context.auth == "legacy":
             from .trips import normalize_mbb_trips
@@ -399,7 +397,7 @@ class StatusEngine:
                         car.trips[state_key] = trip
             else:
                 if complete and all(car.trips.get(scope) for scope in expected):
-                    self._trip_poll_at[key] = now + 10800
+                    profile.trip_poll_due_at = now + 10800
             return
         profile = self.profiles[car.vin.lower()]
         available = (
@@ -433,7 +431,7 @@ class StatusEngine:
                 complete &= normalize_cariad_trip(reply.data)[0] is not None
         else:
             if complete and all(car.trips.get(scope) for scope in expected):
-                self._trip_poll_at[key] = now + 10800
+                profile.trip_poll_due_at = now + 10800
 
     async def poll(self) -> list[V3Vehicle]:
         # A deliberately deferred native read is not a failed cloud poll.
