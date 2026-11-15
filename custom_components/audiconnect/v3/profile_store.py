@@ -280,8 +280,7 @@ def restore_profile(
         ):
             raise DevelopmentProfileError("Invalid attribute evidence")
         if (
-            detail["status"]
-            not in ("verified", "readable_but_stale", "invalid_value")
+            detail["status"] not in ("verified", "readable_but_stale", "invalid_value")
             or detail["path"]
             not in {
                 p

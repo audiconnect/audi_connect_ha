@@ -868,8 +868,9 @@ def test_conflicting_native_observation_roundtrips_and_repairs_old_profile():
     assert ident not in repaired.attribute_evidence
     assert ident not in repaired.attribute_routes
     assert "climatisationState" in repaired.attribute_evidence
-    assert repaired.attribute_routes["climatisationState"] == (
-        profile.attribute_routes["climatisationState"]
+    assert (
+        repaired.attribute_routes["climatisationState"]
+        == (profile.attribute_routes["climatisationState"])
     )
     next_vehicle = car()
     bind_status(next_vehicle, repaired)
