@@ -1,6 +1,6 @@
 # 08 — Target Architecture: Adaptive Audi Connect Across VW Group API Generations
 
-**Status:** Proposed strategic architecture — not an active implementation plan, release authorization or confirmed Volkswagen Group roadmap. The [current architecture contract](../../V3_ARCHITECTURE_CLOSURE.md) takes precedence.
+**Status:** Proposed strategic architecture — not a confirmed Volkswagen Group roadmap. The [current architecture contract](../../V3_ARCHITECTURE_CLOSURE.md) takes precedence.
 **Date:** 2026-11-11 · **Scope:** The base Audi Connect Home Assistant integration, with an Audi-first user experience and reusable VW Group API knowledge.
 **Read alongside:** [01 — Architecture and evolution](01-ARCHITECTURE-EVOLUTION.md), [05 — Authentication and capability contracts](05-AUTH-CAPABILITIES-RELIABILITY.md), [06 — Engineering playbook](06-ENGINEERING-PLAYBOOK.md).
 
@@ -170,63 +170,13 @@ These are **proposed acceptance requirements** and configurable defaults to vali
 
 Suggested quantitative engineering gates (tunable, **not observed OEM limits**): zero sensitive values in diagnostic fixtures; zero extra probe calls unless explicitly opted in; no repeated 403/404 loops; one vehicle per HA unique ID; 100% pass for core auth, entity-stability, unit-conversion and command-confirmation regressions; test 15-minute, 3-hour, 24-hour and 72-hour data ages. Avoid inventing universal “fresh within five minutes” SLAs: parked OEM telemetry cannot meet that promise.
 
-## 8. Experimental-first community release model
+## 8. Research directions
 
-**Objective:** release candidate features **earlier** into normal test/pre-release builds behind an explicit experimental setting, so the broad Audi community can validate real vehicles and markets. This avoids waiting for one engineer to own every model while keeping default users safe.
+- Investigate authorized public/business API registration and eligibility separately from consumer portal consent.
+- Validate additional trip semantics, charging history, media, battery health and other vehicle data through reviewed, authorized reads.
+- Investigate measured request restrictions, data freshness and recovery across supported account and vehicle contexts.
 
-### Existing implementation and migration
-
-The implemented V3 runtime is opt-in within the existing integration; V2 remains the default and fallback. Preserve existing user settings, entity IDs and the separately consented command/discovery workflow. The [current release authority](../../V3_ARCHITECTURE_CLOSURE.md#release-authority) governs promotion; this research proposal does not introduce new feature flags or authorize writes.
-
-### Feature lifecycle
-
-```text
-RESEARCH
-  -> CONTRACT (documented route + test fixture)
-  -> EXPERIMENTAL / OPT-IN (safe implementation + CI + diagnostics)
-  -> COMMUNITY PILOT (different vehicles/markets/auth profiles)
-  -> STABLE (evidence gates met, flag removed without ID churn)
-  -> DEPRECATED (compatibility period + migration)
-```
-
-A feature may be **shipped experimental with no Audi Q8 live proof** only when it is safe, gated, fail-closed, test-covered, explicitly labeled experimental and does not run aggressive automatic discovery. For a remote **write** command, require stronger minimum proof and fail-safe authorization before release. An experimental flag must **not** become a shortcut around basic quality, privacy or safety gates.
-
-### Release and feedback mechanics
-
-1. Ship small, independently revertible feature slices in frequent pre-release builds; allow disabled-by-default experimental code in normal releases when core regressions pass.
-2. Advertise precisely which account/auth/vehicle platforms were tested, and which remain unknown. Avoid claiming global compatibility after one Q8 success.
-3. Surface per-feature telemetry in diagnostics: `not_seen`, `eligible`, `available`, `denied`, `404_cooldown`, `schema_mismatch`, `stale`, `command_unconfirmed`.
-4. Provide a minimal anonymous feedback template: integration version, market, drivetrain/generation (if known), auth family, feature, response status class, expected/observed, redacted schema keys, vehicle capture age.
-5. Collect cross-platform results from a small pilot first, then expand. **Not all experimental APIs may be polled by every opted-in user automatically.**
-6. Promote a feature only when multiple relevant vehicle types/regions and failure paths have been exercised (or when scope is explicitly limited to one verified segment).
-7. Use feature-specific remote kill switches or server-independent local disable switches where appropriate; do not force all users into immediate reauthorization for a single experimental feature.
-8. Keep a short experiment changelog, active limitations, regression tests, deprecation plan and owner for every feature.
-
-### Promotion gates
-
-| Dimension        | Experimental                                                     | Stable                                                          |
-| ---------------- | ---------------------------------------------------------------- | --------------------------------------------------------------- |
-| Authorization    | Explicit supported auth and user opt-in; no forbidden workaround | Tested and documented for supported account types               |
-| Vehicle coverage | Narrow/test cohort and declared unknowns                         | Repeatable matrix for the declared supported models/generations |
-| API contract     | Fixture, schema validation, bounded failure handling             | Real-world evidence plus schema drift/recovery tests            |
-| Data freshness   | Explicit provenance/age, unknown possible                        | Verified source and quality for feature semantics               |
-| Commands         | Fail-closed, explicit action, stronger pilot proof               | Acceptance/readback confirmed or explicit unconfirmed state     |
-| HA compatibility | Feature disabled by default, no ID breakage                      | Entity registry stable, upgrades and reauth tested              |
-| Release QA       | Unit/CI/HA baseline green                                        | Broad tests and declared regression gate green                  |
-
-## 9. Concrete engineering epics
-
-1. **ENG-AUTH — Authentication registry.** Separate Auth0, supported legacy, consented Data Act and future authorized strategies; per-provider session/refresh and HA repairs; preserve config entries.
-2. **ENG-API — API compatibility registry.** Register host+method+schema+auth/market/version, bounded discovery, negative caching, diagnostics and no guessed cross-brand access.
-3. **ENG-VEHICLE — Vehicle profile.** Build from authorized garage metadata; drivetrain/platform/generation with provenance and unknown handling.
-4. **ENG-CAPS — Feature resolver.** Normalize advertised capability IDs, roles, license, field availability and endpoint results; derive eligible HA entities automatically.
-5. **ENG-DATA — Read adapters and freshness.** Preserve verified trip semantics; investigate remaining charging history, images, TPMS/12V/health and delayed Data Act enrichment without false-live values.
-6. **ENG-RELEASE — Experimental program.** Backward-compatible feature flags, CI tests, pre-release cadence, safe public test cases, sample redacted diagnostics, promotion/deprecation gates.
-7. **ENG-NFR — Observability and reliability.** Per-provider request budgets, 401/403/404/429/5xx discipline, schema-drift tests, startup/multi-vehicle, command confirmation and stability.
-
-**Sequence:** review current ownership and evidence, then extend existing adapters only for verified gaps. Preserve working trip functionality. Isolate research and prioritize safe read-only evidence before proposing broader command coverage. Stabilisation and release decisions remain with the existing gate.
-
-## 10. Architecture decisions to record
+## 9. Design principles
 
 | ADR     | Proposed decision                                                                                                                                              |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -235,7 +185,7 @@ A feature may be **shipped experimental with no Audi Q8 live proof** only when i
 | ADR-003 | Select provider **per feature/field and VIN**, not one global API/legacy toggle.                                                                               |
 | ADR-004 | Detect and derive capabilities from authorized evidence; never require the normal end user to select API levels manually.                                      |
 | ADR-005 | EU Data Act is **consent-based, read-only and potentially days delayed**, never a command/instant-status channel.                                              |
-| ADR-006 | New features are **experimental by default** until proven; opt-in has strict privacy, authorization, request-budget and compatibility gates.                   |
+| ADR-006 | Unverified features must be clearly distinguished from supported functionality; opt-in cannot bypass privacy or authorization.                            |
 | ADR-007 | Preserve user preferences and explicit command consent; never auto-enable experimental writes.                                                                 |
 | ADR-008 | Preserve original Home Assistant entity IDs and semantics during backend or flag transitions.                                                                  |
 

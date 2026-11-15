@@ -1,8 +1,8 @@
 # 06 — Engineering Playbook: Implement Verified Audi Features, Not API Guesses
 
-## Goal and branch policy
+## Validation principles
 
-Use the [current architecture and release authority](../../V3_ARCHITECTURE_CLOSURE.md), [feature acceptance](../../V3_FEATURE_CLOSURE.md) and existing catalog, profiles, Status and Command owners. Research is not a parallel delivery line. Compare current development and upstream review before a focused change; preserve identities, permissions and verified behavior.
+Use the [architecture and ownership contract](../../V3_ARCHITECTURE_CLOSURE.md) and existing catalog, profiles, Status and Command owners. Preserve identities, permissions and verified behavior.
 
 ## Evidence-driven research workflow
 
@@ -10,7 +10,7 @@ Use the [current architecture and release authority](../../V3_ARCHITECTURE_CLOSU
 2. Use only reviewed, authorized, bounded read probes. Record route template, market, model, auth family, status, sanitized schema keys, field units and capture time. Stop on authorization failure, throttling, unexpected redirects or unsupported routes; no blind retries.
 3. Preserve provider-specific semantics: legacy scaled integers versus modern unit-suffixed values, current/last/reset trip distinctions, valid zero and unknown values.
 4. Reuse the existing normalized observation writer and stable entities. Add focused regression tests and independently validate actual vehicle behavior.
-5. Follow the existing publication and review gates; feature hypotheses require separate approval, never speculative writes.
+5. Treat feature hypotheses as unverified; never perform speculative writes.
 
 ## Cross-brand expansion hypotheses, not features yet
 
@@ -32,10 +32,6 @@ Do not open an "everything" PR mixing auth, media, history and command changes. 
 - Parked-car observations may be **hours/days old**. Empty 15-minute deliveries are not fresh status; repeated empty ZIPs can also indicate portal backend defects.
 - Merge field by field using equivalent semantics + observed timestamp, never "last poll wins".
 - Add limited diagnostics: `last_nonempty_dataset`, `last_vehicle_observed_at`, `last_portal_delivery`, `last_successful_fetch`, source, age and empty-feed count.
-
-## Experimental community delivery
-
-V3 is opt-in within the existing entry; V2 remains default and fallback. Follow the [release authority](../../V3_ARCHITECTURE_CLOSURE.md#release-authority) rather than introducing another feature flag, release branch or gate. Verify the exact candidate, preserve registry identities, fail closed on unsupported writes and collect sanitized community evidence.
 
 ## Acceptance matrix
 
@@ -84,9 +80,5 @@ next_action: One authorized, bounded GET probe with owner consent
 ```
 
 Any response captured for tests must use a sanitized fixture that cannot reveal the VIN, account, route, coordinates, S-PIN or token.
-
-## Engineering task
-
-Select an unresolved evidence gap from the acceptance gate or research directions. Reuse existing owners, avoid speculative commands and raw private data, and record evidence in the appropriate issue or release rather than adding build-specific instructions here.
 
 See [07 — Sources](07-SOURCES-AND-EVIDENCE.md).

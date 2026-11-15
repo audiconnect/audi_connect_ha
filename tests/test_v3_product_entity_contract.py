@@ -19,7 +19,7 @@ VIN = "wauzzz4m0md123456"
 
 
 def test_product_contract_covers_v2_plus_only_deliberate_extensions():
-    baseline = json.loads((ROOT / "docs/V2_V3_PARITY_BASELINE.json").read_text())
+    baseline = json.loads((ROOT / "governance/V2_V3_PARITY_BASELINE.json").read_text())
     historical = {row["id"] for row in baseline["entities"]}
     inventory = product_inventory()
     assert set(inventory["entities"]) == historical | {

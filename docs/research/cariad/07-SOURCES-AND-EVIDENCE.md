@@ -54,8 +54,6 @@
 - What is the measured native quota scope and recovery behavior across sessions, and what causes delayed or empty Data Act deliveries?
 - What is required for authorized official public/business API access?
 
-Track active implementation and acceptance in the [feature acceptance contract](../../V3_FEATURE_CLOSURE.md) and linked issues.
-
 ## 5. Traceability / review checklist
 
 For every new claim record: source permalink, source revision/date, endpoint type, HTTP method, brand, market, platform, auth audience, sanitized status/payload keys, units, car capture time, confidence, and compatibility with Audi/MIT licensing.
@@ -64,7 +62,7 @@ Avoid "all Volkswagen Group endpoints should work on Audi" narratives. The real 
 
 ## 6. Strategic architecture evidence versus inference
 
-**Implementation evidence:** consult the [current product architecture](../../V3_ARCHITECTURE_CLOSURE.md), [user guide](../../V3_REVIEW.md) and linked acceptance evidence. The research source ledger records historical comparisons; it does not define today's implementation.
+**Implementation evidence:** consult the [current product architecture](../../V3_ARCHITECTURE_CLOSURE.md), [user guide](../../V3_REVIEW.md) The research source ledger records historical comparisons; it does not define today's implementation.
 
 **Strategic hypothesis, NOT vendor commitment:** VW Group may increasingly standardize API models, shared identity infrastructure, services and costs across brands. Shared CARIAD BFF conventions and a Škoda/CUPRA charging-statistics host are supporting clues; parallel proprietary OLA/MyŠkoda/Porsche/Audi identity and API systems are counterevidence to any claim of complete uniformity. No date, sequence or guarantee of unification is asserted.
 

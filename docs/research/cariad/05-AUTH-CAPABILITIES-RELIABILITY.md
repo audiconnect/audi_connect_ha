@@ -73,7 +73,7 @@ Audi Connect v2.5.2 `audi_api.py` already accepts **207** as a successful HTTP s
 - [`audi_services.py`](https://github.com/audiconnect/audi_connect_ha/blob/v2.5.2/custom_components/audiconnect/audi_services.py) — `get_tripdata`, legacy MBB request, `selectivestatus` jobs, auth flows.
 - [`audi_models.py`](https://github.com/audiconnect/audi_connect_ha/blob/v2.5.2/custom_components/audiconnect/audi_models.py) — `TripDataResponse` legacy normalization.
 - [`sensor.py`](https://github.com/audiconnect/audi_connect_ha/blob/v2.5.2/custom_components/audiconnect/sensor.py) — four stable trip entities.
-- [Earlier upstream PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915) — historical overlapping work; current delivery follows the [release authority](../../V3_ARCHITECTURE_CLOSURE.md#release-authority).
+- [Earlier upstream PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915) — historical source for command and capability behavior.
 - [Issue #1060](https://github.com/robinostlund/homeassistant-volkswagencarnet/issues/1060) — example of working trip API response while HA mapping still fails.
 
 See [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md) and [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).

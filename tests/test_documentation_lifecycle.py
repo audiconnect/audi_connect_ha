@@ -42,3 +42,20 @@ def test_living_documentation_relative_links_exist():
             if not (path.parent / target.split("#", 1)[0]).exists():
                 offenders.append(f"{path.relative_to(ROOT)}: {target}")
     assert not offenders, "\n".join(offenders)
+
+
+def test_public_guides_do_not_reference_internal_delivery():
+    """Keep fork-specific delivery status out of user and research guides."""
+    internal = re.compile(
+        r"npinguin/audi_connect_ha/issues/(?:35|36|44)\b"
+        r"|audiconnect/audi_connect_ha/pull/918\b"
+        r"|feature/v3-upstream-review|V3_FEATURE_CLOSURE\.md"
+        r"|(?:stable gate|release HOLD|exact-head CI|active backlog)",
+        re.IGNORECASE,
+    )
+    offenders = []
+    for path in living_documents():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if internal.search(line):
+                offenders.append(f"{path.relative_to(ROOT)}:{number}")
+    assert not offenders, "\n".join(offenders)

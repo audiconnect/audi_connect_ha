@@ -11,7 +11,7 @@ Connect your Audi to Home Assistant. See vehicle status, charging, climate, trip
 More vehicle coverage. Less configuration. Community-powered innovation.
 
 > [!IMPORTANT]
-> V2 remains the default and fallback. Experimental V3 is available only in builds that include it; it is not yet a stable release. For a published test build, use the [fork's HACS prereleases](https://github.com/npinguin/audi_connect_ha/releases), not the review branch. See the [V3 review](https://github.com/audiconnect/audi_connect_ha/pull/918) and [V3 setup guide](docs/V3_REVIEW.md) before testing. See [V3 acceptance](docs/V3_FEATURE_CLOSURE.md) for current evidence and open release gates.
+> V2 remains the default and fallback. V3 is experimental and opt-in in releases that include it. See [available test releases](https://github.com/npinguin/audi_connect_ha/releases) and the [V3 user guide](docs/V3_REVIEW.md) before testing.
 
 ## What can it do?
 
@@ -53,7 +53,7 @@ EU Data Act is read-only, optional and disabled by default. Its deliveries can b
 
 To try V3, back up Home Assistant, install a build that includes V3 and choose **V3 — Experimental** in the existing integration's options. Keep your existing config entry, devices and entities. See the [V3 guide](docs/V3_REVIEW.md) for Data Act setup, Workbench and rollback.
 
-Vehicle-specific support must be verified. Manufacturer identity, physical charging reliability and cross-model acceptance are tracked in the [stable acceptance gate](https://github.com/npinguin/audi_connect_ha/issues/44).
+Available functions depend on the vehicle, market and account permissions. Verify remote actions on the actual vehicle before relying on automation.
 
 ## Help us discover what your Audi can do
 
@@ -71,9 +71,9 @@ Start with the [contribution guide](CONTRIBUTING.md) or [open an issue](https://
 ## Documentation
 
 - [V2 options, controls, services and dashboard example](docs/V2_USER_GUIDE.md)
-- [V3 setup, Workbench and acceptance](docs/V3_REVIEW.md)
+- [V3 setup, controls and Workbench](docs/V3_REVIEW.md)
 - [Contributing and sharing capabilities](CONTRIBUTING.md)
-- [Engineering documentation and API research](docs/README.md)
+- [Architecture and API research](docs/README.md)
 
 ## Credits and license
 

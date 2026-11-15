@@ -31,7 +31,7 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 | 3     | [EU Data Act: read-only, delayed data](03-EU-DATA-ACT.md)                                                     | What do the portal and ZIP exports provide—and what do they not?                                                    |
 | 4     | [Parked-car latency and freshness](04-FRESHNESS-AND-AVAILABILITY.md)                                          | How should hours/days of stale readings be represented without lying?                                               |
 | 5     | [Authentication, capabilities, resilience](05-AUTH-CAPABILITIES-RELIABILITY.md)                               | Which token works where? Why is a capability not an authorization?                                                  |
-| 6     | [Engineering work packages and release gates](06-ENGINEERING-PLAYBOOK.md)                                     | Exactly where should the engineer work, test and stop?                                                              |
+| 6     | [Engineering validation methods](06-ENGINEERING-PLAYBOOK.md)                                     | How can API hypotheses be validated safely?                                                              |
 | 7     | [Sources and evidence ledger](07-SOURCES-AND-EVIDENCE.md)                                                     | Which findings have code, official docs, reports, or only a hypothesis behind them?                                 |
 | 8     | [Adaptive target architecture and experimental delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) | How do multiple auth/API generations, vehicle/capability discovery, NFRs and early community releases fit together? |
 
@@ -45,14 +45,14 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 
 ## Repository and upstream relationship
 
-Use the [current architecture and release authority](../../V3_ARCHITECTURE_CLOSURE.md) and [V3 guide](../../V3_REVIEW.md) for implementation and delivery. The research chapters provide source comparisons and hypotheses, not competing active specifications. Earlier research snapshots remain in Git history.
+The [architecture guide](../../V3_ARCHITECTURE_CLOSURE.md) documents product design. Research chapters provide source comparisons and hypotheses, not competing active specifications.
 
 ## Research directions
 
 - Modern CARIAD current/last trips have been observed on Audi; reset/cyclic semantics, retention and broader vehicle coverage require separate evidence.
 - CUPRA OLA, MyŠkoda and shared charging-statistics hosts supply comparison patterns, not Audi permissions.
 - Investigate authorized media, charging history, tyre pressure, 12 V and health observations through reviewed read-only discovery.
-- Data Act is consented, delayed and read-only. Delivery and vehicle capture are separate clocks; see the [feature acceptance contract](../../V3_FEATURE_CLOSURE.md) and linked issues for current results.
+- Data Act is consented, delayed and read-only. Delivery and vehicle capture are separate clocks; see the [V3 guide](../../V3_REVIEW.md#optional-eu-data-act) for usage.
 - Official public/business API access is a separate research path; do not confuse business registration or approval with the consumer Data Act portal.
 
-**Start coding only after reading [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) and [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**
+**For technical background, read [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) and [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**

@@ -18,7 +18,7 @@ from custom_components.audiconnect.v3.attribute_contracts import attribute_contr
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "custom_components" / "audiconnect"
-BASE = json.loads((ROOT / "docs" / "V2_V3_PARITY_BASELINE.json").read_text())
+BASE = json.loads((ROOT / "governance" / "V2_V3_PARITY_BASELINE.json").read_text())
 
 
 def _source_keys(filename: str) -> set[str]:
