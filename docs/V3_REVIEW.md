@@ -106,7 +106,7 @@ The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/bl
 ### API policy and remaining evidence
 
 - The official business Data Act API specification is not the consumer portal contract. Exact quota scope, reset period, and limits are unconfirmed. Do not hardcode a presumed manufacturer limit or bypass throttling.
-- PR #59 retains the B42 normal 30-minute cadence, backs off idle delivery to 60 minutes, starts 429 fallback at 15 minutes and honors longer server deadlines. Validate actual recovery and multi-client effects before release; exact OEM quota scope is unconfirmed.
+- PR #59 retains the B42 normal 30-minute cadence, backs off idle delivery to 60 minutes, starts 429 fallback at 15 minutes and honors longer server deadlines. Native read deferral preserves the last real poll result without spending command reserve; prepared CARIAD settings reads retain allowance for the associated write. Validate actual recovery and multi-client effects before release; exact OEM quota scope is unconfirmed.
 - Keep Data Act independently authorized and read-only. Native allowance remains conservatively shared where applicable. No automatic wake, retry of a vehicle mutation, implicit discovery, extra scheduler, new database or parallel state owner.
 - Confirm whether both owner clients use the Data Act portal; compare sanitized HTTP evidence and request cadence. Do not request credentials. Further Q5 B42 feedback is pending.
 

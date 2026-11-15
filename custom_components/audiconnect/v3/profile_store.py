@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from dataclasses import asdict
 from typing import Any
 
 from .action_discovery import ActionAttempt
@@ -484,11 +485,39 @@ def restore_profile(
             if revisions.get(key) != operation_revision(
                 profile.registry.operations[operation]
             ):
+                # A previous revision is historical evidence, not a route
+                # that can be reactivated by choosing the same operation ID.
+                if operation in catalog.operations:
+                    row = {
+                        "operation": operation,
+                        "outcome": profile.control_results[operation],
+                        "context": asdict(old_context),
+                        "operation_revision": revisions.get(key)
+                        if isinstance(revisions.get(key), str)
+                        and len(revisions[key]) == 64
+                        and all(ch in "0123456789abcdef" for ch in revisions[key])
+                        else None,
+                    }
+                    if row not in profile.historical_control_evidence:
+                        profile.historical_control_evidence.append(row)
+                        profile.historical_control_evidence = (
+                            profile.historical_control_evidence[-50:]
+                        )
                 profile.active.pop(key, None)
                 profile.active_revisions.pop(key, None)
                 profile.discovery.preferred.pop(key, None)
+                profile.control_results.pop(operation, None)
+                if operation == "cariad.charging.mode":
+                    profile.verified_charge_modes.clear()
             else:
                 profile.discovery.preferred[key] = operation
+    pending = profile.discovery.active_attempt
+    if pending is not None:
+        record = profile.engineering_record(pending.sequence)
+        if record is not None and record.operation_revision != operation_revision(
+            profile.registry.operations[pending.operation]
+        ):
+            profile.invalidated_attempt_sequence = pending.sequence
     # Catalog-match cache is not an authorization source; recomputed at poll.
     profile.fast_bindings = {}
     profile.rebind_context(context)

@@ -66,6 +66,7 @@ from .command_policy import supported_charge_modes
 from .attribute_contracts import contract_for, binary_contract_for, semantic_value_issue
 from .product_contract import (
     control_projection,
+    control_reading,
     projection_reading,
     compatibility_hidden,
     canonical_entity_category,
@@ -193,7 +194,9 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
                 }
         if reading is not None or attribute is not None:
             row = (
-                reading if reading is not None else self.vehicle.readings.get(attribute)
+                reading
+                if reading is not None
+                else _control_reading(self.coordinator, self.vehicle, attribute)
             )
             optimistic = source == "optimistic"
             record = (
@@ -231,13 +234,22 @@ _CLIMATE_OFF = frozenset(CLIMATE_OFF_STATES)
 _CLIMATE_ON = frozenset(CLIMATE_ON_STATES)
 
 
+def _control_reading(coordinator, vehicle, attribute):
+    engine = getattr(coordinator, "engine", None)
+    return control_reading(
+        vehicle, attribute, registry=getattr(engine, "registry", None)
+    )
+
+
 def _reading_projection(coordinator, vehicle, attribute, *, allow_last_known=True):
     """Native control projection directly from status and command owners."""
     profile = getattr(getattr(coordinator, "engine", None), "profiles", {}).get(
         vehicle.vin.lower()
     )
     key = "climate" if attribute == "climatisationState" else attribute
-    return control_projection(profile, key, vehicle.readings.get(attribute))
+    return control_projection(
+        profile, key, _control_reading(coordinator, vehicle, attribute)
+    )
 
 
 def _climate_projection(coordinator, vehicle):
@@ -293,7 +305,9 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
     @property
     def reported_target_temperature(self):
         value = last_known_observation(
-            self.vehicle.readings.get("climatisationTargetTemperatureC")
+            _control_reading(
+                self.coordinator, self.vehicle, "climatisationTargetTemperatureC"
+            )
         ).get("value")
         return value if type(value) in (int, float) and 15 <= value <= 30 else None
 
@@ -373,7 +387,10 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
         profile = getattr(engine, "profiles", {}).get(self.vehicle.vin.lower())
         from .structured_details import details_for
 
-        row = last_known_observation(self.vehicle.readings.get("climatisationState"))
+        reported = _control_reading(
+            self.coordinator, self.vehicle, "climatisationState"
+        )
+        row = last_known_observation(reported)
         known, stamp = row.get("value"), row.get("captured")
         known_source = "last_known_vehicle" if known is not None else "unknown"
         _, source = _climate_projection(self.coordinator, self.vehicle)
@@ -403,7 +420,7 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
                 "climate",
                 ("start", "stop", "start_with_settings"),
                 attribute="climate",
-                reading=self.vehicle.readings.get("climatisationState") or {},
+                reading=reported,
                 source=source,
                 allow_last_known=True,
             ),
@@ -1347,14 +1364,14 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
             not profile or self.attribute["id"] not in profile.attribute_routes
         ):
             return False
-        reading = self.vehicle.readings.get(self.attribute["id"])
+        reading = _sensor_projection(self)[1]
         if self.is_on is None:
             return False
         return _reading_available(reading, allow_last_known=self._allow_last_known)
 
     @property
     def is_on(self) -> bool | None:
-        reading = self.vehicle.readings.get(self.attribute["id"])
+        reading = _sensor_projection(self)[1]
         if not reading:
             return None
         if self.attribute["id"] == "is_moving" and not movement_capture_valid(reading):
@@ -1382,7 +1399,7 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        reading = self.vehicle.readings.get(self.attribute["id"]) or {}
+        reading = _sensor_projection(self)[1] or {}
         return {
             "v3_capability": self.attribute["capability"],
             "api_family": reading.get("family"),
@@ -1507,7 +1524,11 @@ class V3OperationalSwitch(V3BaseEntity, SwitchEntity):
     def extra_state_attributes(self):
         from .structured_details import details_for
 
-        row, state = stateful_reading(self.vehicle, self.key)
+        row, state = stateful_reading(
+            self.vehicle,
+            self.key,
+            registry=getattr(self.coordinator.engine, "registry", None),
+        )
         return {
             **(
                 details_for(self.vehicle, "charging_requests_detail")
@@ -1651,7 +1672,9 @@ class V3ClimateQuickSwitch(V3BaseEntity, SwitchEntity):
             "climate",
             ("start", "stop", "start_with_settings"),
             attribute="climate",
-            reading=self.vehicle.readings.get("climatisationState") or {},
+            reading=_control_reading(
+                self.coordinator, self.vehicle, "climatisationState"
+            ),
             source=_climate_projection(self.coordinator, self.vehicle)[1],
             allow_last_known=True,
         )

@@ -458,3 +458,19 @@ def test_preparation_uses_positive_reserve_but_keeps_allowance_for_write():
     budget.observe(429, {"Retry-After": "60"}, now)
     with pytest.raises(RuntimeError):
         budget.authorize(now, read_only=True, command_preparation=True)
+
+
+def test_read_deferral_is_pure_and_tracks_actual_retry_deadline():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    assert not budget.read_deferred(now)
+    budget.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
+    deadline = budget.retry_at
+    assert budget.read_deferred(now)
+    assert not budget.read_deferred(deadline)
+    assert budget.retry_at == deadline
+    assert budget.rate_limit_streak == 0
+    budget.authorize(now, read_only=False)
+    budget.observe(429, {"Retry-After": "60"}, now)
+    assert budget.read_deferred(now)
+    assert not budget.read_deferred(now + timedelta(minutes=1))

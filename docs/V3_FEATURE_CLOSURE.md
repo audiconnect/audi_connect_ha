@@ -13,7 +13,7 @@ Do not reproduce these inventories in a second editable catalog. A declared row 
 
 ## B43 implementation and acceptance evidence
 
-B43 integrates onboarding #52, Data Act #59, source continuity #61, truthful charging state #62, quota #63, discovery #64, request priorities #65, command receipts #66 and quota recovery #67. See umbrella PR [#60](https://github.com/npinguin/audi_connect_ha/pull/60) for exact implementation and remaining audit work. Automated checks do not establish physical execution, the actual Audi quota scope or readiness for release.
+B43 integrates onboarding #52, Data Act #59, source continuity #61, truthful charging state #62, quota #63, discovery #64, request priorities #65, command receipts #66 quota recovery #67, shared display selector #68, dual HA matrix #69, route revision and climate input closure #70, and quota-deferred native reads #71. See umbrella PR [#60](https://github.com/npinguin/audi_connect_ha/pull/60) for exact implementation and remaining audit work. The combined #71 candidate passed Test #2174 and Validate #2175 on HA 2026.7.4 and 2026.11.1. Automated checks do not establish physical execution, the actual Audi quota scope or readiness for release.
 
 ### Historical B41 evidence
 

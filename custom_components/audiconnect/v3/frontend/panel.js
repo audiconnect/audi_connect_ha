@@ -2228,7 +2228,7 @@ class AudiConnectV3Panel extends HTMLElement {
                   <td><b>${escapeHTML(r.status)}</b>
                     <div class="subline">${escapeHTML(r.source)}
                     ${r.selected ? " · ACTIVE" : ""}
-                    ${r.saved_candidate ? " · SAVED CANDIDATE" : ""}</div></td>
+                    ${r.saved_candidate ? " · SAVED CANDIDATE" : ""}</div>${r.display_source ? `<div class="subline">HA display: ${escapeHTML(r.display_source.family || "unknown")} · ${escapeHTML(this.localTime(r.display_source.captured))}${r.display_source.historical ? " · last known" : ""}</div>` : ""}</td>
                 </tr>`,
                   )
                   .join("")}</tbody>

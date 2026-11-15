@@ -1574,3 +1574,35 @@ async def test_native_poll_rotates_vehicle_priority_without_extra_requests():
     await engine.poll()
     assert len(transport.calls) == 2
     assert second in transport.calls[0][2] and VIN in transport.calls[1][2]
+
+
+@pytest.mark.asyncio
+async def test_deferred_native_poll_preserves_actual_success_and_command_reserve():
+    from datetime import timedelta
+    from custom_components.audiconnect.v3.quota import QuotaBudget
+
+    engine, transport, _ = engine_for(status(), status())
+    await engine.poll()
+    attempt = engine.last_cloud_poll_attempt
+    success = engine.last_cloud_poll_success
+    count = engine.status.poll_attempt_count
+    transport.quota = QuotaBudget()
+    now = datetime.now(UTC)
+    transport.quota.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
+    transport.remaining_calls = 7
+    transport.calls.clear()
+    await engine.poll()
+    assert not transport.calls
+    assert engine.last_cloud_poll_succeeded is True
+    assert engine.last_cloud_poll_attempt == attempt
+    assert engine.last_cloud_poll_success == success
+    assert engine.status.poll_attempt_count == count
+    transport.quota.authorize(now, read_only=False)
+    assert (
+        engine.health.snapshot(engine, engine.vehicles[VIN.lower()])["status"]
+        == "rate_limited"
+    )
+    transport.quota.retry_at = now - timedelta(seconds=1)
+    await engine.poll()
+    assert len(transport.calls) == 1
+    assert engine.status.poll_attempt_count == count + 1

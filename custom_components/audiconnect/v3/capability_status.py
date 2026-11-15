@@ -18,6 +18,8 @@ from collections import Counter
 
 from .attribute_contracts import semantic_value_issue, contract_for, binary_contract_for
 from .freshness import timestamp_is_fresh
+from .attribute_runtime import last_known_observation, retained_status_field
+from .product_contract import projection_descriptor, projection_reading
 
 from .development_profiles import DevelopmentProfile
 from .action_discovery import approval_group
@@ -711,6 +713,23 @@ def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
             value_type=type(value).__name__ if value is not None else None,
             semantic_issue=issue,
         )
+        # Engineering evidence and the HA display may intentionally differ.
+        # Project only provenance here, never duplicate or promote historical values.
+        projected = projection_descriptor(definition)
+        if projected and retained_status_field(projected["id"]):
+            display_ident, display = projection_reading(
+                vehicle, projected, registry=profile.registry, now=now
+            )
+            known_display = last_known_observation(display)
+            if known_display and (
+                display is not reading or known_display is not display
+            ):
+                row["display_source"] = {
+                    "attribute": display_ident,
+                    "family": known_display.get("family"),
+                    "captured": known_display.get("captured"),
+                    "historical": known_display is not display,
+                }
         if issue:
             findings.append(
                 {
@@ -984,8 +1003,6 @@ def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
                 if (key == "vehicle_image") == ident.endswith(".images")
             ]
         else:
-            from .product_contract import projection_descriptor
-
             links = []
             declared_by_attribute = {
                 row["attribute"]: variant for row, variant in declared

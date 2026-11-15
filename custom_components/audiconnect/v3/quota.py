@@ -28,6 +28,14 @@ class QuotaBudget:
     max_recovery_delay: timedelta | None = None
     rate_limit_streak: int = 0
 
+    def read_deferred(self, now: datetime) -> bool:
+        """A scheduled read would be refused before I/O by this budget."""
+        if self.retry_at is not None:
+            return now < self.retry_at
+        if self.remaining is None or self.remaining > self.reserve:
+            return False
+        return now < (self.observed_at or now) + self.recovery_delay
+
     def authorize(
         self, now: datetime, *, read_only: bool, command_preparation: bool = False
     ) -> None:
@@ -45,7 +53,7 @@ class QuotaBudget:
         ):
             return
         exhausted = self.remaining is not None and self.remaining <= self.reserve
-        if self.retry_at is not None and now < self.retry_at:
+        if self.read_deferred(now):
             raise RuntimeError("Audi request budget suspended until cooldown")
         if not exhausted and self.retry_at is None:
             return
