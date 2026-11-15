@@ -196,3 +196,52 @@ def test_identity_draft_roundtrip_does_not_activate_or_dispatch():
             INVENTORY_OPERATION, "mutation { userVehicles { vin } }", {}
         )
     assert result.identity_drafts[INVENTORY_OPERATION]["query"] == query
+
+
+def test_changed_route_revision_cannot_reactivate_previous_physical_proof():
+    catalog, context, profile = fresh()
+    route = "cariad.climate.start.stored"
+    attempt = profile.begin_test("climate", "start", route, now=10)
+    profile.observe_http(attempt.sequence, 200)
+    profile.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=11)
+    profile.choose_working("climate", "start", route)
+    saved = profile.snapshot()
+    revision = saved["active_revisions"]["climate.start"]
+    changed = json.loads(PATH.read_text())
+    changed["operations"][route]["priority"] = 42
+    revised = CapabilityRegistry(changed)
+    restored = restore_profile(revised, context, saved, cooldown_seconds=0)
+    assert "climate.start" not in restored.active
+    assert route not in restored.control_results
+    assert restored.reviewed_control(route) is None
+    assert restored.historical_control_evidence[-1]["operation_revision"] == revision
+    with pytest.raises(DevelopmentProfileError, match="test"):
+        restored.choose_working("climate", "start", route)
+    again = restore_profile(revised, context, restored.snapshot(), cooldown_seconds=0)
+    assert again.historical_control_evidence == restored.historical_control_evidence
+
+
+def test_pending_old_revision_review_is_not_new_route_proof():
+    catalog, context, profile = fresh()
+    route = "cariad.climate.start.stored"
+    attempt = profile.begin_test("climate", "start", route, now=10)
+    profile.observe_http(attempt.sequence, 200)
+    changed = json.loads(PATH.read_text())
+    changed["operations"][route]["priority"] = 42
+    restored = restore_profile(
+        CapabilityRegistry(changed), context, profile.snapshot(), cooldown_seconds=0
+    )
+    restored.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=11)
+    assert restored.discovery.active_attempt is None
+    assert route not in restored.control_results
+    assert restored.reviewed_control(route) is None
+    assert restored.engineering_record(attempt.sequence).state == "verified"
+
+
+def test_auth_context_change_clears_both_bound_status_maps():
+    _, _, profile = fresh()
+    profile.status_readings["stateOfCharge"] = {"value": 50}
+    profile.status_family_readings["stateOfCharge"] = {"cariad": {"value": 50}}
+    profile.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert not profile.status_readings
+    assert not profile.status_family_readings

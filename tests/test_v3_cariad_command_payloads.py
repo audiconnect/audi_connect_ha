@@ -233,3 +233,18 @@ def test_climate_start_readback_requires_requested_temperature_not_only_on():
     vehicle.readings["climatisationTargetTemperatureC"]["value"] = 22.5
     assert reconcile_readback(record, vehicle, now)
     assert CommandRecord.restore(record.snapshot()).readback_values == [22.5]
+
+
+@pytest.mark.parametrize(
+    "mode,params",
+    [
+        ("climate_start_settings", {"temp_c": 20, "temp_f": 68}),
+        ("climate_settings_update", {"temp_c": 20, "temp_f": 68}),
+        ("climate_settings_update", {"temp_c": 20, "targetTemperature_C": 21}),
+    ],
+)
+def test_conflicting_temperature_inputs_rejected_before_settings_request(mode, params):
+    obj = engine()
+    with pytest.raises(ValueError, match="Supply"):
+        asyncio.run(build(obj, car(), mode, params))
+    obj.transport.request.assert_not_awaited()
