@@ -23,6 +23,8 @@ def test_parking_light_never_uses_other_light_types():
     now = datetime.now(UTC)
 
     def observe(lights):
+        nonlocal now
+        now += timedelta(seconds=1)
         observe_derived(
             car,
             SimpleNamespace(),
@@ -645,24 +647,24 @@ def test_timer_projection_reuses_typed_data_and_rejects_older_cache():
     later = now + timedelta(minutes=1)
     observe(later, [])
     assert car.readings[count]["value"] == 0
-    assert next_timer not in car.readings
+    assert car.readings[next_timer]["value"] is None
     observe(now, [enabled])
     assert car.readings[count]["value"] == 0
-    assert next_timer not in car.readings
+    assert car.readings[next_timer]["value"] is None
 
     latest = later + timedelta(minutes=1)
     observe(latest, [{"id": 2, "enabled": "unknown"}, enabled])
     assert car.readings[count]["status"] == "invalid_value"
-    assert next_timer not in car.readings
+    assert car.readings[next_timer]["value"] is None
     observe(
         latest + timedelta(minutes=1),
         [{"id": 3, "enabled": True, "singleTimer": {"startDateTimeLocal": "invalid"}}],
     )
     assert car.readings[count]["value"] == 1
-    assert next_timer not in car.readings
+    assert car.readings[next_timer]["value"] is None
     observe(latest + timedelta(minutes=2), [enabled] * 31)
     assert car.readings[count]["status"] == "invalid_value"
-    assert next_timer not in car.readings
+    assert car.readings[next_timer]["value"] is None
 
 
 def test_window_heating_vendor_sentinel_is_not_verified_detail():

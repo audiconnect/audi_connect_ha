@@ -77,7 +77,7 @@
           "filter_vins": "VIN exclus",
           "edit_local_dealer": "Modifier les données du concessionnaire et d’entretien",
           "runtime_version": "Version d’exécution",
-          "run_vehicle_discovery": "Détection du véhicule et tests des commandes",
+          "run_vehicle_discovery": "Configuration & découverte du véhicule",
           "manage_data_act": "Gérer EU Data Act"
         },
         "title": "Options Audi Connect",
@@ -87,16 +87,17 @@
           "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés.",
           "filter_vins": "Liste des VIN séparés par des virgules à exclure de la configuration et des mises à jour.",
           "edit_local_dealer": "Ouvrir le formulaire pour enregistrer localement les informations du concessionnaire, de l’entretien et de la garantie, sans appel à l’API Audi.",
-          "runtime_version": "V2 reste la version par défaut et de secours. V3 est expérimental, avec sa propre détection, ses mises à jour et ses entités Home Assistant. Le retour à V2 reste possible.",
-          "run_vehicle_discovery": "Examiner la détection automatique et tester explicitement les commandes disponibles. Aucune action sur le véhicule sans consentement à cette action précise.",
+          "runtime_version": "V2 reste la version par défaut et de secours. V3 est expérimental, avec sa propre détection, ses mises à jour et ses entités Home Assistant. Le retour à V2 reste possible. Après enregistrement et rechargement de V3, rouvrir Configurer pour la découverte du véhicule ou EU Data Act facultatif.",
+          "run_vehicle_discovery": "À tout moment, consulter la détection automatique, lancer les tests guidés ou retester une fonction. Chaque action physique exige un consentement explicite.",
           "manage_data_act": "Connecter, reconnecter ou déconnecter la source facultative en lecture seule. La connexion Audi native reste inchangée."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Connecter / reconnecter",
-          "data_act_disconnect": "Déconnecter"
+        "description": "{data_act_status}\n\nChoisissez connecter pour vérifier les identifiants ou déconnecter pour supprimer les identifiants locaux. La connexion Audi native et la demande du portail restent inchangées.",
+        "data": {
+          "action": "Connexion"
         }
       },
       "data_act_credentials": {
@@ -106,10 +107,6 @@
           "email": "E-mail du portail",
           "password": "Mot de passe du portail"
         }
-      },
-      "data_act_disconnect": {
-        "title": "Déconnecter EU Data Act",
-        "description": "Supprimer les identifiants locaux et arrêter les lectures Data Act. La demande dans le portail n’est pas révoquée."
       }
     },
     "error": {
@@ -132,6 +129,13 @@
         "stop_preheater": "Arrêter préchauffage",
         "start_window_heating": "Démarrer chauffage des fenêtres",
         "stop_window_heating": "Arrêter chauffage des fenêtres"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Connecter / reconnecter",
+        "disconnect": "Déconnecter",
+        "keep": "Conserver la connexion actuelle"
       }
     }
   },
@@ -381,7 +385,7 @@
         "name": "Fraîcheur des données du véhicule"
       },
       "v3_vehicle_data_age": {
-        "name": "Âge des données du véhicule"
+        "name": "Âge des dernières données du véhicule"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Dernière interrogation cloud réussie"
@@ -474,7 +478,7 @@
         "name": "Historique des trajets"
       },
       "v3_discovery_coverage": {
-        "name": "Couverture de détection"
+        "name": "Évaluation de la découverte"
       },
       "v3_integration_status": {
         "name": "État de l’intégration"
@@ -493,6 +497,21 @@
       },
       "v3_fuel_range": {
         "name": "Autonomie carburant"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Non configuré",
+          "credentials_required": "Identifiants requis",
+          "awaiting_data": "En attente de données",
+          "connected": "Connecté",
+          "partial": "Partiellement connecté",
+          "authorization_required": "Autorisation requise",
+          "vehicle_access_denied": "Accès au véhicule refusé",
+          "subscription_unavailable": "Abonnement indisponible",
+          "rate_limited": "Limite de requêtes atteinte",
+          "unavailable": "Temporairement indisponible"
+        }
       }
     },
     "binary_sensor": {
@@ -567,9 +586,6 @@
       },
       "v3_integration_problem": {
         "name": "Problème d’intégration"
-      },
-      "v3_charging_ready": {
-        "name": "Prêt à recharger"
       }
     },
     "button": {

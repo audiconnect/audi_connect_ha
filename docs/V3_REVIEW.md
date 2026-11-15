@@ -1,49 +1,85 @@
-# Audi Connect V3 — user, engineer and maintainer review
+# Audi Connect V3 — user and engineering guide
 
-**Configure → Discover automatically → Use.** V3 is an opt-in runtime within Audi Connect. V2 remains the default and fallback; one account, one config entry and stable native HA entity contracts are design requirements.
+**Configure → Discover → Use.** V3 is experimental and opt-in within Audi Connect. V2 remains the default and fallback. Keep one account, one config entry and the existing HA devices and entity IDs.
 
-## User: installation and everyday use
+This guide describes the B41 development candidate. B40 is the preceding published test release; B41 is not yet a published or stable release. For exact release evidence and open gates, see [feature closure](V3_FEATURE_CLOSURE.md).
 
-Follow the [Audi Connect installation instructions](../readme.md) for your installed version. Back up Home Assistant. Only select V3 in the integration runtime options if your build includes the experimental runtime. Keep the existing config entry, devices and entities; do not delete the registry when switching back to V2.
+## User guide
 
-- Select the normal scan interval in the integration options. V3 always enumerates vehicles during setup; the V2-only startup update preference remains stored for rollback. Vehicle data comes from Audi's cloud: a successful HTTP refresh does not necessarily mean the vehicle has sent new measurements. Look at vehicle capture time and availability, not only the latest cloud poll. The tracker represents the last parked position, not live GPS; movement without a reliable vehicle capture remains unknown.
-- Read discovery and native controls depend on the vehicle and supported API. A missing or unavailable control is not permission to try another command. Never repeat an uncertain remote command; HTTP acceptance is not physical completion.
-- Optional EU Data Act is read-only and disabled by default. First obtain an authorized continuous request for your vehicle in the [official portal](https://eu-data-act.drivesomethinggreater.com/). In B37 builds, open **Configure → Manage EU Data Act → Connect / reconnect** and enter the portal credentials locally. The source-specific flow validates them before replacing existing settings; use **Disconnect** to remove local credentials and stop reads. This does not revoke the portal request. Native login remains separate. Older experimental builds expose an enable toggle and credential fields instead. Check Integration status for delivery and authorization: a missing subscription requires checking the portal; no new dataset is normal; a retry time means wait for automatic recovery. Mapped observations and selected readings are different. Data may be delayed by days and cannot authorize or confirm commands. Manufacturer identity enrichment is still unaccepted; B37 records structural identity-request evidence, but the actual model/year and declarative identity mapping remain release blockers. Never substitute a nickname or infer a model from a VIN.
-- V3 Engineering Workbench is administrator-only and optional. Ordinary use does not require it. Use the existing V2 runtime option to revert if necessary.
+### Installation and rollback
 
-For issue reports, share the model/year/powertrain, market, HA and integration versions, expected/actual behavior and sanitized integration-specific diagnostics data only. Do not upload the complete Home Assistant diagnostics wrapper, unrelated integration inventory, credentials, VIN, coordinates, private trips or raw HTTP responses.
+Follow the [main README](../readme.md) for installation and sign-in. Use a published, pinned HACS candidate containing V3; a GitHub review branch is not a published release. Back up Home Assistant before upgrading. In **Settings → Devices & services → Audi Connect → Configure**, select the experimental V3 runtime if available. Keep the normal scan interval (minimum 15 minutes). Leave the optional engineering Workbench and EU Data Act disabled unless needed. After switching from V2, save and reopen Configure once the V3 runtime is loaded. Vehicle setup & discovery is checked by default whenever V3 options are opened. Finish or uncheck it to save without testing. It is always available for guided discovery or one specific function, including retests, without enabling the Workbench. If EU Data Act or dealer details are also selected, their configuration completes first; discovery then opens using the currently loaded vehicle profile. No vehicle command is sent by saving options.
 
-## Engineer: investigate and validate
+V3 enumerates vehicles during setup; the V2-only startup update preference is retained for rollback. To revert, select V2 in the same entry and reload. Do not delete the integration or the registry to resolve a temporary data problem. Retain device IDs, entity IDs, user preferences and trip history. Verify automations after any runtime change.
 
-Use the existing [architecture and ownership contract](V3_ARCHITECTURE_CLOSURE.md) and [feature closure register](V3_FEATURE_CLOSURE.md). V3 provides reviewed automatic read discovery, semantic data normalization, capability-aware native entities, guarded commands, trip snapshots and bounded local trip history. The optional Workbench supports missing-data investigation and individually authorized control tests; discovery never automatically sends physical commands.
+### Data and freshness
 
-For step-by-step discovery, portable definitions, physical validation and evidence submission, use the [contribution guide](../CONTRIBUTING.md). The B37 Workbench defaults to consolidated coverage and provides a registry-driven source selector; source evidence is bounded, not a complete inventory of everything Audi could expose.
+Audi's cloud can be reachable while a parked vehicle has not sent new data. A cloud refresh is not proof of a new vehicle capture. No automatic wake on every poll.
 
-Compare exact installed versions and runtime contexts. Diagnostics distinguish current transport request count, coordinator attempts, native cloud reachability, vehicle capture and the latest structural record per operation (which can include restored evidence). The operation list is not a complete request timeline; unknown quota is not zero or unlimited quota. Capture-less parking indications are not live motion telemetry. Preserve source timestamps and registry IDs. Reuse existing owners and tests; never add a poller, auth workaround or speculative command to compensate for absent evidence.
+| State          | Meaning                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Fresh          | Valid measurement with a sufficiently recent vehicle capture.                                                                           |
+| Last known     | Historical observation; check its capture time. Not confirmation of current state.                                                      |
+| Unknown        | No reliable current value. A historical value may still be available in attributes.                                                     |
+| Unavailable    | The entity or source cannot currently provide a usable value. Check the reason.                                                         |
+| Not applicable | The underlying condition does not apply, e.g. charging ETA when explicitly not charging. Never interpret a missing ETA as zero minutes. |
 
-## Maintainer: release and upstream review
+Latest vehicle data age refers to the newest usable vehicle measurement, not the cloud receipt or oldest measurement. Oldest observed age and per-job ages remain available in attributes and the Workbench. Check the specific entity's capture time for automations. Data Act delivery may be fresh while the underlying capture is old. The tracker shows last parked position, not live GPS; movement without reliable vehicle capture stays unknown.
 
-Prior upstream contributions are retained. The candidate adds the independent V3 runtime, native HA projection, optional Workbench, regression coverage and source inventory. The existing upstream release metadata and pipeline remain authoritative; no stable promotion or default-runtime change is requested. Review exact-head Test/Validate, the existing packaging checks and the relevant real-vehicle acceptance separately. The upstream review branch is not a published HACS release. Use the existing upstream PR and fork candidate workflow; see the [release authority](V3_ARCHITECTURE_CLOSURE.md#release-authority).
+Previously registered, mapped read-only sensors and reviewed native control identities are offered again on reload even if their current OEM value or write route is absent. Registration is not authorization. The same entity recovers when valid evidence returns. Its identity does not establish current availability or new vehicle support. Explicitly retired identities such as the redundant V3 Charging ready sensor remain retired; no registry deletion is required.
 
-Source inventories, normalized attribute counts, entity counts and ownership contracts are implementation evidence, not physical vehicle certification. Vehicle metadata has worked earlier but can be absent from OEM responses; backend or authorization context may be involved, with no confirmed root cause. Charging controls, model/market compatibility, V2 parity, HA lifecycle and rollback, quota and optional Data Act live acceptance remain explicit release gates. The legacy upstream read-only probe service remains available in V2; in V3 use independent read discovery and Workbench instead.
+### Native controls
 
-## B37 engineering closure — multi-source acceptance candidate
+Use the HA vehicle device page for ordinary actions. Routes and features depend on the vehicle, auth context and verified capabilities. Missing controls are not permission to try a different API.
 
-B36 is the measured runtime baseline: first authorized Data Act delivery, 84 bounded structural fields, 19 mapped/normalized, 2 selected; 64/101 canonical attributes normalized, none fresh. 125 registered entities, 98 offered, 394 complete odometer-interval trip records. One poll is not a soak test. No raw owner diagnostics retained in the repository.
+- All native physical controls in B41 project only observed vehicle state. Pending, accepted, completed or rejected commands never replace a vehicle observation. A recent pre-command capture remains the last reported state, with its own timestamp; stale or invalid physical state is Unknown, with last-known telemetry separately available.
+- Native controls show a bounded optimistic requested value for at most five minutes after a known HTTP acceptance. This is not physical confirmation. Newer capture boundaries, rejection or a superseding command end that overlay; expiry and restart fall back to the actual last-known value. Check `state_is_optimistic`, `state_source`, `last_reported_state`, capture and command outcome. Read-only telemetry never projects command intent. A staged local temperature is an edit, not an applied temperature.
+- HTTP 2xx means backend acceptance, not physical execution. A matching later capture is recorded separately as `command_readback_observed_at`; it does not turn an accepted command into a verified command. A matching state can result from myAudi, a timer or manual operation. Correlated OEM failure takes precedence over earlier acceptance. Never automatically replay an uncertain command. Routine command history is not discovery evidence or an interlock: retain verified routes across temporary failures and restart, and allow a new explicit request after the existing bounded cooldown. Only an explicit discovery experiment awaits physical review; authorization and parameter/prerequisite checks remain in force.
+- Climate has separate read target, stored-settings start, temperature-bearing start, independent settings update and stop operations. The configured temperature can be readable even when no temperature-write route works. Temperature adjustment requires an enabled applicable write route selected by the resolver. A reviewed catalog match is not the same as local physical verification; an alternative route must be verified before activation. There is no model-specific assumption that Q5 or Q8 supports a particular route.
 
-B37 corrects the existing owners rather than adding a new runtime, source scheduler, entity contract or dashboard:
+### Optional EU Data Act
 
-- Registry-driven source selector and consolidated coverage; existing schema and observation evidence supply source mapping, capture, receipt, delivery and selection. Parking hints do not count as movement.
-- Dedicated portal connect/reconnect/disconnect options; validate credentials before replacing working settings. Existing native authentication stays separate. The optional source's actionable status is visible in the existing integration status attributes and Workbench, not a native account reauthentication trigger.
-- Record privacy-safe portal identity schema and outcome; never use nickname or VIN inference. On terminal authorization loss or explicit disconnect, remove optional identity and observations, retaining native measurements and trips. Missing dataset subscription removes dataset readings, not independently authorized identity.
-- Invalidate both selected and competing readings when a mapping changes or is disabled. Ignore late disabled-route responses. Re-activation requires a new normal read. Derive ETA from the currently selected duration, not an independent cache. Coalesce registry reconciliation and preserve historical entity IDs and user choices.
-- Share one bounded response-body reader across native and optional transport. Mark profile and registry storage private; no raw datasets are persisted.
-- Add exact UUID/name mappings for minute-based charging/climate durations and explicit hood status; invalid/sentinel values do not become telemetry. Source: [community Data Act dictionary](https://github.com/TA2k/ioBroker.vw-connect/blob/master/lib/euDataActDictionary.json). These are candidates pending real vehicle evidence, not guaranteed extra live fields.
+Obtain an authorized continuous request in Audi's official portal. In V3 options, select Manage EU Data Act; enter portal credentials locally when required. The wizard and vehicle diagnostic show delivery status independently from native Audi health. Keep current connection does not reauthenticate.
 
-### Acceptance gates
+Connected means a delivered or acknowledged unchanged dataset, not fresh vehicle data. Awaiting data means no confirmed delivery; subscription unavailable or access denied means check the portal request; authorization required means check credentials; rate limited means allow automatic recovery. Disconnect removes local optional credentials and observations without changing native Audi login or the portal request. Data Act is read-only; it never authorizes or confirms commands.
 
-The experimental HACS candidate requires exact-head Test/Validate, the existing release-only delta and pinned merged source, both HA compatibility targets, archive verification and the preceding beta's upstream review source. No stable release is implied.
+## Engineering Workbench
 
-Live acceptance remains necessary: upgrade/restart and V2 rollback; source authentication and revocation; native and optional freshness after a ride and active charging; model identity from actual OEM fields; physical control evidence; registry/trip preservation; independent ICE/PHEV/BEV and regional coverage. Unknown charging enums, maintenance signs, tyre units, ambiguous door states, oil validity and BEM semantics stay unmapped until evidence exists. This is not a reason to create a second model or to fabricate support.
+Enable the optional V3 Development Workbench in integration options as an HA administrator. Open **Audi Engineering Dashboard**, select the account and vehicle. Ordinary HA use does not require the Workbench.
 
-Existing issue #44 remains the stable release gate. Do not equate passed synthetic tests, HTTP acceptance, or assessed schema coverage with vehicle support. B37 is an engineering correction and acceptance candidate, not a claim of zero remaining product or upstream debt.
+- **Overview**: current findings, health and vehicle capture.
+- **Capabilities**: compare source mappings, actual observations, supported actions and their HA entities.
+- **Configure & test**: inspect an individual API route, its parameters and evidence; explicitly test or activate reviewed mappings.
+- **API Log**: inspect bounded local request/response evidence and read-only scans.
+- **End-user validation**: Guided walks eligible unverified actions; Expert selective lets you choose a capability or one action, including retesting eligible verified actions. Both use the same reviewed definitions, parameters and physical confirmation.
+
+### Test a specific climate function
+
+For ordinary users: Configure → Vehicle setup & discovery → select a specific function (or Guided). Both native setup and the Workbench use the same typed inputs and physical consent. The optional Workbench offers deeper evidence:
+
+1. Safely park the vehicle, select it in the Workbench and open **End-user validation → Expert selective**. Filter by Climate.
+2. To test stored settings, start with climate off; select Start cabin climate and confirm whether it really starts.
+3. Stop climate, then select Start climate with temperature. Enter a different target temperature in °C. Verify both actual start and the requested target.
+4. To test Change climate target temperature independently, start with climate off; choose a different target and verify it changes without starting climate.
+5. Confirm Worked on vehicle or Did not work on vehicle for the actual outcome. If unsure, keep the test pending and inspect the car; do not replay it. Restore the vehicle to a safe state before the next test.
+6. Check the native HA climate entity after validation. Only explicit physical confirmation activates a tested control route. A successfully verified route is stored for that vehicle; failure on another vehicle does not authorize or disable this one.
+
+The same physical instructions appear in Guided. If undated charging-mode option lists conflict, they never become ordered vehicle measurements. Use Vehicle setup & discovery → Verify preferred charging mode to physically test Manual and Timer separately. Only individually verified modes on the active route revision become writable during this undated conflict; dated invalid evidence still blocks writes. A selectable option is not proof of the currently reported mode. A reviewed equivalent route may be tried after definitive rejection under the existing consent and quota rules; never auto-send a different semantic action. For a published B40 build, use Capabilities → Climate → Vehicle controls → Inspect & test for parameterized operations instead.
+
+### Report a problem safely
+
+Include the exact integration/HA version, vehicle model/year/powertrain and market (if known), action, local timestamp with time zone, expected versus actual outcome, and myAudi/physical evidence if relevant. Compare B35/B40/B41 only when the conditions and operation are known.
+
+Download integration diagnostics from **Settings → Devices & services → Audi Connect → three-dot menu → Download diagnostics**. The integration's own data is designed to exclude credentials, tokens, VINs, coordinates, raw payloads and private trip values. The surrounding HA export can contain unrelated system or integration information: review it and share only the sanitized Audi Connect data section. Attach a ZIP if GitHub refuses the JSON. Do not share complete HA logs, raw responses, OAuth callback URLs or secrets.
+
+Diagnostics are read-only and do not wake the vehicle. They distinguish transport requests, coordinator attempts, cloud reachability, vehicle captures, source coverage, registry projections and structural command evidence. They are not a full request timeline. Unknown quota is neither zero nor unlimited.
+
+## Engineer and maintainer
+
+Use the [architecture and ownership contract](V3_ARCHITECTURE_CLOSURE.md), [feature closure](V3_FEATURE_CLOSURE.md) and the existing catalog. The capability control in `full_catalog.json` owns reviewed discovery metadata: order, label, physical instructions and allowed parameter names. The shared `parameter_schema` supplies types and limits; the resolver and command lifecycle enforce vehicle applicability, consent and verification. Frontend and backend consume the same candidates. Extend a reviewed existing operation through catalog metadata plus regression tests; new semantics still require reviewed execution and verification support. Do not add a second catalog, poller, auth owner, entity store or command framework.
+
+Native command-response observations with their own valid vehicle capture use the same status writer as polling. Older captures cannot regress the selected sample, and equal-time conflicts are uncertain. No field borrows another field’s or the response root’s timestamp. HTTP acceptance, echoes and undated fields never advance freshness. Readback evidence requires a post-dispatch capture and receipt; it is not command execution proof. Read fallback, including Data Act, cannot confirm or authorize a native command. Charging request feedback is exposed alongside charging state and in the admin API Log using the existing climate/access parser. It is informational, has no vehicle capture of its own, and cannot confirm, reject or replay a command without independent correlation. Preserve last-known evidence, source timestamps and stable registry IDs.
+
+Review exact-head Test and Validate, both supported HA targets, archive/packaging gates, upstream review and live acceptance separately. [Release authority](V3_ARCHITECTURE_CLOSURE.md#release-authority) governs promotion. Issue [#44](https://github.com/npinguin/audi_connect_ha/issues/44) remains the stable gate; [#35](https://github.com/npinguin/audi_connect_ha/issues/35) tracks missing manufacturer identity. The upstream maintainer owns the upstream default and stable release.
+
+The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/blob/b245cd62b51b08398166932dcb4f95987b87a4e9/docs/V3_REVIEW.md) remains available at the pinned B40 source. Its historical behavior and field counts are not current B41 instructions. See the feature closure for remaining acceptance.

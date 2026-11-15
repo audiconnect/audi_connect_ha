@@ -19,6 +19,17 @@ def charge_mode_fallback_candidate(car):
     )
 
 
+def charge_mode_recovery_candidate(car):
+    """Undated discovery evidence may invite a physical test, never authorize one."""
+    row = car.readings.get("availableChargeModes", {})
+    return charge_mode_fallback_candidate(car) or (
+        row.get("family") == "cariad"
+        and row.get("captured") is None
+        and row.get("reason") == "conflicting_source_values"
+        and bool(row.get("discovered_options"))
+    )
+
+
 def locally_verified_charge_modes(profile):
     """Current built-in route revision proof, not a claim about OEM options."""
     if profile is None:
@@ -38,7 +49,14 @@ def locally_verified_charge_modes(profile):
 
 def charge_mode_evidence(car, profile):
     """Safe enum capability evidence; never include the car\'s current setting."""
+    row = car.readings.get("availableChargeModes", {})
+    values = row.get("discovered_options", row.get("value"))
     return {
+        "last_known_advertised_modes": [
+            mode
+            for mode in ("manual", "timer")
+            if isinstance(values, list) and mode in values
+        ],
         "locally_verified_modes": locally_verified_charge_modes(profile),
         "writable_modes": supported_charge_modes(car, profile),
         "empty_list_fallback": charge_mode_fallback_candidate(car),
@@ -49,15 +67,17 @@ def supported_charge_modes(car, profile=None):
     """Advertised modes first; V2 fallback requires current local route proof."""
     row = car.readings.get("availableChargeModes", {})
     values = row.get("value")
-    if (
-        row.get("family") == "eu_data_act"
-        or row.get("status") == "invalid_value"
-        or not isinstance(values, list)
-    ):
+    if row.get("family") == "eu_data_act":
         return []
-    if values:
+    if row.get("status") != "invalid_value" and isinstance(values, list) and values:
         return [mode for mode in ("manual", "timer") if mode in values]
-    if profile is None or not charge_mode_fallback_candidate(car):
+    if profile is None:
+        return []
+    # Only current revision-bound physical proof survives missing options.
+    # Dated invalid or contradictory options still block writes.
+    if not charge_mode_recovery_candidate(car) and (
+        row.get("captured") is not None or row.get("status") == "invalid_value"
+    ):
         return []
     from .operation_revision import operation_revision
 

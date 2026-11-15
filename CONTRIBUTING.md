@@ -16,7 +16,7 @@ Start at the [issue templates](https://github.com/audiconnect/audi_connect_ha/is
 V3 is experimental and opt-in. Use a backup or a separate test installation. Follow the [V3 guide](docs/V3_REVIEW.md); ordinary users do not need Workbench.
 
 1. Enable the optional administrator-only Engineering Workbench in the integration options. Select your vehicle.
-2. In **Overview**, inspect consolidated coverage. In B37 and later builds that include the source selector, choose an API family to investigate its own discovery, mapping and observation evidence. **API Log** shows retained operation evidence.
+2. In **Overview**, inspect consolidated coverage. Where the source selector is available, choose an API family to investigate its own discovery, mapping and observation evidence. **API Log** shows retained operation evidence.
 3. Use **Capabilities** and **Configure & test** to explore reviewed reads and propose a mapping. Use bounded read-only scans where applicable; respect quota and backoff. Discovery never runs physical commands.
 4. Validate meaning, units, enum values, capture time and actual behavior against the vehicle or myAudi. Compare sources without assuming the newest delivery contains fresh data.
 5. For supported custom definitions, use **Copy shareable definition** or the copy/paste JSON editor. A definition is not test evidence. Importing it does not execute or activate it.
@@ -43,6 +43,6 @@ Use the existing project structure and [architecture and ownership contract](doc
 3. Run `pytest -q`, applicable Workbench tests and `pre-commit run --all-files`. Follow the existing workflows and semantic PR title conventions.
 4. Open a pull request describing the change, evidence, compatibility and remaining live acceptance.
 
-Every improvement should simplify or justify added complexity. Do not introduce a parallel framework, extra poller, duplicate entity or speculative command to compensate for missing evidence.
+Every improvement must preserve proven behavior and make the product simpler, more manageable, more efficient and more reliable. Keep experiments explicitly opt-in and isolated from proven functionality. Do not introduce a parallel framework, extra poller, duplicate entity or speculative command to compensate for missing evidence.
 
 Contributions are licensed under the project's [MIT License](LICENSE).

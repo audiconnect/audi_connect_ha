@@ -100,9 +100,43 @@ def test_health_snapshot_is_read_only():
     engine = NS(transport=NS(remaining_calls=50), last_cloud_poll_succeeded=True)
     health.observe_inventory(engine, car)
     before = health.snapshot(engine, car)
-    assert before["active_error_count"] == 1
+    assert before["active_error_count"] == 0
+    assert before["active_finding_count"] == 1
+    assert before["status"] == "operational" and not before["problem"]
     car.model = "Audi Q8"
     health.snapshot(engine, car)
     assert health.findings[car.vin.lower()]
     health.observe_inventory(engine, car)
     assert health.snapshot(engine, car)["active_error_count"] == 0
+
+
+def test_missing_metadata_does_not_hide_real_poll_or_functional_errors():
+    car = V3Vehicle(VIN, "Audi", "", "", "DE")
+    health = IntegrationHealth()
+    engine = NS(transport=NS(remaining_calls=50), last_cloud_poll_succeeded=True)
+    health.observe_inventory(engine, car)
+    health.observe(
+        VIN,
+        "graphql.inventory.vehicleList",
+        "POST",
+        NS(status=200, data={"errors": [{"code": "INTERNAL_SERVER_ERROR"}]}),
+        {},
+    )
+    row = health.snapshot(engine, car)
+    assert row["status"] == "operational"
+    assert row["operational_error"] is None
+    assert row["active_finding_count"] == 2
+    assert {f["severity"] for f in row["active_findings"]} == {"information"}
+    health.observe(
+        VIN,
+        "cariad.discovery.readiness",
+        "GET",
+        NS(status=207, data={"readiness": {"error": {"code": 4112}}}),
+        {},
+    )
+    row = health.snapshot(engine, car)
+    assert row["status"] == "degraded" and row["problem"]
+    assert row["operational_error"] == "api_partial_response"
+    assert row["active_error_count"] == 1
+    health.poll_error = "authentication_required"
+    assert health.snapshot(engine, car)["status"] == "authentication_required"

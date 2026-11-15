@@ -290,7 +290,8 @@ def test_command_readback_requires_fresh_post_command_observation():
     assert not reconcile_readback(record, car, now)
     car.readings["targetstateOfCharge"]["captured"] = now.isoformat()
     assert reconcile_readback(record, car, now)
-    assert record.state == "verified"
+    assert record.state == "uncertain"
+    assert record.readback_observed_at is not None
 
 
 @pytest.mark.asyncio

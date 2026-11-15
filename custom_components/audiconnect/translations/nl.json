@@ -76,19 +76,20 @@
           "runtime_version": "Uitvoeringsversie",
           "v3_development_workbench": "V3 Development Workbench inschakelen",
           "filter_vins": "Uitgesloten VIN's",
-          "run_vehicle_discovery": "Voertuigdetectie en bediening testen",
+          "run_vehicle_discovery": "Voertuigconfiguratie & discovery",
           "manage_data_act": "EU Data Act beheren"
         },
         "title": "Audi Connect-opties",
         "data_description": {
           "scan_interval": "Minuten tussen cloudupdates.",
           "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
-          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen.",
+          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen. Na opslaan en herladen van V3, open Configureren opnieuw voor voertuigconfiguratie & discovery of optionele EU Data Act.",
           "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard.",
           "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
-          "run_vehicle_discovery": "Bekijk automatische detectie en test beschikbare bediening expliciet. Zonder toestemming voor de specifieke actie wordt geen voertuigactie uitgevoerd.",
+          "run_vehicle_discovery": "Open op elk moment om de automatische detectie te bekijken, begeleid te testen of één functie te selecteren, ook voor hertests. Elke fysieke actie vereist expliciete toestemming.",
           "manage_data_act": "Verbind, herstel of verbreek de optionele alleen-lezenbron. De native Audi-login blijft ongewijzigd."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "dealer_vehicle": {
         "title": "Kies het voertuig",
@@ -112,9 +113,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Verbinden / opnieuw verbinden",
-          "data_act_disconnect": "Verbinding verbreken"
+        "description": "{data_act_status}\n\nKies verbinden of opnieuw verbinden om de portaalgegevens te controleren, of verbreek de verbinding om lokale inloggegevens te verwijderen en Data Act-uitlezing te stoppen. De native Audi-verbinding en portaal-aanvraag blijven ongewijzigd.",
+        "data": {
+          "action": "Verbinding"
         }
       },
       "data_act_credentials": {
@@ -124,10 +125,6 @@
           "email": "Portal-e-mailadres",
           "password": "Portal-wachtwoord"
         }
-      },
-      "data_act_disconnect": {
-        "title": "EU Data Act verbreken",
-        "description": "Verwijder de lokale portalcredentials en stop Data Act-uitlezing. De aanvraag in het portaal wordt niet ingetrokken."
       }
     },
     "error": {
@@ -318,7 +315,7 @@
         "name": "Actualiteit voertuiggegevens"
       },
       "v3_vehicle_data_age": {
-        "name": "Leeftijd voertuiggegevens"
+        "name": "Leeftijd recentste voertuiggegevens"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Laatste succesvolle cloudopvraging"
@@ -411,7 +408,7 @@
         "name": "Ritgeschiedenis"
       },
       "v3_discovery_coverage": {
-        "name": "Detectiedekking"
+        "name": "Discoverybeoordeling"
       },
       "v3_integration_status": {
         "name": "Integratiestatus"
@@ -430,6 +427,21 @@
       },
       "v3_fuel_range": {
         "name": "Rijbereik op brandstof"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Niet geconfigureerd",
+          "credentials_required": "Inloggegevens vereist",
+          "awaiting_data": "Wacht op data",
+          "connected": "Verbonden",
+          "partial": "Gedeeltelijk verbonden",
+          "authorization_required": "Autorisatie vereist",
+          "vehicle_access_denied": "Voertuigtoegang geweigerd",
+          "subscription_unavailable": "Abonnement niet beschikbaar",
+          "rate_limited": "Aanvraaglimiet bereikt",
+          "unavailable": "Tijdelijk niet beschikbaar"
+        }
       }
     },
     "binary_sensor": {
@@ -504,9 +516,6 @@
       },
       "v3_integration_problem": {
         "name": "Integratieprobleem"
-      },
-      "v3_charging_ready": {
-        "name": "Klaar om te laden"
       }
     },
     "button": {
@@ -602,6 +611,15 @@
     "device_tracker": {
       "v3_position": {
         "name": "Positie"
+      }
+    }
+  },
+  "selector": {
+    "data_act_action": {
+      "options": {
+        "connect": "Verbinden / opnieuw verbinden",
+        "disconnect": "Verbinding verbreken",
+        "keep": "Huidige verbinding behouden"
       }
     }
   }

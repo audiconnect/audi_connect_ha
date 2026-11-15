@@ -49,13 +49,33 @@ def movement_capture_valid(reading, now=None):
     )
 
 
+def reading_availability_reason(row, *, now=None):
+    row = row or {}
+    if row.get("status") == "invalid_value":
+        return row.get("reason") or "invalid_vehicle_value"
+    if row.get("value") is None:
+        return row.get("reason") or "source_not_observed"
+    age = capture_age_minutes(row.get("captured"), now or datetime.now(UTC))
+    if age is None:
+        return "vehicle_capture_unknown"
+    return "vehicle_capture_stale" if age > 60 else "available"
+
+
 def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
     """Describe a reported sample, independently of its projected HA state."""
     row = row or {}
     now = now or datetime.now(UTC)
     age = capture_age_minutes(row.get("captured"), now)
     valid = row.get("value") is not None and row.get("status") != "invalid_value"
+    from .attribute_runtime import last_known_observation
+
+    known = last_known_observation(row)
     return {
+        "availability_reason": reading_availability_reason(row, now=now),
+        "last_known_state": known.get("value")
+        if type(known.get("value")) in (str, int, float, bool)
+        else None,
+        "last_known_captured": known.get("captured"),
         "vehicle_captured": row.get("captured"),
         "age_minutes": age,
         "cloud_observed": row.get("observed"),
@@ -69,7 +89,13 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
             if allow_last_known
             else "stale"
         ),
-        "verification": row.get("status", "unknown"),
+        "verification": (
+            "readable_but_stale"
+            if row.get("status") == "verified" and (age is None or age > 60)
+            else row.get("status", "unknown")
+        ),
+        **({"source_operation": row["operation"]} if row.get("operation") else {}),
+        **({"derived_from": row["derived_from"]} if row.get("derived_from") else {}),
         **({"delivered_at": row["delivered_at"]} if row.get("delivered_at") else {}),
     }
 
@@ -77,7 +103,7 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
 def _measurement_readings(vehicle):
     """Scalar vehicle readings only; detail envelopes are not measurements."""
     for ident, row in vehicle.readings.items():
-        if ident in ("last_update_time", "model") or ident.endswith("_detail"):
+        if ident in ("last_update_time", "model") or row.get("detail"):
             continue
         value = row.get("value")
         if value is not None and not isinstance(value, (str, int, float, bool)):
@@ -102,6 +128,22 @@ def newest_vehicle_reading(vehicle, now: datetime | None = None):
             if newest is None or (stamp, ident) > newest[:2]:
                 newest = (stamp, ident, row)
     return newest
+
+
+def project_vehicle_capture(vehicle, now: datetime | None = None):
+    """Update the existing last-update entity after any accepted telemetry."""
+    newest = newest_vehicle_reading(vehicle, now)
+    if newest is None:
+        vehicle.readings.pop("last_update_time", None)
+        return
+    stamp, ident, source = newest
+    vehicle.readings["last_update_time"] = {
+        **source,
+        "value": stamp.isoformat(),
+        "captured": stamp.isoformat(),
+        "path": "vehicle_capture",
+        "derived_from": ident,
+    }
 
 
 def newest_vehicle_capture(vehicle, now: datetime | None = None) -> datetime | None:
@@ -140,6 +182,7 @@ def vehicle_capture_summary(vehicle, now: datetime | None = None):
         "source_attribute": ident,
         "source_job": row.get("job"),
         "source_family": row.get("family"),
+        "source_operation": row.get("operation"),
         "source_delivered_at": row.get("delivered_at"),
         "source_observed_at": row.get("observed"),
         "source_clock_ahead_seconds": (

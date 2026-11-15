@@ -1853,3 +1853,194 @@ test("Source selector and discovery are driven by backend registry, including fu
   assert.match(p.shadowRoot.innerHTML, /test_field/);
   assert.doesNotMatch(p.shadowRoot.innerHTML, /value="eu_data_act"/);
 });
+
+test("Selecting a source shows its alternative observations and actual scalar values", () => {
+  const p = new Panel();
+  p.selected = "entry";
+  p.vin = "VIN1";
+  p.entries = [
+    { entry_id: "entry", vehicles: [{ vin: "VIN1", api_family: "cariad" }] },
+  ];
+  p.capabilityStatus = {
+    rows: [],
+    family_discovery: [
+      {
+        id: "eu_data_act",
+        label: "EU Data Act",
+        fields_observed: 2,
+        fields_mapped: 1,
+        normalized: 1,
+        selected: 0,
+        fresh: 0,
+        operations: 1,
+        tested_operations: 1,
+        observations: [
+          {
+            attribute: "stateOfCharge",
+            normalized_value: 52,
+            source_field: "source-uuid",
+            status: "alternative",
+            selected: false,
+          },
+        ],
+        fields: [
+          {
+            path: "unmapped_field",
+            operation: "eu_data_act.dataset",
+            mapping: "mapping_missing",
+          },
+        ],
+      },
+    ],
+  };
+  p.apiFamily = "eu_data_act";
+  p.step = 1;
+  p.render();
+  assert.match(p.shadowRoot.innerHTML, /<details><summary>EU Data Act/);
+  assert.match(p.shadowRoot.innerHTML, /<td>52<\/td>/);
+  assert.match(p.shadowRoot.innerHTML, /source-uuid/);
+  assert.match(p.shadowRoot.innerHTML, /unmapped_field/);
+  assert.match(p.shadowRoot.innerHTML, /includes alternatives/);
+});
+
+test("Capability matrix shows actual, missing and invalid source evidence without requests", () => {
+  const p = new Panel();
+  const rows = [
+    {
+      attribute: "stateOfCharge",
+      entity_key: "sensor.state_of_charge",
+      capability: "charging",
+      metadata: { name: "Battery level" },
+      status: "readable_but_stale",
+      entity_ids: [],
+    },
+  ];
+  const families = [
+    {
+      id: "cariad",
+      label: "CARIAD",
+      priority: 10,
+      observations: [
+        {
+          attribute: "stateOfCharge",
+          normalized_value: 0,
+          selected: true,
+          valid: true,
+          fresh: false,
+          captured: "2026-11-14T08:00:00Z",
+        },
+      ],
+    },
+    {
+      id: "future_source",
+      label: "Future source",
+      priority: 20,
+      declared_attributes: ["stateOfCharge"],
+    },
+    {
+      id: "eu_data_act",
+      label: "EU Data Act",
+      priority: 30,
+      observations: [
+        { attribute: "stateOfCharge", selected: false, valid: false },
+      ],
+    },
+  ];
+  const html = p.capabilityMatrix(rows, families);
+  assert.match(html, /Priority 10/);
+  assert.match(html, /Future source/);
+  assert.match(html, /Priority 30/);
+  assert.match(html, /✓ 0/);
+  assert.match(html, /Mapped · no value/);
+  assert.match(html, /Invalid value/);
+  assert.match(html, /Last known/);
+  assert.match(html, /data-action="select-attribute"/);
+});
+
+test("Guided and selective climate discovery use the same typed parameters", async () => {
+  for (const expert of [false, true]) {
+    const p = new Panel();
+    p.selected = "entry";
+    p.vin = "VIN1";
+    p.entries = [
+      {
+        entry_id: "entry",
+        vehicles: [{ vin: "VIN1", name: "Audi", api_family: "cariad" }],
+      },
+    ];
+    p.step = 5;
+    p.expertDiscovery = expert;
+    p.capabilityFilter = "climate";
+    const candidate = {
+      label: "Start climate with temperature",
+      instructions:
+        "Stop climate first. Check both start and target temperature.",
+      capability: "climate",
+      action: "start_with_settings",
+      operation: "cariad.climate.start.vehicle_settings",
+      approval_group: "non_spin",
+      parameter_schema: {
+        temp_c: {
+          type: "number",
+          minimum: 15,
+          maximum: 30,
+          required: true,
+          label: "Target temperature (°C)",
+        },
+      },
+    };
+    p.capabilityStatus = {
+      rows: [],
+      end_user_progress: {
+        controls: [
+          {
+            capability: "climate",
+            action: "start_with_settings",
+            eligible: true,
+            status: "catalog_matched",
+          },
+        ],
+      },
+      end_user_candidates: [candidate],
+      expert_candidates: [candidate],
+    };
+    const calls = [];
+    p.api = async (name, args) => {
+      calls.push([name, args]);
+      if (name === "status") return p.capabilityStatus;
+      if (name === "api_results") return { records: [] };
+      if (name === "control_test") return { sequence: 1 };
+      throw Error(name);
+    };
+    p.render();
+    assert.match(p.shadowRoot.innerHTML, /Target temperature/);
+    assert.match(p.shadowRoot.innerHTML, /Stop climate first/);
+    const click = () =>
+      p._click({
+        target: {
+          closest: () => ({
+            dataset: {
+              action: "end-user-yes",
+              capability: candidate.capability,
+              control: candidate.action,
+              operation: candidate.operation,
+            },
+          }),
+        },
+      });
+    await click();
+    assert.equal(calls.filter(([name]) => name === "control_test").length, 0);
+    assert.match(p.error, /Required parameter/);
+    const key = p.definitionKey(
+      "parameters",
+      JSON.stringify([candidate.operation, candidate.parameter_schema]),
+    );
+    p.definitionEdits.set(key + ":temp_c", "22");
+    await click();
+    const sent = calls.filter(([name]) => name === "control_test");
+    assert.equal(sent.length, 1);
+    assert.equal(JSON.stringify(sent[0][1].parameters), '{"temp_c":22}');
+    assert.equal(sent[0][1].expert, expert);
+    assert.equal(sent[0][1].end_user, true);
+  }
+});

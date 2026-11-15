@@ -234,8 +234,8 @@ class DataActClient:
                 "schema_fields": fields,
                 "schema_truncated": truncated,
                 "vin": vin,
-                "modelName": row.get("modelName"),
-                "modelYear": row.get("modelYear"),
+                # Session-only input to the existing identity mapper. Never persisted.
+                "payload": row,
             }
         return [row for vin, row in selected.items() if vin not in duplicates]
 

@@ -182,6 +182,8 @@ def attribute_status(vehicle, profile, definition, now):
 def build_status_report(
     vehicle: V3Vehicle,
     profile: DevelopmentProfile,
+    *,
+    fast_bindings=None,
 ) -> dict[str, Any]:
     """Produce independently understandable API/attribute/control coverage.
 
@@ -441,7 +443,9 @@ def build_status_report(
                     "requires_manual_test": True,
                 }
             )
-    cockpit = _cockpit(vehicle, profile, rows, controls_for_vehicle)
+    cockpit = _cockpit(
+        vehicle, profile, rows, controls_for_vehicle, fast_bindings=fast_bindings
+    )
     counts = {
         **scan,
         "observed_attributes": sum(
@@ -514,6 +518,16 @@ def family_discovery(vehicle, profile, rows, operations):
         for field in dataset["fields"]
     }
     canonical = {row["attribute"]: row for row in rows if row.get("entity_key")}
+    # Read-only source details use the same observation lifecycle, but no HA entity.
+    detail_attributes = {
+        mapping["attribute"]
+        for definition in profile.registry.families.values()
+        for mapping in definition.get("observations", {}).values()
+        if mapping.get("detail")
+    }
+    for ident in detail_attributes:
+        if ident in vehicle.readings:
+            canonical[ident] = {"status": vehicle.readings[ident]["status"]}
     now = datetime.now(UTC)
     result = []
     for family, definition in profile.registry.families.items():
@@ -537,6 +551,8 @@ def family_discovery(vehicle, profile, rows, operations):
                     "path": path,
                     "type": field["type"],
                     "quality": field.get("quality"),
+                    "unit": dataset_field.get("unit") if dataset_field else None,
+                    "detail": bool(dataset_field and dataset_field.get("detail")),
                     "mapping": (
                         dataset_field["status"]
                         if dataset_field
@@ -548,6 +564,15 @@ def family_discovery(vehicle, profile, rows, operations):
                         else mapping.get("attributes", [])
                     ),
                 }
+        declared = {
+            mapping["attribute"]
+            for op in sources
+            for mapping in op.get("mappings", [])
+            if mapping.get("attribute") in canonical
+        } | {
+            mapping["attribute"]
+            for mapping in definition.get("observations", {}).values()
+        }
         observations = []
         for ident, row in canonical.items():
             selected = attribute_reading(vehicle, ident)
@@ -555,22 +580,31 @@ def family_discovery(vehicle, profile, rows, operations):
             is_selected = bool(selected) and selected.get("family") == family
             if sample is None and is_selected:
                 sample = selected
-            if (
-                not sample
-                or sample.get("value") is None
-                or sample.get("status") == "invalid_value"
-            ):
+            if not sample or row["status"] == "disabled_by_user":
                 continue
+            valid = (
+                sample.get("value") is not None
+                and sample.get("status") != "invalid_value"
+            )
             if is_selected and row["status"] not in ("verified", "readable_but_stale"):
-                continue
+                valid = False
             observations.append(
                 {
                     "attribute": ident,
+                    "detail": ident in detail_attributes,
+                    "derived_from": sample.get("derived_from"),
                     "captured": sample.get("captured"),
                     "observed_at": sample.get("observed"),
-                    "selected": is_selected,
-                    "status": row["status"] if is_selected else "alternative",
-                    "fresh": timestamp_is_fresh(sample.get("captured"), now),
+                    "selected": is_selected and valid,
+                    "valid": valid,
+                    "status": row["status"]
+                    if is_selected
+                    else "alternative"
+                    if valid
+                    else "invalid_value",
+                    "reason": sample.get("reason"),
+                    "operation": sample.get("operation"),
+                    "fresh": valid and timestamp_is_fresh(sample.get("captured"), now),
                     "delivered_at": sample.get("delivered_at"),
                 }
             )
@@ -582,6 +616,18 @@ def family_discovery(vehicle, profile, rows, operations):
                 "id": family,
                 "label": definition.get("label", family.upper()),
                 "auth": definition.get("auth"),
+                "priority": profile.registry.family_priority(family),
+                "declared_attributes": sorted(declared),
+                "details": [
+                    {
+                        "attribute": mapping["attribute"],
+                        "capability": mapping.get("capability"),
+                        "field": mapping["field"],
+                        "unit": mapping.get("unit"),
+                    }
+                    for mapping in definition.get("observations", {}).values()
+                    if mapping.get("detail")
+                ],
                 "read_scan": bool(definition.get("executor"))
                 and any(op.get("applicability") == "applicable" for op in sources),
                 "operations": len(operation_ids | schema_ids),
@@ -590,9 +636,21 @@ def family_discovery(vehicle, profile, rows, operations):
                 "fields_mapped": sum(
                     bool(field["attributes"]) for field in fields.values()
                 ),
-                "normalized": len(observations),
-                "selected": sum(row["selected"] for row in observations),
-                "fresh": sum(row["fresh"] for row in observations),
+                "normalized": sum(
+                    row["valid"] and not row["detail"] for row in observations
+                ),
+                "normalized_details": sum(
+                    row["valid"] and row["detail"] for row in observations
+                ),
+                "derived_projections": sum(
+                    row["valid"] and bool(row["derived_from"]) for row in observations
+                ),
+                "selected": sum(
+                    row["selected"] and not row["detail"] for row in observations
+                ),
+                "fresh": sum(
+                    row["fresh"] and not row["detail"] for row in observations
+                ),
                 "truncated": any(evidence.get("truncated") for _, evidence in schemas),
                 "schema_results": [
                     {
@@ -614,14 +672,14 @@ def family_discovery(vehicle, profile, rows, operations):
     return result
 
 
-def _cockpit(vehicle, profile, rows, controls):
+def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
     """Read-only projection of existing evidence; no network or state writes."""
     now = datetime.now(UTC)
     findings = []
     attributes = []
     catalog = profile.registry.operations
     records = profile.api_observations
-    fast = profile.fast_bindings
+    fast = profile.fast_bindings if fast_bindings is None else fast_bindings
     definitions = attributes_for(profile)
     mapped_paths = {}
     for descriptor in definitions.values():
@@ -836,6 +894,7 @@ def _cockpit(vehicle, profile, rows, controls):
             "physical": physical,
             "last_command_state": command.state if command else None,
             "backend_result": command.backend_result if command else None,
+            "readback_observed_at": command.readback_observed_at if command else None,
             "active": active,
             "last_test": record.get("at"),
             "attention": reasons,
@@ -1008,15 +1067,6 @@ def _cockpit(vehicle, profile, rows, controls):
                             "entity_key": target,
                             "status": row["status"],
                             "active": row["selected"],
-                        }
-                    )
-            for link in list(links):
-                if link["attribute"] == "chargingState":
-                    links.append(
-                        {
-                            **link,
-                            "entity_key": "binary_sensor.charging_ready",
-                            "attribute": "charging_ready",
                         }
                     )
             operation["mappings"] = links
@@ -1196,11 +1246,12 @@ def _cockpit(vehicle, profile, rows, controls):
                 "attention": sum(r.get("capability") == name for r in next_actions),
             }
         )
-    from .freshness import capture_coverage
+    from .freshness import capture_coverage, vehicle_capture_summary
 
     return {
         "operations": operations,
         "capability_summary": summaries,
+        "vehicle_capture": vehicle_capture_summary(vehicle),
         "job_capture_coverage": capture_coverage(vehicle),
         "findings": findings,
         "next_actions": next_actions,
@@ -1311,6 +1362,8 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                 "schema",
                 "physical",
                 "last_command_state",
+                "backend_result",
+                "readback_observed_at",
                 "active",
                 "job_evidence",
                 "fields_truncated",
@@ -1358,7 +1411,14 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
             {
                 key: value
                 for key, value in family.items()
-                if key not in ("fields", "observations", "schema_results")
+                if key
+                not in (
+                    "fields",
+                    "observations",
+                    "schema_results",
+                    "declared_attributes",
+                    "details",
+                )
             }
             for family in report["family_discovery"]
             if family["id"] in base_registry.families
@@ -1367,6 +1427,40 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
             ident: attribute_status(vehicle, profile, definition, datetime.now(UTC))[0]
             for ident, definition in CANONICAL_ATTRIBUTES.items()
         },
+        # Reuse the family projection for bounded, value-free freshness evidence.
+        "capture_evidence": [
+            {
+                "family": family["id"],
+                "operation": (
+                    row["operation"]
+                    if row.get("operation") in base_registry.operations
+                    else None
+                ),
+                **{
+                    key: row[key]
+                    for key in (
+                        "attribute",
+                        "captured",
+                        "observed_at",
+                        "delivered_at",
+                        "selected",
+                        "valid",
+                        "status",
+                    )
+                },
+            }
+            for family in report["family_discovery"]
+            if family["id"] in base_registry.families
+            for row in family["observations"]
+            if row["attribute"]
+            in (
+                "stateOfCharge",
+                "chargingState",
+                "plugState",
+                "doorLockStatus",
+                "climatisationState",
+            )
+        ],
         "historically_normalized_without_current_reading": sorted(
             ident
             for ident in CANONICAL_ATTRIBUTES

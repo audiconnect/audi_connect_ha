@@ -55,11 +55,11 @@ def test_product_contract_covers_v2_plus_only_deliberate_extensions():
         "sensor.longterm_trip_zero_emission_distance",
         "sensor.trip_history",
         "sensor.integration_status",
+        "sensor.data_act_status",
         "sensor.last_error",
         "binary_sensor.integration_problem",
         "sensor.door_status",
         "sensor.window_status",
-        "binary_sensor.charging_ready",
     }
     assert all(
         "sensor." + key not in historical for key in inventory["retired_v3_sensors"]
@@ -67,6 +67,13 @@ def test_product_contract_covers_v2_plus_only_deliberate_extensions():
     for key in inventory["retired_v3_sensors"]:
         assert retired_pilot_entity(VIN + "_sensor_" + key)
     assert not retired_pilot_entity(VIN + "_sensor_charging_mode")
+    assert retired_pilot_entity(VIN + "_binary_sensor_charging_ready")
+    assert "binary_sensor.charging_ready" not in historical
+    assert (
+        entity_key(VIN + "_binary_sensor_charging_ready", "example")
+        == "binary_sensor.charging_ready"
+    )
+    assert not retired_pilot_entity(VIN + "_binary_sensor_plug_lock_state")
     for key in ("start_climate_car_settings", "stop_climate"):
         assert retired_pilot_entity(VIN + "_button_" + key)
         assert entity_key(VIN + "_button_" + key, "example") == "button." + key
@@ -171,6 +178,7 @@ def test_product_diagnostic_allowlist_is_explicit_and_vehicle_properties_are_not
         "sensor.vehicle_data_freshness",
         "button.v3_refresh_cloud",
         "sensor.integration_status",
+        "sensor.data_act_status",
         "sensor.last_error",
         "binary_sensor.integration_problem",
     }

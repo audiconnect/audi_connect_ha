@@ -372,7 +372,8 @@ class DevelopmentProfile:
         self.historical_control_evidence: list[dict[str, Any]] = []
         self.manufacturer_identity: dict[str, Any] = {}
         self.identity_drafts: dict[str, dict[str, Any]] = {}
-        self.last_known_climate: dict[str, Any] | None = None
+        # Bound once to the vehicle's canonical map by the composition owner.
+        self.status_readings: dict[str, Any] = {}
         self.last_command: CommandRecord | None = None
         self.command_journal: list[CommandRecord] = []
         self.invalidated_attempt_sequence: int | None = None
@@ -559,20 +560,29 @@ class DevelopmentProfile:
         """One bounded journal for both origins; failed insertion is atomic."""
         latest = record if record.origin == "home_assistant" else self.last_command
         rows = [*self.command_journal, record]
-        # Keep security review and active engineering attempts; routine errors are bounded history.
+        # Preserve latest control outcomes and active engineering/wake evidence.
+        # Old routine failures must not consume all journal capacity.
+        from .command_readback import projection_attributes
+
+        latest_controls = {
+            attribute: row.command_id
+            for row in rows
+            for attribute in projection_attributes(row)
+        }
+        protected = set(latest_controls.values())
         while len(rows) > HISTORY_LIMIT:
             active = self.discovery.active_attempt
             index = next(
                 (
                     i
                     for i, row in enumerate(rows)
-                    if not (row.origin == "home_assistant" and row.requires_review)
-                    and not (
+                    if not (
                         active is not None
                         and row.origin == "workbench"
                         and row.engineering_sequence == active.sequence
                     )
                     and not (row.is_wake and record.started_at - row.started_at < 86400)
+                    and row.command_id not in protected
                     and row is not latest
                     and row is not record
                 ),
@@ -580,7 +590,7 @@ class DevelopmentProfile:
             )
             if index is None:
                 raise DevelopmentProfileError(
-                    "Command journal full of unresolved commands"
+                    "Command journal full of protected evidence"
                 )
             rows.pop(index)
         self.command_journal[:] = rows
@@ -645,7 +655,7 @@ class DevelopmentProfile:
             return
         previous = self.discovery.context
         if context.auth != previous.auth or context.region != previous.region:
-            self.last_known_climate = None
+            self.status_readings.clear()
         if self.discovery.active_attempt is not None:
             self.invalidated_attempt_sequence = self.discovery.active_attempt.sequence
         # Preserve reviewed built-in outcomes before invalidating the current
@@ -708,13 +718,10 @@ class DevelopmentProfile:
         readback_verified: bool = False,
     ) -> None:
         record = self.engineering_record(sequence)
-        if readback_verified and (
-            worked is not True
-            or record is None
-            or record.state != "verified"
-            or not record.readback_attribute
-        ):
-            raise DevelopmentProfileError("No verified readback for this action")
+        if readback_verified:
+            raise DevelopmentProfileError(
+                "Observed state does not prove physical execution"
+            )
         attempted = self.discovery.review(
             sequence,
             result="uncertain" if worked is None else "worked" if worked else "failed",
@@ -889,6 +896,8 @@ class DevelopmentProfile:
 
     def snapshot(self) -> dict[str, Any]:
         """Safe local profile record. No VIN, tokens or raw HTTP payloads."""
+        from .attribute_runtime import status_snapshot
+
         return {
             "schema_version": 1,
             "vehicle_context": asdict(self.discovery.context),
@@ -903,7 +912,7 @@ class DevelopmentProfile:
             "verified_charge_modes": dict(self.verified_charge_modes),
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),
-            "last_known_climate": deepcopy(self.last_known_climate),
+            "status_observations": status_snapshot(self.status_readings),
             "identity_drafts": deepcopy(self.identity_drafts),
             "last_command": legacy_snapshot(self.last_command)
             if self.last_command

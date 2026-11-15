@@ -9,7 +9,7 @@ from __future__ import annotations
 from .action_discovery import approval_group
 from .auth import configured_spin
 from .command_policy import (
-    charge_mode_fallback_candidate,
+    charge_mode_recovery_candidate,
     eligible_operation,
     supported_charge_modes,
 )
@@ -62,19 +62,9 @@ def control_decision(
 
     if key in profile.discovery.disabled:
         return decision("user_disabled")
-    from .command_journal import blocking_normal_command
-
     active = profile.discovery.active_attempt
     if active is not None and active.capability == capability:
         pending_reason = "engineering_command_awaiting_review"
-    else:
-        blocker = blocking_normal_command(profile, capability)
-        if blocker is not None:
-            pending_reason = (
-                "previous_vehicle_command_uncertain"
-                if blocker.state == "uncertain"
-                else "vehicle_command_in_progress"
-            )
     restricted = capability == "remote" and aspect in ("engine_start", "engine_stop")
     allowed = (
         eligible_operation(car, auth, capability, aspect, profile=profile)
@@ -128,7 +118,7 @@ def control_decision(
     ):
         route = "cariad.charging.mode"
         if (
-            charge_mode_fallback_candidate(car)
+            charge_mode_recovery_candidate(car)
             and currently_safe(route)
             and profile.control_results.get(route) != "failed"
         ):
@@ -140,7 +130,7 @@ def control_decision(
         # Do not let a previously active route bypass invalid options.
         options = car.readings.get("availableChargeModes", {})
         if options.get("status") == "invalid_value":
-            reason = "charge_mode_options_invalid"
+            reason = options.get("reason") or "charge_mode_options_invalid"
         elif options.get("value") == []:
             reason = "charge_mode_options_empty"
         elif options.get("value") is None:

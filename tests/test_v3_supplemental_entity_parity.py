@@ -106,8 +106,8 @@ def test_parked_state_unknown_does_not_hide_authorized_control():
     car.set_climate("off", stamp, route="test", observed_at=now, http_status=200)
     lock = V3LockEntity(co, car)
     quick = V3ClimateQuickSwitch(co, car)
-    assert lock.available and lock.is_locked is None
-    assert quick.available and quick.is_on is None
+    assert lock.available and lock.is_locked is True
+    assert quick.available and quick.is_on is False
     lock.async_write_ha_state = lambda: None
     quick.async_write_ha_state = lambda: None
     asyncio.run(lock.async_lock())
@@ -151,7 +151,11 @@ def test_newest_vehicle_capture_keeps_older_climate_age_visible():
             "captured": (now - timedelta(hours=3)).isoformat(),
         },
     )
-    assert V3StatusSensor(co, car, "age").native_value == 0
+    age = V3StatusSensor(co, car, "age")
+    assert age.native_value == 0
+    assert age.unique_id == VIN.lower() + "_sensor_vehicle_data_age"
+    assert age.extra_state_attributes["vehicle_age_minutes"] == 0
+    assert age.extra_state_attributes["oldest_observed_age_minutes"] >= 180
     sensor = V3StatusSensor(co, car, "freshness")
     assert sensor.native_value == "partial"
     assert (
@@ -293,9 +297,11 @@ def test_lock_remains_visible_while_command_is_accepted():
     co.engine.control_enabled = lambda *args: False
     entity = V3LockEntity(co, car)
     assert entity.available
-    assert entity.is_locking
-    assert entity.is_locked is None
+    assert not entity.is_locking
+    assert entity.is_locked is True
     assert entity.extra_state_attributes["command_status"] == "accepted_unconfirmed"
+    assert entity.extra_state_attributes["command_requested_state"] == "locked"
+    assert entity.extra_state_attributes["state_is_optimistic"] is True
     assert entity.extra_state_attributes["last_reported_state"] == "unlocked"
     assert entity.extra_state_attributes["lock_enabled"] is False
 
@@ -330,3 +336,43 @@ def test_control_metadata_scopes_commands_to_relevant_field_and_action():
     assert (
         V3ChargeTargetNumber(co, car).extra_state_attributes["command_status"] is None
     )
+
+
+def test_position_entity_explicitly_overrides_ha_tracker_diagnostic_default():
+    from custom_components.audiconnect.v3.entities import V3ParkedTracker
+
+    car, co, _ = context()
+    tracker = V3ParkedTracker(co, car)
+    assert tracker.entity_category is None
+
+
+def test_operational_entities_keep_metadata_findings_in_engineering():
+    from custom_components.audiconnect.v3.entities import (
+        V3HealthSensor,
+        V3IntegrationProblem,
+    )
+    from custom_components.audiconnect.v3.integration_health import IntegrationHealth
+
+    car, co, _ = context()
+    car.model = ""
+    co.engine.health = IntegrationHealth()
+    co.engine.last_cloud_poll_succeeded = True
+    co.engine.health.observe_inventory(co.engine, car)
+    co.engine.status = NS(
+        data_act_poll_status=lambda vehicle: {
+            "connection_state": "connected",
+            "result": "dataset_received",
+            "last_attempt": None,
+            "last_success": None,
+            "retry_at": None,
+        }
+    )
+    health = V3HealthSensor(co, car, "integration_status")
+    assert health.native_value == "operational"
+    assert not V3IntegrationProblem(co, car).is_on
+    assert V3HealthSensor(co, car, "last_error").native_value == "none"
+    assert "active_findings" not in health.extra_state_attributes
+    data_act = V3HealthSensor(co, car, "data_act_status")
+    assert data_act.native_value == "connected"
+    assert data_act.extra_state_attributes["result"] == "dataset_received"
+    assert co.engine.health.snapshot(co.engine, car)["active_finding_count"] == 1

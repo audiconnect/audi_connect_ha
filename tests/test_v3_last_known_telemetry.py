@@ -161,6 +161,9 @@ def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
         / "custom_components/audiconnect/v3/full_catalog.json"
     )
     profile = DevelopmentProfile(catalog, vehicle.context)
+    from custom_components.audiconnect.v3.attribute_runtime import bind_status
+
+    bind_status(vehicle, profile)
     now = datetime.now(UTC)
 
     def observe(state, captured):
@@ -185,6 +188,7 @@ def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
     saved = profile.snapshot()
     restored = restore_profile(catalog, vehicle.context, saved)
     rebooted = car()
+    bind_status(rebooted, restored)
     coordinator = NS(
         engine=NS(
             profiles={rebooted.vin.lower(): restored},
@@ -195,9 +199,16 @@ def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
     entity = V3ClimateEntity(coordinator, rebooted)
     assert entity.hvac_mode.value == ("off" if initial == "off" else "heat_cool")
     assert entity.hvac_action is None
+    assert entity.extra_state_attributes["last_known_climate_state"] == initial
+    assert (
+        entity.extra_state_attributes["last_known_climate_source"]
+        == "last_known_vehicle"
+    )
     assert entity.extra_state_attributes["state_source"] == "last_known_vehicle"
     assert not entity.extra_state_attributes["state_is_current"]
-    assert not rebooted.readings
+    assert rebooted.readings["climatisationState"]["value"] is None
+    assert rebooted.readings["climatisationState"]["reason"] == "restored_history"
+    assert restored.status_readings is rebooted.readings
     assert not restored.command_journal
 
     # A newer real observation supersedes the restored display.
@@ -211,10 +222,8 @@ def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
 
 def test_accepted_command_is_not_restored_as_verified_climate_state():
     from custom_components.audiconnect.v3.command_journal import CommandRecord
-    from custom_components.audiconnect.v3.command_readback import (
-        configure_readback,
-        last_known_climate,
-    )
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.product_contract import control_projection
 
     command = CommandRecord.begin(
         "climate",
@@ -225,8 +234,46 @@ def test_accepted_command_is_not_restored_as_verified_climate_state():
     configure_readback(command, {})
     command.observe_http(200)
     profile = NS(command_journal=[command])
-    assert last_known_climate(profile) == (None, None, "unknown")
+    assert control_projection(profile, "climate", {}) == (None, "unknown")
     command.state = "verified"
     command.completed_at = command.started_at + 30
-    value, _, source = last_known_climate(profile)
-    assert value == "on" and source == "last_verified_command"
+    assert control_projection(profile, "climate", {}) == (None, "unknown")
+
+
+@pytest.mark.parametrize(
+    "ident,value",
+    [
+        ("doorLockStatus", "locked"),
+        ("chargingState", "charging"),
+        ("preferredChargeMode", "manual"),
+        ("targetstateOfCharge", 80),
+        ("climatisationTargetTemperatureC", 20),
+        ("windowHeatingActive", False),
+        ("stateOfCharge", 55),
+    ],
+)
+def test_canonical_status_restart_retains_only_historical_evidence(ident, value):
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        last_known_observation,
+        restore_status,
+        status_snapshot,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=3)
+    row = reading(value, old)
+    vehicle.readings.update(restore_status(status_snapshot({ident: row})))
+    restored = vehicle.readings[ident]
+    assert restored["value"] is None
+    assert last_known_observation(restored)["value"] == value
+    assert not _reading_available(restored)
+    assert _reading_available(restored, allow_last_known=True)
+    commit_observation(
+        vehicle, ident, reading(value, old - timedelta(hours=1)), None, now
+    )
+    assert vehicle.readings[ident]["reason"] == "restored_history"
+    commit_observation(vehicle, ident, reading(value, old), None, now)
+    assert vehicle.readings[ident]["value"] == value
+    assert vehicle.readings[ident].get("reason") != "restored_history"

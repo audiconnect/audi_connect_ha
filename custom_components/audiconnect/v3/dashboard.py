@@ -47,6 +47,8 @@ def _engine(hass: Any, entry_id: str) -> V3Engine:
 @websocket_api.websocket_command({vol.Required("type"): "audiconnect/v3/list"})
 @websocket_api.async_response
 async def ws_list(hass, connection, msg):
+    from .freshness import vehicle_capture_summary
+
     records = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         try:
@@ -66,7 +68,9 @@ async def ws_list(hass, connection, msg):
                         else "cariad",
                         "climate_state": car.climate_state,
                         "status_route": car.climate_source,
-                        "age_minutes": car.capture_age_minutes,
+                        "age_minutes": vehicle_capture_summary(car)[
+                            "vehicle_age_minutes"
+                        ],
                         "start_enabled": engine.control_enabled(car.vin, "start"),
                         "stop_enabled": engine.control_enabled(car.vin, "stop"),
                     }
@@ -93,20 +97,20 @@ async def ws_list(hass, connection, msg):
 @websocket_api.async_response
 async def ws_status(hass, connection, msg):
     try:
-        from .capability_status import build_status_report
+        from .capability_status import attribute_reading, build_status_report
 
         engine = _engine(hass, msg["entry_id"])
         vehicle = engine.require_vehicle(msg["vin"])
         profile = engine.profiles[vehicle.vin.lower()]
-        engine.commands.refresh_bindings()
-        report = build_status_report(vehicle, profile)
+        bindings = engine.commands.binding_snapshot(vehicle, profile)
+        report = build_status_report(vehicle, profile, fast_bindings=bindings)
         report["normal_command"] = (
             profile.last_command.snapshot() if profile.last_command else None
         )
         from .command_journal import unresolved_normal_commands
 
         # Only the latest unresolved routine command per capability is a current
-        # warning; security review items remain visible until acknowledged.
+        # warning. Historical outcomes remain in the journal, not an interlock.
         latest_by_capability = {
             row.capability: row
             for row in getattr(profile, "command_journal", ())
@@ -115,11 +119,16 @@ async def ws_status(hass, connection, msg):
         report["unresolved_commands"] = [
             {**row.snapshot(), "review_required": row.requires_review}
             for row in unresolved_normal_commands(profile)
-            if row.requires_review
-            or latest_by_capability.get(row.capability, row) is row
+            if latest_by_capability.get(row.capability, row) is row
         ]
         report["command_journal"] = [row.snapshot() for row in profile.command_journal]
-        report["fast_bindings"] = profile.fast_bindings
+        from .structured_details import details_for
+
+        report["charging_requests"] = engine.redact_evidence(
+            details_for(vehicle, "charging_requests_detail").get("charging_requests"),
+            vehicle.vin,
+        )["payload"]
+        report["fast_bindings"] = bindings
         from .product_contract import entity_projection_report, entity_key
 
         report["account_entity_projection"] = entity_projection_report(engine)
@@ -175,7 +184,7 @@ async def ws_status(hass, connection, msg):
             # Admin-only scalar observation trace; never add private values
             # to the shared capability report or exported diagnostics.
             for row in report["rows"]:
-                reading = vehicle.readings.get(row.get("attribute"), {})
+                reading = attribute_reading(vehicle, row.get("attribute"))
                 value = reading.get("value")
                 if row.get("entity_key") and type(value) in (str, int, float, bool):
                     row["normalized_value"] = engine.redact_evidence(
@@ -186,36 +195,44 @@ async def ws_status(hass, connection, msg):
         from .read_discovery import data_act_discovery, user_test_candidates
 
         for family in report["family_discovery"]:
+            # The shared report remains structural. Only the admin WS projection
+            # adds masked scalar values from the same in-memory observations.
+            for observation in family["observations"]:
+                ident = observation["attribute"]
+                sample = (
+                    getattr(vehicle, "family_readings", {})
+                    .get(ident, {})
+                    .get(family["id"])
+                )
+                if sample is None and observation["selected"]:
+                    sample = attribute_reading(vehicle, ident)
+                if sample and type(sample.get("value")) in (str, int, float, bool):
+                    observation["normalized_value"] = engine.redact_evidence(
+                        sample["value"], vehicle.vin
+                    )["payload"]
+                if sample:
+                    observation["source_field"] = engine.redact_evidence(
+                        sample.get("path"), vehicle.vin
+                    )["payload"]
             if family["auth"] == "eu_data_act" and hasattr(engine, "status"):
-                family["health"] = engine.status.data_act_poll_status()
+                family["health"] = engine.status.data_act_poll_status(vehicle)
+            elif hasattr(getattr(engine, "auth", None), "identity_auth_evidence"):
+                family["auth_context"] = engine.auth.identity_auth_evidence(
+                    family["id"]
+                )
         report["end_user_progress"] = engine.discovery_progress(vehicle, profile)
         report["data_act_discovery"] = data_act_discovery(
             vehicle, profile, include_fields=True
         )
-        report["end_user_candidates"] = [
-            {
-                "label": label,
-                "capability": capability,
-                "action": action,
-                "operation": operation,
-                "approval_group": group,
-            }
-            for label, capability, action, operation, group in user_test_candidates(
-                engine, vehicle, profile
-            ).values()
-        ]
-        report["expert_candidates"] = [
-            {
-                "label": label,
-                "capability": capability,
-                "action": action,
-                "operation": operation,
-                "approval_group": group,
-            }
-            for label, capability, action, operation, group in user_test_candidates(
-                engine, vehicle, profile, include_verified=True
-            ).values()
-        ]
+        for key, include_verified in (
+            ("end_user_candidates", False),
+            ("expert_candidates", True),
+        ):
+            report[key] = list(
+                user_test_candidates(
+                    engine, vehicle, profile, include_verified=include_verified
+                ).values()
+            )
         coordinator = getattr(
             getattr(engine.entry, "runtime_data", None), "coordinator", None
         )

@@ -14,11 +14,10 @@ from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured
 from .attribute_runtime import (
     planned_jobs,
     observe_read_only,
-    _accept_observation,
+    _merge_observation,
     _valid_capture,
     record_invalid_observation,
     record_observation,
-    remember_climate,
     normalize_attribute_value,
 )
 from .custom_attributes import attributes_for
@@ -37,6 +36,30 @@ from .read_discovery import (
     DATA_ACT_DATASET,
 )
 from .status_planner import status_groups
+
+
+DATA_ACT_CONNECTION_STATES = [
+    "not_configured",
+    "credentials_required",
+    "awaiting_data",
+    "connected",
+    "partial",
+    "authorization_required",
+    "vehicle_access_denied",
+    "subscription_unavailable",
+    "rate_limited",
+    "unavailable",
+]
+
+
+def data_act_connection_state(result, deliveries):
+    """Project the existing delivery evidence without another connection cache."""
+    if result in ("dataset_received", "no_new_dataset"):
+        connected = {"dataset_received", "no_new_dataset"}
+        if connected.intersection(deliveries):
+            return "partial" if set(deliveries) - connected else "connected"
+        return "awaiting_data"
+    return "awaiting_data" if result == "initializing" else result
 
 
 def identity_refresh_due(vehicles, elapsed_seconds, remaining_calls):
@@ -106,24 +129,32 @@ class StatusEngine:
         """Current runtime coordinator attempts, including failed cycles."""
         return self._poll_cycles
 
-    def data_act_poll_status(self):
-        """Safe account-level scheduler status; no dataset or session contents."""
+    def data_act_poll_status(self, vehicle=None):
+        """Safe scheduler status, account-wide or scoped to one vehicle."""
         client = getattr(self.auth, "data_act_client", None)
         retry = client.quota.retry_at if client is not None else None
         states = getattr(client, "delivery_states", {})
         deliveries = {}
         mapped = selected = 0
         for car in self.vehicles.values():
-            if not car.inventory_present:
+            if not car.inventory_present or (
+                vehicle is not None and car is not vehicle
+            ):
                 continue
             state = states.get(car.vin.upper())
             if state is not None:
                 deliveries[state] = deliveries.get(state, 0) + 1
             for ident, families in car.family_readings.items():
-                if "eu_data_act" in families:
+                sample = families.get("eu_data_act", {})
+                if (
+                    not sample.get("detail")
+                    and sample.get("value") is not None
+                    and sample.get("status") != "invalid_value"
+                ):
                     mapped += 1
                     selected += (
                         car.readings.get(ident, {}).get("family") == "eu_data_act"
+                        and car.readings[ident].get("value") is not None
                     )
         # Account health is a projection, not a second provider state machine.
         if client is None:
@@ -134,6 +165,10 @@ class StatusEngine:
             )
         elif client.authorization_required:
             result = "authorization_required"
+        elif vehicle is not None and "vehicle_access_denied" in deliveries:
+            result = "vehicle_access_denied"
+        elif vehicle is not None and "subscription_unavailable" in deliveries:
+            result = "subscription_unavailable"
         elif retry and retry > datetime.now(UTC):
             result = "rate_limited"
         elif self._data_act_processing_failed or "unavailable" in deliveries:
@@ -148,6 +183,8 @@ class StatusEngine:
             result = "no_new_dataset" if self._data_act_attempt_at else "initializing"
         return {
             "result": result,
+            "connection_state": data_act_connection_state(result, deliveries),
+            "scope": "vehicle" if vehicle is not None else "account",
             "last_attempt": self._data_act_attempt_at.isoformat()
             if self._data_act_attempt_at
             else None,
@@ -560,7 +597,11 @@ class StatusEngine:
                 or car.vin.lower() not in self.profiles
             ):
                 continue
-            candidate = V3Vehicle.from_data_act(row, car.country)
+            candidate = V3Vehicle.from_data_act(
+                {**row["payload"], "vin": row["vin"]},
+                car.country,
+                self.profiles[car.vin.lower()].registry,
+            )
             changed |= self._apply_identity(
                 car,
                 self.profiles[car.vin.lower()],
@@ -582,7 +623,7 @@ class StatusEngine:
 
     def _update_capture_projection(self):
         from .attribute_runtime import refresh_family_observations
-        from .freshness import newest_vehicle_reading
+        from .freshness import project_vehicle_capture
         from .derived_values import project_charging_eta
 
         now = datetime.now(UTC)
@@ -593,17 +634,7 @@ class StatusEngine:
             if profile is not None:
                 refresh_family_observations(car, profile, now)
                 project_charging_eta(car, profile, now)
-            newest = newest_vehicle_reading(car, now)
-            if newest is None:
-                car.readings.pop("last_update_time", None)
-            else:
-                stamp, _ident, source = newest
-                car.readings["last_update_time"] = {
-                    **source,
-                    "value": stamp.isoformat(),
-                    "captured": stamp.isoformat(),
-                    "path": "vehicle_capture",
-                }
+            project_vehicle_capture(car, now)
             if not car.model:
                 car.readings.pop("model", None)
             else:
@@ -761,19 +792,14 @@ class StatusEngine:
                             and "climatisationState" not in profile.attribute_disabled
                             and profile.attribute_routes.get("climatisationState")
                             in (None, "cariad.selectivestatus.batch")
-                            and vehicle.set_climate(
+                        ):
+                            vehicle.set_climate(
                                 value,
                                 captured,
                                 route=ident,
                                 path=field,
                                 observed_at=response.observed_at,
                                 http_status=response.status,
-                            )
-                        ):
-                            remember_climate(
-                                profile,
-                                vehicle.readings["climatisationState"],
-                                response.observed_at,
                             )
                     elif valid:
                         if (
@@ -797,22 +823,29 @@ class StatusEngine:
                             valid = False
                         elif isinstance(value, (str, int, float, bool)):
                             previous = vehicle.capability_readings.get(capability)
-                            if _accept_observation(
-                                previous, captured, response.observed_at
-                            ):
-                                vehicle.capability_readings[capability] = {
-                                    "value": value,
-                                    "captured": (
-                                        captured
+                            vehicle.capability_readings[capability] = (
+                                _merge_observation(
+                                    previous,
+                                    {
+                                        "value": value,
+                                        "captured": captured
                                         if _valid_capture(
                                             captured, response.observed_at
                                         )
-                                        else None
-                                    ),
-                                    "observed": response.observed_at.isoformat(),
-                                    "operation": ident,
-                                    "path": field,
-                                }
+                                        else None,
+                                        "observed": response.observed_at.isoformat(),
+                                        "operation": ident,
+                                        "family": family,
+                                        "path": field,
+                                        "status": "verified"
+                                        if timestamp_is_fresh(
+                                            captured, response.observed_at
+                                        )
+                                        else "readable_but_stale",
+                                    },
+                                    response.observed_at,
+                                )
+                            )
                     fresh = bool(
                         valid and timestamp_is_fresh(captured, response.observed_at)
                     )

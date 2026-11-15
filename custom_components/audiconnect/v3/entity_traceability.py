@@ -64,6 +64,7 @@ def link_entities(report, actual, inventory=None):
             "sensor.api_requests_remaining",
             "sensor.discovery_coverage",
             "sensor.integration_status",
+            "sensor.data_act_status",
             "sensor.last_error",
             "binary_sensor.integration_problem",
             "button.v3_refresh_cloud",

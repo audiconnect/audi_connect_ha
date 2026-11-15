@@ -34,7 +34,8 @@ def test_stale_climate_readback_is_never_reported_as_current():
         observed_at=now,
         http_status=200,
     )
-    assert entity.hvac_mode is None
+    assert entity.hvac_mode.value == "off"
+    assert entity.hvac_action is None
     car.set_climate(
         "heating", now.isoformat(), route="test", observed_at=now, http_status=200
     )
@@ -81,12 +82,23 @@ def test_native_climate_actions_are_independent_of_stale_state_and_no_duplicate_
     enabled = {"start", "stop", "start_with_settings"}
     calls, offered, listeners = [], [], []
 
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+
+    journal = []
+
     async def send(vin, action, capability, **kwargs):
         calls.append((vin, action, capability, kwargs))
+        row = CommandRecord.begin(
+            capability, action, "test", datetime.now(UTC).timestamp()
+        )
+        configure_readback(row, kwargs.get("params"))
+        row.observe_http(200)
+        journal.append(row)
 
     engine = NS(
         vehicles={VIN.lower(): car},
-        profiles={},
+        profiles={VIN.lower(): NS(command_journal=journal)},
         control_enabled=lambda vin, action, capability="climate": (
             capability == "climate" and action in enabled
         ),
@@ -115,7 +127,7 @@ def test_native_climate_actions_are_independent_of_stale_state_and_no_duplicate_
     entity = climates[0]
     entity.async_write_ha_state = lambda: None
     assert entity.unique_id == VIN.lower() + "_climate_climatisation"
-    assert entity.available and entity.hvac_mode is None
+    assert entity.available and entity.hvac_mode == HVACMode.OFF
     assert entity.supported_features & ClimateEntityFeature.TURN_ON
     assert entity.supported_features & ClimateEntityFeature.TURN_OFF
     asyncio.run(entity.async_set_hvac_mode(HVACMode.HEAT_COOL))
@@ -131,9 +143,11 @@ def test_native_climate_actions_are_independent_of_stale_state_and_no_duplicate_
         "climate",
         {"params": {"temp_c": 19.5}},
     )
-    assert entity.hvac_mode is None
+    assert entity.hvac_mode == HVACMode.HEAT_COOL
     assert entity.target_temperature == 19.5
     assert entity.extra_state_attributes["pending_dispatched_temperature"] == 19.5
+    journal[-1].observe_backend("rejected", datetime.now(UTC).timestamp())
+    assert entity.extra_state_attributes["pending_dispatched_temperature"] is None
     car.readings["climatisationTargetTemperatureC"] = {
         "value": 20,
         "captured": (datetime.now(UTC) + timedelta(seconds=1)).isoformat(),
@@ -171,9 +185,10 @@ def test_old_capture_does_not_claim_command_confirmation():
         )
     )
     entity = V3ClimateEntity(coordinator, car)
-    assert entity.hvac_mode == HVACMode.HEAT_COOL
-    assert entity.hvac_action is None
-    assert entity.extra_state_attributes["state_source"] == "command_pending"
+    assert entity.hvac_mode == HVACMode.OFF
+    assert entity.hvac_action.value == "off"
+    assert entity.extra_state_attributes["state_source"] == "vehicle"
+    assert entity.extra_state_attributes["command_status"] == "accepted_unconfirmed"
     car.set_climate(
         "heating", now.isoformat(), route="test", observed_at=now, http_status=200
     )
@@ -246,3 +261,84 @@ def test_native_q8_setpoint_does_not_start_climate_or_claim_unread_temperature()
     )
     assert entity.target_temperature == 20
     assert entity.hvac_mode is None
+
+
+def test_climate_discovery_selects_temperature_route_per_vehicle():
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from homeassistant.components.climate import ClimateEntityFeature
+
+    from custom_components.audiconnect.v3.control_resolution import control_decision
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    catalog = CapabilityRegistry.from_json_file(catalog_path())
+    auth = NS(uses_auth0=True, service=NS(_spin=""))
+    stored = "cariad.climate.start.stored"
+    temperature = "cariad.climate.start.vehicle_settings"
+
+    def discovered(vin, temperature_works):
+        # Same advertised capability, no manufacturer model needed.
+        car = V3Vehicle(vin, "Audi", "", "", "DE", auth_family="auth0")
+        car.advertised_capabilities.add("climatisation")
+        car.readings["climatisationTargetTemperatureC"] = {"value": 21}
+        profile = DevelopmentProfile(catalog, car.context, cooldown_seconds=0)
+        assert temperature in {
+            row["operation"]
+            for row in profile.discovery.candidates("climate", "start_with_settings")
+        }
+        for index, (action, route, worked) in enumerate(
+            (
+                ("start", stored, not temperature_works),
+                ("start_with_settings", temperature, temperature_works),
+                ("set_settings", "cariad.climate.settings", False),
+            )
+        ):
+            stamp = 100 + index * 10
+            attempt = profile.begin_test("climate", action, route, now=stamp)
+            profile.observe_http(attempt.sequence, 200)
+            profile.confirm(
+                attempt.sequence, worked=worked, inspected_vehicle=True, now=stamp + 1
+            )
+            if worked:
+                profile.choose_working("climate", action, route)
+
+        def resolve(vin, action, capability):
+            return control_decision(car, profile, auth, capability, action)["operation"]
+
+        engine = NS(
+            profiles={vin.lower(): profile},
+            control_enabled=lambda *args: resolve(*args) is not None,
+            send_control=AsyncMock(),
+        )
+        entity = V3ClimateEntity(NS(engine=engine), car)
+        entity.async_write_ha_state = lambda: None
+        return entity, engine, resolve
+
+    stored_entity, stored_engine, stored_route = discovered(VIN, False)
+    other_vin = "WAUZZZ4M0MD123457"
+    temp_entity, temp_engine, temp_route = discovered(other_vin, True)
+
+    assert stored_route(VIN, "start", "climate") == stored
+    assert stored_route(VIN, "start_with_settings", "climate") is None
+    assert (
+        not stored_entity.supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
+    )
+    # Reading a stored setpoint does not authorize a temperature-bearing start.
+    assert stored_entity.reported_target_temperature == 21
+    assert stored_entity.target_temperature == 21
+    assert stored_entity.extra_state_attributes["reported_target_temperature"] == 21
+    asyncio.run(stored_entity.async_turn_on())
+    stored_engine.send_control.assert_awaited_once_with(VIN, "start", "climate")
+
+    assert temp_route(other_vin, "start", "climate") is None
+    assert temp_route(other_vin, "start_with_settings", "climate") == temperature
+    assert temp_entity.supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
+    assert temp_entity.reported_target_temperature == 21
+    assert temp_entity.target_temperature == 21
+    asyncio.run(temp_entity.async_turn_on())
+    temp_engine.send_control.assert_awaited_once_with(
+        other_vin, "start_with_settings", "climate", params={"temp_c": 21}
+    )

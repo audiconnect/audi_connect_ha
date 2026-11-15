@@ -90,4 +90,6 @@ def test_legacy_uses_shared_observation_and_never_overwrites_newer_capture():
     assert row["operation"] == "mbb.charger.readonly"
     assert profile.attribute_evidence["stateOfCharge"]["source"] == "mbb.legacy"
     observe_legacy(car, profile, "charger", sample(60, now - timedelta(hours=24)))
-    assert car.readings["stateOfCharge"] == row
+    current = car.readings["stateOfCharge"]
+    assert {key: value for key, value in current.items() if key != "last_known"} == row
+    assert current["last_known"]["value"] == 60.0

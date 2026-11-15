@@ -18,7 +18,6 @@ from .command_journal import (
     dispatch_block_reason,
     ENGINEERING_COMMAND_COOLDOWN_SECONDS,
     unresolved_normal_commands,
-    blocking_normal_command,
 )
 from .operation_revision import operation_revision
 from .command_parameters import (
@@ -264,12 +263,8 @@ class CommandEngine:
                 and active.sequence != profile.invalidated_attempt_sequence
             ):
                 record = profile.engineering_record(active.sequence)
-                if (
-                    record
-                    and record.state == "accepted_unconfirmed"
-                    and reconcile_readback(record, car, registry=profile.registry)
-                ):
-                    self._confirm_working_readback(profile, active, record)
+                if record is not None:
+                    reconcile_readback(record, car, registry=profile.registry)
             # Reconcile independent commands even when a different capability
             # has subsequently been used. Never attribute a newer same-field
             # observation to a superseded accepted action.
@@ -292,20 +287,24 @@ class CommandEngine:
                 ):
                     car.last_command_result = record.state
 
+    def binding_snapshot(self, car, profile):
+        """Resolve one vehicle's controls without network or profile mutation."""
+        return {
+            f"{capability}.{action}": control_decision(
+                car, profile, self.auth, capability, action
+            )
+            for capability, definition in profile.registry.capabilities.items()
+            for action in (definition.get("control") or {})
+        }
+
     def refresh_bindings(self) -> None:
-        """Pure local matching; no request per control and no physical tests."""
+        """Publish the current control decisions at the runtime boundary."""
         for key, profile in self.profiles.items():
             try:
                 car = self.require_vehicle(key)
             except ValueError:
                 continue
-            profile.fast_bindings = {
-                f"{capability}.{action}": control_decision(
-                    car, profile, self.auth, capability, action
-                )
-                for capability, definition in profile.registry.capabilities.items()
-                for action in (definition.get("control") or {})
-            }
+            profile.fast_bindings = self.binding_snapshot(car, profile)
 
     def command_route(self, vin: str, aspect: str, capability: str) -> str | None:
         try:
@@ -407,7 +406,10 @@ class CommandEngine:
             candidate = user_test_candidates(
                 self, car, profile, include_verified=expert
             ).get(f"{capability}.{aspect}")
-            if candidate is None or candidate[3:] != (alternative, approval):
+            if not candidate or (
+                candidate["operation"],
+                candidate["approval_group"],
+            ) != (alternative, approval):
                 return {**result, "alternative": "no_eligible_route"}
             try:
                 next_result = await self._test_action_once(
@@ -446,10 +448,14 @@ class CommandEngine:
             candidate = user_test_candidates(
                 self, vehicle, profile, include_verified=expert
             ).get(f"{capability}.{aspect}")
-            if candidate is None or candidate[3:] != (operation, approval) or params:
+            if not candidate or (
+                candidate["operation"],
+                candidate["approval_group"],
+            ) != (operation, approval):
                 raise ValueError(
                     "Discovery action changed; refresh status before testing"
                 )
+            validate_inputs(params or {}, candidate["parameter_schema"])
         family = profile.registry.operations.get(operation, {}).get("family")
         if family not in ("cariad", "mbb") or (
             family == "mbb" and self.auth.uses_auth0
@@ -527,15 +533,13 @@ class CommandEngine:
             and attempt.sequence != profile.invalidated_attempt_sequence
         ):
             profile.reject_test(attempt.sequence, now=time.time())
+        telemetry_received = False
         if guided and response is not None and record.state == "accepted_unconfirmed":
-            observe_command_response(record, vehicle, profile, family, response)
-            if (
-                record.state == "verified"
-                and attempt.sequence != profile.invalidated_attempt_sequence
-            ):
-                self._confirm_working_readback(profile, attempt, record)
+            telemetry_received = observe_command_response(
+                record, vehicle, profile, family, response
+            )
         await self.storage.async_save(self.profiles)
-        if guided and attempt.result in ("worked", "rejected"):
+        if telemetry_received or (guided and attempt.result in ("worked", "rejected")):
             self._notify_discovery_change()
         return {
             "sequence": attempt.sequence,
@@ -559,21 +563,6 @@ class CommandEngine:
                 else "requires_user_confirmation"
             ),
         }
-
-    def _confirm_working_readback(self, profile, attempt, record):
-        profile.confirm(
-            attempt.sequence,
-            worked=True,
-            inspected_vehicle=False,
-            now=max(time.time(), record.completed_at or record.started_at),
-            readback_verified=True,
-        )
-        if profile.control_results.get(attempt.operation) == "worked" and runtime_ready(
-            profile.custom.get(attempt.operation, {})
-        ):
-            profile.choose_working(
-                attempt.capability, attempt.action, attempt.operation
-            )
 
     async def review_action(
         self,
@@ -629,10 +618,6 @@ class CommandEngine:
             ):
                 raise RuntimeError(
                     "A control experiment for this capability is awaiting physical confirmation"
-                )
-            if blocking_normal_command(p, capability) is not None:
-                raise RuntimeError(
-                    "Previous command for this capability is uncertain; inspect and review it"
                 )
             if _follow_up_to is not None:
                 parent = p.last_command
@@ -696,45 +681,32 @@ class CommandEngine:
                     car.last_command_result = f"request_failed_{response.status}"
                 else:
                     car.last_command_result = record.state
-                    # Persist acceptance before publishing the effective control
-                    # state. Do not wait for the optional read-only confirmation.
+                    # A response's actual telemetry is independent of its command
+                    # outcome. Publish it before waiting for backend confirmation.
+                    observe_command_response(record, car, p, family, response)
                     await self.storage.async_save(self.profiles)
                     self._notify_discovery_change()
+                    outcome = record.backend_result
                     if family == "cariad":
                         from .request_status import confirm
 
-                        request_id = record.request_id
-                        if request_id is not None:
-                            car.last_command_result = await confirm(
-                                self.transport, car.vin, request_id
+                        if record.request_id is not None:
+                            outcome = await confirm(
+                                self.transport, car.vin, record.request_id
                             )
                     elif family == "mbb":
                         from .legacy_commands import confirm
 
-                        car.last_command_result = await confirm(
-                            self.transport, path, response.data
-                        )
-                    record.backend_result = car.last_command_result
-                    if car.last_command_result in ("backend_completed", "rejected"):
-                        record.state = car.last_command_result
-                        record.completed_at = max(record.started_at, time.time())
-                    elif car.last_command_result in (
-                        "unknown",
-                        "quota_limited",
-                        "pending",
-                    ):
-                        # A failed status GET cannot undo a successful POST/PUT.
-                        # A known accepted access mutation is not an unknown
-                        # transport outcome. The journal retains the 2xx proof.
-                        if capability not in ("climate", "charging", "access"):
-                            record.state = "uncertain"
-                        else:
-                            car.last_command_result = record.state
+                        outcome = await confirm(self.transport, path, response.data)
+                    if outcome is not None:
+                        record.observe_backend(outcome, time.time())
+                    car.last_command_result = record.state
             except asyncio.CancelledError:
-                # The pre-dispatch journal is already durable; restart restores uncertainty.
-                record.state = "uncertain"
-                record.backend_result = "transport_uncertain"
-                car.last_command_result = "transport_uncertain"
+                # Never discard known HTTP acceptance on interrupted status checks.
+                if record.http_status is None:
+                    record.state = "uncertain"
+                    record.backend_result = "transport_uncertain"
+                    car.last_command_result = "transport_uncertain"
                 raise
             except (TimeoutError, OSError, RuntimeError, ValueError) as err:
                 record.state = "uncertain"
@@ -743,18 +715,10 @@ class CommandEngine:
                 record.completed_at = max(record.started_at, time.time())
                 await self.storage.async_save(self.profiles)
                 self._notify_discovery_change()
-                advice = (
-                    "inspect and review in Engineering Dashboard"
-                    if record.requires_review
-                    else "check the vehicle; try again after the short cooldown"
-                )
+                advice = "check the vehicle; try again after the short cooldown"
                 raise RuntimeError(
                     f"Audi {capability}.{aspect}: connection error or timeout; outcome uncertain. {advice}."
                 ) from err
-            if record.state in ("accepted_unconfirmed", "backend_completed"):
-                observe_command_response(record, car, p, family, response)
-                if record.state == "verified":
-                    car.last_command_result = "verified"
             if record.state in ("rejected", "uncertain"):
                 record.completed_at = max(record.started_at, time.time())
             await self.storage.async_save(self.profiles)
@@ -766,9 +730,7 @@ class CommandEngine:
                     else (record.backend_result or record.state)
                 )
                 advice = (
-                    "inspect and review in Engineering Dashboard"
-                    if record.requires_review
-                    else "check the vehicle; try again after the short cooldown"
+                    "check the vehicle; try again after the short cooldown"
                     if record.state == "uncertain"
                     else "check permissions, quota or vehicle prerequisites"
                 )

@@ -338,8 +338,10 @@ class V3Engine:
             except (OSError, ValueError):
                 _LOGGER.warning("Unable to restore private Audi trip archive")
         from .identity_cache import capture_identity, withdraw_optional_identity
+        from .attribute_runtime import bind_status
 
         for key, car in known.items():
+            bind_status(car, self.profiles[key])
             if getattr(self.auth, "data_act_client", None) is None:
                 withdraw_optional_identity(car, self.profiles[key])
             identity = capture_identity(car)
@@ -1560,6 +1562,8 @@ class V3Engine:
                 )
             if capture["source_job"] not in V2_JOBS:
                 capture["source_job"] = None
+            if capture["source_operation"] not in self.registry.operations:
+                capture["source_operation"] = None
             # Keep historical-only evidence, without repeating current fields.
             historical = {}
             for job, rows in getattr(p, "historical_job_schema", {}).items():

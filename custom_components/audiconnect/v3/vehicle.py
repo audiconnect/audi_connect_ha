@@ -37,15 +37,6 @@ def charging_active(value):
     )
 
 
-def charging_ready(value):
-    """Only explicit OEM readiness statuses, not a command permission."""
-    if not isinstance(value, str):
-        return None
-    return {"readyforcharging": True, "notreadyforcharging": False}.get(
-        value.strip().lower()
-    )
-
-
 def window_heating_active(rows):
     """Actual window state only: a positive is conclusive; off requires both known."""
     if not isinstance(rows, list) or not rows:
@@ -288,19 +279,20 @@ class V3Vehicle:
         )
 
     @classmethod
-    def from_data_act(cls, item: dict[str, Any], country: str) -> V3Vehicle:
+    def from_data_act(cls, item: dict[str, Any], country: str, registry) -> V3Vehicle:
         """Portal metadata, never user nickname or inferred VIN decoding."""
         from .data_act import IDENTITY_OPERATION
 
         vin = item.get("vin")
         if not isinstance(vin, str) or len(vin) != 17 or not vin.isalnum():
             raise ValueError("Invalid Audi vehicle identifier")
-        model = item.get("modelName")
+        fields = registry.identity_fields("eu_data_act", IDENTITY_OPERATION, item)
+        model, model_path = fields.get("model", (None, ""))
         model = model.strip() if isinstance(model, str) else ""
         family = model_family_from_name(model)
         if not family or len(model) > 120 or vin.lower() in model.lower():
             model, family = "", ""
-        year = str(item.get("modelYear") or "")
+        year = str(fields.get("model_year", (None, ""))[0] or "")
         year = (
             year
             if len(year) == 4 and year.isdigit() and 1980 <= int(year) <= 2100
@@ -313,7 +305,7 @@ class V3Vehicle:
             family,
             country,
             model_year=year,
-            model_source="eu_data_act_modelName" if model else "",
+            model_source=f"eu_data_act_{model_path}" if model else "",
             identity_operation=IDENTITY_OPERATION if model else None,
             year_operation=IDENTITY_OPERATION if year else None,
         )
@@ -465,7 +457,7 @@ class V3Vehicle:
 
     @property
     def capture_age_minutes(self) -> int | None:
-        if self.climate_captured is None:
+        if self.climate_state is None or self.climate_captured is None:
             return None
         from .freshness import capture_age_minutes
 

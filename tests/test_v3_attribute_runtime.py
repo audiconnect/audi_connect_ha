@@ -301,6 +301,7 @@ def test_charge_mode_has_one_capture_aware_normalization_path():
                 },
                 "chargeMode": {
                     "value": {
+                        "carCapturedTimestamp": stamp.isoformat(),
                         "preferredChargeMode": preferred,
                         "availableChargeModes": options,
                     }
@@ -355,7 +356,7 @@ def test_family_selection_prefers_newest_capture_then_priority():
     later = now + timedelta(hours=2)
     assert not sample("mbb", 70, now - timedelta(hours=1), later)
     assert not sample("mbb", 70, None, later)
-    assert sample("mbb", 81, newer, later)
+    assert not sample("mbb", 81, newer, later)
     assert vehicle.readings["stateOfCharge"]["family"] == "mbb"
     assert sample("cariad", 79, now, later)
     assert vehicle.readings["stateOfCharge"]["family"] == "mbb"
@@ -656,3 +657,66 @@ def test_future_capture_never_becomes_valid_after_waiting():
         persist_evidence=False,
     )
     assert vehicle.readings["stateOfCharge"]["value"] == 80
+
+
+def test_undated_charge_mode_options_preserve_discovery_without_write_permission():
+    from itertools import permutations
+    from custom_components.audiconnect.v3.command_policy import charge_mode_evidence
+
+    now = datetime.now(UTC)
+    for options in permutations((["manual", "timer"], [])):
+        vehicle, profile = car(), Profile()
+        for values in options:
+            observe_read_only(
+                vehicle,
+                profile,
+                {
+                    "charging": {
+                        "chargeMode": {
+                            "value": {
+                                "availableChargeModes": values,
+                                "preferredChargeMode": "manual",
+                            }
+                        }
+                    }
+                },
+                now,
+            )
+        assert (
+            vehicle.readings["availableChargeModes"]["reason"]
+            == "conflicting_source_values"
+        )
+        evidence = charge_mode_evidence(vehicle, None)
+        assert evidence["last_known_advertised_modes"] == ["manual", "timer"]
+        assert evidence["writable_modes"] == []
+        assert vehicle.readings["preferredChargeMode"]["captured"] is None
+
+
+def test_inactive_charging_projection_has_explicit_not_applicable_reason():
+    from custom_components.audiconnect.v3.product_contract import projection_reading
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    vehicle.readings["remainingChargingTime"] = {
+        "value": 30,
+        "captured": (now - timedelta(minutes=1)).isoformat(),
+        "status": "verified",
+    }
+    vehicle.readings["chargingState"] = {
+        "value": "readyForCharging",
+        "captured": now.isoformat(),
+        "status": "verified",
+        "last_known": {
+            "value": "charging",
+            "captured": (now - timedelta(minutes=1)).isoformat(),
+        },
+    }
+    for ident in ("remainingChargingTime", "charging_complete_time"):
+        _, row = projection_reading(vehicle, ATTRIBUTES[ident], now=now)
+        attrs = reading_freshness_attributes(row, now=now)
+        assert row["value"] is None
+        assert attrs["availability_reason"] == "charging_not_active"
+        assert attrs["last_known_state"] is None
+    assert vehicle.readings["remainingChargingTime"]["value"] == 30

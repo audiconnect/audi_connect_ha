@@ -11,7 +11,7 @@ Connect your Audi to Home Assistant. See vehicle status, charging, climate, trip
 More vehicle coverage. Less configuration. Community-powered innovation.
 
 > [!IMPORTANT]
-> V2 remains the default and fallback. Experimental V3 is available only in builds that include it; it is not yet a stable release. See the [V3 review](https://github.com/audiconnect/audi_connect_ha/pull/918) and [V3 setup guide](docs/V3_REVIEW.md) before testing.
+> V2 remains the default and fallback. Experimental V3 is available only in builds that include it; it is not yet a stable release. See the [V3 review](https://github.com/audiconnect/audi_connect_ha/pull/918) and [V3 setup guide](docs/V3_REVIEW.md) before testing. See [V3 acceptance](docs/V3_FEATURE_CLOSURE.md) for current evidence and open release gates.
 
 ## What can it do?
 
@@ -53,7 +53,7 @@ EU Data Act is read-only, optional and disabled by default. Its deliveries can b
 
 To try V3, back up Home Assistant, install a build that includes V3 and choose **V3 — Experimental** in the existing integration's options. Keep your existing config entry, devices and entities. See the [V3 guide](docs/V3_REVIEW.md) for Data Act setup, Workbench and rollback.
 
-Initial field tests demonstrated persistent trip history and physical charging start/stop on a Q5, and first Data Act delivery and consolidation on a Q8. These are vehicle-specific observations, not universal support. Manufacturer identity, additional mappings and cross-model acceptance remain open.
+Field tests demonstrated persistent trip history and physical charging start/stop on a Q5 in B35, and Data Act delivery and consolidation on a Q8. Later Q5 builds reported charging STOP failures. These are vehicle-specific observations, not universal support. Manufacturer identity, charging reliability and cross-model acceptance remain open.
 
 ## Help us discover what your Audi can do
 

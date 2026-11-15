@@ -98,7 +98,7 @@
           "edit_local_dealer": "Edit dealer and local service details",
           "runtime_version": "Runtime",
           "v3_development_workbench": "Enable V3 Development Workbench",
-          "run_vehicle_discovery": "Vehicle discovery and control acceptance",
+          "run_vehicle_discovery": "Vehicle setup & discovery",
           "manage_data_act": "Manage EU Data Act"
         },
         "title": "Audi Connect Options",
@@ -109,11 +109,12 @@
           "scan_interval": "Minutes between cloud polling updates.",
           "filter_vins": "Comma-separated VIN list to exclude from setup and updates.",
           "edit_local_dealer": "Open the form to save dealership, service appointment and warranty details locally, without any Audi API requests.",
-          "runtime_version": "V2 retains historical stable functionality. V3 — Experimental uses independent capability discovery, polling, API configuration and Home Assistant entities. Switch back here at any time.",
+          "runtime_version": "V2 retains historical stable functionality. V3 — Experimental uses independent capability discovery, polling, API configuration and Home Assistant entities. Switch back here at any time. V3 — Experimental. After saving and reloading, reopen Configure to run Vehicle setup & discovery or manage optional EU Data Act.",
           "v3_development_workbench": "Show the administrator-only API Development Workbench in the sidebar only while V3 is active. Off by default; saved experimental API profiles are kept.",
-          "run_vehicle_discovery": "Review automatic read discovery and explicitly test eligible physical actions without the Engineering Workbench. No vehicle action runs unless you consent to that specific action.",
+          "run_vehicle_discovery": "Open at any time to review automatic read discovery, run Guided or select one function, including retests. Each physical action requires explicit consent.",
           "manage_data_act": "Connect, reconnect or disconnect the optional read-only portal source. Native Audi login is unchanged."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "dealer_vehicle": {
         "title": "Choose vehicle",
@@ -143,16 +144,18 @@
       },
       "discovery": {
         "title": "Vehicle discovery",
-        "description": "{vehicle}: {read_state}. Read assessment {read}% ({assessed}/{total}); physically verified controls {verified}/{controls} catalog candidates. Read assessment is not proof of vehicle support. Refresh is read-only. No remaining eligible tests in this session. Finish or refresh read discovery.",
+        "description": "{vehicle}: {read_state}. Read assessment {read}% ({assessed}/{total}); physically verified controls {verified}/{controls} catalog candidates. Choose Guided to test eligible unverified functions, choose a specific function to test or retest, resume read discovery, or finish. No physical action runs without separate consent.",
         "data": {
           "action": "Next action"
         }
       },
       "discovery_consent": {
         "title": "Discover vehicle function?",
-        "description": "{vehicle} — {action}. Verified {verified}/{controls}; skipped {skipped}. This authorizes this specific physical action on the vehicle and may unlock or lock doors, change charging or climate operation, or flash lights. Ensure the vehicle is safely parked, you are authorized and present, nobody is endangered, and you can inspect and restore its state. Only a definitively rejected command may use one reviewed equivalent route. No automatic repeat after uncertainty and no other action.",
+        "description": "{vehicle} — {action}. {instructions} Verified {verified}/{controls}; skipped {skipped}. This authorizes this specific physical action on the vehicle and may unlock or lock doors, change charging or climate operation, or flash lights. Ensure the vehicle is safely parked, you are authorized and present, nobody is endangered, and you can inspect and restore its state. Only a definitively rejected command may use one reviewed equivalent route. No automatic repeat after uncertainty and no other action.",
         "data": {
-          "accept": "Discover this function?"
+          "accept": "Discover this function?",
+          "temp_c": "Target temperature (°C)",
+          "value": "Target value"
         }
       },
       "discovery_review": {
@@ -171,9 +174,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Connect / reconnect",
-          "data_act_disconnect": "Disconnect"
+        "description": "{data_act_status}\n\nChoose connect/reconnect to verify portal credentials, or disconnect to remove local credentials and stop Data Act reads. Your native Audi connection and portal request are not changed.",
+        "data": {
+          "action": "Connection"
         }
       },
       "data_act_credentials": {
@@ -183,10 +186,6 @@
           "email": "Portal email",
           "password": "Portal password"
         }
-      },
-      "data_act_disconnect": {
-        "title": "Disconnect EU Data Act",
-        "description": "Remove local portal credentials and stop Data Act reads. This does not revoke your request in the portal."
       }
     },
     "error": {
@@ -215,6 +214,13 @@
         "stop_preheater": "Stop Preheater",
         "start_window_heating": "Start Window heating",
         "stop_window_heating": "Stop Windows heating"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Connect / reconnect",
+        "disconnect": "Disconnect",
+        "keep": "Keep current connection"
       }
     }
   },
@@ -552,7 +558,7 @@
         "name": "Vehicle data freshness"
       },
       "v3_vehicle_data_age": {
-        "name": "Vehicle data age"
+        "name": "Latest vehicle data age"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Cloud last successful poll"
@@ -645,7 +651,7 @@
         "name": "Trip history"
       },
       "v3_discovery_coverage": {
-        "name": "Discovery coverage"
+        "name": "Discovery assessment"
       },
       "v3_integration_status": {
         "name": "Integration status"
@@ -664,6 +670,21 @@
       },
       "v3_fuel_range": {
         "name": "Fuel range"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Not configured",
+          "credentials_required": "Credentials required",
+          "awaiting_data": "Awaiting data",
+          "connected": "Connected",
+          "partial": "Partially connected",
+          "authorization_required": "Authorization required",
+          "vehicle_access_denied": "Vehicle access denied",
+          "subscription_unavailable": "Subscription unavailable",
+          "rate_limited": "Rate limited",
+          "unavailable": "Temporarily unavailable"
+        }
       }
     },
     "binary_sensor": {
@@ -738,9 +759,6 @@
       },
       "v3_integration_problem": {
         "name": "Integration problem"
-      },
-      "v3_charging_ready": {
-        "name": "Charging ready"
       }
     },
     "button": {

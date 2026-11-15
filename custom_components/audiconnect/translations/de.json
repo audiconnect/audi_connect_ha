@@ -100,7 +100,7 @@
           "experimental_commands": "Experimentelle Fahrzeugsteuerungen aktivieren",
           "v3_development_workbench": "V3-Entwicklungswerkbank aktivieren",
           "runtime_version": "Laufzeitversion",
-          "run_vehicle_discovery": "Fahrzeugerkennung und Steuerung testen",
+          "run_vehicle_discovery": "Fahrzeugeinrichtung & Erkennung",
           "manage_data_act": "EU Data Act verwalten"
         },
         "title": "Audi Connect-Optionen",
@@ -114,10 +114,11 @@
           "edit_local_dealer": "Öffnet ein Formular zur lokalen Speicherung von Händlerdaten, Serviceterminen und Garantieinformationen in Home Assistant. Dabei werden keine Anfragen an die Audi-API gesendet.",
           "experimental_commands": "Aktiviert zusätzliche, manuell auslösbare CARIAD-Fahrzeugaktionen für das Laden, die Scheibenheizung und das Aufwecken des Fahrzeugs. Standardmässig deaktiviert. Die tatsächliche Ausführung muss überprüft werden, da eine erfolgreiche API-Antwort nicht zwangsläufig bedeutet, dass das Fahrzeug die Aktion ausgeführt hat.",
           "v3_development_workbench": "Die API-Entwicklungswerkbank nur im V3-Modus für Administratoren anzeigen. Standardmäßig aus; gespeicherte API-Profile bleiben erhalten.",
-          "runtime_version": "V2 bleibt Standard und Rückfalloption. V3 ist experimentell und verwendet eine eigene Erkennung, Abfrage und Home-Assistant-Entitäten. Ein Wechsel zurück ist jederzeit möglich.",
-          "run_vehicle_discovery": "Automatische Erkennung prüfen und verfügbare Steuerungen ausdrücklich testen. Ohne Zustimmung zur jeweiligen Aktion wird keine Fahrzeugaktion ausgeführt.",
+          "runtime_version": "V2 bleibt Standard und Rückfalloption. V3 ist experimentell und verwendet eine eigene Erkennung, Abfrage und Home-Assistant-Entitäten. Ein Wechsel zurück ist jederzeit möglich. Nach dem Speichern und Neuladen von V3 die Konfiguration erneut öffnen, um die Fahrzeugeinrichtung oder optional EU Data Act aufzurufen.",
+          "run_vehicle_discovery": "Jederzeit verfügbar: automatische Erkennung prüfen, geführte Tests oder einzelne Funktionen erneut testen. Jede Fahrzeugaktion erfordert ausdrückliche Zustimmung.",
           "manage_data_act": "Optionale schreibgeschützte Quelle verbinden, erneut verbinden oder trennen. Die native Audi-Anmeldung bleibt unverändert."
-        }
+        },
+        "description": "{data_act_status}"
       },
       "dealer_vehicle": {
         "title": "Fahrzeug auswählen",
@@ -141,9 +142,9 @@
       },
       "data_act": {
         "title": "EU Data Act",
-        "menu_options": {
-          "data_act_credentials": "Verbinden / erneut verbinden",
-          "data_act_disconnect": "Trennen"
+        "description": "{data_act_status}\n\nWählen Sie Verbinden zur Prüfung der Portal-Zugangsdaten oder Trennen zum Entfernen der lokalen Zugangsdaten. Die native Audi-Verbindung und Portalanfrage bleiben unverändert.",
+        "data": {
+          "action": "Verbindung"
         }
       },
       "data_act_credentials": {
@@ -153,10 +154,6 @@
           "email": "Portal-E-Mail",
           "password": "Portal-Passwort"
         }
-      },
-      "data_act_disconnect": {
-        "title": "EU Data Act trennen",
-        "description": "Lokale Portal-Zugangsdaten entfernen und Abfragen beenden. Die Anfrage im Portal wird nicht widerrufen."
       }
     },
     "error": {
@@ -185,6 +182,13 @@
         "start_window_heating": "Fensterheizung starten",
         "stop_window_heating": "Stoppen Sie die Fensterheizung",
         "is_moving": "In Bewegung"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Verbinden / erneut verbinden",
+        "disconnect": "Trennen",
+        "keep": "Aktuelle Verbindung beibehalten"
       }
     }
   },
@@ -522,7 +526,7 @@
         "name": "Aktualität der Fahrzeugdaten"
       },
       "v3_vehicle_data_age": {
-        "name": "Alter der Fahrzeugdaten"
+        "name": "Alter der neuesten Fahrzeugdaten"
       },
       "v3_cloud_last_successful_poll": {
         "name": "Letzte erfolgreiche Cloud-Abfrage"
@@ -615,7 +619,7 @@
         "name": "Fahrtenverlauf"
       },
       "v3_discovery_coverage": {
-        "name": "Erkennungsabdeckung"
+        "name": "Discovery-Bewertung"
       },
       "v3_integration_status": {
         "name": "Integrationsstatus"
@@ -634,6 +638,21 @@
       },
       "v3_fuel_range": {
         "name": "Kraftstoffreichweite"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Nicht konfiguriert",
+          "credentials_required": "Zugangsdaten erforderlich",
+          "awaiting_data": "Warten auf Daten",
+          "connected": "Verbunden",
+          "partial": "Teilweise verbunden",
+          "authorization_required": "Autorisierung erforderlich",
+          "vehicle_access_denied": "Fahrzeugzugriff verweigert",
+          "subscription_unavailable": "Abonnement nicht verfügbar",
+          "rate_limited": "Anfragelimit erreicht",
+          "unavailable": "Vorübergehend nicht verfügbar"
+        }
       }
     },
     "binary_sensor": {
@@ -708,9 +727,6 @@
       },
       "v3_integration_problem": {
         "name": "Integrationsproblem"
-      },
-      "v3_charging_ready": {
-        "name": "Ladebereit"
       }
     },
     "button": {

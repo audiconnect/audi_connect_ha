@@ -56,29 +56,6 @@ const domainName = (value) =>
     vehicle_status: "Vehicle status",
     vehicle_identity: "Vehicle identity",
   })[value] || friendly(value);
-const actionName = (cap, action) =>
-  ({
-    "climate.start": "Climate · Turn on (vehicle settings)",
-    "climate.stop": "Climate · Turn off",
-    "climate.start_with_settings": "Climate · Turn on with selected settings",
-    "climate.set_settings": "Climate · Update settings",
-    "climate.window_heating_start": "Window heating · Turn on",
-    "climate.window_heating_stop": "Window heating · Turn off",
-    "climate.preheater_start": "Preheater · Turn on",
-    "climate.preheater_stop": "Preheater · Turn off",
-    "access.lock": "Central locking · Lock",
-    "access.unlock": "Central locking · Unlock",
-    "charging.start": "Charging · Start",
-    "charging.stop": "Charging · Stop",
-  })[cap + "." + action] ||
-  {
-    wake: "Wake vehicle",
-    refresh: "Request fresh vehicle data",
-    flash: "Flash lights",
-    set_target_soc: "Set charge target",
-    set_charge_mode: "Set charge mode",
-  }[action] ||
-  friendly(action);
 const stateTone = (value) =>
   ["verified", "worked", "local_verified"].includes(value)
     ? "good"
@@ -623,7 +600,7 @@ class AudiConnectV3Panel extends HTMLElement {
           approval: candidate.approval_group,
           end_user: true,
           expert: this.expertDiscovery,
-          parameters: {},
+          parameters: this.parameterValues(candidate, "{}"),
         });
         await this._loadCapabilityStatus();
         await this._apiResults();
@@ -1320,7 +1297,7 @@ class AudiConnectV3Panel extends HTMLElement {
     const schema = route?.parameter_schema || {};
     const key = this.definitionKey(
       "parameters",
-      JSON.stringify([route?.id, schema]),
+      JSON.stringify([route?.id ?? route?.operation, schema]),
     );
     return Object.entries(schema)
       .map(([name, rule]) => {
@@ -1333,7 +1310,7 @@ class AudiConnectV3Panel extends HTMLElement {
         const field = choices
           ? `<select ${attrs}><option value="">${rule.required ? "Choose" : "Unchanged"}</option>${choices.map((x) => `<option value="${escapeHTML(x)}" ${String(x) === value ? "selected" : ""}>${escapeHTML(x)}</option>`).join("")}</select>`
           : `<input ${attrs} type="${["integer", "number"].includes(rule.type) ? "number" : "text"}" value="${escapeHTML(value)}" ${rule.minimum != null ? `min="${rule.minimum}"` : ""} ${rule.maximum != null ? `max="${rule.maximum}"` : ""} step="${rule.step ?? (rule.type === "integer" ? 1 : "any")}">`;
-        return `<div class="definition-row"><label>${escapeHTML(name.replaceAll("_", " "))}${rule.required ? " *" : ""}</label>${field}</div>`;
+        return `<div class="definition-row"><label>${escapeHTML(rule.label || name.replaceAll("_", " "))}${rule.required ? " *" : ""}</label>${field}</div>`;
       })
       .join("");
   }
@@ -1343,7 +1320,7 @@ class AudiConnectV3Panel extends HTMLElement {
     if (!Object.keys(schema).length) return JSON.parse(fallback);
     const key = this.definitionKey(
       "parameters",
-      JSON.stringify([route.id, schema]),
+      JSON.stringify([route.id ?? route.operation, schema]),
     );
     const result = {};
     for (const [name, rule] of Object.entries(schema)) {
@@ -1474,29 +1451,87 @@ class AudiConnectV3Panel extends HTMLElement {
     );
   }
 
+  actionName(capability, action) {
+    return (
+      (this.capabilityStatus.end_user_progress?.controls || []).find(
+        (row) => row.capability === capability && row.action === action,
+      )?.label ||
+      (action === "wake"
+        ? "Wake vehicle"
+        : `${domainName(capability)} · ${friendly(action)}`)
+    );
+  }
+
   nextEndUserCandidate() {
     return (this.capabilityStatus.end_user_candidates || []).find(
       (c) => !this.skippedControls.has(c.capability + "." + c.action),
     );
   }
 
+  capabilityMatrix(rows, families) {
+    if (!rows.length)
+      return "<p>No matching attributes. Show all attributes to inspect missing data.</p>";
+    const sources = families
+      .map((source) => ({
+        ...source,
+        samples: new Map(
+          (source.observations || []).map((row) => [row.attribute, row]),
+        ),
+        declared: new Set(source.declared_attributes || []),
+      }))
+      .filter((source) =>
+        rows.some(
+          (row) =>
+            source.declared.has(row.attribute) ||
+            source.samples.has(row.attribute),
+        ),
+      );
+    return `<p class="helper">Selected source is marked ✓. Newest valid capture wins; source priority breaks equivalent captures (lower number first). Last known is not live data.</p>
+      <div class="coverage-table"><table><thead><tr><th>Attribute / HA entity</th>${sources.map((source) => `<th>${escapeHTML(source.label)}<div class="subline">Priority ${escapeHTML(source.priority ?? "—")}</div></th>`).join("")}<th>Inspect</th></tr></thead><tbody>
+      ${rows
+        .map(
+          (
+            row,
+          ) => `<tr><td><b>${escapeHTML(row.metadata?.name || friendly(row.entity_key))}</b>${row.detail ? "" : `<div class="subline">${pill(row.status)}</div>`}<div class="subline">${row.detail ? "Read-only detail" + (row.unit ? " · " + escapeHTML(row.unit) : "") : this.entityLinks(row.entity_ids) || "No registered entity"}</div></td>
+      ${sources
+        .map((source) => {
+          const sample = source.samples.get(row.attribute);
+          if (!sample)
+            return `<td class="muted">${source.declared.has(row.attribute) ? "Mapped · no value" : "—"}</td>`;
+          const value =
+            sample.valid === false
+              ? "Invalid value"
+              : (sample.normalized_value ?? "Not retained");
+          return `<td><b>${sample.selected && !row.detail ? "✓ " : ""}${escapeHTML(value)}</b><div class="subline">${sample.valid === false ? "Invalid" : sample.fresh ? "Fresh" : sample.captured ? "Last known" : "Capture unknown"}${sample.captured ? " · " + escapeHTML(this.localTime(sample.captured)) : ""}</div><details><summary>Source details</summary><code>${escapeHTML(sample.source_field || "—")}</code>${sample.derived_from ? `<div class="subline">Derived from ${escapeHTML(sample.derived_from)}</div>` : ""}${sample.operation ? `<div class="subline">${escapeHTML(sample.operation)}</div>` : ""}<div class="subline">Received ${escapeHTML(this.localTime(sample.observed_at))}${sample.delivered_at ? " · Delivered " + escapeHTML(this.localTime(sample.delivered_at)) : ""}</div>${sample.reason ? `<div class="subline">${escapeHTML(friendly(sample.reason))}</div>` : ""}</details></td>`;
+        })
+        .join(
+          "",
+        )}<td>${row.detail ? "—" : `<button data-action="select-attribute" data-capability="${escapeHTML(row.capability)}" data-attribute="${escapeHTML(row.attribute)}">Inspect &amp; test ›</button>`}</td></tr>`,
+        )
+        .join("")}
+      </tbody></table></div>`;
+  }
+
   sourceDiscovery(families, family, detailed = true) {
     const sources = families.filter(
       (source) => family === "all" || source.id === family,
     );
-    if (!sources.length) return "";
+    if (!sources.length)
+      return '<p class="warn">No source discovery loaded. Refresh the Workbench and check the integration status.</p>';
     return `<div class="section-head"><h3>Data sources · discovery &amp; coverage</h3></div>
       ${sources
         .map((source) => {
-          const summary = `${escapeHTML(source.label)} · ${source.fields_observed} fields · ${source.fields_mapped} mapped · ${source.normalized} normalized · ${source.selected} selected · ${source.fresh} fresh`;
+          const summary = `${escapeHTML(source.label)} · ${source.fields_observed} fields · ${source.fields_mapped} mapped · ${source.normalized} normalized${source.derived_projections ? " (" + source.derived_projections + " derived)" : ""} · ${source.normalized_details || 0} details · ${source.selected} selected · ${source.fresh} fresh`;
           const health = source.health || {};
-          return `<details ${family !== "all" ? "open" : ""}><summary>${summary}</summary>
+          const auth = source.auth_context || {};
+          return `<details><summary>${summary}</summary>
           <p>${escapeHTML(friendly(health.result || "source evidence"))} · ${source.tested_operations}/${source.operations} operations tested${source.truncated ? " · Bounded inventory" : ""}</p>
+          <div class="subline">Auth: ${escapeHTML(friendly(auth.role || source.auth || "unknown"))}${auth.present === false ? " · Credential unavailable" : auth.same_as_cariad ? " · Shared CARIAD token" : ""}${auth.claims_verified === false ? " · Claims unverified" : ""}</div>
           ${detailed ? (source.schema_results || []).map((result) => `<div class="subline">${escapeHTML(result.source)} · HTTP ${escapeHTML(result.http_status ?? "—")} · ${escapeHTML(friendly(result.outcome || "observed"))} · ${escapeHTML(this.localTime(result.observed_at))}</div>`).join("") : ""}
           ${
             detailed
-              ? `<div class="coverage-table"><table><thead><tr><th>Operation / field</th><th>Mapping</th><th>Evidence</th></tr></thead><tbody>${(source.fields || []).map((field) => `<tr><td>${escapeHTML(field.path)}<div class="subline">${escapeHTML(field.operation)}</div></td><td>${escapeHTML((field.attributes || []).join(", ") || "—")}</td><td>${escapeHTML(friendly(field.mapping))} · ${escapeHTML(friendly(field.quality || "unknown"))}</td></tr>`).join("")}</tbody></table></div>
-          <div class="coverage-table"><table><thead><tr><th>Canonical attribute</th><th>Capture / delivery</th><th>Selection</th></tr></thead><tbody>${(source.observations || []).map((row) => `<tr><td>${escapeHTML(row.attribute)}</td><td>${escapeHTML(this.localTime(row.captured))}<div class="subline">Received ${escapeHTML(this.localTime(row.observed_at))}${row.delivered_at ? " · Delivered " + escapeHTML(this.localTime(row.delivered_at)) : ""}</div></td><td>${escapeHTML(friendly(row.status))} · ${row.fresh ? "fresh" : "last known"}</td></tr>`).join("")}</tbody></table></div>`
+              ? `<div class="coverage-table"><table><thead><tr><th>Operation / field</th><th>Mapping</th><th>Evidence</th></tr></thead><tbody>${(source.fields || []).map((field) => `<tr><td>${escapeHTML(field.path)}<div class="subline">${escapeHTML(field.operation)}</div></td><td>${escapeHTML((field.attributes || []).join(", ") || "—")}${field.detail ? " · read-only detail" : ""}${field.unit ? " · " + escapeHTML(field.unit) : ""}</td><td>${escapeHTML(friendly(field.mapping))} · ${escapeHTML(friendly(field.quality || "unknown"))}</td></tr>`).join("")}</tbody></table></div>
+          <div class="coverage-table"><table><thead><tr><th>Canonical attribute / source field</th><th>Normalized value</th><th>Capture / delivery</th><th>Selection</th></tr></thead><tbody>${(source.observations || []).map((row) => `<tr><td>${escapeHTML(row.attribute)}${row.detail ? " · read-only detail" : ""}<div class="subline">${escapeHTML(row.source_field || "—")}</div></td><td>${escapeHTML(row.normalized_value ?? "Not retained")}</td><td>${escapeHTML(this.localTime(row.captured))}<div class="subline">Received ${escapeHTML(this.localTime(row.observed_at))}${row.delivered_at ? " · Delivered " + escapeHTML(this.localTime(row.delivered_at)) : ""}</div></td><td>${escapeHTML(friendly(row.status))} · ${row.fresh ? "fresh" : "last known"}</td></tr>`).join("")}</tbody></table></div>`
               : ""
           }
           </details>`;
@@ -1510,6 +1545,7 @@ class AudiConnectV3Panel extends HTMLElement {
       return '<section class="card"><h2>End-user validation</h2><p>No discovery status loaded.</p></section>';
     const health = this.capabilityStatus.integration_health || {};
     const timing = this.capabilityStatus.end_user_timing || {};
+    const capture = this.capabilityStatus.vehicle_capture || {};
     const candidates = this.capabilityStatus.end_user_candidates || [];
     const candidate = this.nextEndUserCandidate();
     const rows = p.controls || [];
@@ -1540,7 +1576,7 @@ class AudiConnectV3Panel extends HTMLElement {
             `<tr><td><button data-action="open-capability" data-capability="${escapeHTML(cap)}">${escapeHTML(domainName(cap))}</button></td><td>${c.jobs_assessed}/${c.jobs_total}</td><td>${c.attributes_normalized}/${c.attributes_total}</td></tr>`,
         )
         .join("")}</tbody></table></div>
-      ${this.sourceDiscovery(this.capabilityStatus.family_discovery || [], "all")}
+
       <h3>3 · Control discovery &amp; physical verification</h3>
       <div class="actions"><button data-action="discovery-mode" data-mode="guided" class="${!this.expertDiscovery ? "primary" : ""}">Guided</button><button data-action="discovery-mode" data-mode="expert" class="${this.expertDiscovery ? "primary" : ""}">Expert · selective</button></div>
       <p>${escapeHTML(p.controls_route_available ?? rows.filter((c) => c.eligible).length)} routes available · ${escapeHTML(p.controls_dispatch_ready ?? 0)} dispatch ready · ${escapeHTML(p.controls_physically_verified ?? 0)} physically verified / ${escapeHTML(p.controls_catalog_applicable ?? 0)} catalog applicable · ${escapeHTML(p.controls_ineligible ?? 0)} ineligible · ${this.skippedControls.size} skipped · ${candidates.filter((c) => !this.skippedControls.has(c.capability + "." + c.action)).length} ready to test</p>
@@ -1549,6 +1585,8 @@ class AudiConnectV3Panel extends HTMLElement {
           ? `<p>Select any eligible action below. Each Test authorizes that action only; a reviewed equivalent may be tried after definitive rejection. No mandatory sequence. Failed routes can be edited in the existing API editor.</p>`
           : candidate && !this.pending
             ? `<div class="callout"><b>Discover ${escapeHTML(candidate.label)}?</b><p>Yes authorizes this action only. If definitively rejected, one reviewed equivalent route may be tried. Be present at the safely parked vehicle and able to restore its state.</p>
+      ${candidate.instructions ? `<p>${escapeHTML(candidate.instructions)}</p>` : ""}
+      ${this.parameterFields(candidate)}
       <div class="actions">${["yes", "no"].map((answer) => `<button data-action="end-user-${answer}" data-operation="${escapeHTML(candidate.operation)}" data-capability="${escapeHTML(candidate.capability)}" data-control="${escapeHTML(candidate.action)}" ${this.loading ? "disabled" : ""}>${answer === "yes" ? "Yes" : "No"}</button>`).join("")}</div>
       <details><summary>Engineering route</summary><code>${escapeHTML(candidate.operation)}</code></details></div>`
             : this.pending
@@ -1574,11 +1612,11 @@ class AudiConnectV3Panel extends HTMLElement {
           const failed =
             latest && ["physical_failed", "rejected"].includes(latest.state);
           const attrs = `data-capability="${escapeHTML(c.capability)}" data-control="${escapeHTML(c.action)}"`;
-          return `<div class="attribute-row"><div><b>${escapeHTML(actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.route_status || c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(c.reason ? friendly(c.reason) : c.dispatch_ready === false && c.dispatch_reason ? friendly(c.dispatch_reason) : this.pending ? "Testing paused: finish the pending engineering test above" : latest ? `Last command: ${friendly(latest.state)}${latest.http_status ? ` · HTTP ${latest.http_status}` : ""}` : "No current command restriction")}</div>${c.charge_mode_evidence ? `<div class="subline">Locally verified modes: ${escapeHTML(c.charge_mode_evidence.locally_verified_modes.join(", ") || "None")} · Writable options: ${escapeHTML(c.charge_mode_evidence.writable_modes.join(", ") || "None")}</div>` : ""}</div>
+          return `<div class="attribute-row"><div><b>${escapeHTML(this.actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.route_status || c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(c.reason ? friendly(c.reason) : c.dispatch_ready === false && c.dispatch_reason ? friendly(c.dispatch_reason) : this.pending ? "Testing paused: finish the pending engineering test above" : latest ? `Last command: ${friendly(latest.state)}${latest.http_status ? ` · HTTP ${latest.http_status}` : ""}` : "No current command restriction")}</div>${c.charge_mode_evidence ? `<div class="subline">Locally verified modes: ${escapeHTML(c.charge_mode_evidence.locally_verified_modes.join(", ") || "None")} · Writable options: ${escapeHTML(c.charge_mode_evidence.writable_modes.join(", ") || "None")}</div>` : ""}</div>
         ${
           this.expertDiscovery
-            ? `<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(candidate?.operation || "")}" ${!candidate || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !candidate ? friendly(c.reason || c.status) : "Test this action")}">Test</button>
-        <button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div>`
+            ? `<div>${candidate?.instructions ? `<p class="helper">${escapeHTML(candidate.instructions)}</p>` : ""}${this.parameterFields(candidate)}<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(candidate?.operation || "")}" ${!candidate || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !candidate ? friendly(c.reason || c.status) : "Test this action")}">Test</button>
+        <button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div></div>`
             : ""
         }</div>`;
         })
@@ -1589,6 +1627,7 @@ class AudiConnectV3Panel extends HTMLElement {
       ${this.entityFilter ? this.entityInspector(this.selectedEntityLink()) : ""}
       <h3>5 · Recovery &amp; timing</h3>
       <button data-action="resume-discovery" ${this.loading ? "disabled" : ""}>Resume unresolved reads</button>
+      <p>Latest vehicle data age: ${escapeHTML(capture.vehicle_age_minutes ?? "unknown")} min · Oldest vehicle data age: ${escapeHTML(capture.oldest_observed_age_minutes ?? "unknown")} min · Based on usable vehicle measurements, not cloud receipt.</p>
       <p>Last poll: ${escapeHTML(this.localTime(timing.last_poll_attempt))} · Last success: ${escapeHTML(this.localTime(timing.last_poll_success))} · Poll interval: ${timing.poll_interval_seconds == null ? "unknown" : escapeHTML(timing.poll_interval_seconds / 60) + " min"} · Quota: ${escapeHTML(health.quota_remaining ?? "unknown")}</p>
       ${(health.active_findings || []).map((f) => `<div class="subline">${escapeHTML(friendly(f.code))} · ${escapeHTML(f.source)} ${f.http_status ? "· HTTP " + escapeHTML(f.http_status) : ""}</div>`).join("")}
       <p>Uncertain commands are never replayed automatically. Use the existing review above when needed. <button data-action="step-4">Inspect API evidence</button></p>
@@ -1769,23 +1808,43 @@ class AudiConnectV3Panel extends HTMLElement {
     const nextActions = coverage.next_actions || [];
     const identitySummary = coverage.identity_summary || {};
     const projection = coverage.account_entity_projection || {};
+    const sourceObservations = new Map(
+      (families.find((source) => source.id === family)?.observations || []).map(
+        (row) => [row.attribute, row],
+      ),
+    );
     const filteredRows = rows.filter(
       (r) =>
         (!this.capabilityFilter || r.capability === this.capabilityFilter) &&
-        (family === "all" || r.api_family === family) &&
+        (family === "all" ||
+          r.api_family === family ||
+          sourceObservations.has(r.attribute) ||
+          (selectedSource?.id === family &&
+            (selectedSource.declared_attributes || []).includes(
+              r.attribute,
+            ))) &&
         (!selectedEntity ||
           entityMatches(r) ||
           (!r.entity_key && selectedEntity.operations.includes(r.operation))),
     );
-    const attributes = filteredRows.filter(
-      (r) =>
-        r.entity_key &&
-        [
-          "v3_live_evidence",
-          "v2_attribute_reference",
-          "local_attribute_definition",
-        ].includes(r.source),
-    );
+    const attributes = filteredRows
+      .filter((r) => r.entity_key)
+      .map((row) => {
+        const observation = sourceObservations.get(row.attribute);
+        if (family === "all" || !observation) return row;
+        return {
+          ...row,
+          api_family: family,
+          normalized_value: observation.normalized_value,
+          path: observation.source_field,
+          status:
+            observation.valid === false
+              ? "invalid_value"
+              : observation.fresh
+                ? "verified"
+                : "readable_but_stale",
+        };
+      });
     const controls = filteredRows.filter(
       (r) => r.source === "v2_control_reference",
     );
@@ -1993,7 +2052,7 @@ class AudiConnectV3Panel extends HTMLElement {
               )
               .join("")}
           </select></div>
-          <div class="tool family-select"><label for="api-family">API family <span class="muted">· advanced</span></label>
+          <div class="tool family-select"><label for="api-family">Data source</label>
             <select id="api-family" ${this.loading ? "disabled" : ""}>
               <option value="all" ${family === "all" ? "selected" : ""}>This vehicle · consolidated</option>
               ${families.map((source) => `<option value="${escapeHTML(source.id)}" ${family === source.id ? "selected" : ""}>${escapeHTML(source.label)}</option>`).join("")}
@@ -2032,7 +2091,7 @@ class AudiConnectV3Panel extends HTMLElement {
         ${
           car && this.pending
             ? `<section class="card" style="margin-bottom:18px">
-          <div class="warn"><b>Pending engineering test: ${escapeHTML(actionName(this.pending.capability, this.pending.action))}</b>
+          <div class="warn"><b>Pending engineering test: ${escapeHTML(this.actionName(this.pending.capability, this.pending.action))}</b>
             <p>Route: ${escapeHTML(this.pending.operation)} · HTTP ${escapeHTML(this.pending.http_status ?? "not observed")} · ${escapeHTML(this.localTime(this.pending.started_at * 1000))}</p><p>Check the actual result on the car. Worked or Did not work closes this test; Not sure keeps it pending. No review sends another command. Normal controls for this capability and other engineering tests are paused until review.</p>
             <div class="actions">
               <button data-action="confirm-worked" ${this.loading ? "disabled" : ""}>Worked on vehicle</button>
@@ -2059,13 +2118,14 @@ class AudiConnectV3Panel extends HTMLElement {
             : `
           ${this.step === 5 ? this.endUserValidation() : ""}
           <section style="display:${this.step === 1 ? "block" : "none"}" data-view="overview">
+            ${(this.capabilityStatus.end_user_candidates || []).length ? `<div class="card"><b>Verify your vehicle controls</b><p>Automatic discovery does not prove physical execution. Test all eligible functions or choose one; no test runs without your consent.</p><button data-action="step-5">Open vehicle discovery</button></div>` : ""}
             <div class="metrics">
               <div class="card"><div class="eyebrow">Cloud connection</div><div class="stat">${item.poll_success ? "Connected" : "Unknown"}</div><div class="summary">${escapeHTML(item.poll_success ? new Date(item.poll_success).toLocaleString() : "No successful poll")}</div></div>
-              <div class="card"><div class="eyebrow">Readable data</div><div class="stat">${readable.length}</div><div class="summary">${freshCount} fresh · ${staleCount} last known</div></div>
+              <div class="card"><div class="eyebrow">Readable data</div><div class="stat">${family === "all" ? readable.length : (families.find((source) => source.id === family)?.normalized ?? 0)}</div><div class="summary">${family === "all" ? freshCount + " fresh · " + staleCount + " last known" : "Source observations · includes alternatives"}</div></div>
               <div class="card"><div class="eyebrow">Enabled controls</div><div class="stat">${enabledCount}</div><div class="summary">${verifiedCount} locally verified</div></div>
               <div class="card"><div class="eyebrow">Needs review</div><div class="stat">${nextActions.length}</div><div class="summary"><button data-action="step-4">View evidence</button></div></div>
             </div>
-            ${this.sourceDiscovery(families, family, false)}
+            ${family !== "all" ? this.sourceDiscovery(families, family) : ""}
             <div class="section-head"><h2>Capabilities</h2><button data-action="step-2">Browse functions</button></div>
             <div class="cap-grid">${capabilityNames
               .map((cap) => {
@@ -2098,7 +2158,7 @@ class AudiConnectV3Panel extends HTMLElement {
                   .slice(0, 3)
                   .map(
                     (f) =>
-                      `<div class="finding"><div><b>${escapeHTML(f.action ? actionName(f.capability, f.action) : friendly(f.reason))}</b><div class="subline">${escapeHTML(f.action ? friendly(f.reason) : f.capability ? domainName(f.capability) : "Vehicle")}</div></div><button data-action="inspect-finding" data-index="${findings.findIndex((x) => x.id === f.id)}">Review</button></div>`,
+                      `<div class="finding"><div><b>${escapeHTML(f.action ? this.actionName(f.capability, f.action) : friendly(f.reason))}</b><div class="subline">${escapeHTML(f.action ? friendly(f.reason) : f.capability ? domainName(f.capability) : "Vehicle")}</div></div><button data-action="inspect-finding" data-index="${findings.findIndex((x) => x.id === f.id)}">Review</button></div>`,
                   )
                   .join("") || "<p>No current action required.</p>"
               }
@@ -2121,6 +2181,7 @@ class AudiConnectV3Panel extends HTMLElement {
             <h2>API operations · validation matrix</h2>
             ${this.focusOperation ? `<div class="callout">Focused on ${escapeHTML(this.focusOperation)} <button data-action="clear-operation">Show all operations</button></div>` : ""}
             <p>Tested, active, schema validity and physical confirmation are independent. HTTP 2xx/207 alone is not proof of a working command or complete mapping.</p>
+            ${this.capabilityStatus.charging_requests ? `<details><summary>OEM charging request feedback</summary><p>Informational only; no command correlation or vehicle capture is implied.</p><pre>${escapeHTML(JSON.stringify(this.capabilityStatus.charging_requests, null, 2))}</pre></details>` : ""}
             <div class="line">
               <label>Operation <select id="operation-focus"><option value="">All operations</option>${matchingOperations.map((o) => `<option value="${escapeHTML(o.operation)}" ${this.focusOperation === o.operation ? "selected" : ""}>${escapeHTML(o.operation)}</option>`).join("")}</select></label>
               <label>Evidence <select id="operation-filter">${["all", "tested", "untested", "active", "attention", "historical"].map((v) => `<option value="${v}" ${this.operationFilter === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>
@@ -2233,7 +2294,7 @@ class AudiConnectV3Panel extends HTMLElement {
               <div class="tool"><label>Show functions</label>
                 <select id="inventory-filter">
                   <option value="available" ${this.inventoryFilter === "available" ? "selected" : ""}>Observed on this vehicle</option>
-                  <option value="all" ${this.inventoryFilter === "all" ? "selected" : ""}>All historical and local attributes</option>
+                  <option value="all" ${this.inventoryFilter === "all" ? "selected" : ""}>All mapped and catalog attributes</option>
                   <option value="disabled" ${this.inventoryFilter === "disabled" ? "selected" : ""}>Disabled by user (all capabilities)</option>
                 </select>
               </div>
@@ -2245,19 +2306,22 @@ class AudiConnectV3Panel extends HTMLElement {
               ${this.definitionFields("new-attribute", this.initialNewAttribute, { capture_path: null, conversion: null })}
               <button data-action="read-new" ${this.loading ? "disabled" : ""}>Save local attribute</button>
             </details>
-            ${
-              visibleAttributes
-                .map(
-                  (r) => `<div class="attribute-row">
-              <div><b>${escapeHTML(r.metadata?.name || friendly(r.entity_key))}</b>
-                <div class="subline">${pill(r.status)} ${r.selected ? pill("neutral", "Active") : ""}</div><div class="subline">${this.entityLinks(r.entity_ids) || "No registered entity"}</div></div>
-              <button data-action="select-attribute" data-capability="${escapeHTML(r.capability)}"
-                data-attribute="${escapeHTML(r.attribute)}">Inspect & test ›</button>
-            </div>`,
-                )
-                .join("") ||
-              "<p>No observed attributes in this domain. Change the filter to show the complete historical catalog.</p>"
-            }
+            ${this.capabilityMatrix(visibleAttributes, families)}
+            ${(() => {
+              const details = families
+                .flatMap((source) => source.details || [])
+                .filter((detail) => detail.capability === this.category)
+                .map((detail) => ({
+                  ...detail,
+                  detail: true,
+                  metadata: { name: friendly(detail.field) },
+                  status: "not_tested",
+                  entity_ids: [],
+                }));
+              return details.length
+                ? `<details><summary>Additional source details · ${details.length}</summary><p>Read-only engineering data; no operational HA entity or command authorization.</p>${this.capabilityMatrix(details, families)}</details>`
+                : "";
+            })()}
             </div>
             <div style="display:${this.functionMode === "data" ? "none" : "block"}">
             <h2 style="margin-top:20px">Vehicle controls <span class="muted" style="font-size:14px">· ${groupActions.length} functions</span></h2>
@@ -2276,7 +2340,7 @@ class AudiConnectV3Panel extends HTMLElement {
               groupActions
                 .map(
                   (r) => `<div class="attribute-row">
-              <div><b>${escapeHTML(actionName(r.capability, r.action))}</b>
+              <div><b>${escapeHTML(this.actionName(r.capability, r.action))}</b>
                 <div class="subline">${pill(r.binding_status === "user_disabled" ? "disabled_by_user" : r.status, r.binding_status === "user_disabled" ? "Disabled by user" : r.physical_evidence === "local_verified" ? "Verified on vehicle" : r.status === "verified" ? "Previously verified" : friendly(r.status))} ${r.enabled ? pill("neutral", "Enabled") : ""} · ${r.candidate_count} routes</div><div class="subline">${this.entityLinks(r.entity_ids) || "No registered entity"}</div></div>
               <button data-action="select-control" data-capability="${escapeHTML(r.capability)}"
                 data-control="${escapeHTML(r.action)}" ${!r.candidate_count && r.binding_status !== "user_disabled" ? "disabled" : ""}>Inspect & test ›</button>
@@ -2338,7 +2402,7 @@ class AudiConnectV3Panel extends HTMLElement {
             </div>
           </section>
           <section class="card" style="margin-bottom:18px;display:${this.step === 3 && this.controlAction ? "block" : "none"}">
-            <div class="section-head"><div><div class="eyebrow">${escapeHTML(selectedDomain)} · Vehicle control</div><h2>${escapeHTML(actionName(this.controlCapability, this.controlAction))}</h2></div><button data-action="step-2">‹ Capabilities</button></div>
+            <div class="section-head"><div><div class="eyebrow">${escapeHTML(selectedDomain)} · Vehicle control</div><h2>${escapeHTML(this.actionName(this.controlCapability, this.controlAction))}</h2></div><button data-action="step-2">‹ Capabilities</button></div>
             <p>Test one command, confirm what happened on the car, then activate the verified route.</p>${this.controlCapability === "charging" && this.controlAction === "set_charge_mode" ? `<p>Test manual and timer separately. Verify the selected setting actually changed on the car or in myAudi before recording success. An HTTP success or an already-selected mode is not proof of a change.</p>` : ""}
             <div class="warn">Before testing: be physically present, understand the action, and verify the result on the vehicle or myAudi. ${escapeHTML(this.controlRequirement)}</div>
             <label for="control-route" style="margin-top:16px">API-family executor / route</label>
@@ -2360,7 +2424,7 @@ class AudiConnectV3Panel extends HTMLElement {
               I approve this exact action on the selected car and will verify its effect.
             </label>
             <div class="actions">
-              ${this.pending ? `<p class="warn">Testing paused: finish ${escapeHTML(actionName(this.pending.capability, this.pending.action))} above.</p>` : this.capabilityBlocked(this.controlCapability) ? `<p class="warn">Testing paused: inspect and acknowledge the previous uncertain command above.</p>` : ""}<button data-action="control-test" class="primary" ${!this.controlChoice || this.loading || this.controlDisabled || this.pending || this.capabilityBlocked(this.controlCapability) || group === "unsupported" || (group === "spin" && !this.spinConfigured) ? "disabled" : ""}>Send one test command</button>
+              ${this.pending ? `<p class="warn">Testing paused: finish ${escapeHTML(this.actionName(this.pending.capability, this.pending.action))} above.</p>` : this.capabilityBlocked(this.controlCapability) ? `<p class="warn">Testing paused: inspect and acknowledge the previous uncertain command above.</p>` : ""}<button data-action="control-test" class="primary" ${!this.controlChoice || this.loading || this.controlDisabled || this.pending || this.capabilityBlocked(this.controlCapability) || group === "unsupported" || (group === "spin" && !this.spinConfigured) ? "disabled" : ""}>Send one test command</button>
               ${this.controlChoice.startsWith("user.") ? `<button data-action="share-definition" data-operation="${escapeHTML(this.controlChoice)}">Copy shareable definition</button>` : ""}
               <button data-action="control-select" ${this.loading || this.pending || selectedControl?.status !== "worked" || !selectedControl?.runtime_ready ? "disabled" : ""}>Activate verified route</button>
               ${this.controlChoice.startsWith("user.") && selectedControl?.status === "not_tested" && !selectedControl.active ? `<button data-action="discard-route" data-operation="${escapeHTML(this.controlChoice)}" ${this.loading || this.pending ? "disabled" : ""}>Delete unused draft</button>` : ""}

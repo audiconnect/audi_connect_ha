@@ -88,13 +88,13 @@ def test_graphql_exchange_denial_classification():
     ]
 
 
-def test_explicit_readiness_not_active_charging_or_unknown():
-    from custom_components.audiconnect.v3.vehicle import charging_ready, charging_active
+def test_charging_state_retains_meaning_without_readiness_entity():
+    from custom_components.audiconnect.v3.vehicle import charging_active
 
-    assert charging_ready("readyForCharging") is True
-    assert charging_ready("notReadyForCharging") is False
-    assert charging_ready("charging") is None and charging_active("charging") is True
-    assert charging_ready("invalid") is None
+    assert charging_active("readyForCharging") is False
+    assert charging_active("notReadyForCharging") is False
+    assert charging_active("charging") is True
+    assert charging_active("invalid") is None
 
 
 def test_identity_recovery_accumulates_independent_fields_and_operations():
