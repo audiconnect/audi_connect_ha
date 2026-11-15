@@ -1650,3 +1650,28 @@ async def test_data_act_restored_cooldown_skips_portal_requests():
     report = status.data_act_poll_status()
     assert report["result"] == "rate_limited"
     assert report["next_poll_at"] == checkpoint["retry_at"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resource", ["metadata", "list"])
+async def test_empty_subscription_after_throttle_clears_recovery(resource):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    session = MagicMock()
+    session.get.return_value.__aenter__.return_value = SimpleNamespace(
+        status=404, headers={}
+    )
+    client = DataActClient(session)
+    if resource == "list":
+        client._identifiers[VIN] = "existing"
+    now = datetime.now(UTC)
+    client.quota.observe(429, {"Retry-After": "0"}, now - timedelta(seconds=1))
+    assert await client.latest(VIN) is None
+    assert client.delivery_states[VIN] == "subscription_unavailable"
+    assert client.quota.retry_at is None
+    assert client.quota.rate_limit_streak == 0
+    assert client.quota.rate_limit_checkpoint() == {}
+    assert session.get.call_count == 1

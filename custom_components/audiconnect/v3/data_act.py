@@ -146,7 +146,10 @@ class DataActClient:
                     ) as response,
                 ):
                     self.quota.observe(
-                        response.status, response.headers, datetime.now(UTC)
+                        response.status,
+                        response.headers,
+                        datetime.now(UTC),
+                        accepted_empty=allow_empty,
                     )
                     if response.status == 401:
                         self.authorization_required = (
@@ -161,6 +164,8 @@ class DataActClient:
                     elif response.status == 403:
                         raise DataActVehicleDenied("Data Act vehicle access denied")
                     if response.status == 404 and allow_empty:
+                        if path == self._reauth_path:
+                            self._reauth_path = None
                         return None
                     if response.status != 200:
                         raise DataActUnavailable("Data Act read unavailable")

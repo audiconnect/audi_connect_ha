@@ -792,7 +792,11 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     from custom_components.audiconnect.v3.capability_status import build_status_report
 
     report = build_status_report(vehicle, profile)
-    detail = next(row for row in report["attributes"] if row["attribute"] == ident)
+    detail = next(
+        row
+        for row in report["rows"]
+        if row.get("attribute") == ident and row.get("entity_key")
+    )
     assert detail["api_family"] == "eu_data_act"
     assert detail["display_source"] == {
         "attribute": ident,
