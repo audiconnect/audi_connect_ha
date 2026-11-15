@@ -288,4 +288,6 @@ def test_trip_poll_deadline_is_invalidated_on_context_change():
     assert restore_profile(catalog, context, profile.snapshot()).trip_poll_due_at == (
         profile.trip_poll_due_at
     )
-    assert restore_profile(catalog, changed, profile.snapshot()).trip_poll_due_at is None
+    assert (
+        restore_profile(catalog, changed, profile.snapshot()).trip_poll_due_at is None
+    )
