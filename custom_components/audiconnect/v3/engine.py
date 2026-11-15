@@ -158,7 +158,6 @@ class V3Engine:
             vehicle.charging_profiles_captured = None
             # Completed trip snapshots are VIN-scoped historical facts.
             # A refined model/auth context invalidates control evidence, not trips.
-            self.status.invalidate_trip_poll(vehicle.vin)
 
     def _apply_identity_candidate(
         self, car, profile, candidate, operation, observed_at, *, fill_missing=False

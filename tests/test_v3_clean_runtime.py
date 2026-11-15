@@ -771,12 +771,12 @@ async def test_model_context_refinement_preserves_vin_trip_snapshots():
         "cariad.mobility.status.lastTrip",
         {"data": {"tripEndTimestamp": "2026-01-01T00:00:00Z", "mileage_km": 42}},
     )
-    engine.status._trip_poll_at[VIN.lower()] = 123
+    engine.profiles[VIN.lower()].trip_poll_due_at = 123
     await engine.discover()
     assert car is engine.vehicles[VIN.lower()]
     assert car.model_family == "q8"
     assert car.trips["last_trip"]["mileage"] == 42
-    assert VIN.lower() not in engine.status._trip_poll_at
+    assert engine.profiles[VIN.lower()].trip_poll_due_at is None
 
 
 @pytest.mark.asyncio

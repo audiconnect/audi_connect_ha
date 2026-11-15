@@ -375,6 +375,8 @@ class DevelopmentProfile:
         # Bound once to the vehicle's canonical map by the composition owner.
         self.status_readings: dict[str, Any] = {}
         self.status_family_readings: dict[str, Any] = {}
+        # Status-owner deadline; wall-clock checkpoint survives HA restart.
+        self.trip_poll_due_at: float | None = None
         self.last_command: CommandRecord | None = None
         self.command_journal: list[CommandRecord] = []
         self.invalidated_attempt_sequence: int | None = None
@@ -672,6 +674,7 @@ class DevelopmentProfile:
         if context == self.discovery.context:
             return
         previous = self.discovery.context
+        self.trip_poll_due_at = None
         if context.auth != previous.auth or context.region != previous.region:
             self.status_readings.clear()
             self.status_family_readings.clear()
@@ -951,6 +954,7 @@ class DevelopmentProfile:
             "status_observations": status_snapshot(
                 self.status_readings, family_readings=self.status_family_readings
             ),
+            "trip_poll_due_at": self.trip_poll_due_at,
             "identity_drafts": deepcopy(self.identity_drafts),
             "last_command": legacy_snapshot(self.last_command)
             if self.last_command
