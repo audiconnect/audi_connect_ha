@@ -789,6 +789,17 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     )
     assert native["value"] is None
     assert vehicle.readings[ident]["value"] == 65
+    from custom_components.audiconnect.v3.capability_status import build_status_report
+
+    report = build_status_report(vehicle, profile)
+    detail = next(row for row in report["attributes"] if row["attribute"] == ident)
+    assert detail["api_family"] == "eu_data_act"
+    assert detail["display_source"] == {
+        "attribute": ident,
+        "family": "cariad",
+        "captured": (now - timedelta(minutes=15)).isoformat(),
+        "historical": True,
+    }
     restored = restore_status(profile.snapshot()["status_observations"])
     assert restored[ident]["status"] == "invalid_value"
     assert last_known_observation(restored[ident])["value"] == 80
