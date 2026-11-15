@@ -730,6 +730,9 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
         remove_family_observations,
         select_reading,
     )
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
     from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
     from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
     from custom_components.audiconnect.v3.product_contract import projection_reading
