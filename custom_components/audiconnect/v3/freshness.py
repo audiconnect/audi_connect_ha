@@ -70,6 +70,9 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
     from .attribute_runtime import last_known_observation
 
     known = last_known_observation(row)
+    historical_display = (
+        allow_last_known and not valid and known.get("value") is not None
+    )
     return {
         "availability_reason": reading_availability_reason(row, now=now),
         "last_known_state": known.get("value")
@@ -81,7 +84,9 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
         "cloud_observed": row.get("observed"),
         "cloud_age_minutes": capture_age_minutes(row.get("observed"), now),
         "vehicle_freshness": (
-            "unknown"
+            "stale_last_known"
+            if historical_display
+            else "unknown"
             if age is None or not valid
             else "fresh"
             if age <= 60

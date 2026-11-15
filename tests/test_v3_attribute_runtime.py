@@ -720,3 +720,69 @@ def test_inactive_charging_projection_has_explicit_not_applicable_reason():
         assert attrs["availability_reason"] == "charging_not_active"
         assert attrs["last_known_state"] is None
     assert vehicle.readings["remainingChargingTime"]["value"] == 30
+
+
+def test_display_prefers_newer_historical_capture_without_promoting_command_evidence():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        last_known_observation,
+        record_invalid_observation,
+        record_observation,
+        remove_family_observations,
+        select_reading,
+    )
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.product_contract import projection_reading
+
+    vehicle = car()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
+    )
+    now = datetime.now(UTC)
+    ident = "stateOfCharge"
+    for family, value, stamp in (
+        ("cariad", 80, now - timedelta(minutes=15)),
+        ("eu_data_act", 65, now - timedelta(hours=3)),
+    ):
+        record_observation(
+            vehicle,
+            profile,
+            ident,
+            value,
+            stamp.isoformat(),
+            now,
+            "test",
+            "charging",
+            family,
+            fresh=False,
+            operation=family + ".test",
+            persist_evidence=False,
+        )
+    record_invalid_observation(
+        vehicle,
+        ident,
+        now.isoformat(),
+        now,
+        "test",
+        "charging",
+        "invalid",
+        profile=profile,
+    )
+    _, row = projection_reading(
+        vehicle, ATTRIBUTES[ident], registry=profile.registry, now=now
+    )
+    assert row["status"] == "invalid_value"
+    assert last_known_observation(row)["value"] == 80
+    assert reading_freshness_attributes(row, allow_last_known=True, now=now)[
+        "vehicle_freshness"
+    ] == "stale_last_known"
+    _, native = select_reading(
+        vehicle, (ident,), ident, registry=profile.registry, families=("cariad",)
+    )
+    assert native["value"] is None
+    assert vehicle.readings[ident]["value"] == 65
+    remove_family_observations(vehicle, profile, "cariad", now)
+    _, row = projection_reading(
+        vehicle, ATTRIBUTES[ident], registry=profile.registry, now=now
+    )
+    assert row["value"] == 65

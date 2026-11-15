@@ -178,7 +178,7 @@ def bind_status(vehicle, profile):
         profile.status_readings = vehicle.readings
 
 
-def _observation_rank(row, registry, now):
+def _observation_rank(row, registry, now, *, allow_last_known=False):
     """Newest valid capture wins; priority only breaks equivalent timestamps."""
     family = row.get("family", "")
     priority = (
@@ -186,7 +186,12 @@ def _observation_rank(row, registry, now):
         if registry is not None and family in registry.families
         else 100
     )
-    restored = row.get("reason") == "restored_history"
+    historical = row.get("status") == "invalid_value"
+    if allow_last_known and historical and (known := last_known_observation(row)):
+        row = known
+    restored = row.get("reason") == "restored_history" or (
+        allow_last_known and historical and row.get("value") is not None
+    )
     valid = (
         row.get("value") is not None and row.get("status") != "invalid_value"
     ) or restored
@@ -202,7 +207,14 @@ def _observation_rank(row, registry, now):
 
 
 def select_reading(
-    vehicle, sources, canonical, *, registry=None, now=None, families=None
+    vehicle,
+    sources,
+    canonical,
+    *,
+    registry=None,
+    now=None,
+    families=None,
+    allow_last_known=False,
 ):
     """Select equivalent observations in the existing Status owner.
 
@@ -216,7 +228,7 @@ def select_reading(
         row = vehicle.readings[a]
         candidates = (
             dict(cache.get(a, {}))
-            if registry is not None or families is not None
+            if registry is not None or families is not None or allow_last_known
             else {}
         )
         candidates[row.get("family", "")] = row
@@ -254,12 +266,16 @@ def select_reading(
         previous = by_family.get(family)
         if previous is None or score(item) > score(previous):
             by_family[family] = item
-    if len(by_family) == 1 or (registry is None and families is None):
+    if len(by_family) == 1 or (
+        registry is None and families is None and not allow_last_known
+    ):
         return max(valid, key=score)
     return max(
         by_family.values(),
         key=lambda item: (
-            _observation_rank(item[1], registry, reference),
+            _observation_rank(
+                item[1], registry, reference, allow_last_known=allow_last_known
+            ),
             item[0] == canonical,
             item[0],
         ),
