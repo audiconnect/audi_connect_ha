@@ -15,7 +15,7 @@ from .auth import V3Auth, configured_spin, redaction_context
 from .action_discovery import validate_approval
 from .command_engine import CommandEngine
 from .command_parameters import runtime_ready
-from .status_engine import StatusEngine
+from .status_engine import StatusEngine, native_status_families
 from .development_profiles import DevelopmentProfile, DevelopmentProfileError
 from .profile_store import V3ProfileStorage
 from .trip_archive import V3TripArchive
@@ -1490,8 +1490,14 @@ class V3Engine:
             progress["read_state"] = "paused"
             progress["read_pause_reason"] = health["status"]
         quota = getattr(self.transport, "quota", None)
-        family = "mbb" if car.context.auth == "legacy" and not car.legacy_cariad else "cariad"
-        retry_at = quota.retry_for(family) if quota is not None else None
+        retry_at = (
+            min(
+                (due for family in native_status_families(car)
+                 if (due := quota.retry_for(family)) is not None),
+                default=None,
+            )
+            if quota is not None else None
+        )
         progress["read_retry_at"] = retry_at.isoformat() if retry_at else None
         return progress
 

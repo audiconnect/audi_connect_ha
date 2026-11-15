@@ -127,11 +127,11 @@ async def test_partial_vehicle_save_never_erases_another_car_profile():
     assert isinstance(loaded["current_vehicle"], DevelopmentProfile)
 
     checkpoint = {"retry_at": "2026-11-15T10:00:00+00:00", "streak": 3}
-    await storage.async_save_data_act_backoff(checkpoint)
+    await storage.async_save_api_backoff("data_act", checkpoint)
     await storage.async_save({"current_vehicle": profile})
-    assert await storage.async_load_data_act_backoff() == checkpoint
-    await storage.async_save_data_act_backoff({})
-    assert await storage.async_load_data_act_backoff() == {}
+    assert await storage.async_load_api_backoff("data_act") == checkpoint
+    await storage.async_save_api_backoff("data_act", {})
+    assert await storage.async_load_api_backoff("data_act") == {}
     assert set(storage._store.data["profiles"]) == {"current_vehicle", "other_vehicle"}
 
 

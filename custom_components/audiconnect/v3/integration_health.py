@@ -156,10 +156,9 @@ class IntegrationHealth:
         findings = list(self.findings.get(key, {}).values())
         remaining = getattr(engine.transport, "remaining_calls", None)
         quota = getattr(engine.transport, "quota", None)
-        families = (
-            ("cariad", "mbb") if car.legacy_cariad else
-            ("mbb",) if car.context.auth == "legacy" else ("cariad",)
-        )
+        from .status_engine import native_status_families
+
+        families = native_status_families(car)
         limited = quota is not None and all(
             quota.read_deferred(datetime.now(UTC), family) for family in families
         )

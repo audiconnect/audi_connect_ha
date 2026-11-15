@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -18,6 +19,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
 from .quota import NativeQuota
+
+_LOGGER = logging.getLogger(__name__)
 
 MAX_NATIVE_RESPONSE_BYTES = 10_000_000
 
@@ -571,7 +574,7 @@ class V3Transport:
             if not self._quota_loaded:
                 if self._storage is not None:
                     self.quota.restore_rate_limit(
-                        await self._storage.async_load_data_act_backoff(key="native_backoff")
+                        await self._storage.async_load_api_backoff("native")
                     )
                 self._quota_loaded = True
             before = self.quota.rate_limit_checkpoint()
@@ -634,7 +637,10 @@ class V3Transport:
     async def _save_quota_checkpoint(self, before):
         checkpoint = self.quota.rate_limit_checkpoint()
         if self._storage is not None and checkpoint != before:
-            await self._storage.async_save_data_act_backoff(checkpoint, key="native_backoff")
+            try:
+                await self._storage.async_save_api_backoff("native", checkpoint)
+            except (OSError, ValueError, RuntimeError):
+                _LOGGER.warning("Unable to save Audi native rate-limit checkpoint")
 
     async def discover_vehicles(self) -> list[dict[str, Any]]:
         self.last_inventory_metadata = None

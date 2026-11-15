@@ -54,7 +54,8 @@ def test_restored_quota_is_display_only_and_live_quota_wins():
     sensor.coordinator = coordinator
     sensor._restored_native_value = 12
     sensor._restored_last_observed = "2026-09-01T00:00:00+00:00"
-    assert sensor.native_value == 12
+    assert sensor.native_value is None
+    assert sensor.extra_state_attributes["last_known_remaining"] == 12
     assert sensor.extra_state_attributes["value_restored"] is True
     assert transport.remaining_calls is None
     transport.remaining_calls = 8

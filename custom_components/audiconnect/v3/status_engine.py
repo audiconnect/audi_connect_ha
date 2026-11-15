@@ -64,6 +64,12 @@ def data_act_connection_state(result, deliveries):
     return "awaiting_data" if result == "initializing" else result
 
 
+def native_status_families(car):
+    if car.context.auth != "legacy":
+        return ("cariad",)
+    return ("cariad", "mbb") if car.legacy_cariad else ("mbb",)
+
+
 def identity_refresh_due(vehicles, elapsed_seconds):
     """Bound inventory recovery independently of routine bearer renewal."""
     present = [car for car in vehicles.values() if car.inventory_present]
@@ -438,10 +444,7 @@ class StatusEngine:
             family
             for car in self.vehicles.values()
             if car.inventory_present
-            for family in (
-                ("cariad", "mbb") if car.legacy_cariad else
-                ("mbb",) if car.context.auth == "legacy" else ("cariad",)
-            )
+            for family in native_status_families(car)
         }
         now_utc = datetime.now(UTC)
         if (
@@ -507,9 +510,9 @@ class StatusEngine:
         previous_identity_attempt = self._data_act_identity_attempt_at
         try:
             if client is not None and not self._data_act_backoff_loaded:
-                load = getattr(self.storage, "async_load_data_act_backoff", None)
+                load = getattr(self.storage, "async_load_api_backoff", None)
                 if load is not None:
-                    client.quota.restore_rate_limit(await load())
+                    client.quota.restore_rate_limit(await load("data_act"))
                 self._data_act_backoff_loaded = True
             before_backoff = client.quota.rate_limit_checkpoint() if client else {}
             samples = await self._poll_data_act()
@@ -557,10 +560,10 @@ class StatusEngine:
             self._data_act_processing_failed = True
         if client is not None:
             checkpoint = client.quota.rate_limit_checkpoint()
-            save = getattr(self.storage, "async_save_data_act_backoff", None)
+            save = getattr(self.storage, "async_save_api_backoff", None)
             if save is not None and checkpoint != before_backoff:
                 try:
-                    await save(checkpoint)
+                    await save("data_act", checkpoint)
                 except (RuntimeError, ValueError, OSError):
                     self._data_act_processing_failed = True
         if changed:

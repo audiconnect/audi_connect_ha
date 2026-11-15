@@ -143,8 +143,12 @@ async def confirm(transport, path, payload, *, delay=4, max_reads=3):
             reply = await transport.request(
                 "mbb", "GET", endpoint, explicit_action=True
             )
+        except QuotaUnavailable:
+            return "quota_limited"
         except (RuntimeError, ValueError, OSError, TimeoutError):
             return "accepted_unconfirmed"
+        if reply.status == 429:
+            return "quota_limited"
         if not 200 <= reply.status < 300:
             return "accepted_unconfirmed"
         state = read_json_path(reply.data, status_path)

@@ -580,12 +580,18 @@ class V3ProfileStorage:
         async with self._write_lock:
             await self._store.async_remove()
 
-    async def async_load_data_act_backoff(self, *, key="data_act_backoff") -> dict:
+    async def async_load_api_backoff(self, family) -> dict:
+        if family not in ("native", "data_act"):
+            raise ValueError("Unknown API backoff family")
+        key = family + "_backoff"
         async with self._write_lock:
             saved = await self._store.async_load() or {}
             return saved.get(key, {}) if isinstance(saved, dict) else {}
 
-    async def async_save_data_act_backoff(self, checkpoint: dict, *, key="data_act_backoff") -> None:
+    async def async_save_api_backoff(self, family, checkpoint: dict) -> None:
+        if family not in ("native", "data_act"):
+            raise ValueError("Unknown API backoff family")
+        key = family + "_backoff"
         async with self._write_lock:
             saved = await self._store.async_load() or {}
             if not isinstance(saved, dict):
