@@ -550,6 +550,7 @@ class V3Transport:
                 self.auth, method, path, body, explicit_action=explicit_action, **kwargs
             )
             self.quota.reserve_request()
+            self._request_count += 1
             async with asyncio.timeout(25):
                 async with self.session.request(
                     plan.method,
@@ -558,7 +559,6 @@ class V3Transport:
                     json=plan.body if plan.body is not None else None,
                     allow_redirects=False,
                 ) as response:
-                    self._request_count += 1
                     self.quota.observe(
                         response.status, response.headers, datetime.now(UTC)
                     )
