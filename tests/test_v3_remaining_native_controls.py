@@ -69,6 +69,7 @@ def test_engine_proof_is_required_and_never_reused():
         f"/vehicle/v1/engine/{VIN}/userpromptproof",
         body={"spin": "test-pin"},
         explicit_action=True,
+        command_preparation=1,
     )
     transport.request.return_value = NS(status=403, data={})
     with pytest.raises(ValueError, match="no start sent"):
