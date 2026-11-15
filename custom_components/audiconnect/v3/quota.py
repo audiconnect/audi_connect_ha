@@ -60,8 +60,10 @@ class QuotaBudget:
                 self.retry_at = None
         if success and self.max_recovery_delay is None:
             self.rate_limit_streak = 0
-        if count is None and success and (
-            self.remaining is None or self.remaining > self.reserve
+        if (
+            count is None
+            and success
+            and (self.remaining is None or self.remaining > self.reserve)
         ):
             self.retry_at = None
         if status == 429:
