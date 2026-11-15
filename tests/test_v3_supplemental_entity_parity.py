@@ -365,6 +365,8 @@ def test_operational_entities_keep_metadata_findings_in_engineering():
             "last_attempt": None,
             "last_success": None,
             "retry_at": None,
+            "next_poll_at": None,
+            "rate_limit_streak": 0,
         }
     )
     health = V3HealthSensor(co, car, "integration_status")
@@ -375,4 +377,6 @@ def test_operational_entities_keep_metadata_findings_in_engineering():
     data_act = V3HealthSensor(co, car, "data_act_status")
     assert data_act.native_value == "connected"
     assert data_act.extra_state_attributes["result"] == "dataset_received"
+    assert data_act.extra_state_attributes["next_poll_at"] is None
+    assert data_act.extra_state_attributes["rate_limit_streak"] == 0
     assert co.engine.health.snapshot(co.engine, car)["active_finding_count"] == 1

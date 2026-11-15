@@ -108,12 +108,20 @@ class DataActClient:
         self._login = login
         self._logged_in = login is None
         self._reauth_path = None
-        self.quota = QuotaBudget(reserve=0)
+        self.quota = QuotaBudget(
+            reserve=0,
+            recovery_delay=timedelta(minutes=15),
+            max_recovery_delay=timedelta(hours=24),
+        )
         self.authorization_required = False
         self._request_lock = asyncio.Lock()
         self._identifiers = {}
         self._last_file = {}
         self.delivery_states = {}
+
+    @property
+    def reauth_pending(self):
+        return bool(self._reauth_path) and not self.authorization_required
 
     @property
     def denied_vins(self):
@@ -146,7 +154,10 @@ class DataActClient:
                         )
                         self._reauth_path = path
                         self._logged_in = False
-                        self.quota.retry_at = datetime.now(UTC) + timedelta(minutes=30)
+                        now = datetime.now(UTC)
+                        self.quota.retry_at = max(
+                            self.quota.retry_at or now, now + timedelta(minutes=30)
+                        )
                     elif response.status == 403:
                         raise DataActVehicleDenied("Data Act vehicle access denied")
                     if response.status == 404 and allow_empty:
@@ -178,7 +189,6 @@ class DataActClient:
         vin = vin.upper()
         if vin in self.denied_vins:
             return None
-        self.delivery_states[vin] = "unavailable"
         try:
             result = await self._latest(vin)
         except DataActVehicleDenied:
@@ -186,6 +196,15 @@ class DataActClient:
             self._identifiers.pop(vin, None)
             self._last_file.pop(vin, None)
             raise
+        except DataActUnavailable:
+            if self.quota.rate_limit_streak:
+                if self.quota.retry_at is None:
+                    self.quota.retry_at = datetime.now(UTC) + self.quota.recovery_delay
+            elif not self.reauth_pending:
+                self.delivery_states[vin] = "unavailable"
+            raise
+        if self.quota.retry_at is None:
+            self.quota.rate_limit_streak = 0
         # Initial sign-in is proven only after a complete VIN read. A renewed
         # session must recover the actual failed resource, not another VIN.
         if self._reauth_path == "":
