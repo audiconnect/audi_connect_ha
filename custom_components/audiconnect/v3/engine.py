@@ -397,7 +397,7 @@ class V3Engine:
             targets
             and not garage
             and image_reader is not None
-            and (optional_budget_available(remaining))
+            and optional_budget_available(remaining)
         ):
             try:
                 async with asyncio.timeout(8):

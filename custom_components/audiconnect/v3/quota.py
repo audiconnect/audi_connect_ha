@@ -106,7 +106,7 @@ class QuotaBudget:
             "retry_at": self.retry_at.isoformat() if self.retry_at else None,
             "rate_limit_streak": self.rate_limit_streak,
             "command_reserve": self.reserve,
-            "optional_allowed": optional_budget_available(self.remaining),
+            "optional_headroom_available": optional_budget_available(self.remaining),
         }
 
     def rate_limit_checkpoint(self) -> dict:

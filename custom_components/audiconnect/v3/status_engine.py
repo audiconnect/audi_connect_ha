@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 import time
 from typing import Any
@@ -457,14 +458,12 @@ class StatusEngine:
         await self._poll_native_status()
         # Inventory enrichment is secondary to primary vehicle measurements.
         # Recheck remaining allowance after the native reads, not before them.
-        if not initial and self.last_cloud_poll_succeeded and identity_refresh_due(
+        if not initial and identity_refresh_due(
             self.vehicles, elapsed, self.transport.remaining_calls
         ):
             self._identity_attempt_at = now
-            try:
+            with suppress(RuntimeError, ValueError, OSError, TimeoutError):
                 await self.discover()
-            except (RuntimeError, ValueError, OSError, TimeoutError):
-                pass
         self._update_capture_projection()
         return list(self.vehicles.values())
 

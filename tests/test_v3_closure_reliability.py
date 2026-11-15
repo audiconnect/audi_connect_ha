@@ -425,5 +425,5 @@ def test_optional_budget_policy_and_diagnostics_share_local_headroom():
         "retry_at": None,
         "rate_limit_streak": 0,
         "command_reserve": 8,
-        "optional_allowed": False,
+        "optional_headroom_available": False,
     }

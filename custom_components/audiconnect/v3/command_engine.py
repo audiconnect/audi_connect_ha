@@ -399,7 +399,7 @@ class CommandEngine:
                 or self.profiles.get(vin.lower()) is not profile
                 or operation_revision(profile.registry.operations[alternative])
                 != revision
-                or (not optional_budget_available(remaining))
+                or not optional_budget_available(remaining)
             ):
                 return {**result, "alternative": "paused_context_or_quota"}
             from .read_discovery import user_test_candidates
