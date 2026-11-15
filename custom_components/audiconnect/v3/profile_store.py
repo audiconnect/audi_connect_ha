@@ -271,6 +271,7 @@ def restore_profile(
         or len(ae) > len(attributes)
     ):
         raise DevelopmentProfileError("Invalid attribute profile")
+    discarded_conflicts = set()
     for ident, detail in ae.items():
         if (
             ident not in attributes
@@ -279,7 +280,7 @@ def restore_profile(
         ):
             raise DevelopmentProfileError("Invalid attribute evidence")
         if (
-            detail["status"] not in ("verified", "readable_but_stale")
+            detail["status"] not in ("verified", "readable_but_stale", "invalid_value")
             or detail["path"]
             not in {
                 p
@@ -305,6 +306,11 @@ def restore_profile(
             or type(detail["timestamp_present"]) is not bool
         ):
             raise DevelopmentProfileError("Untrusted attribute evidence")
+        # B42/B43 could persist a same-capture conflict as mapping evidence.
+        # Validate the entire row first; discard only the known invalid status.
+        if detail["status"] == "invalid_value":
+            discarded_conflicts.add(ident)
+            continue
         profile.attribute_evidence[ident] = dict(detail)
     for ident, route in ar.items():
         if ident not in attributes:
@@ -316,9 +322,12 @@ def restore_profile(
         # revoke a selected binding. Context changes still invalidate bindings.
         if (
             route == "cariad.selectivestatus.batch"
-            and ident not in ae
+            and ident not in profile.attribute_evidence
             and route not in profile.attribute_route_evidence.get(ident, {})
         ):
+            if ident in discarded_conflicts:
+                # Ordinary status polling will rediscover this read mapping.
+                continue
             raise DevelopmentProfileError("Unverified batch attribute")
         if (
             route != "cariad.selectivestatus.batch"

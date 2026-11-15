@@ -587,6 +587,10 @@ def record_observation(
         return False
     if persist_evidence:
         row = vehicle.family_readings[ident][family]
+        # A conflicting observation changes vehicle state but is not positive
+        # mapping evidence. Keep the earlier reviewed mapping, if any.
+        if row["status"] not in ("verified", "readable_but_stale"):
+            return False
         profile.attribute_evidence[ident] = {
             "status": row["status"],
             "path": row.get("path", path),

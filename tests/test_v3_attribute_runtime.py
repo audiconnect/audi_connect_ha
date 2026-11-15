@@ -813,3 +813,73 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     )
     assert row["value"] == 65
     assert ident not in profile.snapshot()["status_observations"]
+
+
+def test_conflicting_native_observation_roundtrips_and_repairs_old_profile():
+    import pytest
+
+    from custom_components.audiconnect.v3.attribute_runtime import bind_status
+    from custom_components.audiconnect.v3.development_profiles import (
+        DevelopmentProfile,
+        DevelopmentProfileError,
+    )
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle = car()
+    catalog = CapabilityRegistry.from_json_file(catalog_path())
+    profile = DevelopmentProfile(catalog, vehicle.context)
+    bind_status(vehicle, profile)
+    now = datetime.now(UTC)
+
+    def sample(soc, stamp):
+        return {
+            "charging": {
+                "batteryStatus": {
+                    "value": {
+                        "currentSOC_pct": soc,
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            },
+            "climatisation": {
+                "climatisationStatus": {
+                    "value": {
+                        "climatisationState": "off",
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            },
+        }
+
+    ident = "stateOfCharge"
+    observe_read_only(vehicle, profile, sample(50, now), now)
+    original = dict(profile.attribute_evidence[ident])
+    observe_read_only(vehicle, profile, sample(60, now), now)
+    assert vehicle.readings[ident]["status"] == "invalid_value"
+    assert profile.attribute_evidence[ident] == original
+    saved = profile.snapshot()
+    restored = restore_profile(catalog, vehicle.context, saved)
+    assert restored.attribute_evidence[ident] == original
+    # Reproduce the invalid row written by B42/B43 during the same conflict.
+    saved["attribute_evidence"][ident]["status"] = "invalid_value"
+    repaired = restore_profile(catalog, vehicle.context, saved)
+    assert ident not in repaired.attribute_evidence
+    assert ident not in repaired.attribute_routes
+    assert "climatisationState" in repaired.attribute_evidence
+    assert (
+        repaired.attribute_routes["climatisationState"]
+        == (profile.attribute_routes["climatisationState"])
+    )
+    next_vehicle = car()
+    bind_status(next_vehicle, repaired)
+    later = now + timedelta(seconds=10)
+    observe_read_only(next_vehicle, repaired, sample(61, later), later)
+    assert repaired.attribute_evidence[ident]["status"] == "verified"
+    assert repaired.attribute_routes[ident] == "cariad.selectivestatus.batch"
+    assert restore_profile(catalog, vehicle.context, repaired.snapshot())
+    # Malformed/unsafe mappings remain rejected; no blanket validation bypass.
+    saved["attribute_evidence"][ident]["path"] = "untrusted.path"
+    with pytest.raises(DevelopmentProfileError, match="Untrusted attribute evidence"):
+        restore_profile(catalog, vehicle.context, saved)
