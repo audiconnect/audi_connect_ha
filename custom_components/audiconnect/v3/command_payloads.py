@@ -50,7 +50,7 @@ async def settings(transport: Any, vin: str, job: str, path: str) -> dict:
         "cariad",
         "GET",
         selective_status_path(vin, job),
-        command_preparation=True,
+        command_preparation=1,
     )
     value = read_json_path(reply.data, path)
     if not 200 <= reply.status < 300 or not isinstance(value, dict) or not value:
@@ -193,6 +193,7 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
             f"/vehicle/v1/engine/{vin}/userpromptproof",
             body={"spin": spin},
             explicit_action=True,
+            command_preparation=1,
         )
         proof = (
             reply.data.get("userPromptProof") if isinstance(reply.data, dict) else None

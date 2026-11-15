@@ -118,7 +118,7 @@ The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/bl
 - [ ] Data Act throttling, multi-client quota simulation, native isolation, restart/unload/cancellation, privacy and bounded request volume.
 - [ ] V2 default/fallback and stable HA identifiers; Q8/Q5 field evidence and supported/unsupported/unverified distinctions.
 - [ ] Simplification/ownership audit; no duplicate state or scheduler; updated documentation and governance delta ledger.
-- [ ] Exact-head full Test/Validate, Workbench, HACS/hassfest, supported HA matrix, package integrity and upstream review procedure.
+- [ ] Exact-head full Test/Validate, Workbench, HACS/hassfest, latest stable HA monthly release, package integrity and upstream review procedure.
 - [ ] Separate product-owner release GO; immutable HACS beta and upstream review synchronization only via existing gates. Stable issue #44 remains open until separately accepted.
 
 References: merged B42 product PR #58; merged Data Act PR #59 and issues #35/#36/#44; merged onboarding PR #52; [Q5 STOP evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881591226), [manual STOP and mode evidence](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6881920047), [B42 tester handoff](https://github.com/audiconnect/audi_connect_ha/pull/918#issuecomment-6883962709).
