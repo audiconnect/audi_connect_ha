@@ -185,7 +185,7 @@ Suggested quantitative engineering gates (tunable, **not observed OEM limits**):
 | ADR-003 | Select provider **per feature/field and VIN**, not one global API/legacy toggle.                                                                               |
 | ADR-004 | Detect and derive capabilities from authorized evidence; never require the normal end user to select API levels manually.                                      |
 | ADR-005 | EU Data Act is **consent-based, read-only and potentially days delayed**, never a command/instant-status channel.                                              |
-| ADR-006 | Unverified features must be clearly distinguished from supported functionality; opt-in cannot bypass privacy or authorization.                            |
+| ADR-006 | Unverified features must be clearly distinguished from supported functionality; opt-in cannot bypass privacy or authorization.                                 |
 | ADR-007 | Preserve user preferences and explicit command consent; never auto-enable experimental writes.                                                                 |
 | ADR-008 | Preserve original Home Assistant entity IDs and semantics during backend or flag transitions.                                                                  |
 
