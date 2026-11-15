@@ -441,6 +441,16 @@ class StatusEngine:
                 self._trip_poll_at[key] = now + 10800
 
     async def poll(self) -> list[V3Vehicle]:
+        # A deliberately deferred native read is not a failed cloud poll.
+        # Preserve the last real result and allow independent Data Act delivery.
+        # The transport still authorizes every explicit command and recovery read.
+        quota = getattr(self.transport, "quota", None)
+        if self._inventory_ready() and quota is not None and quota.read_deferred(
+            datetime.now(UTC)
+        ):
+            self._start_data_act()
+            self._update_capture_projection()
+            return list(self.vehicles.values())
         self.last_cloud_poll_attempt = datetime.now(UTC)
         self.last_cloud_poll_succeeded = False
         self._poll_cycles += 1
