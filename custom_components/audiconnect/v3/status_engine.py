@@ -445,8 +445,10 @@ class StatusEngine:
         # Preserve the last real result and allow independent Data Act delivery.
         # The transport still authorizes every explicit command and recovery read.
         quota = getattr(self.transport, "quota", None)
-        if self._inventory_ready() and quota is not None and quota.read_deferred(
-            datetime.now(UTC)
+        if (
+            self._inventory_ready()
+            and quota is not None
+            and quota.read_deferred(datetime.now(UTC))
         ):
             self._start_data_act()
             self._update_capture_projection()

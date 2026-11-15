@@ -1598,9 +1598,10 @@ async def test_deferred_native_poll_preserves_actual_success_and_command_reserve
     assert engine.last_cloud_poll_success == success
     assert engine.status.poll_attempt_count == count
     transport.quota.authorize(now, read_only=False)
-    assert engine.health.snapshot(engine, engine.vehicles[VIN.lower()])[
-        "status"
-    ] == "rate_limited"
+    assert (
+        engine.health.snapshot(engine, engine.vehicles[VIN.lower()])["status"]
+        == "rate_limited"
+    )
     transport.quota.retry_at = now - timedelta(seconds=1)
     await engine.poll()
     assert len(transport.calls) == 1
