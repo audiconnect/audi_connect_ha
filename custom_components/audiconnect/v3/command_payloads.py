@@ -87,13 +87,6 @@ async def patch_settings(transport, vin, mode, params):
         raise ValueError("Unknown climatisation setting")
     current = await settings(transport, vin, job, path)
     if not strict and TEMPERATURE.keys() & updates.keys():
-        if {
-            "targetTemperature",
-            "targetTemperature_C",
-            "targetTemperature_F",
-            "targetTemperatureUnit",
-        } & updates.keys():
-            raise ValueError("Supply one semantic temperature, not raw settings")
         target = temperature_celsius(updates, None)
         if "targetTemperature_C" not in current:
             raise ValueError("Vehicle has not reported a Celsius setpoint")
