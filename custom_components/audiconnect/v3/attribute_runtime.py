@@ -100,11 +100,23 @@ def retained_status_field(ident):
     return contract.get("display_last_known") is True
 
 
-def status_snapshot(readings, *, now=None):
-    """Serialize the canonical status map, not an independent runtime cache."""
+def status_snapshot(readings, *, family_readings=None, now=None):
+    """Serialize retained native evidence from the existing Status owner."""
     result = {}
+    reference = now or datetime.now(UTC)
     for ident, reading in readings.items():
-        known = last_known_observation(reading)
+        candidates = [reading, *((family_readings or {}).get(ident, {}).values())]
+        native = [row for row in candidates if row.get("family") in ("cariad", "mbb")]
+        if not native:
+            continue
+        known = last_known_observation(
+            max(
+                native,
+                key=lambda row: _observation_rank(
+                    row, None, reference, allow_last_known=True
+                ),
+            )
+        )
         value, captured = known.get("value"), known.get("captured")
         family = known.get("family")
         if (
@@ -176,9 +188,10 @@ def bind_status(vehicle, profile):
         for ident, row in profile.status_readings.items():
             vehicle.readings.setdefault(ident, row)
         profile.status_readings = vehicle.readings
+    profile.status_family_readings = vehicle.family_readings
 
 
-def _observation_rank(row, registry, now):
+def _observation_rank(row, registry, now, *, allow_last_known=False):
     """Newest valid capture wins; priority only breaks equivalent timestamps."""
     family = row.get("family", "")
     priority = (
@@ -186,7 +199,12 @@ def _observation_rank(row, registry, now):
         if registry is not None and family in registry.families
         else 100
     )
-    restored = row.get("reason") == "restored_history"
+    historical = row.get("status") == "invalid_value"
+    if allow_last_known and historical and (known := last_known_observation(row)):
+        row = known
+    restored = row.get("reason") == "restored_history" or (
+        allow_last_known and historical and row.get("value") is not None
+    )
     valid = (
         row.get("value") is not None and row.get("status") != "invalid_value"
     ) or restored
@@ -202,7 +220,14 @@ def _observation_rank(row, registry, now):
 
 
 def select_reading(
-    vehicle, sources, canonical, *, registry=None, now=None, families=None
+    vehicle,
+    sources,
+    canonical,
+    *,
+    registry=None,
+    now=None,
+    families=None,
+    allow_last_known=False,
 ):
     """Select equivalent observations in the existing Status owner.
 
@@ -216,7 +241,7 @@ def select_reading(
         row = vehicle.readings[a]
         candidates = (
             dict(cache.get(a, {}))
-            if registry is not None or families is not None
+            if registry is not None or families is not None or allow_last_known
             else {}
         )
         candidates[row.get("family", "")] = row
@@ -254,12 +279,16 @@ def select_reading(
         previous = by_family.get(family)
         if previous is None or score(item) > score(previous):
             by_family[family] = item
-    if len(by_family) == 1 or (registry is None and families is None):
+    if len(by_family) == 1 or (
+        registry is None and families is None and not allow_last_known
+    ):
         return max(valid, key=score)
     return max(
         by_family.values(),
         key=lambda item: (
-            _observation_rank(item[1], registry, reference),
+            _observation_rank(
+                item[1], registry, reference, allow_last_known=allow_last_known
+            ),
             item[0] == canonical,
             item[0],
         ),
