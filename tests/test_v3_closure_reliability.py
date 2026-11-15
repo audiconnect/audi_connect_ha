@@ -8,24 +8,43 @@ from custom_components.audiconnect.v3.quota import QuotaBudget
 from custom_components.audiconnect.v3.command_journal import CommandRecord
 
 
-def test_exhausted_budget_allows_only_one_bounded_recovery_read():
+def test_positive_reserve_prioritizes_commands_and_bounds_recovery_reads():
     now = datetime(2026, 11, 12, tzinfo=UTC)
     budget = QuotaBudget()
     budget.observe(200, {"Vcf-Remaining-Calls": "8"}, now)
     with pytest.raises(RuntimeError):
         budget.authorize(now, read_only=True)
-    later = now + timedelta(hours=1)
-    with pytest.raises(RuntimeError):
-        budget.authorize(later, read_only=False)
+    budget.authorize(now, read_only=False)
+    budget.reserve_request()
+    assert budget.remaining == 7
+    later = now + budget.recovery_delay
     budget.authorize(later, read_only=True)
     with pytest.raises(RuntimeError):
         budget.authorize(later, read_only=True)
-    # A response without quota evidence must not reset an exhausted reserve.
     budget.observe(200, {}, later)
+    budget.authorize(later, read_only=False)
+    budget.observe(200, {"Vcf-Remaining-Calls": "0"}, later)
     with pytest.raises(RuntimeError):
         budget.authorize(later, read_only=False)
     budget.observe(200, {"Vcf-Remaining-Calls": "42"}, later)
     budget.authorize(later, read_only=False)
+
+
+def test_server_throttle_overrides_positive_reserve_and_local_deadline():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
+    budget.observe(429, {"Vcf-Remaining-Calls": "7", "Retry-After": "60"}, now)
+    assert budget.retry_at == now + timedelta(minutes=1)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=False)
+    due = budget.retry_at
+    with pytest.raises(RuntimeError):
+        budget.authorize(due, read_only=False)
+    budget.authorize(due, read_only=True)
+    budget.reserve_request()
+    budget.observe(200, {}, due)
+    budget.authorize(due, read_only=False)
 
 
 def test_retry_after_honored_and_recovery_never_mutates():
@@ -387,3 +406,55 @@ def test_v2_delta_register_covers_all_production_blob_changes():
         if actual.get(key) != upstream.get(key)
     }
     assert observed == expected
+
+
+def test_optional_budget_policy_and_diagnostics_share_local_headroom():
+    from custom_components.audiconnect.v3.quota import optional_budget_available
+
+    assert optional_budget_available(None)
+    assert not optional_budget_available(12)
+    assert optional_budget_available(13)
+    assert not optional_budget_available(19, cost=8)
+    assert optional_budget_available(20, cost=8)
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "12"}, now)
+    assert budget.diagnostics() == {
+        "remaining": 12,
+        "observed_at": now.isoformat(),
+        "retry_at": None,
+        "rate_limit_streak": 0,
+        "command_reserve": 8,
+        "optional_headroom_available": False,
+    }
+
+
+def test_native_repeated_throttling_backs_off_and_resets():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    for minutes in (15, 30, 60, 120, 120):
+        budget.observe(429, {}, now)
+        assert budget.retry_at == now + timedelta(minutes=minutes)
+        now = budget.retry_at
+        budget.authorize(now, read_only=True)
+    budget.observe(200, {"Vcf-Remaining-Calls": "42"}, now)
+    assert budget.rate_limit_streak == 0
+    budget.observe(429, {}, now)
+    assert budget.retry_at == now + timedelta(minutes=15)
+
+
+def test_preparation_uses_positive_reserve_but_keeps_allowance_for_write():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "2"}, now)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=True)
+    budget.authorize(now, read_only=True, command_preparation=True)
+    budget.reserve_request()
+    budget.observe(200, {"Vcf-Remaining-Calls": "1"}, now)
+    with pytest.raises(RuntimeError, match="allowance for the write"):
+        budget.authorize(now, read_only=True, command_preparation=True)
+    budget.authorize(now, read_only=False)
+    budget.observe(429, {"Retry-After": "60"}, now)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=True, command_preparation=True)

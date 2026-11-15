@@ -892,6 +892,7 @@ def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
             "schema": schema,
             "partial_http": http == 207,
             "physical": physical,
+            "discovery_review": profile.reviewed_control(ident),
             "last_command_state": command.state if command else None,
             "backend_result": command.backend_result if command else None,
             "readback_observed_at": command.readback_observed_at if command else None,

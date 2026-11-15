@@ -17,7 +17,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
-from .quota import QuotaBudget
+from .quota import QuotaBudget, optional_budget_available
 
 MAX_NATIVE_RESPONSE_BYTES = 10_000_000
 
@@ -515,6 +515,7 @@ class V3Transport:
         explicit_action: bool = False,
         security_token: str | None = None,
         region_vin: str | None = None,
+        command_preparation: bool = False,
     ) -> V3Response:
         if family not in self.executors:
             raise ValueError("Unknown or unsupported V3 executor")
@@ -544,12 +545,19 @@ class V3Transport:
                 and not is_reviewed_identity_body(body)
             ):
                 validate_identity_body(body)
-            self.quota.authorize(datetime.now(UTC), read_only=read_only)
+            if command_preparation and (family != "cariad" or method != "GET"):
+                raise ValueError("Command preparation requires a native settings read")
+            self.quota.authorize(
+                datetime.now(UTC),
+                read_only=read_only,
+                command_preparation=command_preparation,
+            )
             await self.auth.ensure_ready()
             plan = self.executors[family].plan(
                 self.auth, method, path, body, explicit_action=explicit_action, **kwargs
             )
             self.quota.reserve_request()
+            self._request_count += 1
             async with asyncio.timeout(25):
                 async with self.session.request(
                     plan.method,
@@ -558,7 +566,6 @@ class V3Transport:
                     json=plan.body if plan.body is not None else None,
                     allow_redirects=False,
                 ) as response:
-                    self._request_count += 1
                     self.quota.observe(
                         response.status, response.headers, datetime.now(UTC)
                     )
@@ -629,7 +636,7 @@ class V3Transport:
             )
         # Only on unusable inventory, not missing model/media fields or quota
         # failure. The same authorized account owns both native families.
-        if self.remaining_calls is not None and self.remaining_calls <= 12:
+        if not optional_budget_available(self.remaining_calls):
             raise RuntimeError("Audi vehicle discovery unavailable; quota too low")
         response = await self.request("cariad", "GET", GARAGE_PATH)
         vehicles = garage_rows(response.data)

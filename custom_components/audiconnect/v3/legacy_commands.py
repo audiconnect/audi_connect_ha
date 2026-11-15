@@ -10,6 +10,7 @@ import hashlib
 import re
 from .auth import service_api_level
 from .registry import read_json_path
+from .quota import optional_budget_available
 from .command_parameters import (
     LEGACY_CLIMATE_INPUTS,
     temperature_celsius,
@@ -131,7 +132,7 @@ async def confirm(transport, path, payload, *, delay=4, max_reads=3):
     if not isinstance(request_id, str) or not _ID.fullmatch(request_id):
         return "accepted_unconfirmed"
     for n in range(max_reads):
-        if transport.remaining_calls is not None and transport.remaining_calls <= 12:
+        if not optional_budget_available(transport.remaining_calls):
             return "quota_limited"
         if n:
             await asyncio.sleep(delay)

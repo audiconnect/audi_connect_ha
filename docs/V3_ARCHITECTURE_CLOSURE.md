@@ -96,17 +96,16 @@ Independent read sessions may run concurrently within one coordinator. Keep the 
 
 Before committing, run the existing pinned pre-commit hooks on changed files and focused tests where the development environment supports them. Batch related fixes; use the complete hook report rather than committing individual formatting corrections. Preserve the exact-head full PR and release validation gates. No new lint workflow or relaxed check.
 
-### Control-state continuity (B41)
+### Control-state continuity
 
 Status owns canonical readings and their historical scalar representation.
-The profile serializes the same vehicle map; the old climate-only cache is
-migrated and removed. Restored observations are historical, never fresh
+The profile serializes only eligible native historical scalar evidence from the existing vehicle and family maps; the old climate-only cache is migrated and removed. Restored observations are historical, never fresh
 readback or route authorization. No optional Data Act, location or raw response
 is persisted here. Command owns intent, outcome and bounded expiry; HA derives
 effective state from these existing owners, with no independent state cache.
 Restart restores observations and outcomes but never reactivates intent.
 One coordinator-local timer expires the overlay without a vehicle request.
-Read-only telemetry never projects intent. The HA assumed-state indicator and
+Read-only telemetry never projects intent. Charging state retains the reported observation, while existing comfort/access overlays remain bounded and explicitly labeled. The HA assumed-state indicator and
 explicit source/last-reported attributes distinguish estimated controls.
 No automatic replay, new store or polling owner.
 

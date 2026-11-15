@@ -100,7 +100,8 @@ def control_projection(profile, attribute, reading, *, now=None):
     """Effective HA control state, never a physical or authorization proof.
 
     Retain the newest valid observed value across sleep and sentinel data.
-    Only an acknowledged, unsuperseded command may temporarily overlay it.
+    Acknowledged commands may temporarily overlay other controls, but charging
+    always displays observed state; request feedback stays separate.
     A newer dated observation wins whether or not it matches the request.
     """
     from datetime import UTC, datetime
@@ -128,6 +129,14 @@ def control_projection(profile, attribute, reading, *, now=None):
         and record.readback_observed_at is None
         and record.readback_mismatch_at is None
     ):
+        if attribute == "chargingState":
+            # Accepted charging requests may fail while the car continues to
+            # charge. Retain reported state; assumed_state exposes both actions.
+            return (
+                (known["value"], "last_known_vehicle")
+                if known.get("value") is not None
+                else (None, "unknown")
+            )
         requested = requested_projection(record, attribute)
         if requested is not None:
             return requested, "optimistic"
@@ -142,7 +151,7 @@ def control_projection(profile, attribute, reading, *, now=None):
 
 def projection_reading(vehicle, attribute, *, registry=None, now=None):
     """Resolve only declared same-semantic historical aliases, never by order."""
-    from .attribute_runtime import select_reading
+    from .attribute_runtime import retained_status_field, select_reading
 
     ident = attribute["id"]
     canonical = ALIAS_OF.get(ident, ident)
@@ -167,7 +176,12 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
     if key == "mileage":
         sources.append("maintenanceMileage")
     selected, row = select_reading(
-        vehicle, sources, canonical, registry=registry, now=now
+        vehicle,
+        sources,
+        canonical,
+        registry=registry,
+        now=now,
+        allow_last_known=retained_status_field(canonical),
     )
     if key in ("remaining_charging_time", "charging_complete_time"):
         from .attribute_runtime import _capture_in_utc

@@ -16,6 +16,7 @@ from .action_discovery import validate_approval
 from .command_engine import CommandEngine
 from .command_parameters import runtime_ready
 from .status_engine import StatusEngine
+from .quota import optional_budget_available
 from .development_profiles import DevelopmentProfile, DevelopmentProfileError
 from .profile_store import V3ProfileStorage
 from .trip_archive import V3TripArchive
@@ -396,7 +397,7 @@ class V3Engine:
             targets
             and not garage
             and image_reader is not None
-            and (remaining is None or remaining > 12)
+            and optional_budget_available(remaining)
         ):
             try:
                 async with asyncio.timeout(8):
@@ -693,10 +694,7 @@ class V3Engine:
             raise ValueError("Choose a GraphQL identity template")
         validate_identity_query(query, variables)
         car = self.require_vehicle(vin)
-        if (
-            self.transport.remaining_calls is not None
-            and self.transport.remaining_calls <= 12
-        ):
+        if not optional_budget_available(self.transport.remaining_calls):
             raise RuntimeError("Audi quota is low")
         response = (
             await self.transport.experiment_identity_query(query, variables)
@@ -751,10 +749,7 @@ class V3Engine:
         if operation != GARAGE_OPERATION and operation not in IDENTITY_QUERIES:
             raise ValueError("Unknown reviewed GraphQL operation")
         car = self.require_vehicle(vin)
-        if (
-            self.transport.remaining_calls is not None
-            and self.transport.remaining_calls <= 12
-        ):
+        if not optional_budget_available(self.transport.remaining_calls):
             raise RuntimeError("Audi quota is low")
         response = await self.transport.test_identity_query(operation)
         is_garage = operation == GARAGE_OPERATION
@@ -836,10 +831,7 @@ class V3Engine:
             routes = list(IDENTITY_QUERIES) if full else [INVENTORY_OPERATION]
             results = []
             for operation in routes:
-                if (
-                    self.transport.remaining_calls is not None
-                    and self.transport.remaining_calls <= 12
-                ):
+                if not optional_budget_available(self.transport.remaining_calls):
                     break
                 results.append(await self.test_identity_operation(vin, operation))
                 if results[-1]["http_status"] in (401, 403, 429):
@@ -857,10 +849,7 @@ class V3Engine:
         if full:
             return await self._scan_catalog_reads(vehicle, profile, family)
         outcomes: list[dict[str, Any]] = []
-        if (
-            self.transport.remaining_calls is not None
-            and self.transport.remaining_calls <= 12
-        ):
+        if not optional_budget_available(self.transport.remaining_calls):
             raise RuntimeError("Audi quota is low; read-only scan has been suspended")
         if family == "cariad":
             plans = [
@@ -883,10 +872,7 @@ class V3Engine:
             ]
 
         async def run_one(route_id: str, path: str, jobs: tuple[str, ...]) -> bool:
-            if (
-                self.transport.remaining_calls is not None
-                and self.transport.remaining_calls <= 12
-            ):
+            if not optional_budget_available(self.transport.remaining_calls):
                 return False
             try:
                 response = await self.transport.request(family, "GET", path)
@@ -961,10 +947,7 @@ class V3Engine:
             if attempted >= 12:
                 stopped = "batch_limit"
                 break
-            if (
-                self.transport.remaining_calls is not None
-                and self.transport.remaining_calls <= 12
-            ):
+            if not optional_budget_available(self.transport.remaining_calls):
                 stopped = "quota_reserve"
                 break
             path = template.format(VIN=car.vin, TYPE="Audi", COUNTRY=car.country)
@@ -1724,6 +1707,9 @@ class V3Engine:
             "data_act_polling": self.status.data_act_poll_status(),
             "requests": self.transport.request_count,
             "requests_scope": "current_transport_runtime",
+            "native_request_budget": self.transport.quota.diagnostics()
+            if hasattr(self.transport, "quota")
+            else None,
             "poll_attempt_count": self.status.poll_attempt_count,
             "last_poll_scope": "native_cloud_reachability",
             "api_evidence_scope": "latest_per_operation_including_restored_evidence",

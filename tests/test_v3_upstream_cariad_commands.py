@@ -265,6 +265,9 @@ def test_empty_charge_modes_require_local_route_verification():
     car.readings["availableChargeModes"] = {"value": ["manual"]}
     assert supported_charge_modes(car, profile) == ["manual"]
     car.readings["availableChargeModes"] = {"value": None, "status": "invalid_value"}
+    assert supported_charge_modes(car, profile) == ["manual", "timer"]
+    assert engine.control_enabled(VIN, "set_charge_mode", "charging")
+    car.impaired_capabilities.add("charging")
     assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
 
 
@@ -361,4 +364,50 @@ def test_conflicting_undated_charge_modes_recover_only_through_explicit_discover
     profile.choose_working("charging", "set_charge_mode", route)
     assert supported_charge_modes(car, profile) == ["manual"]
     car.readings["availableChargeModes"]["captured"] = datetime.now(UTC).isoformat()
+    assert supported_charge_modes(car, profile) == ["manual"]
+    profile.control_results[route] = "failed"
     assert not supported_charge_modes(car, profile)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "capability,action,operation",
+    [
+        ("charging", "stop", "cariad.charging.stop"),
+        ("climate", "start", "cariad.climate.start.stored"),
+    ],
+)
+async def test_post_acceptance_processing_error_retains_receipt(
+    monkeypatch, capability, action, operation
+):
+    from custom_components.audiconnect.v3 import request_status
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+
+    engine, car = make_engine()
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path, kwargs))
+            return V3Response(
+                202, {"data": {"requestID": "test-id"}}, datetime.now(UTC)
+            )
+
+    async def confirm(*args):
+        raise ValueError("Invalid status response")
+
+    engine.transport = Transport()
+    monkeypatch.setattr(request_status, "confirm", confirm)
+    monkeypatch.setattr(engine.commands, "command_route", lambda *args: operation)
+    with pytest.raises(RuntimeError, match="HTTP 202; accepted_unconfirmed"):
+        await engine.commands.send_control(VIN, action, capability)
+    assert len(calls) == 1 and calls[0][1] == "POST"
+    profile = engine.profiles[VIN.lower()]
+    record = profile.last_command
+    assert record.http_status == 202
+    assert record.state == "accepted_unconfirmed"
+    assert record.backend_result == "accepted_unconfirmed"
+    assert car.last_command_result == record.state
+    restored = restore_profile(profile.registry, car.context, profile.snapshot())
+    assert restored.last_command.http_status == 202
+    assert restored.last_command.state == "accepted_unconfirmed"
