@@ -43,7 +43,7 @@ Use the existing project structure and [architecture and ownership contract](doc
 3. Run `pytest -q`, applicable Workbench tests and `pre-commit run --all-files`. Follow the existing workflows and semantic PR title conventions.
 4. Open a pull request describing the change, evidence, compatibility and remaining live acceptance.
 
-Follow the [documentation lifecycle](docs/README.md#documentation-lifecycle). Keep build numbers and exact candidate evidence in releases/issues, not living product or research guides.
+Keep documentation focused on product usage and technical knowledge. Use issues and pull requests for development progress, and release notes for user-visible changes.
 
 Every improvement must preserve proven behavior and make the product simpler, more manageable, more efficient and more reliable. Keep experiments explicitly opt-in and isolated from proven functionality. Do not introduce a parallel framework, extra poller, duplicate entity or speculative command to compensate for missing evidence.
 
