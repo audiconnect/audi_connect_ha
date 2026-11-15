@@ -449,15 +449,15 @@ def test_preparation_uses_positive_reserve_but_keeps_allowance_for_write():
     budget.observe(200, {"Vcf-Remaining-Calls": "2"}, now)
     with pytest.raises(RuntimeError):
         budget.authorize(now, read_only=True)
-    budget.authorize(now, read_only=True, command_preparation=True)
+    budget.authorize(now, read_only=True, command_preparation=1)
     budget.reserve_request()
     budget.observe(200, {"Vcf-Remaining-Calls": "1"}, now)
     with pytest.raises(RuntimeError, match="allowance for the write"):
-        budget.authorize(now, read_only=True, command_preparation=True)
+        budget.authorize(now, read_only=True, command_preparation=1)
     budget.authorize(now, read_only=False)
     budget.observe(429, {"Retry-After": "60"}, now)
     with pytest.raises(RuntimeError):
-        budget.authorize(now, read_only=True, command_preparation=True)
+        budget.authorize(now, read_only=True, command_preparation=1)
 
 
 def test_read_deferral_is_pure_and_tracks_actual_retry_deadline():
@@ -474,3 +474,20 @@ def test_read_deferral_is_pure_and_tracks_actual_retry_deadline():
     budget.observe(429, {"Retry-After": "60"}, now)
     assert budget.read_deferred(now)
     assert not budget.read_deferred(now + timedelta(minutes=1))
+
+
+def test_native_command_sequence_uses_only_known_remaining_allowance():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "3"}, now)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=True, command_preparation=3)
+    budget.authorize(now, read_only=True, command_preparation=2)
+    budget.reserve_request()
+    budget.authorize(now, read_only=False, command_preparation=1)
+    budget.reserve_request()
+    budget.authorize(now, read_only=False)
+    budget.reserve_request()
+    assert budget.remaining == 0
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=False)

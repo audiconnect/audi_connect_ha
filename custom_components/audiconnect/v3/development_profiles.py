@@ -781,6 +781,14 @@ class DevelopmentProfile:
                 )
             elif worked is False:
                 self.verified_charge_modes.pop(record.requested_charge_mode, None)
+                if any(
+                    revision == record.operation_revision
+                    for revision in self.verified_charge_modes.values()
+                ):
+                    # A failed parameter is not a failed endpoint. Preserve
+                    # the independently proven mode and existing active route.
+                    self.discovery.preferred[key] = attempted.operation
+                    return
         if attempted.result in ("worked", "failed"):
             self.control_results[attempted.operation] = attempted.result
         if attempted.result != "worked" and self.active.get(key) == attempted.operation:
@@ -933,6 +941,10 @@ class DevelopmentProfile:
             "draft_selected": dict(self.draft_selected),
             "read_evidence": deepcopy(self.read_results),
             "control_evidence": dict(self.control_results),
+            "control_revisions": {
+                operation: operation_revision(self.registry.operations[operation])
+                for operation in self.control_results
+            },
             "verified_charge_modes": dict(self.verified_charge_modes),
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),

@@ -411,3 +411,26 @@ async def test_post_acceptance_processing_error_retains_receipt(
     restored = restore_profile(profile.registry, car.context, profile.snapshot())
     assert restored.last_command.http_status == 202
     assert restored.last_command.state == "accepted_unconfirmed"
+
+
+def test_failed_charge_mode_does_not_withdraw_independently_verified_mode():
+    from custom_components.audiconnect.v3.command_policy import supported_charge_modes
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.readings["availableChargeModes"] = {"value": []}
+    route = "cariad.charging.mode"
+    for i, mode in enumerate(("manual", "timer"), start=1):
+        attempt = profile.begin_test("charging", "set_charge_mode", route, now=i * 100)
+        profile.engineering_record(attempt.sequence).requested_charge_mode = mode
+        profile.observe_http(attempt.sequence, 200)
+        profile.confirm(
+            attempt.sequence, worked=i == 1, inspected_vehicle=True, now=i * 100 + 1
+        )
+        if i == 1:
+            profile.choose_working("charging", "set_charge_mode", route)
+    assert supported_charge_modes(car, profile) == ["manual"]
+    restored = restore_profile(profile.registry, car.context, profile.snapshot())
+    assert supported_charge_modes(car, restored) == ["manual"]
+    assert restored.control_results[route] == "worked"

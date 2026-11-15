@@ -84,6 +84,9 @@ def test_security_challenge_and_status_never_retry_mutation():
         == "backend_completed"
     )
     assert [x.args[1] for x in obj.request.await_args_list] == ["GET", "POST", "GET"]
+    assert [
+        x.kwargs.get("command_preparation", 0) for x in obj.request.await_args_list
+    ] == [2, 1, 0]
 
 
 def test_challenge_completion_uses_same_vehicle_region():
@@ -97,3 +100,20 @@ def test_challenge_completion_uses_same_vehicle_region():
     assert e.plan(
         auth, "POST", path, body, explicit_action=True, region_vin=VIN
     ).url.startswith("https://mal-3a.prd.eu.dp.vwg-connect.com")
+
+
+def test_legacy_home_region_quota_refusal_does_not_cache_fallback():
+    from custom_components.audiconnect.v3.legacy_commands import configure_home_region
+    from custom_components.audiconnect.v3.quota import QuotaUnavailable
+
+    executor = MBBLegacyExecutor()
+    obj = NS(
+        executors={"mbb": executor},
+        request=AsyncMock(side_effect=QuotaUnavailable("quota")),
+    )
+    auth = NS(service=NS(_api_level=0))
+    car = NS(vin=VIN, country="US")
+    with pytest.raises(QuotaUnavailable):
+        asyncio.run(configure_home_region(obj, auth, car, command_preparation=3))
+    assert VIN not in executor._trusted_hosts
+    assert obj.request.await_args.kwargs["command_preparation"] == 3

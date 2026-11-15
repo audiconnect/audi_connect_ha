@@ -18,6 +18,10 @@ def optional_budget_available(remaining, *, cost=1):
     return remaining is None or remaining >= COMMAND_RESERVE + OPTIONAL_HEADROOM + cost
 
 
+class QuotaUnavailable(RuntimeError):
+    """Local quota refusal, before any request is sent."""
+
+
 @dataclass
 class QuotaBudget:
     remaining: int | None = None
@@ -37,13 +41,18 @@ class QuotaBudget:
         return now < (self.observed_at or now) + self.recovery_delay
 
     def authorize(
-        self, now: datetime, *, read_only: bool, command_preparation: bool = False
+        self, now: datetime, *, read_only: bool, command_preparation: int = 0
     ) -> None:
         """Reserve a single recovery probe before network I/O under transport lock."""
+        # Preparation specifies how many required requests must still follow.
         if command_preparation and (
-            not read_only or self.remaining is not None and self.remaining < 2
+            self.remaining is not None and self.remaining <= command_preparation
         ):
-            raise RuntimeError("Audi command preparation needs allowance for the write")
+            raise QuotaUnavailable(
+                "Audi command preparation needs allowance for the write"
+            )
+        if command_preparation and self.rate_limit_streak:
+            raise QuotaUnavailable("Audi request budget requires recovery read")
         # A positive reserve is for explicit commands, not a hard server limit.
         if (
             (not read_only or command_preparation)
@@ -54,12 +63,14 @@ class QuotaBudget:
             return
         exhausted = self.remaining is not None and self.remaining <= self.reserve
         if self.read_deferred(now):
-            raise RuntimeError("Audi request budget suspended until cooldown")
+            raise QuotaUnavailable("Audi request budget suspended until cooldown")
         if not exhausted and self.retry_at is None:
             return
         eligible_at = self.retry_at or ((self.observed_at or now) + self.recovery_delay)
         if not read_only or now < eligible_at:
-            raise RuntimeError("Audi request budget too low; recovery read required")
+            raise QuotaUnavailable(
+                "Audi request budget too low; recovery read required"
+            )
         # Reserve before sending: timeout/cancellation cannot cause a probe storm.
         self.retry_at = now + self.recovery_delay
 

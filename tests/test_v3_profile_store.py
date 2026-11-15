@@ -245,3 +245,29 @@ def test_auth_context_change_clears_both_bound_status_maps():
     profile.rebind_context(VehicleContext(auth="auth0", region="BE"))
     assert not profile.status_readings
     assert not profile.status_family_readings
+
+
+@pytest.mark.parametrize("legacy_snapshot", [False, True])
+def test_disabled_route_revision_cannot_be_reactivated_after_upgrade(legacy_snapshot):
+    catalog, context, profile = fresh()
+    route = "cariad.climate.start.stored"
+    attempt = profile.begin_test("climate", "start", route, now=10)
+    profile.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=11)
+    profile.choose_working("climate", "start", route)
+    profile.disable("climate", "start")
+    saved = profile.snapshot()
+    if legacy_snapshot:
+        saved.pop("control_revisions")
+    unchanged = restore_profile(catalog, context, saved, cooldown_seconds=0)
+    unchanged.discovery.enable("climate", "start")
+    unchanged.choose_working("climate", "start", route)
+    changed = json.loads(PATH.read_text())
+    changed["operations"][route]["priority"] = 42
+    restored = restore_profile(
+        CapabilityRegistry(changed), context, saved, cooldown_seconds=0
+    )
+    assert route not in restored.control_results
+    assert restored.historical_control_evidence[-1]["operation"] == route
+    restored.discovery.enable("climate", "start")
+    with pytest.raises(DevelopmentProfileError, match="test"):
+        restored.choose_working("climate", "start", route)

@@ -515,7 +515,7 @@ class V3Transport:
         explicit_action: bool = False,
         security_token: str | None = None,
         region_vin: str | None = None,
-        command_preparation: bool = False,
+        command_preparation: int = 0,
     ) -> V3Response:
         if family not in self.executors:
             raise ValueError("Unknown or unsupported V3 executor")
@@ -545,8 +545,27 @@ class V3Transport:
                 and not is_reviewed_identity_body(body)
             ):
                 validate_identity_body(body)
-            if command_preparation and (family != "cariad" or method != "GET"):
-                raise ValueError("Command preparation requires a native settings read")
+            if command_preparation and not (
+                family == "cariad"
+                and method == "GET"
+                or family == "cariad"
+                and method == "PUT"
+                and explicit_action
+                and path.endswith("/userpromptproof")
+                or family == "mbb"
+                and (
+                    method == "GET"
+                    and path.endswith("/homeRegion")
+                    or explicit_action
+                    and (
+                        method == "GET"
+                        and path.endswith("/security-pin-auth-requested")
+                        or method == "POST"
+                        and path.endswith("/security-pin-auth-completed")
+                    )
+                )
+            ):
+                raise ValueError("Command preparation requires a native prerequisite")
             self.quota.authorize(
                 datetime.now(UTC),
                 read_only=read_only,

@@ -40,7 +40,7 @@ def test_global_soc_preserves_other_settings():
         }
     )
     result = asyncio.run(build(obj, car(), "charging_settings_update", {"value": 85}))
-    assert obj.transport.request.await_args.kwargs["command_preparation"] is True
+    assert obj.transport.request.await_args.kwargs["command_preparation"] == 1
     assert result == {
         "targetSOC_pct": 85,
         "maxChargeCurrentAC_A": 16,

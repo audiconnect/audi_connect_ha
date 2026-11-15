@@ -124,11 +124,17 @@ class CommandEngine:
         return proof_required, request
 
     async def dispatch_command(self, car, family, method, path, body):
+        legacy_access = family == "mbb" and path.endswith(("/lock", "/unlock"))
         if family == "mbb" and hasattr(self.transport, "executors"):
             from .legacy_commands import configure_home_region
 
-            await configure_home_region(self.transport, self.auth, car)
-        if family == "mbb" and path.endswith(("/lock", "/unlock")):
+            await configure_home_region(
+                self.transport,
+                self.auth,
+                car,
+                command_preparation=3 if legacy_access else 1,
+            )
+        if legacy_access:
             from .legacy_commands import security_token
 
             token = await security_token(
