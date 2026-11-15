@@ -453,7 +453,6 @@ def test_manual_stop_after_failed_remote_stop_is_not_command_success():
     [
         ("access", "unlock", {}, "doorLockStatus", "locked", "unlocked"),
         ("access", "lock", {}, "doorLockStatus", "unlocked", "locked"),
-        ("charging", "stop", {}, "chargingState", "charging", "off"),
         ("climate", "start", {}, "climate", "off", "on"),
         ("climate", "preheater_stop", {}, "preheater_active", True, False),
         ("charging", "set_target_soc", {"value": 80}, "targetstateOfCharge", 70, 80),
@@ -506,6 +505,37 @@ def test_accepted_control_projection_expires_and_newer_observation_wins(
         reported,
         "vehicle",
     )
+
+
+@pytest.mark.parametrize(
+    "action,reported,new_state",
+    [("stop", "charging", "off"), ("start", "off", "charging")],
+)
+def test_charging_intent_never_replaces_reported_state(action, reported, new_state):
+    from custom_components.audiconnect.v3.product_contract import control_projection
+
+    command = record("charging", action)
+    command.observe_http(200)
+    profile = NS(command_journal=[command])
+    reading = {
+        "value": reported,
+        "captured": OLD.isoformat(),
+        "status": "verified",
+    }
+    assert control_projection(profile, "chargingState", reading, now=NOW) == (
+        reported,
+        "last_known_vehicle",
+    )
+    assert control_projection(profile, "chargingState", {}, now=NOW) == (
+        None,
+        "unknown",
+    )
+    assert control_projection(
+        profile,
+        "chargingState",
+        {**reading, "value": new_state, "captured": NEW.isoformat()},
+        now=NEW,
+    ) == (new_state, "vehicle")
 
 
 def test_sleeping_lock_retains_last_observation_and_explicit_reverse_dispatch():
