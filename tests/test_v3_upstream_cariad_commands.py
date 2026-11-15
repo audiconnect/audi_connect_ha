@@ -265,6 +265,9 @@ def test_empty_charge_modes_require_local_route_verification():
     car.readings["availableChargeModes"] = {"value": ["manual"]}
     assert supported_charge_modes(car, profile) == ["manual"]
     car.readings["availableChargeModes"] = {"value": None, "status": "invalid_value"}
+    assert supported_charge_modes(car, profile) == ["manual", "timer"]
+    assert engine.control_enabled(VIN, "set_charge_mode", "charging")
+    car.impaired_capabilities.add("charging")
     assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
 
 
@@ -361,4 +364,6 @@ def test_conflicting_undated_charge_modes_recover_only_through_explicit_discover
     profile.choose_working("charging", "set_charge_mode", route)
     assert supported_charge_modes(car, profile) == ["manual"]
     car.readings["availableChargeModes"]["captured"] = datetime.now(UTC).isoformat()
+    assert supported_charge_modes(car, profile) == ["manual"]
+    profile.control_results[route] = "failed"
     assert not supported_charge_modes(car, profile)

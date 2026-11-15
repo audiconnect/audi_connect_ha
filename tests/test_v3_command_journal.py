@@ -258,3 +258,38 @@ def test_b41_legacy_accepted_access_records_preserve_verified_routes_on_restart(
     assert restored.last_command.state == "accepted_unconfirmed"
     assert restored.last_command.http_status is None
     assert not restored.last_command.requires_review
+
+
+def test_physical_review_survives_routine_and_discovery_history_rotation():
+    from custom_components.audiconnect.v3.capability_status import build_status_report
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE", auth_family="auth0")
+    p = DevelopmentProfile(model(), car.context, cooldown_seconds=0)
+    route = "cariad.charging.start"
+    attempt = p.begin_test("charging", "start", route, now=10)
+    p.observe_http(attempt.sequence, 200)
+    p.confirm(attempt.sequence, worked=True, inspected_vehicle=True, now=20)
+    p.choose_working("charging", "start", route)
+    for i in range(HISTORY_LIMIT + 5):
+        normal = CommandRecord.begin("charging", "start", route, 100 + i * 20)
+        normal.observe_http(200)
+        p.track_command(normal)
+    assert p.engineering_record(attempt.sequence) is None
+    for i in range(p.discovery.history_limit + 5):
+        other = p.begin_test(
+            "charging", "stop", "cariad.charging.stop", now=2000 + i * 20
+        )
+        p.observe_http(other.sequence, 200)
+        p.confirm(
+            other.sequence, worked=True, inspected_vehicle=True, now=2001 + i * 20
+        )
+        p.choose_working("charging", "stop", "cariad.charging.stop")
+    assert len(p.discovery.history) == p.discovery.history_limit
+    restored = restore_profile(model(), car.context, p.snapshot(), cooldown_seconds=0)
+    assert restored.reviewed_control(route) == attempt.public()
+    report = build_status_report(car, restored)
+    row = next(row for row in report["operations"] if row["operation"] == route)
+    assert row["discovery_review"] == attempt.public()
+    restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert restored.reviewed_control(route) is None

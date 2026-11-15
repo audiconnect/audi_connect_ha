@@ -608,6 +608,23 @@ class DevelopmentProfile:
             None,
         )
 
+    def reviewed_control(self, operation: str):
+        """Current physical discovery proof, independent of routine outcomes."""
+        if self.control_results.get(operation) != "worked":
+            return None
+        revision = operation_revision(self.registry.operations[operation])
+        for attempt in reversed(self.discovery.history):
+            key = f"{attempt.capability}.{attempt.action}"
+            if (
+                attempt.operation == operation
+                and attempt.result == "worked"
+                and self.active.get(key) == operation
+                and self.active_revisions.get(key) == revision
+                and key not in self.discovery.disabled
+            ):
+                return attempt.public()
+        return None
+
     @contextmanager
     def command_transaction(self):
         """Rollback journal/discovery changes only before physical dispatch."""

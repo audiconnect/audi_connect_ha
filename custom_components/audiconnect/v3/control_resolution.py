@@ -127,7 +127,7 @@ def control_decision(
                 route if for_discovery else None,
                 "charge_mode_fallback_requires_verification",
             )
-        # Do not let a previously active route bypass invalid options.
+        # No advertised or locally proven mode: never invent permission.
         options = car.readings.get("availableChargeModes", {})
         if options.get("status") == "invalid_value":
             reason = options.get("reason") or "charge_mode_options_invalid"

@@ -64,21 +64,20 @@ def charge_mode_evidence(car, profile):
 
 
 def supported_charge_modes(car, profile=None):
-    """Advertised modes first; V2 fallback requires current local route proof."""
+    """Advertised modes first; missing data retains revision-bound mode proof."""
     row = car.readings.get("availableChargeModes", {})
     values = row.get("value")
-    if row.get("family") == "eu_data_act":
-        return []
-    if row.get("status") != "invalid_value" and isinstance(values, list) and values:
+    if (
+        row.get("family") != "eu_data_act"
+        and row.get("status") != "invalid_value"
+        and isinstance(values, list)
+        and values
+    ):
         return [mode for mode in ("manual", "timer") if mode in values]
     if profile is None:
         return []
-    # Only current revision-bound physical proof survives missing options.
-    # Dated invalid or contradictory options still block writes.
-    if not charge_mode_recovery_candidate(car) and (
-        row.get("captured") is not None or row.get("status") == "invalid_value"
-    ):
-        return []
+    # An empty/missing/invalid observation is not a new physical route test.
+    # Only verified modes of the current active route can survive it.
     from .operation_revision import operation_revision
 
     key, route = "charging.set_charge_mode", "cariad.charging.mode"
