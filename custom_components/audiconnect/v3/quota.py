@@ -15,6 +15,8 @@ class QuotaBudget:
     retry_at: datetime | None = None
     reserve: int = 8
     recovery_delay: timedelta = timedelta(hours=1)
+    max_recovery_delay: timedelta | None = None
+    rate_limit_streak: int = 0
 
     def authorize(self, now: datetime, *, read_only: bool) -> None:
         """Reserve a single recovery probe before network I/O under transport lock."""
@@ -35,6 +37,7 @@ class QuotaBudget:
             self.remaining = max(0, self.remaining - 1)
 
     def observe(self, status: int, headers: Mapping[str, str], now: datetime) -> None:
+        success = 200 <= status < (400 if self.max_recovery_delay else 300)
         raw = headers.get("Vcf-Remaining-Calls")
         try:
             count = int(raw) if raw is not None else None
@@ -45,12 +48,18 @@ class QuotaBudget:
             self.observed_at = now
             if count <= self.reserve:
                 self.retry_at = max(self.retry_at or now, now + self.recovery_delay)
-            elif 200 <= status < 300:
+            elif success:
                 self.retry_at = None
-        if count is None and self.remaining is None and 200 <= status < 300:
+        if count is None and self.remaining is None and success:
             self.retry_at = None
         if status == 429:
-            delay = now + self.recovery_delay
+            recovery = self.recovery_delay
+            if self.max_recovery_delay is not None:
+                recovery = min(
+                    recovery * 2**self.rate_limit_streak, self.max_recovery_delay
+                )
+                self.rate_limit_streak = min(self.rate_limit_streak + 1, 8)
+            delay = now + recovery
             retry = headers.get("Retry-After")
             if retry:
                 try:
@@ -63,3 +72,24 @@ class QuotaBudget:
                     except (ValueError, TypeError, OverflowError):
                         pass
             self.retry_at = max(self.retry_at or now, delay)
+
+    def rate_limit_checkpoint(self) -> dict:
+        """Optional account backoff only; no credentials or response content."""
+        if not self.rate_limit_streak or self.retry_at is None:
+            return {}
+        return {
+            "retry_at": self.retry_at.isoformat(),
+            "streak": self.rate_limit_streak,
+        }
+
+    def restore_rate_limit(self, checkpoint) -> None:
+        if not self.max_recovery_delay or not isinstance(checkpoint, dict):
+            return
+        streak = checkpoint.get("streak")
+        try:
+            retry = datetime.fromisoformat(checkpoint.get("retry_at", ""))
+        except (ValueError, TypeError):
+            return
+        if type(streak) is int and 1 <= streak <= 8 and retry.tzinfo is not None:
+            self.rate_limit_streak = streak
+            self.retry_at = retry.astimezone(UTC)

@@ -84,9 +84,9 @@ Review exact-head Test and Validate, both supported HA targets, archive/packagin
 
 The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/blob/b245cd62b51b08398166932dcb4f95987b87a4e9/docs/V3_REVIEW.md) remains available at the pinned B40 source. Its historical behavior and field counts are not current B41 instructions. See the feature closure for remaining acceptance.
 
-## B43 — Reliability & Intelligence (proposed scope; HOLD)
+## B43 — Reliability & Intelligence (approved fixes; release HOLD)
 
-**Planning only. Product owner must explicitly authorize implementation.** B42 remains the published community-test baseline; no stable promotion, merge or release is authorized by this plan. Use the existing ownership contract and issue #44. All acceptance items below are open unless supported by exact candidate evidence.
+**Implementation GO for sufficiently evidenced fixes only.** B42 remains the published community-test baseline; no HACS publication, stable promotion or upstream delivery is authorized. Unproven vehicle operations remain explicit experiments. Use the existing ownership contract and issue #44. All acceptance items below are open unless supported by exact candidate evidence.
 
 ### Work packages, in implementation order
 
@@ -97,7 +97,7 @@ The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/bl
 | C3 | P1 | Catalog / Command / Profiles / HA | Validate charging START/STOP routes and manual/timer mode capabilities through explicit discovery. Preserve verified options when an advertised list is temporarily empty; do not invent supported modes. | Q8 and Q5 route evidence, empty mode list, restart, invalid context and explicit rediscovery cases. |
 | D1 | P1 | Status / Vehicle / Profiles / HA | Fix source selection of the newest semantically valid observation, including retained last-known samples when the newer native response is invalid and Data Act is older. | B42 SOC scenario, timestamps, equal-time conflict, invalid/sentinel, source withdrawal, restart and stale labeling. Historical values do not become live or satisfy command verification. |
 | D2 | P1 | Command / Profiles | Retain durable physical route proof independently of bounded execution history. Investigate lost climate START test detail after routine operations. | Journal rotation, restart and unrelated commands preserve discovery proof; explicit re-evaluation, authorization and operation revision still apply. |
-| A1 | P1 | API / Status / Profiles | Review existing #59 rather than duplicate it. Adapt Data Act cadence to delivery and capture age; respect Retry-After; evaluate 15-minute fallback, exponential backoff, bounded jitter, persisted cooldown and session reuse. | No request during cooldown or restart; repeated 429, session expiry, empty/old datasets, optional failure, recovery and independent native budget. |
+| A1 | P1 | API / Status / Profiles | Use integrated #59 rather than duplicate it. Adapt Data Act cadence to delivery and capture age; respect Retry-After; evaluate 15-minute fallback, exponential backoff, bounded jitter, persisted cooldown and session reuse. | No request during cooldown or restart; repeated 429, session expiry, empty/old datasets, optional failure, recovery and independent native budget. |
 | A2 | P1 | API / Status | Treat multiple clients as normal; use reported remaining allowance conservatively, reserve native commands, suppress optional work when budget is low, and avoid synchronized polls. | Simulated external quota depletion and reset, absent headers, two clients, read recovery and unaffected native control reserve. No assumption of exact account/VIN/IP quota scope. |
 | A3 | P1 | API / Diagnostics / HA | Record bounded redacted request evidence by family and endpoint category: identity/auth, metadata, listing, download, native status, command; HTTP status, Retry-After, attempts, last success, next eligible time. | Rate-limit attribution without credentials, raw payloads, VIN or a second logging system; truthful optional health and freshness. |
 | E1 | P2 | Catalog / Command / HA | Validate climate temperature settings and start-with-parameters via guided discovery; keep proven start/stop routes. | Physical Q8/Q5 checks where supported; no invented parameter capability. |
@@ -107,13 +107,13 @@ The [historical B37–B40 review](https://github.com/npinguin/audi_connect_ha/bl
 ### API policy decisions to resolve before implementation
 
 - The official business Data Act API specification is not the consumer portal contract. Exact quota scope, reset period, and limits are unconfirmed. Do not hardcode a presumed manufacturer limit or bypass throttling.
-- Review #59's current two-hour fallback against the proposed 15-minute initial fallback when no server deadline exists; honor longer server deadlines and cap only the locally chosen fallback. Decide based on evidence, not merely latency preference.
+- PR #59 retains the B42 normal 30-minute cadence, backs off idle delivery to 60 minutes, starts 429 fallback at 15 minutes and honors longer server deadlines. Validate actual recovery and multi-client effects before release; exact OEM quota scope is unconfirmed.
 - Keep Data Act independently authorized and read-only. Native allowance remains conservatively shared where applicable. No automatic wake, retry of a vehicle mutation, implicit discovery, extra scheduler, new database or parallel state owner.
 - Confirm whether both owner clients use the Data Act portal; compare sanitized HTTP evidence and request cadence. Do not request credentials. Further Q5 B42 feedback is pending.
 
 ### Acceptance and release gate
 
-- [ ] Explicit product-owner implementation GO and agreed B43 scope.
+- [x] Product-owner implementation GO for sufficiently evidenced fixes only; release remains on HOLD.
 - [ ] P0 command fixes and independent physical evidence or documented blocking uncertainty; do not label an OEM failure resolved without evidence.
 - [ ] Source continuity, command evidence and all B42 discovery/registry/history regression tests.
 - [ ] Data Act throttling, multi-client quota simulation, native isolation, restart/unload/cancellation, privacy and bounded request volume.

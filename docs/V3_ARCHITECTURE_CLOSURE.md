@@ -6,6 +6,8 @@ Preserve V2 as the default and independent fallback. V3 must remain opt-in until
 
 The release objective is 100% agreed functional scope and V2 parity, zero known defects and zero known technical debt. This is a release gate, not a claim about current completeness. Unsupported OEM functionality is not a verified product feature; missing OEM evidence remains explicit and is not a reason to invent values or silently remove scope.
 
+Preserve proven behavior as a first-class regression requirement. Each change must improve simplicity, ownership clarity, manageability, efficiency and reliability together; do not sacrifice working capabilities to simplify implementation. New or unproven operations remain explicit experiments using existing discovery contracts and must not damage previously verified behavior. Optimize for maximum useful functionality and vehicle-data freshness with minimum necessary requests, processing and storage. Adapt to observed delivery, activity, quota and recovery evidence; never confuse an arbitrary long cooldown with stability or intentionally exceed server limits.
+
 ### Review criteria for every improvement
 
 | Criterion       | Required evidence                                                                         |

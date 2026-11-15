@@ -683,6 +683,7 @@
           "vehicle_access_denied": "Vehicle access denied",
           "subscription_unavailable": "Subscription unavailable",
           "rate_limited": "Rate limited",
+          "session_refresh_pending": "Session refresh pending",
           "unavailable": "Temporarily unavailable"
         }
       }
