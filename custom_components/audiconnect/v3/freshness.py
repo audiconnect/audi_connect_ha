@@ -65,7 +65,6 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
     """Describe a reported sample, independently of its projected HA state."""
     row = row or {}
     now = now or datetime.now(UTC)
-    age = capture_age_minutes(row.get("captured"), now)
     valid = row.get("value") is not None and row.get("status") != "invalid_value"
     from .attribute_runtime import last_known_observation
 
@@ -73,16 +72,18 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
     historical_display = (
         allow_last_known and not valid and known.get("value") is not None
     )
+    displayed = known if historical_display else row
+    age = capture_age_minutes(displayed.get("captured"), now)
     return {
         "availability_reason": reading_availability_reason(row, now=now),
         "last_known_state": known.get("value")
         if type(known.get("value")) in (str, int, float, bool)
         else None,
         "last_known_captured": known.get("captured"),
-        "vehicle_captured": row.get("captured"),
+        "vehicle_captured": displayed.get("captured"),
         "age_minutes": age,
-        "cloud_observed": row.get("observed"),
-        "cloud_age_minutes": capture_age_minutes(row.get("observed"), now),
+        "cloud_observed": displayed.get("observed"),
+        "cloud_age_minutes": capture_age_minutes(displayed.get("observed"), now),
         "vehicle_freshness": (
             "stale_last_known"
             if historical_display
@@ -99,9 +100,21 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
             if row.get("status") == "verified" and (age is None or age > 60)
             else row.get("status", "unknown")
         ),
-        **({"source_operation": row["operation"]} if row.get("operation") else {}),
-        **({"derived_from": row["derived_from"]} if row.get("derived_from") else {}),
-        **({"delivered_at": row["delivered_at"]} if row.get("delivered_at") else {}),
+        **(
+            {"source_operation": displayed["operation"]}
+            if displayed.get("operation")
+            else {}
+        ),
+        **(
+            {"derived_from": displayed["derived_from"]}
+            if displayed.get("derived_from")
+            else {}
+        ),
+        **(
+            {"delivered_at": displayed["delivered_at"]}
+            if displayed.get("delivered_at")
+            else {}
+        ),
     }
 
 

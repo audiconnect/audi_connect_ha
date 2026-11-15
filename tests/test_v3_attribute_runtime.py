@@ -776,9 +776,11 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     )
     assert row["status"] == "invalid_value"
     assert last_known_observation(row)["value"] == 80
-    assert reading_freshness_attributes(row, allow_last_known=True, now=now)[
-        "vehicle_freshness"
-    ] == "stale_last_known"
+    attrs = reading_freshness_attributes(row, allow_last_known=True, now=now)
+    assert attrs["vehicle_freshness"] == "stale_last_known"
+    assert attrs["vehicle_captured"] == (now - timedelta(minutes=15)).isoformat()
+    assert attrs["age_minutes"] == 15
+    assert attrs["cloud_observed"] is None
     _, native = select_reading(
         vehicle, (ident,), ident, registry=profile.registry, families=("cariad",)
     )
