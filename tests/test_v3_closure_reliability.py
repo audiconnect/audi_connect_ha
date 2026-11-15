@@ -406,3 +406,24 @@ def test_v2_delta_register_covers_all_production_blob_changes():
         if actual.get(key) != upstream.get(key)
     }
     assert observed == expected
+
+
+def test_optional_budget_policy_and_diagnostics_share_local_headroom():
+    from custom_components.audiconnect.v3.quota import optional_budget_available
+
+    assert optional_budget_available(None)
+    assert not optional_budget_available(12)
+    assert optional_budget_available(13)
+    assert not optional_budget_available(19, cost=8)
+    assert optional_budget_available(20, cost=8)
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "12"}, now)
+    assert budget.diagnostics() == {
+        "remaining": 12,
+        "observed_at": now.isoformat(),
+        "retry_at": None,
+        "rate_limit_streak": 0,
+        "command_reserve": 8,
+        "optional_headroom_available": False,
+    }

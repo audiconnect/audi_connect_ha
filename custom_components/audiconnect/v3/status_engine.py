@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 import time
 from typing import Any
@@ -36,6 +37,7 @@ from .read_discovery import (
     DATA_ACT_DATASET,
 )
 from .status_planner import status_groups
+from .quota import optional_budget_available
 
 
 DATA_ACT_CONNECTION_STATES = [
@@ -65,7 +67,7 @@ def data_act_connection_state(result, deliveries):
 
 def identity_refresh_due(vehicles, elapsed_seconds, remaining_calls):
     """Bound inventory recovery independently of routine bearer renewal."""
-    if remaining_calls is not None and remaining_calls <= 12:
+    if not optional_budget_available(remaining_calls):
         return False
     present = [car for car in vehicles.values() if car.inventory_present]
     incomplete = any(
@@ -298,10 +300,7 @@ class StatusEngine:
                 continue
             if self._poll_cycles < self._legacy_route_backoff.get(key, 0):
                 continue
-            if (
-                self.transport.remaining_calls is not None
-                and self.transport.remaining_calls <= 12
-            ):
+            if not optional_budget_available(self.transport.remaining_calls):
                 break
             path = template.format(VIN=car.vin, COUNTRY=car.country, TYPE="Audi")
             try:
@@ -334,7 +333,7 @@ class StatusEngine:
         from .attribute_runtime import _capture_in_utc
 
         remaining = self.transport.remaining_calls
-        if remaining is not None and remaining < 20:
+        if not optional_budget_available(remaining, cost=8):
             return
         now = time.monotonic()
         key = car.vin.lower()
@@ -416,7 +415,7 @@ class StatusEngine:
             if ident not in available or read_excluded(profile, ident):
                 continue
             remaining = self.transport.remaining_calls
-            if remaining is not None and remaining <= 12:
+            if not optional_budget_available(remaining):
                 break
             family, method, path, _ = self._operation_request(car, ident)
             try:
@@ -450,21 +449,21 @@ class StatusEngine:
         if self._identity_attempt_at is None:
             self._identity_attempt_at = now
         elapsed = now - self._identity_attempt_at
-        if initial or identity_refresh_due(
-            self.vehicles,
-            elapsed,
-            self.transport.remaining_calls,
-        ):
+        if initial:
             self._identity_attempt_at = now
-            try:
-                await self.discover()
-            except (RuntimeError, ValueError, OSError, TimeoutError):
-                if initial:
-                    raise
+            await self.discover()
         # One optional family task, owned by the same status lifecycle. A slow
         # portal read must not delay the native coordinator's publication.
         self._start_data_act()
         await self._poll_native_status()
+        # Inventory enrichment is secondary to primary vehicle measurements.
+        # Recheck remaining allowance after the native reads, not before them.
+        if not initial and identity_refresh_due(
+            self.vehicles, elapsed, self.transport.remaining_calls
+        ):
+            self._identity_attempt_at = now
+            with suppress(RuntimeError, ValueError, OSError, TimeoutError):
+                await self.discover()
         self._update_capture_projection()
         return list(self.vehicles.values())
 
@@ -715,7 +714,12 @@ class StatusEngine:
         # API family + VIN + exact path is the request identity; a route change
         # must never trigger a second call for a response already in this poll.
         polled_responses: dict[tuple[str, str, str], V3Response] = {}
-        for key, vehicle in self.vehicles.items():
+        # Rotate the existing account poll order so a low shared allowance
+        # cannot consistently favor the first vehicle in inventory.
+        keys = list(self.vehicles)
+        start = (self._poll_cycles - 1) % len(keys) if keys else 0
+        for key in keys[start:] + keys[:start]:
+            vehicle = self.vehicles[key]
             if not vehicle.inventory_present:
                 continue
             profile = self.profiles[key]
@@ -950,9 +954,7 @@ class StatusEngine:
             else MAX_EXTRA_PERIODIC_REQUESTS
         )
         # Rotate the existing account-wide discovery budget across vehicles.
-        discovery_keys = list(self.vehicles)
-        start = (self._poll_cycles - 1) % len(discovery_keys) if discovery_keys else 0
-        for key in discovery_keys[start:] + discovery_keys[:start]:
+        for key in keys[start:] + keys[:start]:
             car = self.vehicles[key]
             if not car.inventory_present:
                 continue
@@ -967,10 +969,7 @@ class StatusEngine:
                 break
             for jobs in pending_groups(profile, max_groups=remaining_discovery):
                 remaining_discovery -= 1
-                if (
-                    self.transport.remaining_calls is not None
-                    and self.transport.remaining_calls <= 12
-                ):
+                if not optional_budget_available(self.transport.remaining_calls):
                     break
                 path = selective_status_path(car.vin, ",".join(jobs))
                 response = polled_responses.get((key, "cariad", path))
@@ -1145,10 +1144,7 @@ class StatusEngine:
                 car.context.auth != "auth0" and not car.legacy_cariad
             ) or not self.parking_read_allowed(car):
                 continue
-            if (
-                self.transport.remaining_calls is not None
-                and self.transport.remaining_calls <= 12
-            ):
+            if not optional_budget_available(self.transport.remaining_calls):
                 return
             ident = "cariad.mobility.status.parkingPosition"
             profile = self.profiles[car.vin.lower()]

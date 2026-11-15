@@ -17,7 +17,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
-from .quota import QuotaBudget
+from .quota import QuotaBudget, optional_budget_available
 
 MAX_NATIVE_RESPONSE_BYTES = 10_000_000
 
@@ -629,7 +629,7 @@ class V3Transport:
             )
         # Only on unusable inventory, not missing model/media fields or quota
         # failure. The same authorized account owns both native families.
-        if self.remaining_calls is not None and self.remaining_calls <= 12:
+        if not optional_budget_available(self.remaining_calls):
             raise RuntimeError("Audi vehicle discovery unavailable; quota too low")
         response = await self.request("cariad", "GET", GARAGE_PATH)
         vehicles = garage_rows(response.data)

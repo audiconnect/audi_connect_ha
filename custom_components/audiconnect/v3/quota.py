@@ -8,12 +8,22 @@ from email.utils import parsedate_to_datetime
 from collections.abc import Mapping
 
 
+# Local headroom policy, not a claim about Audi account limits.
+COMMAND_RESERVE = 8
+OPTIONAL_HEADROOM = 4
+
+
+def optional_budget_available(remaining, *, cost=1):
+    """Preserve command and primary status headroom for optional work."""
+    return remaining is None or remaining >= COMMAND_RESERVE + OPTIONAL_HEADROOM + cost
+
+
 @dataclass
 class QuotaBudget:
     remaining: int | None = None
     observed_at: datetime | None = None
     retry_at: datetime | None = None
-    reserve: int = 8
+    reserve: int = COMMAND_RESERVE
     recovery_delay: timedelta = timedelta(minutes=15)
     max_recovery_delay: timedelta | None = None
     rate_limit_streak: int = 0
@@ -87,6 +97,17 @@ class QuotaBudget:
                         pass
             # A new server deadline supersedes a speculative probe reservation.
             self.retry_at = delay
+
+    def diagnostics(self) -> dict:
+        """Current local budget evidence; remote scope is not assumed."""
+        return {
+            "remaining": self.remaining,
+            "observed_at": self.observed_at.isoformat() if self.observed_at else None,
+            "retry_at": self.retry_at.isoformat() if self.retry_at else None,
+            "rate_limit_streak": self.rate_limit_streak,
+            "command_reserve": self.reserve,
+            "optional_headroom_available": optional_budget_available(self.remaining),
+        }
 
     def rate_limit_checkpoint(self) -> dict:
         """Optional account backoff only; no credentials or response content."""

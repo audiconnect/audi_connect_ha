@@ -10,6 +10,7 @@ import asyncio
 import time
 from typing import Any
 
+from .quota import optional_budget_available
 from .action_discovery import approval_group
 from .auth import configured_spin
 from .command_journal import (
@@ -324,7 +325,7 @@ class CommandEngine:
         if operation not in ("cariad.remote.wake", "cariad.remote.refresh"):
             return
         remaining = getattr(self.transport, "remaining_calls", None)
-        if remaining is not None and remaining <= 12:
+        if not optional_budget_available(remaining):
             raise RuntimeError("Audi wake quota reserve reached")
         from .command_journal import check_wake_budget
 
@@ -398,7 +399,7 @@ class CommandEngine:
                 or self.profiles.get(vin.lower()) is not profile
                 or operation_revision(profile.registry.operations[alternative])
                 != revision
-                or (remaining is not None and remaining <= 12)
+                or not optional_budget_available(remaining)
             ):
                 return {**result, "alternative": "paused_context_or_quota"}
             from .read_discovery import user_test_candidates
