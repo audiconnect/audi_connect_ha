@@ -703,22 +703,31 @@ class CommandEngine:
                         record.observe_backend(outcome, time.time())
                     car.last_command_result = record.state
             except asyncio.CancelledError:
-                # Never discard known HTTP acceptance on interrupted status checks.
+                # Never discard a known HTTP receipt on interrupted result processing.
                 if record.http_status is None:
-                    record.state = "uncertain"
-                    record.backend_result = "transport_uncertain"
+                    record.observe_http(None)
                     car.last_command_result = "transport_uncertain"
                 raise
             except (TimeoutError, OSError, RuntimeError, ValueError) as err:
-                record.state = "uncertain"
-                record.backend_result = "transport_uncertain"
-                car.last_command_result = "transport_uncertain"
-                record.completed_at = max(record.started_at, time.time())
+                if record.http_status is None:
+                    record.observe_http(None)
+                    car.last_command_result = "transport_uncertain"
+                    detail = "connection error or timeout; outcome uncertain"
+                else:
+                    # Parsing, persistence and read-only confirmation failures
+                    # cannot change an already observed mutation receipt.
+                    car.last_command_result = record.state
+                    detail = (
+                        f"HTTP {record.http_status}; {record.state}; "
+                        "result processing failed"
+                    )
+                if record.state in ("rejected", "uncertain"):
+                    record.completed_at = max(record.started_at, time.time())
                 await self.storage.async_save(self.profiles)
                 self._notify_discovery_change()
                 advice = "check the vehicle; try again after the short cooldown"
                 raise RuntimeError(
-                    f"Audi {capability}.{aspect}: connection error or timeout; outcome uncertain. {advice}."
+                    f"Audi {capability}.{aspect}: {detail}. {advice}."
                 ) from err
             if record.state in ("rejected", "uncertain"):
                 record.completed_at = max(record.started_at, time.time())
