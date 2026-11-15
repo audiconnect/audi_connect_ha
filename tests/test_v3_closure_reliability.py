@@ -491,3 +491,38 @@ def test_native_command_sequence_uses_only_known_remaining_allowance():
     assert budget.remaining == 0
     with pytest.raises(RuntimeError):
         budget.authorize(now, read_only=False)
+
+
+def test_native_observation_and_restrictions_are_not_a_shared_read_counter():
+    from custom_components.audiconnect.v3.quota import NativeQuota
+
+    now = datetime(2026, 11, 15, tzinfo=UTC)
+    quota = NativeQuota()
+    quota.observe(200, {"Vcf-Remaining-Calls": "7"}, now, family="cariad", read_only=False)
+    for family in ("cariad", "graphql", "mbb"):
+        quota.authorize(now, family=family, read_only=True)
+        quota.reserve_request(family=family, read_only=True)
+        quota.observe(200, {}, now, family=family, read_only=True)
+    assert quota.remaining == 7
+    assert quota.planning_remaining(now, "cariad") == 7
+    assert quota.planning_remaining(now, "graphql") is None
+    quota.reserve_request(family="cariad", read_only=False)
+    assert quota.remaining == 7
+    assert quota.planning_remaining(now, "cariad") == 6
+    quota.observe(200, {"Vcf-Remaining-Calls": "42"}, now, family="cariad", read_only=False)
+    assert quota.planning_remaining(now, "cariad") == 42
+    quota.observe(429, {"Retry-After": "60"}, now, family="cariad", read_only=False)
+    quota.observe(200, {}, now, family="graphql", read_only=True)
+    assert quota.read_deferred(now, "cariad")
+    assert not quota.read_deferred(now, "graphql")
+    restored = NativeQuota()
+    restored.restore_rate_limit(quota.rate_limit_checkpoint())
+    assert restored.remaining is None
+    assert restored.read_deferred(now, "cariad")
+    later = now + timedelta(minutes=1)
+    restored.authorize(later, family="cariad", read_only=True)
+    restored.observe(200, {}, later, family="cariad", read_only=True)
+    assert restored.rate_limit_checkpoint()["cariad:command"]["streak"] == 1
+    restored.authorize(later, family="cariad", read_only=False)
+    restored.observe(200, {}, later, family="cariad", read_only=False)
+    assert restored.rate_limit_checkpoint() == {}

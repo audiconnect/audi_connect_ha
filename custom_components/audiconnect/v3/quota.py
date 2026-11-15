@@ -152,7 +152,7 @@ class QuotaBudget:
         }
 
     def restore_rate_limit(self, checkpoint) -> None:
-        if not self.max_recovery_delay or not isinstance(checkpoint, dict):
+        if not isinstance(checkpoint, dict):
             return
         streak = checkpoint.get("streak")
         try:
@@ -162,3 +162,133 @@ class QuotaBudget:
         if type(streak) is int and 1 <= streak <= 8 and retry.tzinfo is not None:
             self.rate_limit_streak = streak
             self.retry_at = retry.astimezone(UTC)
+
+
+NATIVE_FAMILIES = ("cariad", "graphql", "mbb")
+
+
+class NativeQuota:
+    """Observed VCF allowance and actual restrictions, never invented read costs.
+
+    Family/class identifies the origin of a restriction, not the OEM quota scope.
+    No additive allowances across families, accounts, sessions or vehicles.
+    """
+
+    def __init__(self):
+        self._limits = {}
+        self._reports = {}
+        self._requests = {}
+
+    def _limit(self, family, kind):
+        return self._limits.setdefault((family, kind), QuotaBudget(reserve=0))
+
+    @property
+    def remaining(self):
+        return self._latest_report().get("reported")
+
+    @property
+    def observed_at(self):
+        return self._latest_report().get("at")
+
+    def _latest_report(self):
+        return max(self._reports.values(), key=lambda row: row["at"], default={})
+
+    def read_deferred(self, now, family):
+        return any(
+            limit.read_deferred(now)
+            for (source, _), limit in self._limits.items()
+            if source == family
+        )
+
+    def retry_for(self, family):
+        return max(
+            (
+                limit.retry_at
+                for (source, _), limit in self._limits.items()
+                if source == family and limit.retry_at is not None
+            ),
+            default=None,
+        )
+
+    def planning_remaining(self, now, family):
+        row = self._reports.get(family)
+        if row is None or now - row["at"] >= timedelta(minutes=15):
+            return None
+        # Advisory conservative command cost, never a claimed server count.
+        return max(0, row["reported"] - row["command_attempts"])
+
+    def authorize(self, now, *, family, read_only, command_preparation=0):
+        if family not in NATIVE_FAMILIES:
+            raise ValueError("Unknown native API family")
+        kind = "command" if command_preparation or not read_only else "read"
+        if self.read_deferred(now, family):
+            raise QuotaUnavailable("Audi API family rate limited")
+        remaining = self.planning_remaining(now, family)
+        if command_preparation and remaining is not None and remaining <= command_preparation:
+            raise QuotaUnavailable("Audi command preparation needs allowance for the write")
+        # After Retry-After a user-initiated command may try once. Ordinary reads
+        # cannot clear a command restriction; no automatic mutation is generated.
+        self._limit(family, kind).authorize(now, read_only=True)
+
+    def reserve_request(self, *, family, read_only, command_preparation=0):
+        kind = "command" if command_preparation or not read_only else "read"
+        key = (family, kind)
+        self._requests[key] = self._requests.get(key, 0) + 1
+        row = self._reports.get(family)
+        if row is not None:
+            row["requests_since_header"] += 1
+            if kind == "command":
+                row["command_attempts"] += 1
+
+    def observe(self, status, headers, now, *, family, read_only, command_preparation=0):
+        kind = "command" if command_preparation or not read_only else "read"
+        # Use the same backoff primitive but never charge VCF allowance to reads.
+        self._limit(family, kind).observe(status, {"Retry-After": headers.get("Retry-After")}, now)
+        try:
+            reported = int(headers.get("Vcf-Remaining-Calls"))
+        except (ValueError, TypeError):
+            return
+        if reported >= 0:
+            self._reports[family] = {
+                "family": family,
+                "kind": kind,
+                "reported": reported,
+                "at": now,
+                "requests_since_header": 0,
+                "command_attempts": 0,
+            }
+
+    def rate_limit_checkpoint(self):
+        return {
+            f"{family}:{kind}": checkpoint
+            for (family, kind), limit in self._limits.items()
+            if (checkpoint := limit.rate_limit_checkpoint())
+        }
+
+    def restore_rate_limit(self, checkpoint):
+        if not isinstance(checkpoint, dict):
+            return
+        for family in NATIVE_FAMILIES:
+            for kind in ("read", "command"):
+                self._limit(family, kind).restore_rate_limit(checkpoint.get(f"{family}:{kind}"))
+
+    def diagnostics(self):
+        now = datetime.now(UTC)
+        return {
+            "remaining": self.remaining,
+            "observed_at": self.observed_at.isoformat() if self.observed_at else None,
+            "scope": "unknown_remote_scope",
+            "observations": {
+                family: {
+                    **row,
+                    "at": row["at"].isoformat(),
+                    "advisory_command_remaining": self.planning_remaining(now, family),
+                }
+                for family, row in self._reports.items()
+            },
+            "requests": {
+                f"{family}:{kind}": count
+                for (family, kind), count in self._requests.items()
+            },
+            "restrictions": self.rate_limit_checkpoint(),
+        }

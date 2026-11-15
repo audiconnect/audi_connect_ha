@@ -1435,14 +1435,13 @@ async def test_golden_configure_discover_use_restart_without_workbench():
     assert restarted.profiles[VIN.lower()].last_command.readback_observed_at is not None
 
 
-def test_identity_refresh_is_periodic_and_quota_aware():
+def test_identity_refresh_is_periodic():
     from custom_components.audiconnect.v3.status_engine import identity_refresh_due
 
     car = V3Vehicle(VIN, "Audi", "", "", "DE")
     cars = {VIN.lower(): car}
-    assert not identity_refresh_due(cars, 3599, 100)
-    assert identity_refresh_due(cars, 3600, 100)
-    assert not identity_refresh_due(cars, 3600, 12)
+    assert not identity_refresh_due(cars, 3599)
+    assert identity_refresh_due(cars, 3600)
     car.model, car.model_family, car.model_year, car.car_type = (
         "Audi Q8",
         "q8",
@@ -1450,10 +1449,10 @@ def test_identity_refresh_is_periodic_and_quota_aware():
         "phev",
     )
     car.image_url = "https://mediaservice.audi.com/render/example.png"
-    assert not identity_refresh_due(cars, 86399, 100)
-    assert identity_refresh_due(cars, 86400, 100)
+    assert not identity_refresh_due(cars, 86399)
+    assert identity_refresh_due(cars, 86400)
     car.identity_restored = True
-    assert identity_refresh_due(cars, 3600, 100)
+    assert identity_refresh_due(cars, 3600)
 
 
 @pytest.mark.asyncio
@@ -1524,7 +1523,7 @@ async def test_diagnostics_distinguish_poll_attempts_quota_and_operation_evidenc
     assert snapshot["quota_scope"] == "unknown_no_header"
     transport.remaining_calls = 40
     assert (
-        engine.diagnostics()["quota_scope"] == "conservative_estimate_since_last_header"
+        engine.diagnostics()["quota_scope"] == "last_reported_header_scope_unknown"
     )
 
 
@@ -1545,14 +1544,15 @@ async def test_periodic_identity_yields_to_primary_status_and_updated_quota():
     transport.request = low_quota
     transport.calls.clear()
     await engine.poll()
-    assert len(transport.calls) == 1
+    assert len(transport.calls) == 2
     assert transport.calls[0][1] == "GET"
+    assert transport.calls[-1] == ("inventory",)
     transport.request = original
     transport.remaining_calls = 100
     transport.calls.clear()
     await engine.poll()
     assert transport.calls[0][1] == "GET"
-    assert transport.calls[-1] == ("inventory",)
+    assert len(transport.calls) == 1
 
 
 @pytest.mark.asyncio
@@ -1579,16 +1579,16 @@ async def test_native_poll_rotates_vehicle_priority_without_extra_requests():
 @pytest.mark.asyncio
 async def test_deferred_native_poll_preserves_actual_success_and_command_reserve():
     from datetime import timedelta
-    from custom_components.audiconnect.v3.quota import QuotaBudget
+    from custom_components.audiconnect.v3.quota import NativeQuota
 
     engine, transport, _ = engine_for(status(), status())
     await engine.poll()
     attempt = engine.last_cloud_poll_attempt
     success = engine.last_cloud_poll_success
     count = engine.status.poll_attempt_count
-    transport.quota = QuotaBudget()
+    transport.quota = NativeQuota()
     now = datetime.now(UTC)
-    transport.quota.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
+    transport.quota.observe(429, {"Retry-After": "60"}, now, family="cariad", read_only=True)
     transport.remaining_calls = 7
     transport.calls.clear()
     await engine.poll()
@@ -1597,12 +1597,11 @@ async def test_deferred_native_poll_preserves_actual_success_and_command_reserve
     assert engine.last_cloud_poll_attempt == attempt
     assert engine.last_cloud_poll_success == success
     assert engine.status.poll_attempt_count == count
-    transport.quota.authorize(now, read_only=False)
     assert (
         engine.health.snapshot(engine, engine.vehicles[VIN.lower()])["status"]
         == "rate_limited"
     )
-    transport.quota.retry_at = now - timedelta(seconds=1)
+    transport.quota.observe(429, {"Retry-After": "0"}, now - timedelta(seconds=1), family="cariad", read_only=True)
     await engine.poll()
     assert len(transport.calls) == 1
     assert engine.status.poll_attempt_count == count + 1

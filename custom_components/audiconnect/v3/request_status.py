@@ -11,7 +11,6 @@ import asyncio
 import re
 from typing import Any
 
-from .quota import optional_budget_available
 
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 _PENDING = frozenset({"in_progress", "pending", "queued", "accepted"})
@@ -61,8 +60,6 @@ async def confirm(
     if not _ID.fullmatch(request_id):
         return "unknown"
     for attempt in range(max_reads):
-        if not optional_budget_available(transport.remaining_calls):
-            return "quota_limited"
         if attempt:
             await asyncio.sleep(delay_s)
         try:

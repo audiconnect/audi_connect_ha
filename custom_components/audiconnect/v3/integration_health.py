@@ -156,10 +156,13 @@ class IntegrationHealth:
         findings = list(self.findings.get(key, {}).values())
         remaining = getattr(engine.transport, "remaining_calls", None)
         quota = getattr(engine.transport, "quota", None)
-        retry_at = getattr(quota, "retry_at", None)
-        limited = (
-            remaining is not None and remaining <= getattr(quota, "reserve", 8)
-        ) or (retry_at is not None and retry_at > datetime.now(UTC))
+        families = (
+            ("cariad", "mbb") if car.legacy_cariad else
+            ("mbb",) if car.context.auth == "legacy" else ("cariad",)
+        )
+        limited = quota is not None and all(
+            quota.read_deferred(datetime.now(UTC), family) for family in families
+        )
         poll = engine.last_cloud_poll_succeeded
         findings = [
             {
