@@ -100,11 +100,25 @@ def retained_status_field(ident):
     return contract.get("display_last_known") is True
 
 
-def status_snapshot(readings, *, now=None):
-    """Serialize the canonical status map, not an independent runtime cache."""
+def status_snapshot(readings, *, family_readings=None, now=None):
+    """Serialize retained native evidence from the existing Status owner."""
     result = {}
+    reference = now or datetime.now(UTC)
     for ident, reading in readings.items():
-        known = last_known_observation(reading)
+        candidates = [reading, *((family_readings or {}).get(ident, {}).values())]
+        native = [
+            row for row in candidates if row.get("family") in ("cariad", "mbb")
+        ]
+        if not native:
+            continue
+        known = last_known_observation(
+            max(
+                native,
+                key=lambda row: _observation_rank(
+                    row, None, reference, allow_last_known=True
+                ),
+            )
+        )
         value, captured = known.get("value"), known.get("captured")
         family = known.get("family")
         if (
@@ -176,6 +190,7 @@ def bind_status(vehicle, profile):
         for ident, row in profile.status_readings.items():
             vehicle.readings.setdefault(ident, row)
         profile.status_readings = vehicle.readings
+    profile.status_family_readings = vehicle.family_readings
 
 
 def _observation_rank(row, registry, now, *, allow_last_known=False):

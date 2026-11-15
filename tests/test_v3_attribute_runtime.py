@@ -724,7 +724,9 @@ def test_inactive_charging_projection_has_explicit_not_applicable_reason():
 
 def test_display_prefers_newer_historical_capture_without_promoting_command_evidence():
     from custom_components.audiconnect.v3.attribute_runtime import (
+        bind_status,
         last_known_observation,
+        restore_status,
         record_invalid_observation,
         record_observation,
         remove_family_observations,
@@ -741,6 +743,7 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     profile = DevelopmentProfile(
         CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
     )
+    bind_status(vehicle, profile)
     now = datetime.now(UTC)
     ident = "stateOfCharge"
     for family, value, stamp in (
@@ -786,8 +789,12 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     )
     assert native["value"] is None
     assert vehicle.readings[ident]["value"] == 65
+    restored = restore_status(profile.snapshot()["status_observations"])
+    assert restored[ident]["status"] == "invalid_value"
+    assert last_known_observation(restored[ident])["value"] == 80
     remove_family_observations(vehicle, profile, "cariad", now)
     _, row = projection_reading(
         vehicle, ATTRIBUTES[ident], registry=profile.registry, now=now
     )
     assert row["value"] == 65
+    assert ident not in profile.snapshot()["status_observations"]
