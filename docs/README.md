@@ -17,6 +17,8 @@ evidence. Release candidates require exact-head CI and separate live acceptance.
 
 ## Research
 
+Finish the current stabilisation release first ([stable gate #44](https://github.com/npinguin/audi_connect_ha/issues/44)). The [post-stabilisation feature roadmap](research/cariad/README.md#post-stabilisation-research-roadmap) consolidates future feature research and the time-sensitive official VW Group API beta registration action. No runtime expansion during stabilisation.
+
 - **[VW Group / CARIAD API research](research/cariad/README.md)** — canonical English research knowledge base, including the VW Group API evolution, cross-brand endpoint atlas, Audi/VW/Škoda/CUPRA/Porsche overlap, read-only and delayed EU Data Act feed, parked-vehicle data freshness, authentication/capabilities, an adaptive multi-generation auth/API/vehicle/capability target architecture, NFR requirements, early experimental feature delivery and an engineering playbook.
 
 This documentation is **research**, not an active deployment or a manufacturer-endorsed API contract. Do not assume unverified cross-brand endpoints work for Audi.
