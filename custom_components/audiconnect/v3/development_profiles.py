@@ -374,6 +374,7 @@ class DevelopmentProfile:
         self.identity_drafts: dict[str, dict[str, Any]] = {}
         # Bound once to the vehicle's canonical map by the composition owner.
         self.status_readings: dict[str, Any] = {}
+        self.status_family_readings: dict[str, Any] = {}
         self.last_command: CommandRecord | None = None
         self.command_journal: list[CommandRecord] = []
         self.invalidated_attempt_sequence: int | None = None
@@ -929,7 +930,9 @@ class DevelopmentProfile:
             "verified_charge_modes": dict(self.verified_charge_modes),
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),
-            "status_observations": status_snapshot(self.status_readings),
+            "status_observations": status_snapshot(
+                self.status_readings, family_readings=self.status_family_readings
+            ),
             "identity_drafts": deepcopy(self.identity_drafts),
             "last_command": legacy_snapshot(self.last_command)
             if self.last_command

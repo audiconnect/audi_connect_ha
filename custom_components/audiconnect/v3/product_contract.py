@@ -151,7 +151,7 @@ def control_projection(profile, attribute, reading, *, now=None):
 
 def projection_reading(vehicle, attribute, *, registry=None, now=None):
     """Resolve only declared same-semantic historical aliases, never by order."""
-    from .attribute_runtime import select_reading
+    from .attribute_runtime import retained_status_field, select_reading
 
     ident = attribute["id"]
     canonical = ALIAS_OF.get(ident, ident)
@@ -176,7 +176,12 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
     if key == "mileage":
         sources.append("maintenanceMileage")
     selected, row = select_reading(
-        vehicle, sources, canonical, registry=registry, now=now
+        vehicle,
+        sources,
+        canonical,
+        registry=registry,
+        now=now,
+        allow_last_known=retained_status_field(canonical),
     )
     if key in ("remaining_charging_time", "charging_complete_time"):
         from .attribute_runtime import _capture_in_utc

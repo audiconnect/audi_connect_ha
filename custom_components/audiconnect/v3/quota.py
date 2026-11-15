@@ -14,12 +14,20 @@ class QuotaBudget:
     observed_at: datetime | None = None
     retry_at: datetime | None = None
     reserve: int = 8
-    recovery_delay: timedelta = timedelta(hours=1)
+    recovery_delay: timedelta = timedelta(minutes=15)
     max_recovery_delay: timedelta | None = None
     rate_limit_streak: int = 0
 
     def authorize(self, now: datetime, *, read_only: bool) -> None:
         """Reserve a single recovery probe before network I/O under transport lock."""
+        # A positive reserve is for explicit commands, not a hard server limit.
+        if (
+            not read_only
+            and self.remaining is not None
+            and 0 < self.remaining <= self.reserve
+            and not self.rate_limit_streak
+        ):
+            return
         exhausted = self.remaining is not None and self.remaining <= self.reserve
         if self.retry_at is not None and now < self.retry_at:
             raise RuntimeError("Audi request budget suspended until cooldown")
@@ -46,11 +54,17 @@ class QuotaBudget:
         if count is not None and count >= 0:
             self.remaining = count
             self.observed_at = now
-            if count <= self.reserve:
+            if status != 429 and count <= self.reserve:
                 self.retry_at = max(self.retry_at or now, now + self.recovery_delay)
             elif success:
                 self.retry_at = None
-        if count is None and self.remaining is None and success:
+        if success and self.max_recovery_delay is None:
+            self.rate_limit_streak = 0
+        if (
+            count is None
+            and success
+            and (self.remaining is None or self.remaining > self.reserve)
+        ):
             self.retry_at = None
         if status == 429:
             recovery = self.recovery_delay
@@ -58,20 +72,21 @@ class QuotaBudget:
                 recovery = min(
                     recovery * 2**self.rate_limit_streak, self.max_recovery_delay
                 )
-                self.rate_limit_streak = min(self.rate_limit_streak + 1, 8)
+            self.rate_limit_streak = min(self.rate_limit_streak + 1, 8)
             delay = now + recovery
             retry = headers.get("Retry-After")
             if retry:
                 try:
-                    delay = max(delay, now + timedelta(seconds=max(0, int(retry))))
+                    delay = now + timedelta(seconds=max(0, int(retry)))
                 except (ValueError, OverflowError):
                     try:
                         parsed = parsedate_to_datetime(retry)
                         if parsed.tzinfo is not None:
-                            delay = max(delay, parsed.astimezone(UTC))
+                            delay = max(now, parsed.astimezone(UTC))
                     except (ValueError, TypeError, OverflowError):
                         pass
-            self.retry_at = max(self.retry_at or now, delay)
+            # A new server deadline supersedes a speculative probe reservation.
+            self.retry_at = delay
 
     def rate_limit_checkpoint(self) -> dict:
         """Optional account backoff only; no credentials or response content."""

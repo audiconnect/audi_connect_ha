@@ -8,24 +8,43 @@ from custom_components.audiconnect.v3.quota import QuotaBudget
 from custom_components.audiconnect.v3.command_journal import CommandRecord
 
 
-def test_exhausted_budget_allows_only_one_bounded_recovery_read():
+def test_positive_reserve_prioritizes_commands_and_bounds_recovery_reads():
     now = datetime(2026, 11, 12, tzinfo=UTC)
     budget = QuotaBudget()
     budget.observe(200, {"Vcf-Remaining-Calls": "8"}, now)
     with pytest.raises(RuntimeError):
         budget.authorize(now, read_only=True)
-    later = now + timedelta(hours=1)
-    with pytest.raises(RuntimeError):
-        budget.authorize(later, read_only=False)
+    budget.authorize(now, read_only=False)
+    budget.reserve_request()
+    assert budget.remaining == 7
+    later = now + budget.recovery_delay
     budget.authorize(later, read_only=True)
     with pytest.raises(RuntimeError):
         budget.authorize(later, read_only=True)
-    # A response without quota evidence must not reset an exhausted reserve.
     budget.observe(200, {}, later)
+    budget.authorize(later, read_only=False)
+    budget.observe(200, {"Vcf-Remaining-Calls": "0"}, later)
     with pytest.raises(RuntimeError):
         budget.authorize(later, read_only=False)
     budget.observe(200, {"Vcf-Remaining-Calls": "42"}, later)
     budget.authorize(later, read_only=False)
+
+
+def test_server_throttle_overrides_positive_reserve_and_local_deadline():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    budget = QuotaBudget()
+    budget.observe(200, {"Vcf-Remaining-Calls": "7"}, now)
+    budget.observe(429, {"Vcf-Remaining-Calls": "7", "Retry-After": "60"}, now)
+    assert budget.retry_at == now + timedelta(minutes=1)
+    with pytest.raises(RuntimeError):
+        budget.authorize(now, read_only=False)
+    due = budget.retry_at
+    with pytest.raises(RuntimeError):
+        budget.authorize(due, read_only=False)
+    budget.authorize(due, read_only=True)
+    budget.reserve_request()
+    budget.observe(200, {}, due)
+    budget.authorize(due, read_only=False)
 
 
 def test_retry_after_honored_and_recovery_never_mutates():
