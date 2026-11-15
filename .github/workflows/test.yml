@@ -8,6 +8,10 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ha: [baseline, "2026.11.1"]
     steps:
       - uses: actions/checkout@v7
 
@@ -19,12 +23,21 @@ jobs:
           cache-dependency-path: requirements-test.txt
 
       - name: Install test dependencies
-        run: pip install -r requirements-test.txt
+        env:
+          HA_TARGET: ${{ matrix.ha }}
+        run: |
+          if [ "$HA_TARGET" = baseline ]; then
+            pip install -r requirements-test.txt
+          else
+            sed "s/^homeassistant==.*/homeassistant==$HA_TARGET/" requirements-test.txt > "$RUNNER_TEMP/requirements-test.txt"
+            pip install -r "$RUNNER_TEMP/requirements-test.txt"
+          fi
 
       - name: Run tests
         run: pytest
 
       - name: Node Workbench syntax and interaction tests
+        if: matrix.ha == 'baseline'
         run: |
           node --check custom_components/audiconnect/v3/frontend/panel.js
           node --test tests/test_v3_workbench_ui.mjs
