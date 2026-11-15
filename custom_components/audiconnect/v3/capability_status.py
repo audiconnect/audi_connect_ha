@@ -1003,7 +1003,6 @@ def _cockpit(vehicle, profile, rows, controls, *, fast_bindings=None):
                 if (key == "vehicle_image") == ident.endswith(".images")
             ]
         else:
-
             links = []
             declared_by_attribute = {
                 row["attribute"]: variant for row, variant in declared
