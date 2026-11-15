@@ -391,3 +391,39 @@ def test_charging_request_feedback_is_informational_not_vehicle_capture():
     assert switch.is_on is True
     assert switch.extra_state_attributes["last_reported_state"] is True
     assert not reconcile_readback(command, car, now)
+
+
+def test_switch_display_and_metadata_share_retained_source_selection():
+    car = V3Vehicle(VIN, "Audi", "Audi Q8", "q8", "DE")
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=2)).isoformat()
+    recent = (now - timedelta(minutes=2)).isoformat()
+    current = {
+        "value": "off",
+        "captured": old,
+        "family": "eu_data_act",
+        "status": "readable_but_stale",
+    }
+    native = {
+        "value": None,
+        "captured": now.isoformat(),
+        "family": "cariad",
+        "status": "invalid_value",
+        "last_known": {
+            "value": "charging",
+            "captured": recent,
+            "family": "cariad",
+            "status": "verified",
+        },
+    }
+    car.readings["chargingState"] = current
+    car.family_readings["chargingState"] = {"cariad": native, "eu_data_act": current}
+    engine = NS(control_enabled=lambda *args: True, profiles={})
+    co = NS(engine=engine, last_update_success=True)
+    switch = V3OperationalSwitch(co, car, "charging")
+    assert switch.is_on is True
+    attrs = switch.extra_state_attributes
+    assert attrs["last_reported_state"] is True
+    assert attrs["vehicle_captured"] == recent
+    assert attrs["state_source"] == "last_known_vehicle"
+    assert car.readings["chargingState"] is current
