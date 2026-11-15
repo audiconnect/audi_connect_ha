@@ -674,6 +674,7 @@ class DevelopmentProfile:
         previous = self.discovery.context
         if context.auth != previous.auth or context.region != previous.region:
             self.status_readings.clear()
+            self.status_family_readings.clear()
         if self.discovery.active_attempt is not None:
             self.invalidated_attempt_sequence = self.discovery.active_attempt.sequence
         # Preserve reviewed built-in outcomes before invalidating the current
@@ -758,7 +759,11 @@ class DevelopmentProfile:
             )
             if worked is not None:
                 record.completed_at = now
-        if sequence == self.invalidated_attempt_sequence:
+        if sequence == self.invalidated_attempt_sequence or (
+            record is not None
+            and record.operation_revision
+            != operation_revision(self.registry.operations[attempted.operation])
+        ):
             self.discovery.preferred.pop(key, None)
             if worked is not None:
                 self.invalidated_attempt_sequence = None
@@ -782,6 +787,7 @@ class DevelopmentProfile:
             # A later failure/uncertainty invalidates this vehicle's active
             # mapping. Never keep advertising a known-broken command.
             self.active.pop(key)
+            self.active_revisions.pop(key, None)
 
     def reject_test(self, sequence: int, *, now: float) -> None:
         record = self.engineering_record(sequence)
@@ -891,7 +897,11 @@ class DevelopmentProfile:
 
     def disable(self, capability: str, action: str) -> None:
         self.discovery.disable(capability, action)
-        self.active.pop(f"{capability}.{action}", None)
+        key = f"{capability}.{action}"
+        self.active.pop(key, None)
+        # Retain the revision for explicit re-enable and historical evidence;
+        # disabled routes must not appear as active selections.
+        self.active_revisions.pop(key, None)
 
     def save_identity_draft(self, operation: str, query: str, variables: dict) -> None:
         """Private VIN-scoped definitions, never automatic polling or control proof."""
