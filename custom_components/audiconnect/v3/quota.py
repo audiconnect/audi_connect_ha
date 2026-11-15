@@ -68,7 +68,9 @@ class QuotaBudget:
             return
         eligible_at = self.retry_at or ((self.observed_at or now) + self.recovery_delay)
         if not read_only or now < eligible_at:
-            raise QuotaUnavailable("Audi request budget too low; recovery read required")
+            raise QuotaUnavailable(
+                "Audi request budget too low; recovery read required"
+            )
         # Reserve before sending: timeout/cancellation cannot cause a probe storm.
         self.retry_at = now + self.recovery_delay
 

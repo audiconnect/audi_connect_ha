@@ -546,17 +546,20 @@ class V3Transport:
             ):
                 validate_identity_body(body)
             if command_preparation and not (
-                family == "cariad" and method == "GET"
+                family == "cariad"
+                and method == "GET"
                 or family == "cariad"
                 and method == "PUT"
                 and explicit_action
                 and path.endswith("/userpromptproof")
                 or family == "mbb"
                 and (
-                    method == "GET" and path.endswith("/homeRegion")
+                    method == "GET"
+                    and path.endswith("/homeRegion")
                     or explicit_action
                     and (
-                        method == "GET" and path.endswith("/security-pin-auth-requested")
+                        method == "GET"
+                        and path.endswith("/security-pin-auth-requested")
                         or method == "POST"
                         and path.endswith("/security-pin-auth-completed")
                     )
