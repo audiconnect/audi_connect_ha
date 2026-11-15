@@ -1,6 +1,6 @@
 # Audi Connect / VW Group API Research
 
-**Canonical research index** | Updated 2026-11-11 | Research only | Target: [Audi Connect for Home Assistant](https://github.com/audiconnect/audi_connect_ha)
+**Canonical research index** | Updated 2026-11-15 | Research only | Target: [Audi Connect for Home Assistant](https://github.com/audiconnect/audi_connect_ha)
 
 ## Mission
 
@@ -21,6 +21,24 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 - Distinguish request accepted, command executed and vehicle state confirmed.
 - Treat privacy, account safety, rate limits, vehicle sleep, licensing and vendor-side changes as engineering constraints.
 - Prioritize reproducible redacted fixtures and tests. Avoid invasive reverse engineering, unauthorized scope use and speculative production probes.
+
+## Post-stabilisation research roadmap
+
+**Priority: finish the current B45 stabilisation release and [stable gate #44](https://github.com/npinguin/audi_connect_ha/issues/44) first.** Research is documentation/evidence only until the gate is closed; no new runtime features, speculative requests or release promotion. The official API registration is a time-sensitive exception for preparation only.
+
+| Future scope | Research and expected outcome |
+| --- | --- |
+| Charging & energy | Charging sessions, energy totals, AC/DC and power curves, current limits, profiles, departure timers, battery temperature/health. Compare [evcc](https://github.com/evcc-io/evcc), Škoda and CUPRA charging services. |
+| Trips & driving | Extend existing history with start/end SoC, EV/ICE distance, refuelling, charging correlation, aggregates and export. Compare [TRONITY](https://www.tronity.io/) and [TeslaMate](https://github.com/teslamate-org/teslamate). |
+| Vehicle health | TPMS, 12V battery, warnings, maintenance, diagnostic codes, fluid/brake status and software/recalls; compare native jobs and the Data Act dictionary. |
+| Comfort & controls | Timers, seat/steering heating or ventilation, auxiliary heating, honk/flash, destinations and alarm events. Compare [Homey myAudi](https://homey.app/nl-be/app/com.audi.etron/myAudi/) and verify each supported operation physically. |
+| Vehicle identity | Model/year, images, drivetrain/battery/charging specifications, equipment, subscriptions and platform; continue [#35](https://github.com/npinguin/audi_connect_ha/issues/35). |
+| Connectivity | Authorized push/event channels, HA events, adaptive polling, official REST API; compare freshness, quotas, privacy and vehicle sleep. |
+| Feature harvesting | Gap analysis against [VW Group Connect HA](https://github.com/its-me-prash/vwgroup-connect-ha), [CarConnectivity Audi](https://github.com/acfischer42/CarConnectivity-connector-audi), [ioBroker](https://github.com/TA2k/ioBroker.vw-connect), Homey, evcc and VW/Škoda/CUPRA/Porsche. Check High Mobility, official Audi portals and optional OBD/OVMS as secondary evidence sources, not new dependencies. |
+
+**Official VW Group Vehicle Data API — registration action (P1, pending):** [Data Hub announcement, 2026-11-13](https://github.com/evcc-io/evcc/discussions/36190). Registration is planned for December 2026; limited closed beta early 2027. Follow the announcement, apply as an integration developer when registration opens and recruit an eligible Audi owner (Q4/A6/Q6 e-tron or A3 TFSI e/A5/Q5 e-hybrid; Q8 not on initial list). Participation is not guaranteed. Initial REST scope is read-only charging, status and parking position, without vehicle wake or controls. Evaluate authorization, schema, freshness, quotas and conditions before proposing an adapter. Do not delay the current release for this API.
+
+**Research exit:** compare against the existing product entity contract and capability catalog; record source, evidence level, applicability, gaps and acceptance criteria in the existing atlas/playbook. Use redacted fixtures and community vehicle coverage. Keep OEM data/controls in Audi Connect and cross-brand optimization/cost analytics in RHI. No duplicate catalogs, frameworks or speculative production probes.
 
 ## Reading order
 
