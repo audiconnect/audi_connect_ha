@@ -513,6 +513,23 @@ class V3ProfileStorage:
         async with self._write_lock:
             await self._store.async_remove()
 
+    async def async_load_data_act_backoff(self) -> dict:
+        async with self._write_lock:
+            saved = await self._store.async_load() or {}
+            return saved.get("data_act_backoff", {}) if isinstance(saved, dict) else {}
+
+    async def async_save_data_act_backoff(self, checkpoint: dict) -> None:
+        async with self._write_lock:
+            saved = await self._store.async_load() or {}
+            if not isinstance(saved, dict):
+                raise DevelopmentProfileError("Invalid existing local profile store")
+            if saved.get("data_act_backoff", {}) != checkpoint:
+                if checkpoint:
+                    saved["data_act_backoff"] = checkpoint
+                else:
+                    saved.pop("data_act_backoff", None)
+                await self._store.async_save(saved)
+
     async def async_identity(self, vehicle_key: str, region: str) -> dict:
         from .identity_cache import validate_identity
 
@@ -564,4 +581,4 @@ class V3ProfileStorage:
         if len(records) > 50:
             raise DevelopmentProfileError("Too many saved vehicle profiles")
         if records != old.get("profiles", {}):
-            await self._store.async_save({"profiles": records})
+            await self._store.async_save({**old, "profiles": records})

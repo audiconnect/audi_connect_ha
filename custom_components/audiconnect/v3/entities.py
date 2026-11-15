@@ -560,7 +560,14 @@ class V3HealthSensor(V3BaseEntity, SensorEntity):
             data = self._data_act()
             return {
                 key: data[key]
-                for key in ("result", "last_attempt", "last_success", "retry_at")
+                for key in (
+                    "result",
+                    "last_attempt",
+                    "last_success",
+                    "retry_at",
+                    "next_poll_at",
+                    "rate_limit_streak",
+                )
             }
         data = self._health()
         attrs = {

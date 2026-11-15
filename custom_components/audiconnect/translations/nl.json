@@ -440,6 +440,7 @@
           "vehicle_access_denied": "Voertuigtoegang geweigerd",
           "subscription_unavailable": "Abonnement niet beschikbaar",
           "rate_limited": "Aanvraaglimiet bereikt",
+          "session_refresh_pending": "Sessievernieuwing gepland",
           "unavailable": "Tijdelijk niet beschikbaar"
         }
       }

@@ -126,6 +126,14 @@ async def test_partial_vehicle_save_never_erases_another_car_profile():
     loaded = await storage.async_load(catalog, {"current_vehicle": ctx})
     assert isinstance(loaded["current_vehicle"], DevelopmentProfile)
 
+    checkpoint = {"retry_at": "2026-11-15T10:00:00+00:00", "streak": 3}
+    await storage.async_save_data_act_backoff(checkpoint)
+    await storage.async_save({"current_vehicle": profile})
+    assert await storage.async_load_data_act_backoff() == checkpoint
+    await storage.async_save_data_act_backoff({})
+    assert await storage.async_load_data_act_backoff() == {}
+    assert set(storage._store.data["profiles"]) == {"current_vehicle", "other_vehicle"}
+
 
 def test_saved_unverified_candidate_survives_restart_but_not_active():
     catalog, context, profile = fresh()
