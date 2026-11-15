@@ -422,9 +422,7 @@ def test_failed_charge_mode_does_not_withdraw_independently_verified_mode():
     car.readings["availableChargeModes"] = {"value": []}
     route = "cariad.charging.mode"
     for i, mode in enumerate(("manual", "timer"), start=1):
-        attempt = profile.begin_test(
-            "charging", "set_charge_mode", route, now=i * 100
-        )
+        attempt = profile.begin_test("charging", "set_charge_mode", route, now=i * 100)
         profile.engineering_record(attempt.sequence).requested_charge_mode = mode
         profile.observe_http(attempt.sequence, 200)
         profile.confirm(
