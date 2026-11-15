@@ -100,12 +100,16 @@ def validate_inputs(params, schema):
         raise ValueError("Unknown command parameter")
     if {"temp_c", "temp_f"} <= params.keys():
         raise ValueError("Supply only one temperature unit")
-    if TEMPERATURE.keys() & params.keys() and {
-        "targetTemperature",
-        "targetTemperature_C",
-        "targetTemperature_F",
-        "targetTemperatureUnit",
-    } & params.keys():
+    if (
+        TEMPERATURE.keys() & params.keys()
+        and {
+            "targetTemperature",
+            "targetTemperature_C",
+            "targetTemperature_F",
+            "targetTemperatureUnit",
+        }
+        & params.keys()
+    ):
         raise ValueError("Supply one semantic temperature, not raw settings")
     for name, contract in schema.items():
         if name in params:

@@ -897,11 +897,7 @@ class DevelopmentProfile:
 
     def disable(self, capability: str, action: str) -> None:
         self.discovery.disable(capability, action)
-        key = f"{capability}.{action}"
-        self.active.pop(key, None)
-        # Retain the revision for explicit re-enable and historical evidence;
-        # disabled routes must not appear as active selections.
-        self.active_revisions.pop(key, None)
+        self.active.pop(f"{capability}.{action}", None)
 
     def save_identity_draft(self, operation: str, query: str, variables: dict) -> None:
         """Private VIN-scoped definitions, never automatic polling or control proof."""
