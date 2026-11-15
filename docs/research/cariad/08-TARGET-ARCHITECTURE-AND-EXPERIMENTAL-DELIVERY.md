@@ -6,7 +6,7 @@
 
 ## 1. Strategic vision
 
-Today the integration is largely **Audi-specific and API-era-specific**, while the vehicle ecosystem underneath it is heterogeneous. A newer Audi might use Auth0 plus CARIAD BFF for status, an older car may require a legacy MBB service for a permitted feature, and a consented EU Data Act export can provide additional but delayed observations. Even within one car, different functions may use distinct service hosts and authorizations.
+The original design problem is an **Audi-specific integration across API eras**, while the vehicle ecosystem underneath it is heterogeneous. The current V3 implementation and ownership contract are documented in [the architecture guide](../../V3_ARCHITECTURE_CLOSURE.md). A newer Audi might use Auth0 plus CARIAD BFF for status, an older car may require a legacy MBB service for a permitted feature, and a consented EU Data Act export can provide additional but delayed observations. Even within one car, different functions may use distinct service hosts and authorizations.
 
 **Working strategic hypothesis:** VW Group has economic incentives over time to reuse more identity infrastructure, vehicle connectivity, telematics contracts, domain services, security controls and API conventions across Audi, VW, Škoda, CUPRA/SEAT and other brands. Existing CARIAD BFF vocabulary and the shared charging-statistics host are evidence of **some current convergence**, while MyŠkoda, OLA, Porsche PPA and Audi Auth0 are evidence of **substantial continuing divergence**. Neither complete convergence nor a specific VW Group migration timetable is established by our sources.
 
@@ -176,15 +176,7 @@ Suggested quantitative engineering gates (tunable, **not observed OEM limits**):
 
 ### Existing implementation and migration
 
-The fork already has `experimental_commands` in `custom_components/audiconnect/config_flow.py` and experimental charge/window-heating/wakeup buttons in `button.py`; [2.5.3b11 test notes](https://github.com/npinguin/audi_connect_ha/blob/main/docs/COMMUNITY_TEST_RELEASE_2.5.3b11.md) call these opt-in. **Preserve this behavior and existing user settings.**
-
-Proposed progression:
-
-- A clearly labeled **“Enable experimental features”** umbrella (opt-in, off by default) for early read-only capabilities; feature-level availability is still constrained by detected VIN/API support.
-- Keep **“Enable experimental remote commands”** separately opt-in, potentially nested underneath the umbrella, and migrate the existing `experimental_commands` setting without silently enabling new remote actions.
-- **Do not imply the umbrella or command toggle grants authorization.** A denied route remains denied; a missing capability remains unavailable.
-- Stable features migrate out of the experimental umbrella when validated; preserve their HA unique IDs and entity semantics. Users should not lose a feature/entity solely because its classification changes from experimental to stable.
-- Include an in-product diagnostic toggle to share **privacy-safe metadata only** (never raw trip bodies, VIN, GPS, tokens); opt-in per sharing event.
+The implemented V3 runtime is opt-in within the existing integration; V2 remains the default and fallback. Preserve existing user settings, entity IDs and the separately consented command/discovery workflow. The [current release authority](../../V3_ARCHITECTURE_CLOSURE.md#release-authority) governs promotion; this research proposal does not introduce new feature flags or authorize writes.
 
 ### Feature lifecycle
 
@@ -232,7 +224,7 @@ A feature may be **shipped experimental with no Audi Q8 live proof** only when i
 6. **ENG-RELEASE — Experimental program.** Backward-compatible feature flags, CI tests, pre-release cadence, safe public test cases, sample redacted diagnostics, promotion/deprecation gates.
 7. **ENG-NFR — Observability and reliability.** Per-provider request budgets, 401/403/404/429/5xx discipline, schema-drift tests, startup/multi-vehicle, command confirmation and stability.
 
-**Sequence to deliver value without a rewrite:** first inventory current code/PR overlap; make compatibility/diagnostics explicit; restore trip data via a minimal read adapter; use those learnings to extract the auth/API/vehicle/capability registries incrementally. Ship isolated read-only experimental discoveries before attempting broad new command coverage.
+**Sequence:** review current ownership and evidence, then extend existing adapters only for verified gaps. Preserve working trip functionality. Isolate research and prioritize safe read-only evidence before proposing broader command coverage. Stabilisation and release decisions remain with the existing gate.
 
 ## 10. Architecture decisions to record
 

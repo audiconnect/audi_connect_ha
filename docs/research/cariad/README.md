@@ -45,23 +45,14 @@ An API found in VW, Škoda, CUPRA, SEAT, Homey, openHAB, Porsche or another inte
 
 ## Repository and upstream relationship
 
-- Upstream [README](https://github.com/audiconnect/audi_connect_ha/blob/dev/readme.md) documents setup and user controls; [CONTRIBUTING](https://github.com/audiconnect/audi_connect_ha/blob/dev/CONTRIBUTING.md) documents contributions. As of this review, upstream has **no equivalent API architecture knowledge base**.
-- [PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915) already addresses Auth0 controls, cloud resilience and diagnostics. Review overlap before implementation.
-- This **research-only** branch is based on the fork's `master`. It changes no runtime code and should not be used as a release branch.
-- Earlier source notes were imported in prior commits; Dutch drafts have been **consolidated into this English research set** and removed from the branch tip. They remain available in Git history rather than as competing entry points.
+Use the [current architecture and release authority](../../V3_ARCHITECTURE_CLOSURE.md) and [V3 guide](../../V3_REVIEW.md) for implementation and delivery. The research chapters provide source comparisons and hypotheses, not competing active specifications. Earlier research snapshots remain in Git history.
 
-## One-page current status
+## Research directions
 
-| Subject                       | Outcome                                                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Core Audi trip data on Auth0  | **Broken by design gate:** `support_trip_data = not uses_auth0` in v2.5.2, while the reader still calls legacy MBB                                           |
-| Modern VW EU trip service     | CARIAD BFF `/vehicle/v1/trips/{vin}/{type}/last` documented by multiple clients and a VW HTTP 200 report; **Audi Auth0 unverified**                          |
-| Separate `tripstatistics` API | Exists in code; widely reported HTTP 404 after provider changes; do not hammer                                                                               |
-| CUPRA trip family             | OLA `/driving-data/SHORT` + `/driving-data/CYCLIC`, not the earlier incorrect OLA `/trips` guess                                                             |
-| Škoda trip family             | `/api/v1/trip-statistics/{vin}` and `/single-trips`; own gateway/authorization                                                                               |
-| Charging history              | Shared `prod.emea.mobile.charging.cariad.digital` among Škoda and CUPRA; Audi access unknown                                                                 |
-| VW/Audi media                 | Separate VW CARIAD `/media/v2/vehicle-images/{vin}` is a candidate for Audi images; **unverified**                                                           |
-| Data Act                      | Consented, read-only and delayed; continuous 15-minute delivery can contain zero new measurements for **hours/days**, or remain empty due to upstream faults |
-| Vehicle parked                | An Audi's last OEM observation may be **hours or days old**, independently of how often HA polls                                                             |
+- Modern CARIAD current/last trips have been observed on Audi; reset/cyclic semantics, retention and broader vehicle coverage require separate evidence.
+- CUPRA OLA, MyŠkoda and shared charging-statistics hosts supply comparison patterns, not Audi permissions.
+- Investigate authorized media, charging history, tyre pressure, 12 V and health observations through reviewed read-only discovery.
+- Data Act is consented, delayed and read-only. Delivery and vehicle capture are separate clocks; see the [feature acceptance contract](../../V3_FEATURE_CLOSURE.md) and linked issues for current results.
+- Official public/business API access is a separate research path; do not confuse business registration or approval with the consumer Data Act portal.
 
 **Start coding only after reading [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) and [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**

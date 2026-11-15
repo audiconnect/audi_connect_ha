@@ -97,14 +97,11 @@ MyŠkoda `SingleTrips` has distinct per-trip fields including `startMileageInKm`
 
 ## 4. Audi-specific gaps and new candidates
 
-| Priority | Candidate                                                 | Classification                                             | Required proof                                                              |
-| -------- | --------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
-| P0       | CARIAD BFF `trips/{VIN}/shortterm/last`, longterm, cyclic | **Q8 UNVERIFIED**                                          | Audi Auth0 HTTP status, authorized response fields, meaningful timestamps   |
-| P0       | PHEV electric + fuel consumption                          | CODE mapping / UNVERIFIED feed                             | Separate units, trip-cycle semantics and missing values                     |
-| P1       | Central CARIAD charging statistics                        | **HYPOTHESIS for Audi**                                    | Audi identity/token audience, requested body/headers, response/permission   |
-| P1       | CARIAD media image route                                  | **HYPOTHESIS for Audi**                                    | Authorized Audi HTTP 200; image URL licensing and metadata                  |
-| P1       | Tyre pressure / 12V / health diagnostics                  | CODE job/capability universe; Q8 field delivery unverified | Redacted selectivestatus or Data Act fixture with capture timestamps        |
-| P2       | Engine start / auxiliary heaters / mobile digital keys    | Model- and market-restricted                               | Explicit Audi capabilities + user authorization + safety and physical tests |
+- **Trips:** modern current/last trip data has been observed on Audi. Validate reset/cyclic semantics, provider-specific units, retention and cross-model coverage; do not assume every cross-brand route works.
+- **Charging history:** central CARIAD host remains an Audi hypothesis; require authorized Audi identity, method/body and actual response evidence.
+- **Media:** require authorized Audi response, metadata and image usage rights.
+- **Tyre pressure, 12 V and health:** validate individual field presence, units, capture and semantic equivalence.
+- **Engine start, auxiliary heaters and mobile digital keys:** model- and market-restricted; require explicit capability, user authorization, safe physical tests and reviewed support.
 
 ## 5. Source overlap map
 

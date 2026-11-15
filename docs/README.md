@@ -5,7 +5,7 @@ Start with the [Audi Connect README](../readme.md) for installation and product 
 ## V3 engineering and release
 
 - [Architecture and ownership](V3_ARCHITECTURE_CLOSURE.md) — mandatory boundaries and maintainability gates.
-- [Feature closure](V3_FEATURE_CLOSURE.md) — verified functionality, remaining OEM evidence and release blockers.
+- [Feature closure](V3_FEATURE_CLOSURE.md) — enduring acceptance criteria; active evidence and decisions live in [#44](https://github.com/npinguin/audi_connect_ha/issues/44).
 - [V3 user and engineering guide](V3_REVIEW.md) — setup, everyday use, discovery, safe diagnostics and upstream review.
 - [V2 parity baseline](V2_V3_PARITY_BASELINE.json) — inventory, not proof of acceptance.
 
@@ -14,6 +14,10 @@ Distinguish missing mappings, unavailable OEM data, invalid samples, historical
 evidence and confirmed physical behavior. Reuse the existing owner and add a
 focused regression test; do not add routes or polling to compensate for missing
 evidence. Release candidates require exact-head CI and separate live acceptance.
+
+## Documentation lifecycle
+
+Keep product guides version-independent. Release versions, changes and artifact links belong in published release notes; exact CI and vehicle acceptance evidence belongs in the release gate and issue history. Architecture and ownership describe current contracts, while research describes hypotheses and source evidence, not an alternate implementation or backlog. Preserve old decisions in Git history using immutable commit links. Do not duplicate release status, candidate counts, branch handovers or build-specific instructions in living documentation. The existing test suite checks this boundary.
 
 ## Research
 

@@ -2,45 +2,17 @@
 
 ## Goal and branch policy
 
-The implementation should **incrementally converge** on [08 — Adaptive Target Architecture and Experimental Delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md). Prioritize an authorized auth-strategy registry, API compatibility profiles, vehicle identification and capability resolution, with source-specific fallbacks. Avoid a large rewrite before the first verified trip fix; extract these contracts as each adapter lands.
+Use the [current architecture and release authority](../../V3_ARCHITECTURE_CLOSURE.md), [feature acceptance](../../V3_FEATURE_CLOSURE.md) and existing catalog, profiles, Status and Command owners. Research is not a parallel delivery line. Compare current development and upstream review before a focused change; preserve identities, permissions and verified behavior.
 
-Deliver genuinely working, regression-safe improvements to the base [Audi Connect HA](https://github.com/audiconnect/audi_connect_ha), starting with trip statistics on an Audi Q8 PHEV. **This branch is documentation-only.** Start engineering changes on a separate feature/fix branch, review against upstream PR #915, and open a focused PR after tests.
+## Evidence-driven research workflow
 
-## Phase 0 — Establish the exact baseline
+1. Identify an unresolved question and review the actual installed runtime, catalog, issue evidence and existing tests. Do not repeat completed discovery.
+2. Use only reviewed, authorized, bounded read probes. Record route template, market, model, auth family, status, sanitized schema keys, field units and capture time. Stop on authorization failure, throttling, unexpected redirects or unsupported routes; no blind retries.
+3. Preserve provider-specific semantics: legacy scaled integers versus modern unit-suffixed values, current/last/reset trip distinctions, valid zero and unknown values.
+4. Reuse the existing normalized observation writer and stable entities. Add focused regression tests and independently validate actual vehicle behavior.
+5. Follow the existing publication and review gates; feature hypotheses require separate approval, never speculative writes.
 
-1. Compare upstream `dev`/`master` and open PR #915 with fork `master`, `main` and existing fix branches; identify already merged tests, Auth0 controls, job-mapping changes and command-result improvements.
-2. Preserve current unique IDs, services, config entry and HA device registry.
-3. Locate v2.5.2 paths: `audi_connect_account.py` (trip gate, updates), `audi_services.py` (MBB trip endpoint), `audi_models.py` (legacy normalization), `sensor.py` (four entities).
-4. Confirm the Q8 PHEV platform variant, market, available subscription and Auth0 mechanism **without persisting VIN or tokens**.
-5. Record a baseline of existing working commands and sensors; no feature regressions are acceptable.
-
-## Phase 1 — Audi Q8 Auth0 trip discovery (read-only, bounded)
-
-Candidate sequence (**source-derived path, live Audi success not proven**):
-
-1. `GET https://emea.bff.cariad.digital/vehicle/v1/trips/{VIN}/shortterm/last`
-2. Only if authorized/meaningful: `.../longterm/last`, `.../cyclic/last`
-3. Historical list `/vehicle/v1/trips/{VIN}/shortterm?from=...&to=...` only after permission and schema validation.
-4. Lower priority: `GET /vehicle/v1/vehicles/{VIN}/tripstatistics?type=shortTerm` (commonly 404).
-5. No blind retries or replacing an Auth0 session with an old MBB bearer.
-
-**Per probe record:** route template, test time, car model/platform, market, auth family/audience (non-secret), HTTP status, top-level JSON keys (sanitized), field units, car-capture timestamp, whether the provider returned a real trip record, cooldown applied. Refuse to publish raw VIN/location/trip IDs.
-
-**Stop:** 403/401 authorization, 429, unexpected redirects, non-JSON auth challenge, or a 404 route requiring repeated attempts. A denied endpoint is a finding, not a reason to invent a new token.
-
-## Phase 2 — Implement provider-specific normalization
-
-- Implement a modern CARIAD trip reader **only after** an Audi-approved HTTP 200 with valid data.
-- Keep the existing legacy MBB reader for compatible sessions; do not simply toggle `support_trip_data`.
-- Separate raw contracts:
-  - legacy `tripDataList.tripData[]` with scaled integer consumption values;
-  - BFF `data` payload with unit-suffixed fields and possible already-decimal values;
-  - EU Data Act aggregates with timestamped fields; **not** individual trip records.
-- Normalize mileage, start/end distance, elapsed/travel time, speed, fuel (L/100km), electric (kWh/100km), recuperation, zero-emissions distance.
-- Distinguish **short-term last trip**, **long-term/cumulative**, **since-refuel cyclic** and **manual reset**; do not equate different concepts just to fill a sensor.
-- Restore existing four trip entity IDs, maintaining their _meaning_; if a provider cannot supply "user reset", leave it unknown rather than mislabel `longterm/last`.
-
-## Phase 3 — Cross-brand expansion hypotheses, not features yet
+## Cross-brand expansion hypotheses, not features yet
 
 | Candidate                                                | Where found                                              | Preconditions for an Audi implementation                                               |
 | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -52,7 +24,7 @@ Candidate sequence (**source-derived path, live Audi success not proven**):
 
 Do not open an "everything" PR mixing auth, media, history and command changes. One verified behavior per focused change.
 
-## Phase 4 — Optional Data Act enrichment
+## Optional Data Act enrichment
 
 - User configures consent and a **continuous data request** in the official VW Group portal.
 - Adapter is **read-only** and never sends start/stop/lock/wake requests.
@@ -61,9 +33,9 @@ Do not open an "everything" PR mixing auth, media, history and command changes. 
 - Merge field by field using equivalent semantics + observed timestamp, never "last poll wins".
 - Add limited diagnostics: `last_nonempty_dataset`, `last_vehicle_observed_at`, `last_portal_delivery`, `last_successful_fetch`, source, age and empty-feed count.
 
-## Phase 5 — Experimental community delivery
+## Experimental community delivery
 
-The fork already exposes the `experimental_commands` option for selected remote action buttons. Preserve its backward compatibility; introduce an opt-in read-only experimental feature umbrella without automatically enabling new writes. Ship safe, tested endpoint adapters in frequent pre-release or default-off feature-flagged builds, document vehicle/market/auth evidence and schema/error diagnostics, widen to community cohorts and promote once regression and live-compatibility gates pass. Always fail closed on unsupported/unauthorized commands. See [08 — Feature lifecycle and NFRs](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md#8-experimental-first-community-release-model).
+V3 is opt-in within the existing entry; V2 remains default and fallback. Follow the [release authority](../../V3_ARCHITECTURE_CLOSURE.md#release-authority) rather than introducing another feature flag, release branch or gate. Verify the exact candidate, preserve registry identities, fail closed on unsupported writes and collect sanitized community evidence.
 
 ## Acceptance matrix
 
@@ -115,6 +87,6 @@ Any response captured for tests must use a sanitized fixture that cannot reveal 
 
 ## Engineering task
 
-> **Task for the Engineer:** Take ownership of the base Audi Connect integration. Read the research index and architecture chapters under `docs/research/cariad/`, including Chapter 08, before editing code. Compare all proposed changes against upstream PR #915 and the fork's fix branches before writing code. First establish Q8 Auth0 read access to modern CARIAD trip data with explicit low-frequency GET probes. Next restore the existing trip entities with distinct source parsers and rigorous units/semantics. Treat VW Group EU Data Act as optional, delayed, read-only supplemental observations. Never confuse a successful poll or 15-minute ZIP delivery with a fresh parked-car measurement. Record proof, tests and unsupported cases. Avoid token leakage, remote command probing, false success and entity churn.
+Select an unresolved evidence gap from the acceptance gate or research directions. Reuse existing owners, avoid speculative commands and raw private data, and record evidence in the appropriate issue or release rather than adding build-specific instructions here.
 
 See [07 — Sources](07-SOURCES-AND-EVIDENCE.md).
