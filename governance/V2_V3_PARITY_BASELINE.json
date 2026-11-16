@@ -4089,6 +4089,14 @@
       "delivery": "manual"
     },
     {
+      "id": "cariad.status.automation",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=automation",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
       "id": "cariad.status.chargingProfiles",
       "method": "GET",
       "family": "cariad",
