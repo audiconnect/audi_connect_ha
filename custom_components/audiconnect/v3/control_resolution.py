@@ -120,7 +120,7 @@ def control_decision(
         if (
             charge_mode_recovery_candidate(car)
             and currently_safe(route)
-            and profile.control_results.get(route) != "failed"
+            and (for_discovery or profile.control_results.get(route) != "failed")
         ):
             return decision(
                 "candidate_unverified",
@@ -179,6 +179,10 @@ def control_decision(
                 alternative if for_discovery else None,
                 "alternative_requires_verification",
             )
+        if for_discovery:
+            # A past failure is evidence, not a permanent discovery ban.
+            # Production eligibility stays fail-closed until physical review.
+            return decision("candidate_unverified", ident, "retry_requires_verification")
         return decision("no_working_route", reason="reviewed_candidates_failed")
     return decision("unknown")
 
