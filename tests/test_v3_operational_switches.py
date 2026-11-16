@@ -466,7 +466,9 @@ async def test_expired_setting_remains_explicitly_writable(kind):
     }
     engine = NS(
         control_enabled=lambda *args, params=None: (
-            params is None or params in (
+            params is None
+            or params
+            in (
                 {"windowHeatingEnabled": False},
                 {"windowHeatingEnabled": True},
             )

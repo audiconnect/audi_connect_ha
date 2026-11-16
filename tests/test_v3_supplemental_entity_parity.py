@@ -37,9 +37,13 @@ def context():
             }
         ),
         transport=NS(remaining_calls=44, remaining_calls_observed_at=now),
-        control_enabled=lambda *a, params=None: params is None or params in (
-            {"climatisationWithoutExternalPower": False},
-            {"climatisationWithoutExternalPower": True},
+        control_enabled=lambda *a, params=None: (
+            params is None
+            or params
+            in (
+                {"climatisationWithoutExternalPower": False},
+                {"climatisationWithoutExternalPower": True},
+            )
         ),
         send_control=AsyncMock(),
     )
