@@ -325,3 +325,27 @@ def test_combined_refresh_requires_all_native_captures():
     stateless = CommandRecord.begin("remote", "flash", "route", record.started_at)
     stateless.observe_http(200)
     assert not follow_up_refresh_allowed(stateless, car, engine.registry)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [403, 502])
+async def test_failed_linked_refresh_does_not_block_explicit_stop(status):
+    engine, transport, coordinator, _ = fixture(True)
+    original = transport.request.side_effect
+
+    async def request(family, method, path, **kwargs):
+        if method == "POST" and path.endswith("vehiclewakeup"):
+            return V3Response(status, {}, datetime.now(UTC), 50)
+        return await original(family, method, path, **kwargs)
+
+    transport.request.side_effect = request
+    await engine.send_control(VIN, "start", "climate")
+    coordinator.async_request_refresh.assert_awaited_once()
+    with pytest.raises(RuntimeError, match="cooldown"):
+        await engine.commands.send_control(VIN, "start", "climate")
+    await engine.commands.send_control(VIN, "stop", "climate")
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
+    assert len(posts) == 3
+    assert posts[-1].endswith("climatisation/stop")
