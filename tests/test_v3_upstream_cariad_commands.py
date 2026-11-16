@@ -633,9 +633,9 @@ def test_q8_empty_charge_modes_with_invalid_preference_are_discoverable(failed):
     assert supported_charge_modes(car, profile) == []
     assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
     for expert in (False, True):
-        candidate = user_test_candidates(
-            engine, car, profile, include_verified=expert
-        )["charging.set_charge_mode"]
+        candidate = user_test_candidates(engine, car, profile, include_verified=expert)[
+            "charging.set_charge_mode"
+        ]
         assert candidate["operation"] == route
         assert candidate["parameter_schema"]["value"]["enum"] == ["manual", "timer"]
     car.impaired_capabilities.add("charging")
@@ -652,9 +652,9 @@ def test_failed_native_control_is_discoverable_but_not_dispatch_ready():
     profile.control_results[route] = "failed"
     assert not engine.control_enabled(VIN, "window_heating_start", "climate")
     for expert in (False, True):
-        candidate = user_test_candidates(
-            engine, car, profile, include_verified=expert
-        )["climate.window_heating_start"]
+        candidate = user_test_candidates(engine, car, profile, include_verified=expert)[
+            "climate.window_heating_start"
+        ]
         assert candidate["operation"] == route
     profile.discovery.disabled.add("climate.window_heating_start")
     assert "climate.window_heating_start" not in user_test_candidates(
