@@ -92,6 +92,8 @@ class CommandRecord:
         ):
             return
         self.backend_result = outcome
+        # Runtime receipt ordering only; never reactivate restored intent.
+        self.backend_observed_at = now
         if outcome == "rejected":
             self.state = "rejected"
             self.completed_at = max(self.started_at, now)

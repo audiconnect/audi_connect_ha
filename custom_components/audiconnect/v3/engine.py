@@ -117,6 +117,7 @@ class V3Engine:
             api_record=self._api_record,
             notify=self._notify_discovery_change,
             apply_identity=self._apply_identity_candidate,
+            observe_native_requests=self.commands.reconcile_native_requests,
         )
 
     @property

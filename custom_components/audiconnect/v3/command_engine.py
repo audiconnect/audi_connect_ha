@@ -160,6 +160,9 @@ class CommandEngine:
     async def _execute_prepared(self, car, profile, record, prepared, params):
         """One physical dispatch and initial evidence path, after durable journaling."""
         proof_required, (family, method, path, body) = prepared
+        # Bind any returned request ID to the actual dispatch context.
+        # A context replacement or restart makes this correlation ineligible.
+        request_context = profile.discovery.context
 
         def observe(status):
             if record.origin == "workbench":
@@ -182,6 +185,7 @@ class CommandEngine:
             from .request_status import request_id_of
 
             record.request_id = request_id_of(response.data)
+            record.request_context = request_context
         self._api_record(profile, record.operation, family, method, response, car.vin)
         return family, path, response
 
@@ -257,6 +261,18 @@ class CommandEngine:
                 profile.discovery.enable(capability, action)
             await self.storage.async_save(self.profiles)
             self._notify_discovery_change()
+
+    def reconcile_native_requests(self, car, profile, payload, observed_at):
+        """Receive existing native status evidence; never dispatch or retry."""
+        from .request_status import reconcile_native_queue
+
+        if self.profiles.get(car.vin.lower()) is not profile:
+            return
+        if not car.inventory_present:
+            return
+        for record in reconcile_native_queue(profile, payload, observed_at):
+            if record is profile.last_command:
+                car.last_command_result = record.state
 
     def reconcile_commands(self) -> None:
         """Correlate fresh scheduled observations without another request."""
