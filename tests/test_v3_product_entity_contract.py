@@ -60,6 +60,7 @@ def test_product_contract_covers_v2_plus_only_deliberate_extensions():
         "binary_sensor.integration_problem",
         "sensor.door_status",
         "sensor.window_status",
+        "sensor.parked_in",
     }
     assert all(
         "sensor." + key not in historical for key in inventory["retired_v3_sensors"]
