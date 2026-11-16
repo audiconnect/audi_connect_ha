@@ -496,3 +496,34 @@ def test_diagnostic_values_exclude_untyped_and_custom_mapping_data():
     assert (
         diagnostic_ha_state("sensor.state_of_charge", state, profile.registry) is None
     )
+
+
+def test_diagnostic_data_act_values_and_paths_are_not_custom_routes():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_ha_state,
+        diagnostic_telemetry,
+    )
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    car, _ = _fixture()
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    path = next(
+        path
+        for path, mapping in registry.families["eu_data_act"]["observations"].items()
+        if mapping["attribute"] == "stateOfCharge"
+    )
+    car.readings["stateOfCharge"] = {
+        "value": 91,
+        "family": "eu_data_act",
+        "operation": "eu_data_act.dataset",
+        "path": path,
+        "status": "verified",
+    }
+    report = diagnostic_telemetry(car, registry)
+    selected = report["attributes"][0]["selected"]
+    assert selected["value"] == 91
+    assert selected["operation"] == "eu_data_act.dataset"
+    assert selected["path"] == path
+    state = NS(state="91", attributes={"source_operation": "eu_data_act.dataset"})
+    assert diagnostic_ha_state("sensor.state_of_charge", state, registry) == 91

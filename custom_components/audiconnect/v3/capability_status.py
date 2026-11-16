@@ -29,7 +29,7 @@ from .custom_attributes import attributes_for
 from .attribute_routes import get_read_variant, read_variants
 from .legacy_read_mappings import variant_for as legacy_variant_for
 from .registry import builtin_read_path, selective_status_path
-from .read_discovery import summary as discovery_summary
+from .read_discovery import DATA_ACT_DATASET, summary as discovery_summary
 from .transport import (
     INVENTORY_OPERATION,
     IDENTITY_QUERIES,
@@ -1296,6 +1296,8 @@ def diagnostic_route_label(ident, registry):
         or ident in ("cariad.discovery.full", "cariad.selectivestatus.batch")
     ):
         return ident
+    if ident == DATA_ACT_DATASET and "eu_data_act" in registry.families:
+        return ident
     if ident.startswith("cariad.discovery."):
         jobs = ident.removeprefix("cariad.discovery.").split("_")
         if jobs and all(job in _V2_SELECTIVE_JOBS for job in jobs):
@@ -1332,6 +1334,8 @@ _DIAGNOSTIC_ENUMS = {
             "readyforcharging",
             "notreadyforcharging",
             "conservation",
+            "conservationcharging",
+            "completed",
             "chargepurposereached",
             "error",
             "invalid",
@@ -1553,6 +1557,18 @@ def diagnostic_telemetry(vehicle, registry):
             if label != "custom_or_discovery_route"
             else None
         )
+        legacy = legacy_variant_for(ident) or {}
+        data_act = registry.families.get("eu_data_act", {}).get("observations", {})
+        known_path = (
+            path in definition.get("paths", ())
+            or path in _DIAGNOSTIC_DERIVED_PATHS.get(ident, ())
+            or path in legacy.get("response_paths", ())
+            or (
+                label == DATA_ACT_DATASET
+                and path in data_act
+                and data_act[path]["attribute"] == ident
+            )
+        )
         return {
             "value": value,
             "captured": safe_stamp(row.get("captured")),
@@ -1564,10 +1580,7 @@ def diagnostic_telemetry(vehicle, registry):
             else None,
             "reason": reason if reason in _DIAGNOSTIC_REASONS else None,
             "operation": label,
-            "path": path
-            if path in definition.get("paths", ())
-            or path in _DIAGNOSTIC_DERIVED_PATHS.get(ident, ())
-            else None,
+            "path": path if known_path else None,
         }
 
     rows = []
