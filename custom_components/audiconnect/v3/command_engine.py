@@ -501,6 +501,12 @@ class CommandEngine:
                     "Discovery action changed; refresh status before testing"
                 )
             validate_inputs(params or {}, candidate["parameter_schema"])
+            if (
+                capability == "climate"
+                and aspect in ("start_with_settings", "set_settings")
+                and not params
+            ):
+                raise ValueError("Choose at least one climate setting")
         family = profile.registry.operations.get(operation, {}).get("family")
         if family not in ("cariad", "mbb") or (
             family == "mbb" and self.auth.uses_auth0

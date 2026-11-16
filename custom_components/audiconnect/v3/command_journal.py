@@ -107,9 +107,9 @@ class CommandRecord:
             ):
                 self.state = "backend_completed"
                 self.completed_at = max(self.started_at, now)
-        elif (
-            outcome in PENDING_RESULTS or outcome in ("unknown", "quota_limited")
-        ) and self.capability not in ("climate", "charging", "access"):
+        elif outcome in ("unknown", "quota_limited") and self.capability not in (
+            "climate", "charging", "access"
+        ):
             self.state = "uncertain"
 
     @property

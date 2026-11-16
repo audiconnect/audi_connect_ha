@@ -255,3 +255,80 @@ def test_optional_climate_combination_proof_does_not_replace_base_route():
     recovered.confirm(pending.sequence, worked=True, inspected_vehicle=True, now=131)
     assert recovered.control_results[route] == "worked"
     assert recovered.verified_climate_variants[route] == {good: revision}
+
+
+@pytest.mark.parametrize(
+    "action,route,params",
+    [
+        (
+            "start_with_settings",
+            "cariad.climate.start.vehicle_settings",
+            {"glass_heating": True},
+        ),
+        (
+            "set_settings",
+            "cariad.climate.settings",
+            {"windowHeatingEnabled": True},
+        ),
+    ],
+)
+def test_selective_climate_discovery_does_not_require_unrelated_temperature(
+    action, route, params
+):
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+    from custom_components.audiconnect.v3.command_engine import CommandEngine
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = V3Vehicle(VIN, "Audi", "", "", "DE", auth_family="auth0")
+    car.advertised_capabilities.add("climatisation")
+    profile = DevelopmentProfile(registry, car.context)
+    now = datetime.now(UTC)
+    observe_read_only(
+        car,
+        profile,
+        {
+            "climatisation": {
+                "climatisationSettings": {
+                    "value": {
+                        "targetTemperature_C": 20,
+                        "windowHeatingEnabled": False,
+                        "carCapturedTimestamp": now.isoformat(),
+                    }
+                }
+            }
+        },
+        now,
+    )
+    prepare = AsyncMock(side_effect=RuntimeError("prepared"))
+    obj = NS(
+        require_vehicle=lambda vin: car,
+        profiles={VIN.lower(): profile},
+        auth=NS(uses_auth0=True, service=NS(_spin="")),
+        _prepare_command=prepare,
+    )
+
+    def execute(values, expert):
+        return asyncio.run(
+            CommandEngine._test_action_once(
+                obj,
+                VIN,
+                action,
+                route,
+                params=values,
+                capability="climate",
+                guided=True,
+                expert=expert,
+                approval="non_spin",
+            )
+        )
+
+    with pytest.raises(ValueError):
+        execute(params, False)
+    with pytest.raises(ValueError, match="Choose at least one"):
+        execute({}, True)
+    prepare.assert_not_awaited()
+    with pytest.raises(RuntimeError, match="prepared"):
+        execute(params, True)
+    prepare.assert_awaited_once_with(car, route, params)
+    assert profile.discovery.active_attempt is None

@@ -297,6 +297,7 @@ def test_vehicle_specific_climate_discovery_schema_and_payload():
     assert set(guided[key]["parameter_schema"]) == {"temp_c"}
     assert "seat_fl" in selective[key]["parameter_schema"]
     assert "seat_rl" not in selective[key]["parameter_schema"]
+    assert not selective[key]["parameter_schema"]["temp_c"].get("required")
     assert set(native_climate_parameter_schema(route, {}, car())) == {
         "temp_c",
         "temp_f",
@@ -310,3 +311,26 @@ def test_vehicle_specific_climate_discovery_schema_and_payload():
     for params in ({"seat_rl": True}, {"climatisation_mode": "economy"}):
         with pytest.raises(ValueError):
             asyncio.run(build(obj, vehicle, "climate_start_settings", params))
+
+
+def test_null_optional_fahrenheit_does_not_block_celsius_update():
+    obj = engine(
+        {
+            "climatisation": {
+                "climatisationSettings": {
+                    "value": {
+                        "targetTemperature_C": 20,
+                        "targetTemperature_F": None,
+                        "windowHeatingEnabled": False,
+                    }
+                }
+            }
+        }
+    )
+    body = asyncio.run(build(obj, car(), "climate_settings_update", {"temp_c": 22}))
+    assert body == {
+        "targetTemperature_C": 22,
+        "targetTemperature_F": None,
+        "windowHeatingEnabled": False,
+    }
+    obj.transport.request.assert_awaited_once()
