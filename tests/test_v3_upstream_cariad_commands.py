@@ -612,3 +612,51 @@ async def test_selective_climate_service_requires_its_own_review_after_restart(s
         with pytest.raises(HomeAssistantError, match="requires vehicle discovery"):
             await execute(engine, VIN, "start_climatisation", params)
         assert len(calls) == 2
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_q8_empty_charge_modes_with_invalid_preference_are_discoverable(failed):
+    from custom_components.audiconnect.v3.command_policy import supported_charge_modes
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.advertised_capabilities.add("charging")
+    car.readings.update(
+        availableChargeModes={"family": "cariad", "value": []},
+        preferredChargeMode={"family": "cariad", "status": "invalid_value"},
+        chargeMode={"family": "cariad", "value": "manual"},
+    )
+    route = "cariad.charging.mode"
+    if failed:
+        profile.control_results[route] = "failed"
+    assert supported_charge_modes(car, profile) == []
+    assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
+    for expert in (False, True):
+        candidate = user_test_candidates(
+            engine, car, profile, include_verified=expert
+        )["charging.set_charge_mode"]
+        assert candidate["operation"] == route
+        assert candidate["parameter_schema"]["value"]["enum"] == ["manual", "timer"]
+    car.impaired_capabilities.add("charging")
+    assert "charging.set_charge_mode" not in user_test_candidates(engine, car, profile)
+
+
+def test_failed_native_control_is_discoverable_but_not_dispatch_ready():
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.advertised_capabilities.add("climatisation")
+    route = "cariad.climate.window_heating_start"
+    profile.control_results[route] = "failed"
+    assert not engine.control_enabled(VIN, "window_heating_start", "climate")
+    for expert in (False, True):
+        candidate = user_test_candidates(
+            engine, car, profile, include_verified=expert
+        )["climate.window_heating_start"]
+        assert candidate["operation"] == route
+    profile.discovery.disabled.add("climate.window_heating_start")
+    assert "climate.window_heating_start" not in user_test_candidates(
+        engine, car, profile
+    )
