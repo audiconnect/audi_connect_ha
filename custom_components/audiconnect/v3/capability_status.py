@@ -1390,6 +1390,33 @@ _DIAGNOSTIC_REASONS = frozenset(
 )
 
 
+_DIAGNOSTIC_NUMERIC_FIELDS = frozenset(
+    (
+        "remainingChargingTime",
+        "actualChargeRate",
+        "charging_timer_enabled_count",
+        "climatisation_timer_enabled_count",
+    )
+) | _DIAGNOSTIC_SOC_ALIASES
+_DIAGNOSTIC_BOOLEAN_FIELDS = frozenset(
+    (
+        "windowHeatingActive",
+        "preheater_active",
+        "climatisationWindowHeatingEnabled",
+        "climatisationAtUnlock",
+        "climatisationWithoutExternalPower",
+        "climatisationZoneFrontLeft",
+        "climatisationZoneFrontRight",
+        "climatisationZoneRearLeft",
+        "climatisationZoneRearRight",
+        "chargingPlugAutoUnlock",
+        "vehicleReportedOnline",
+        "vehicleReportedActive",
+        "externalPower",
+    )
+)
+
+
 def diagnostic_technical_value(ident, value):
     """Bounded technical scalars only; no raw payloads or free text."""
     import math
@@ -1416,10 +1443,25 @@ def diagnostic_technical_value(ident, value):
         )
     ):
         return None
+    contract = contract_for(key)
     if type(value) is bool:
-        return value
+        return (
+            value
+            if definition.get("platform") == "binary_sensor"
+            or ident in _DIAGNOSTIC_BOOLEAN_FIELDS
+            else None
+        )
     if type(value) in (int, float):
-        if abs(value) <= 1e100 and math.isfinite(value):
+        if (
+            (
+                ident in _DIAGNOSTIC_NUMERIC_FIELDS
+                or contract.get("unit") is not None
+                or contract.get("state_class")
+                in ("measurement", "total", "total_increasing")
+            )
+            and abs(value) <= 1e100
+            and math.isfinite(value)
+        ):
             return value
         return None
     allowed = _DIAGNOSTIC_ENUMS.get(ident, ())
@@ -1435,7 +1477,7 @@ def diagnostic_technical_value(ident, value):
     return None
 
 
-def diagnostic_ha_state(key, state):
+def diagnostic_ha_state(key, state, registry=None):
     """Allowlisted actual HA projection; never export names, location or IDs."""
     from contextlib import suppress
     from .product_contract import product_inventory
@@ -1444,6 +1486,13 @@ def diagnostic_ha_state(key, state):
     if not definition or state is None:
         return None
     value = state.state
+    operation = getattr(state, "attributes", {}).get("source_operation")
+    if (
+        registry is not None
+        and isinstance(operation, str)
+        and diagnostic_route_label(operation, registry) == "custom_or_discovery_route"
+    ):
+        return None
     if value in ("unknown", "unavailable"):
         return value
     platform = key.split(".", 1)[0]
@@ -1489,8 +1538,20 @@ def diagnostic_telemetry(vehicle, registry):
         operation = row.get("operation")
         reason = row.get("reason")
         status = row.get("status")
+        label = (
+            diagnostic_route_label(operation, registry)
+            if isinstance(operation, str)
+            else None
+        )
+        # A custom mapping can deliberately point even a known technical
+        # attribute at unrelated data. Do not export that value.
+        value = (
+            diagnostic_technical_value(ident, row.get("value"))
+            if label != "custom_or_discovery_route"
+            else None
+        )
         return {
-            "value": diagnostic_technical_value(ident, row.get("value")),
+            "value": value,
             "captured": safe_stamp(row.get("captured")),
             "observed_at": safe_stamp(row.get("observed")),
             "delivered_at": safe_stamp(row.get("delivered_at")),
@@ -1499,9 +1560,7 @@ def diagnostic_telemetry(vehicle, registry):
             if status in ("verified", "readable_but_stale", "invalid_value")
             else None,
             "reason": reason if reason in _DIAGNOSTIC_REASONS else None,
-            "operation": diagnostic_route_label(operation, registry)
-            if isinstance(operation, str)
-            else None,
+            "operation": label,
             "path": path
             if path in definition.get("paths", ())
             or path in _DIAGNOSTIC_DERIVED_PATHS.get(ident, ())

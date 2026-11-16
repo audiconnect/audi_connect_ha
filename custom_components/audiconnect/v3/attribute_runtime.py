@@ -341,7 +341,18 @@ def _retain_history(selected, previous, incoming, now):
         }
     else:
         known = {
-            key: first.get(key) for key in ("value", "captured", "family", "status")
+            key: first[key]
+            for key in (
+                "value",
+                "captured",
+                "family",
+                "status",
+                "path",
+                "operation",
+                "observed",
+                "delivered_at",
+            )
+            if key in first
         }
     if selected.get("last_known") == known:
         return selected

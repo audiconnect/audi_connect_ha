@@ -455,9 +455,7 @@ async def test_expired_setting_remains_explicitly_writable(kind):
     else:
         capability, action = "charging", "set_target_soc"
         ident, old, params = "targetstateOfCharge", 70, {"value": 80}
-    command = CommandRecord.begin(
-        capability, action, "route", now.timestamp() - 600
-    )
+    command = CommandRecord.begin(capability, action, "route", now.timestamp() - 600)
     configure_readback(command, params)
     command.observe_http(200)
     car.readings[ident] = {
@@ -475,7 +473,7 @@ async def test_expired_setting_remains_explicitly_writable(kind):
     co = NS(engine=engine, last_update_success=True, async_add_listener=lambda cb: None)
     if kind == "setting":
         entity = V3ClimateSettingSwitch(
-            co, car, ("climate_window_heating", ident, "windowHeatingEnabled")
+            co, car, ("climatisation_window_heating", ident, "windowHeatingEnabled")
         )
         assert entity.is_on is None
         assert entity.available

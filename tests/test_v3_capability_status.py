@@ -467,3 +467,32 @@ def test_diagnostic_ha_projection_is_technical_and_allowlisted():
     assert diagnostic_ha_state("sensor.model", NS(state="private-model")) is None
     assert diagnostic_ha_state("device_tracker.position", NS(state="home")) is None
     assert diagnostic_ha_state("sensor.unknown_custom", NS(state="12345")) is None
+
+
+def test_diagnostic_values_exclude_untyped_and_custom_mapping_data():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_ha_state,
+        diagnostic_technical_value,
+        diagnostic_telemetry,
+    )
+
+    car, profile = _fixture()
+    assert diagnostic_technical_value("chargingProfiles", 123456) is None
+    assert diagnostic_technical_value("availableChargeModes", 123456) is None
+    assert diagnostic_technical_value("stateOfCharge", True) is None
+    assert diagnostic_technical_value("stateOfCharge", 0) == 0
+    assert diagnostic_technical_value("climatisationAtUnlock", False) is False
+    car.readings["stateOfCharge"] = {
+        "value": 123456,
+        "family": "cariad",
+        "operation": "user.private.route",
+        "status": "verified",
+    }
+    report = diagnostic_telemetry(car, profile.registry)
+    assert report["attributes"][0]["selected"]["value"] is None
+    assert "123456" not in json.dumps(report)
+    state = NS(state="123456", attributes={"source_operation": "user.private.route"})
+    assert (
+        diagnostic_ha_state("sensor.state_of_charge", state, profile.registry) is None
+    )

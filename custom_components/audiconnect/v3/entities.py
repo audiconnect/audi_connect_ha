@@ -1875,7 +1875,9 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
         reported = last_known_observation(
             _control_reading(self.coordinator, self.vehicle, "targetstateOfCharge")
         ).get("value")
-        return type(reported) in (int, float) and self.coordinator.engine.control_enabled(
+        return (
+            self.native_value is not None or type(reported) in (int, float)
+        ) and self.coordinator.engine.control_enabled(
             self.vehicle.vin, "set_target_soc", "charging"
         )
 
@@ -2063,7 +2065,9 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
         reported = last_known_observation(
             _control_reading(self.coordinator, self.vehicle, self.reading)
         ).get("value")
-        return type(reported) is bool and self.coordinator.engine.control_enabled(
+        return (
+            self.is_on is not None or type(reported) is bool
+        ) and self.coordinator.engine.control_enabled(
             self.vehicle.vin, "set_settings", "climate"
         )
 
