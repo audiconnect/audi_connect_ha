@@ -54,5 +54,14 @@ The [architecture guide](../../V3_ARCHITECTURE_CLOSURE.md) documents product des
 - Investigate authorized media, charging history, tyre pressure, 12 V and health observations through reviewed read-only discovery.
 - Data Act is consented, delayed and read-only. Delivery and vehicle capture are separate clocks; see the [V3 guide](../../V3_REVIEW.md#optional-eu-data-act) for usage.
 - Official public/business API access is a separate research path; do not confuse business registration or approval with the consumer Data Act portal.
+- Charging and mobility research: session energy, power and current, trip energy/fuel detail, refuelling, history and export. Compare [evcc](https://github.com/evcc-io/evcc) and [TRONITY](https://www.tronity.io/) for use cases, not Audi endpoint authority.
+- Vehicle health and comfort: explicit sensor schemas, maintenance warnings, timer and heating variants; independently validate physical control behavior.
+- Cross-brand comparison: [VW Group Connect](https://github.com/its-me-prash/vwgroup-connect-ha), [CarConnectivity Audi](https://github.com/acfischer42/CarConnectivity-connector-audi) and [ioBroker VW Connect](https://github.com/TA2k/ioBroker.vw-connect). Reuse published findings within existing Audi ownership; review licenses before copying implementation.
+
+### Official Vehicle Data API
+
+The [VW Group Data Hub announcement of 13 November 2026](https://github.com/evcc-io/evcc/discussions/36190) describes a planned read-only REST API for charging, vehicle status and parking data. It returns the latest platform data without waking the vehicle and does not provide vehicle controls. The announced limited beta targets early 2027, with registration planned for December 2026. Initial Audi eligibility lists Q4, A6 and Q6 e-tron, A3 TFSI e, A5 e-hybrid and Q5 e-hybrid; Q8 is not listed. Participation is not guaranteed.
+
+Evaluate the published authorization, field semantics, capture timestamps, limits, pricing and access terms when available. This is an independent potential authorized source, not a replacement for native control or the consented Data Act export. Do not infer real-time availability or implement an adapter before the service contract is available.
 
 **For technical background, read [08 — Target Architecture](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md) and [06 — Engineering Playbook](06-ENGINEERING-PLAYBOOK.md).**
