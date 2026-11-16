@@ -1320,8 +1320,29 @@ _DIAGNOSTIC_RANGE_PATHS = {
     "measuredTotalRange": ("measurements.rangeStatus.value.totalRange_km",),
     "batteryElectricRange": ("charging.batteryStatus.value.cruisingRangeElectric_km",),
 }
+_DIAGNOSTIC_CHARGING_PATHS = {
+    "minimumChargeLimit": ("charging.chargingSettings.value.minChargeLimit_pct",),
+    "navigationTargetSOC": ("charging.batteryStatus.value.navigationTargetSOC_pct",),
+    "navigationRemainingChargingTime": (
+        "charging.chargingStatus.value.remainingChargingTimeNavigation_min",
+    ),
+    "hvBatteryMinimumTemperature": (
+        "measurements.temperatureBatteryStatus.value.temperatureHvBatteryMin_K",
+    ),
+    "hvBatteryMaximumTemperature": (
+        "measurements.temperatureBatteryStatus.value.temperatureHvBatteryMax_K",
+    ),
+}
+_DIAGNOSTIC_CHARGING_UNITS = {
+    "minimumChargeLimit": "%",
+    "navigationTargetSOC": "%",
+    "navigationRemainingChargingTime": "min",
+    "hvBatteryMinimumTemperature": "K",
+    "hvBatteryMaximumTemperature": "K",
+}
 _DIAGNOSTIC_DERIVED_PATHS = {
     **_DIAGNOSTIC_RANGE_PATHS,
+    **_DIAGNOSTIC_CHARGING_PATHS,
     "measuredElectricSOC": ("measurements.fuelLevelStatus.value.currentSOC_pct",),
     "charging_timer_enabled_count": ("chargingTimers.chargingTimersStatus.value",),
     "climatisation_timer_enabled_count": (
@@ -1412,6 +1433,7 @@ _DIAGNOSTIC_NUMERIC_FIELDS = (
     )
     | _DIAGNOSTIC_SOC_ALIASES
     | _DIAGNOSTIC_RANGE_PATHS.keys()
+    | _DIAGNOSTIC_CHARGING_PATHS.keys()
 )
 _DIAGNOSTIC_BOOLEAN_FIELDS = frozenset(
     (
@@ -1668,6 +1690,8 @@ def diagnostic_telemetry(vehicle, registry):
             unit = "%"
         elif ident in _DIAGNOSTIC_RANGE_PATHS:
             unit = "km"
+        elif ident in _DIAGNOSTIC_CHARGING_UNITS:
+            unit = _DIAGNOSTIC_CHARGING_UNITS[ident]
         family = current.get("family")
         rows.append(
             {

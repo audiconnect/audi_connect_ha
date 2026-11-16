@@ -1168,6 +1168,13 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
                 "battery_care_detail",
                 "charging_profile_context_detail",
             ),
+            "state_of_charge": (
+                "minimumChargeLimit",
+                "navigationTargetSOC",
+                "hvBatteryMinimumTemperature",
+                "hvBatteryMaximumTemperature",
+            ),
+            "remaining_charging_time": ("navigationRemainingChargingTime",),
             "vehicle_reported_online": ("readiness_detail",),
             "vehicle_reported_active": ("readiness_detail",),
         }

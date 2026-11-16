@@ -1,8 +1,8 @@
 """Bounded CARIAD request-ID followup, independent of V2 command internals.
 
 One mutating request is sent by V3Engine. This module never retries it:
-only the reviewed read-only pendingrequests endpoint is checked. A completed
-backend request is NOT inferred to mean a physically confirmed vehicle state.
+only read-only pendingrequests and already-fetched native status are checked.
+A completed backend request is NOT inferred to mean a physically confirmed vehicle state.
 """
 
 from __future__ import annotations
@@ -146,9 +146,8 @@ def reconcile_native_queue(profile, payload, observed_at):
         ):
             continue
         operation = profile.registry.operations.get(record.operation)
-        if (
-            operation is None
-            or record.operation_revision != operation_revision(operation)
+        if operation is None or record.operation_revision != operation_revision(
+            operation
         ):
             continue
         path, expected = route

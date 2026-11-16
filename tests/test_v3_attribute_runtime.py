@@ -973,3 +973,61 @@ def test_climate_settings_queue_is_informational_and_no_ids_or_body_exported():
     assert queues[0]["items"] == detail["climate_settings_requests"]["data"]["items"]
     assert "private-id" not in str(queues)
     assert "not-exported" not in str(queues)
+
+
+
+def test_api_broadening_read_only_charging_metrics_keep_units_and_capture():
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_telemetry,
+    )
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    old = (now - timedelta(hours=1)).isoformat()
+    observe_read_only(
+        vehicle,
+        profile,
+        {
+            "charging": {
+                "chargingSettings": {
+                    "value": {"minChargeLimit_pct": 0, "carCapturedTimestamp": old}
+                },
+                "batteryStatus": {
+                    "value": {
+                        "navigationTargetSOC_pct": 85,
+                        "carCapturedTimestamp": now.isoformat(),
+                    }
+                },
+                "chargingStatus": {
+                    "value": {"remainingChargingTimeNavigation_min": -1}
+                },
+            },
+            "measurements": {
+                "temperatureBatteryStatus": {
+                    "value": {
+                        "temperatureHvBatteryMin_K": 295,
+                        "temperatureHvBatteryMax_K": 0,
+                        "carCapturedTimestamp": old,
+                    }
+                }
+            },
+        },
+        now,
+    )
+    assert vehicle.readings["minimumChargeLimit"]["value"] == 0
+    assert vehicle.readings["minimumChargeLimit"]["captured"] == old
+    assert vehicle.readings["navigationTargetSOC"]["value"] == 85
+    assert vehicle.readings["hvBatteryMinimumTemperature"]["value"] == 295
+    assert "hvBatteryMaximumTemperature" not in vehicle.readings
+    assert "navigationRemainingChargingTime" not in vehicle.readings
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    rows = {
+        row["attribute"]: row
+        for row in diagnostic_telemetry(vehicle, registry)["attributes"]
+    }
+    assert rows["minimumChargeLimit"]["unit"] == "%"
+    assert rows["hvBatteryMinimumTemperature"]["unit"] == "K"
+    assert rows["hvBatteryMinimumTemperature"]["selected"]["value"] == 295
+    assert "cariad.status.automation" in registry.operations
+    assert registry.operations["cariad.status.automation"]["delivery"] == "manual"
