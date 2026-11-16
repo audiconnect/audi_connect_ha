@@ -661,14 +661,18 @@ def observe_derived(
     # Normalize the lists once. Derive scalars from the selected observation,
     # not independently from the incoming response.
     observe_structured(car, payload, observed_at, accepts, operation=operation)
-    for detail, count in (
-        ("charging_timers_detail", "charging_timer_enabled_count"),
-        ("climate_timers_detail", "climatisation_timer_enabled_count"),
+    for job, detail, count in (
+        ("chargingTimers", "charging_timers_detail", "charging_timer_enabled_count"),
+        (
+            "climatisationTimers",
+            "climate_timers_detail",
+            "climatisation_timer_enabled_count",
+        ),
     ):
         source = car.readings.get(detail)
-        if source is None:
+        # A retained detail cannot acquire a new receipt or capture time.
+        if source is None or source.get("observed") != observed_at.isoformat():
             continue
-        job = "chargingTimers" if detail == "charging_timers_detail" else "climatisationTimers"
         path = f"{job}.{job}Status.value"
         captured = source.get("captured")
         timers = source.get("value")
@@ -689,10 +693,6 @@ def observe_derived(
                     profile=profile,
                     operation=operation,
                 )
-            continue
-        # A retained detail cannot acquire a new receipt or capture time.
-        # Derive only from the accepted response, not a missing or older list.
-        if source.get("observed") != observed_at.isoformat():
             continue
         entries = timers["items"]
         complete = timers["all_items_recognized"] and all(

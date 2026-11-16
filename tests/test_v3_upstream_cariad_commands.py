@@ -749,10 +749,16 @@ async def test_explicit_read_rescan_retests_prior_evidence_in_bounded_batches():
     "job,detail,count",
     [
         ("chargingTimers", "charging_timers_detail", "charging_timer_enabled_count"),
-        ("climatisationTimers", "climate_timers_detail", "climatisation_timer_enabled_count"),
+        (
+            "climatisationTimers",
+            "climate_timers_detail",
+            "climatisation_timer_enabled_count",
+        ),
     ],
 )
-def test_timer_count_follows_selected_list_even_when_count_is_unchanged(job, detail, count):
+def test_timer_count_follows_selected_list_even_when_count_is_unchanged(
+    job, detail, count
+):
     from datetime import timedelta
     from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
 
@@ -764,9 +770,16 @@ def test_timer_count_follows_selected_list_even_when_count_is_unchanged(job, det
         observe_read_only(
             car,
             profile,
-            {job: {job + "Status": {"value": {
-                "carCapturedTimestamp": capture.isoformat(), "timers": timers
-            }}}},
+            {
+                job: {
+                    job + "Status": {
+                        "value": {
+                            "carCapturedTimestamp": capture.isoformat(),
+                            "timers": timers,
+                        }
+                    }
+                }
+            },
             receipt,
         )
 
@@ -776,7 +789,11 @@ def test_timer_count_follows_selected_list_even_when_count_is_unchanged(job, det
     assert car.readings[detail]["reason"] == "conflicting_source_values"
     assert car.readings[count]["value"] is None
     assert car.readings[count]["reason"] == "conflicting_source_values"
-    observe([{"id": 1, "enabled": True}], now - timedelta(minutes=1), now + timedelta(seconds=2))
+    observe(
+        [{"id": 1, "enabled": True}],
+        now - timedelta(minutes=1),
+        now + timedelta(seconds=2),
+    )
     assert car.readings[count]["value"] is None
     newer = now + timedelta(seconds=3)
     observe([{"id": 2, "enabled": True}], newer, newer)

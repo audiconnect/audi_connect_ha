@@ -201,6 +201,7 @@ def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
         == "last_known_vehicle"
     )
     assert entity.extra_state_attributes["state_source"] == "unknown"
+    assert entity.extra_state_attributes["vehicle_freshness"] == "unknown"
     assert not entity.extra_state_attributes["state_is_current"]
     assert rebooted.readings["climatisationState"]["value"] is None
     assert rebooted.readings["climatisationState"]["reason"] == "restored_history"

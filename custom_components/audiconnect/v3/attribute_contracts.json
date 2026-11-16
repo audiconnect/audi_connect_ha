@@ -697,6 +697,7 @@
       "precision": null,
       "category": null,
       "display_last_known": true,
+      "require_valid_observation": true,
       "icon": "mdi:calendar-clock"
     },
     "next_climatisation_timer_local": {
@@ -707,6 +708,7 @@
       "precision": null,
       "category": null,
       "display_last_known": true,
+      "require_valid_observation": true,
       "icon": "mdi:calendar-start"
     },
     "charging_timer_enabled_count": {
@@ -717,6 +719,7 @@
       "precision": null,
       "category": null,
       "display_last_known": true,
+      "require_valid_observation": true,
       "icon": "mdi:timer-cog-outline"
     }
   },
