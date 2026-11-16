@@ -688,13 +688,17 @@ async def ws_engineering_response(hass, connection, msg):
         vol.Required("vin"): str,
         vol.Required("family"): vol.In(("cariad", "mbb", "graphql")),
         vol.Optional("full", default=False): bool,
+        vol.Optional("rescan_after"): str,
     }
 )
 @websocket_api.async_response
 async def ws_test_family_reads(hass, connection, msg):
     try:
         result = await _engine(hass, msg["entry_id"]).test_family_reads(
-            msg["vin"], msg["family"], full=msg.get("full", False)
+            msg["vin"],
+            msg["family"],
+            full=msg.get("full", False),
+            **({"rescan_after": msg["rescan_after"]} if "rescan_after" in msg else {}),
         )
         connection.send_result(msg["id"], result)
     except (ValueError, KeyError, RuntimeError, OSError, TimeoutError) as exc:
