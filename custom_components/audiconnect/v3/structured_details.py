@@ -116,6 +116,8 @@ def _timer(row):
             )
         )
     if isinstance(recurring, dict):
+        if single is None:
+            result["recurring_only"] = True
         days = recurring.get("repetitionDays")
         if isinstance(days, list):
             days = [
