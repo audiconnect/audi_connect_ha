@@ -1624,9 +1624,12 @@ class AudiConnectV3Panel extends HTMLElement {
           this.expertDiscovery
             ? `<div>${(routeCandidates.length ? routeCandidates : [null])
                 .map(
-                  (route) => `<div>${routeCandidates.length > 1 ? `<b>${escapeHTML(route.label)}</b>` : ""}${route?.instructions ? `<p class="helper">${escapeHTML(route.instructions)}</p>` : ""}${this.parameterFields(route)}<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(route?.operation || "")}" ${!route || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !route ? friendly(c.reason || c.status) : "Test this route")}">Test</button></div></div>`,
+                  (route) =>
+                    `<div>${routeCandidates.length > 1 ? `<b>${escapeHTML(route.label)}</b>` : ""}${route?.instructions ? `<p class="helper">${escapeHTML(route.instructions)}</p>` : ""}${this.parameterFields(route)}<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(route?.operation || "")}" ${!route || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !route ? friendly(c.reason || c.status) : "Test this route")}">Test</button></div></div>`,
                 )
-                .join("")}<div class="actions"><button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div></div>`
+                .join(
+                  "",
+                )}<div class="actions"><button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div></div>`
             : ""
         }</div>`;
         })
