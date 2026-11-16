@@ -784,6 +784,11 @@ def test_display_prefers_newer_historical_capture_without_promoting_command_evid
     assert attrs["vehicle_captured"] == (now - timedelta(minutes=15)).isoformat()
     assert attrs["age_minutes"] == 15
     assert attrs["cloud_observed"] is None
+    assert attrs["cloud_age_minutes"] is None
+    # Retained provenance remains available to diagnostics only.
+    known = last_known_observation(row)
+    assert known["observed"] == now.isoformat()
+    assert known["operation"] == "cariad.test"
     _, native = select_reading(
         vehicle, (ident,), ident, registry=profile.registry, families=("cariad",)
     )

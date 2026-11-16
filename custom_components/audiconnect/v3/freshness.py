@@ -82,8 +82,12 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
         "last_known_captured": known.get("captured"),
         "vehicle_captured": displayed.get("captured"),
         "age_minutes": age,
-        "cloud_observed": displayed.get("observed"),
-        "cloud_age_minutes": capture_age_minutes(displayed.get("observed"), now),
+        # An older retained sample's receipt is diagnostics provenance,
+        # not evidence that the displayed historical state is current.
+        "cloud_observed": None if historical_display else displayed.get("observed"),
+        "cloud_age_minutes": None
+        if historical_display
+        else capture_age_minutes(displayed.get("observed"), now),
         "vehicle_freshness": (
             "stale_last_known"
             if historical_display
