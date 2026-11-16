@@ -1390,14 +1390,17 @@ _DIAGNOSTIC_REASONS = frozenset(
 )
 
 
-_DIAGNOSTIC_NUMERIC_FIELDS = frozenset(
-    (
-        "remainingChargingTime",
-        "actualChargeRate",
-        "charging_timer_enabled_count",
-        "climatisation_timer_enabled_count",
+_DIAGNOSTIC_NUMERIC_FIELDS = (
+    frozenset(
+        (
+            "remainingChargingTime",
+            "actualChargeRate",
+            "charging_timer_enabled_count",
+            "climatisation_timer_enabled_count",
+        )
     )
-) | _DIAGNOSTIC_SOC_ALIASES
+    | _DIAGNOSTIC_SOC_ALIASES
+)
 _DIAGNOSTIC_BOOLEAN_FIELDS = frozenset(
     (
         "windowHeatingActive",

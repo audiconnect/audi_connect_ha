@@ -479,7 +479,9 @@ def entity_projection_report(engine):
             else state.state
             if state.state in ("unknown", "unavailable")
             else "known",
-            "ha_projected_state": diagnostic_ha_state(key, state, catalog) if key else None,
+            "ha_projected_state": diagnostic_ha_state(key, state, catalog)
+            if key
+            else None,
             "ha_state_source": source
             if source in ("vehicle", "optimistic", "last_known_vehicle", "unknown")
             else None,
