@@ -151,6 +151,7 @@ class V3Engine:
             if not metadata_refined:
                 vehicle.readings.clear()
                 vehicle.family_readings.clear()
+                vehicle.charging_observations.clear()
                 vehicle.position = None
             vehicle.capability_readings.clear()
             vehicle.charging_profiles.clear()

@@ -527,3 +527,36 @@ def test_diagnostic_data_act_values_and_paths_are_not_custom_routes():
     assert selected["path"] == path
     state = NS(state="91", attributes={"source_operation": "eu_data_act.dataset"})
     assert diagnostic_ha_state("sensor.state_of_charge", state, registry) == 91
+
+
+def test_charging_trace_follows_existing_source_invalidation():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        invalidate_attribute,
+        remove_family_observations,
+    )
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    sample = {
+        "value": 91,
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "status": "verified",
+    }
+    for family in ("cariad", "eu_data_act"):
+        commit_observation(
+            car,
+            "stateOfCharge",
+            {**sample, "family": family},
+            None,
+            now,
+        )
+    assert len(car.charging_observations) == 2
+    remove_family_observations(car, profile, "eu_data_act", now)
+    assert [row["family"] for row in car.charging_observations] == ["cariad"]
+    invalidate_attribute(car, "stateOfCharge")
+    assert not car.charging_observations
+    assert not car.family_readings.get("stateOfCharge")
+    assert "charging_observations" not in profile.snapshot()

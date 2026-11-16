@@ -530,6 +530,9 @@ def invalidate_attribute(vehicle, ident):
     """A route/enablement change invalidates both current and competing samples."""
     vehicle.readings.pop(ident, None)
     vehicle.family_readings.pop(ident, None)
+    trace = getattr(vehicle, "charging_observations", None)
+    if trace is not None:
+        trace[:] = [row for row in trace if row["attribute"] != ident]
 
 
 def refresh_family_observations(vehicle, profile, now):
@@ -542,6 +545,9 @@ def refresh_family_observations(vehicle, profile, now):
 
 def remove_family_observations(vehicle, profile, family, now):
     """Remove explicitly revoked read access without losing other observations."""
+    trace = getattr(vehicle, "charging_observations", None)
+    if trace is not None:
+        trace[:] = [row for row in trace if row["family"] != family]
     changed = False
     for ident in set(vehicle.readings) | set(vehicle.family_readings):
         current = vehicle.readings.get(ident)
