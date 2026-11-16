@@ -704,3 +704,42 @@ async def test_expert_charging_routes_are_explicit_and_never_auto_retried(combin
     assert calls[0][2].endswith("/start-stop" if combined else "/start")
     assert calls[0][3]["body"] == ({"action": "start"} if combined else {})
     assert not engine.control_enabled(VIN, "start", "charging")
+
+
+@pytest.mark.asyncio
+async def test_explicit_read_rescan_retests_prior_evidence_in_bounded_batches():
+    from custom_components.audiconnect.v3.read_discovery import full_read_plan
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    plan, _ = full_read_plan(profile, car.context, "cariad")
+    expected = [ident for ident, _ in sorted(plan)]
+    assert len(expected) > 12
+    for ident in expected:
+        profile.api_observations[ident] = {"http_status": 200}
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path))
+            return V3Response(200, {}, datetime.now(UTC))
+
+    engine.transport = Transport()
+    normal = await engine.test_family_reads(VIN, "cariad", full=True)
+    assert normal["request_count"] == 0
+    result = await engine.test_family_reads(VIN, "cariad", full=True, rescan_after="")
+    assert result["request_count"] == 12
+    assert [row["operation"] for row in result["results"]] == expected[:12]
+    assert result["next_rescan_after"] == expected[11]
+    assert result["remaining_routes"] == expected[12:]
+    result = await engine.test_family_reads(
+        VIN, "cariad", full=True, rescan_after=result["next_rescan_after"]
+    )
+    assert [row["operation"] for row in result["results"]] == expected[12:24]
+    assert len(calls) <= 24
+    assert all(method == "GET" for _, method, _ in calls)
+    assert not car.readings
+    with pytest.raises(ValueError, match="Rescan route changed"):
+        await engine.test_family_reads(
+            VIN, "cariad", full=True, rescan_after="not_a_reviewed_route"
+        )
