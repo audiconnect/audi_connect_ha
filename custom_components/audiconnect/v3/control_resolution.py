@@ -182,7 +182,9 @@ def control_decision(
         if for_discovery:
             # A past failure is evidence, not a permanent discovery ban.
             # Production eligibility stays fail-closed until physical review.
-            return decision("candidate_unverified", ident, "retry_requires_verification")
+            return decision(
+                "candidate_unverified", ident, "retry_requires_verification"
+            )
         return decision("no_working_route", reason="reviewed_candidates_failed")
     return decision("unknown")
 
