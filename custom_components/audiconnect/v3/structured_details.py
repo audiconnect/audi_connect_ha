@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from functools import partial
 from .registry import read_json_path
 from .freshness import reading_freshness_attributes, timestamp_is_fresh
 
@@ -504,8 +505,9 @@ def observe_structured(
                 key,
                 _array(
                     requests,
-                    lambda row: _request_status(
-                        row, climate=requests_path.startswith("climatisation.")
+                    partial(
+                        _request_status,
+                        climate=requests_path.startswith("climatisation."),
                     ),
                     30,
                 ),
