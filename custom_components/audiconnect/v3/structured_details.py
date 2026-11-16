@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from functools import partial
 from .registry import read_json_path
 from .freshness import reading_freshness_attributes, timestamp_is_fresh
 
@@ -231,14 +232,14 @@ def _warning(row):
     )
 
 
-def _request_status(row):
+def _request_status(row, *, climate=False):
     """Observed OEM command metadata; never imply physical success or replay."""
     if not isinstance(row, dict):
         return None
     operation, status = _token(row.get("operation")), _token(row.get("status"))
     if operation is None or status is None:
         return None
-    return _compact(
+    result = _compact(
         {
             "operation": operation,
             "status": status,
@@ -247,6 +248,26 @@ def _request_status(row):
             else None,
         }
     )
+    # Only reviewed technical fields, never the request body or ID.
+    body = row.get("body")
+    if climate and isinstance(body, dict) and operation in ("start", "settings"):
+        params = {}
+        target = body.get("targetTemperature")
+        if (
+            body.get("targetTemperatureUnit") == "celsius"
+            and type(target) in (int, float)
+            and 15 <= target <= 30
+        ):
+            params["target_temperature_c"] = target
+        for source, key in (
+            ("windowHeatingEnabled", "window_heating_enabled"),
+            ("climatisationWithoutExternalPower", "without_external_power"),
+        ):
+            if type(body.get(source)) is bool:
+                params[key] = body[source]
+        if params:
+            result["parameters"] = params
+    return result
 
 
 def _array(rows, normalizer, limit):
@@ -471,12 +492,28 @@ def observe_structured(
     # never physical readback or proof of a matching command.
     for key, requests_path in (
         ("climate_requests_detail", "climatisation.climatisationStatus.requests"),
+        (
+            "climate_settings_requests_detail",
+            "climatisation.climatisationSettings.requests",
+        ),
         ("access_requests_detail", "access.accessStatus.requests"),
         ("charging_requests_detail", "charging.chargingStatus.requests"),
     ):
         requests = read_json_path(payload, requests_path)
         if isinstance(requests, list):
-            put(key, _array(requests, _request_status, 30), None, requests_path)
+            put(
+                key,
+                _array(
+                    requests,
+                    partial(
+                        _request_status,
+                        climate=requests_path.startswith("climatisation."),
+                    ),
+                    30,
+                ),
+                None,
+                requests_path,
+            )
     services = read_json_path(payload, "userCapabilities.capabilitiesStatus.value")
     if isinstance(services, list):
         put(

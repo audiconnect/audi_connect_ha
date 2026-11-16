@@ -329,6 +329,14 @@
       "metadata_contract": "attribute_contracts.json:park_time",
       "freshness": "last_known"
     },
+    "sensor.parked_in": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Parked in"
+    },
     "sensor.position_last_updated": {
       "origin": "v2",
       "scope": "vehicle",

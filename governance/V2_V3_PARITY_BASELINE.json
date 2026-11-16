@@ -92,7 +92,7 @@
       "mapped_conditional": 87,
       "candidate_after_manual_proof": 22
     },
-    "v3_api_operations": 62,
+    "v3_api_operations": 63,
     "binary_metadata_contracts": 23
   },
   "entities": [
@@ -4085,6 +4085,14 @@
       "method": "GET",
       "family": "cariad",
       "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=charging",
+      "request_mode": null,
+      "delivery": "manual"
+    },
+    {
+      "id": "cariad.status.automation",
+      "method": "GET",
+      "family": "cariad",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=automation",
       "request_mode": null,
       "delivery": "manual"
     },

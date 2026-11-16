@@ -334,3 +334,30 @@ def test_accepted_control_boundary_survives_rejection_and_journal_rotation():
         old,
         now=datetime.fromtimestamp(1790001000, UTC),
     ) == (None, "unknown")
+
+
+def test_queue_backend_evidence_survives_restart_without_reactivating_intent():
+    p = DevelopmentProfile(model(), VehicleContext(auth="auth0", region="DE"))
+    record = CommandRecord.begin("access", "lock", "cariad.access.lock", 100)
+    record.observe_http(200)
+    record.observe_backend("queued", 101)
+    p.track_command(record)
+    recovered = restore_profile(model(), p.discovery.context, p.snapshot())
+    assert "requested_climate_variant" not in record.snapshot()
+    assert recovered.last_command.backend_result == "pending"
+    assert recovered.last_command.state == "accepted_unconfirmed"
+    assert recovered.last_command.restored
+
+
+def test_pending_queue_does_not_turn_accepted_wake_into_uncertain_transport():
+    for outcome in ("pending", "queued", "in_progress", "accepted", "not_listed"):
+        record = CommandRecord.begin("remote", "wake", "cariad.remote.wake", 100)
+        record.observe_http(200)
+        record.observe_backend(outcome, 101)
+        assert record.state == "accepted_unconfirmed"
+        assert record.wake_accepted
+        assert not record.unresolved
+        assert record.backend_result == outcome
+        snapshot = record.snapshot()
+        assert snapshot["backend_result"] in ("pending", "accepted_unconfirmed")
+        assert CommandRecord.restore(snapshot).wake_accepted

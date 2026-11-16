@@ -888,6 +888,7 @@
           "cariad.status.batteryChargingCare",
           "cariad.status.batterySupport",
           "cariad.status.charging",
+          "cariad.status.automation",
           "cariad.status.chargingProfiles",
           "cariad.status.chargingTimers",
           "cariad.status.departureProfiles",
@@ -1147,6 +1148,15 @@
       ],
       "notes": "V2 reference job; verify per vehicle before activation",
       "legacy_compatible": true
+    },
+    "cariad.status.automation": {
+      "family": "cariad",
+      "method": "GET",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=automation",
+      "delivery": "manual",
+      "priority": 85,
+      "response_paths": ["automation.chargingProfiles.value", "automation"],
+      "notes": "External schema candidate; explicit read-only discovery, no scheduled polling or profile write mapping"
     },
     "cariad.status.chargingProfiles": {
       "family": "cariad",

@@ -7,6 +7,8 @@ import math
 import re
 from uuid import uuid4
 
+from .request_status import PENDING_RESULTS
+
 
 _UNRESOLVED = frozenset({"pending", "uncertain"})
 _STATES = _UNRESOLVED | {
@@ -62,6 +64,7 @@ class CommandRecord:
     parent_command_id: str | None = None
     http_status: int | None = None
     requested_charge_mode: str | None = None
+    requested_climate_variant: str | None = None
 
     @classmethod
     def begin(
@@ -90,6 +93,8 @@ class CommandRecord:
         ):
             return
         self.backend_result = outcome
+        # Runtime receipt ordering only; never reactivate restored intent.
+        self.backend_observed_at = now
         if outcome == "rejected":
             self.state = "rejected"
             self.completed_at = max(self.started_at, now)
@@ -102,11 +107,11 @@ class CommandRecord:
             ):
                 self.state = "backend_completed"
                 self.completed_at = max(self.started_at, now)
-        elif outcome in (
-            "unknown",
-            "quota_limited",
-            "pending",
-        ) and self.capability not in ("climate", "charging", "access"):
+        elif outcome in ("unknown", "quota_limited") and self.capability not in (
+            "climate",
+            "charging",
+            "access",
+        ):
             self.state = "uncertain"
 
     @property
@@ -123,7 +128,16 @@ class CommandRecord:
             and self.http_status is not None
             and 200 <= self.http_status < 300
             and self.backend_result
-            in ("accepted_unconfirmed", "unknown", "pending", "quota_limited")
+            in (
+                "accepted_unconfirmed",
+                "unknown",
+                "pending",
+                "queued",
+                "in_progress",
+                "accepted",
+                "not_listed",
+                "quota_limited",
+            )
         )
 
     @property
@@ -202,7 +216,15 @@ class CommandRecord:
             )
 
     def snapshot(self) -> dict:
-        return asdict(self)
+        # Keep the B47 journal wire contract. Queue detail is runtime evidence;
+        # after restart the coarse backend outcome is sufficient for safety.
+        row = asdict(self)
+        row.pop("requested_climate_variant", None)
+        if self.backend_result in PENDING_RESULTS:
+            row["backend_result"] = "pending"
+        elif self.backend_result == "not_listed":
+            row["backend_result"] = "accepted_unconfirmed"
+        return row
 
     @classmethod
     def restore(cls, value: dict, *, recover_pending: bool = True):
@@ -212,6 +234,8 @@ class CommandRecord:
             record = cls(**value)
         except TypeError as exc:
             raise ValueError("Invalid stored command fields") from exc
+        from .command_parameters import valid_climate_variant
+
         if (
             not isinstance(record.command_id, str)
             or len(record.command_id) != 32
@@ -239,6 +263,17 @@ class CommandRecord:
                     or record.action != "set_charge_mode"
                     or record.operation != "cariad.charging.mode"
                     or record.requested_charge_mode not in ("manual", "timer")
+                )
+            )
+            or (
+                record.requested_climate_variant is not None
+                and (
+                    record.origin != "workbench"
+                    or record.capability != "climate"
+                    or record.action not in ("set_settings", "start_with_settings")
+                    or not valid_climate_variant(
+                        record.operation, record.requested_climate_variant
+                    )
                 )
             )
             or record.origin not in ("home_assistant", "workbench")
@@ -278,6 +313,10 @@ class CommandRecord:
                     "rejected",
                     "unknown",
                     "pending",
+                    "queued",
+                    "in_progress",
+                    "accepted",
+                    "not_listed",
                     "quota_limited",
                     "transport_uncertain",
                 )

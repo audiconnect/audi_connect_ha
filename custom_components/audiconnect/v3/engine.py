@@ -117,6 +117,7 @@ class V3Engine:
             api_record=self._api_record,
             notify=self._notify_discovery_change,
             apply_identity=self._apply_identity_candidate,
+            observe_native_requests=self.commands.reconcile_native_requests,
         )
 
     @property
@@ -1079,9 +1080,9 @@ class V3Engine:
         return self.commands.command_route(vin, aspect, capability)
 
     def control_enabled(
-        self, vin: str, aspect: str, capability: str = "climate"
+        self, vin: str, aspect: str, capability: str = "climate", *, params=None
     ) -> bool:
-        return self.commands.control_enabled(vin, aspect, capability)
+        return self.commands.control_enabled(vin, aspect, capability, params=params)
 
     async def approved_control_discovery(
         self,

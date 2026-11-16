@@ -516,7 +516,10 @@
         "name": "Outdoor temperature"
       },
       "v3_park_time": {
-        "name": "Park time"
+        "name": "Parked since"
+      },
+      "v3_parked_in": {
+        "name": "Parked in"
       },
       "v3_position_last_updated": {
         "name": "Position last updated"

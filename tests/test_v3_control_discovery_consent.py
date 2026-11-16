@@ -207,3 +207,128 @@ def test_discovery_can_extend_existing_command_by_catalog_metadata_only():
     node["discovery"]["parameters"] = ["unknown_parameter"]
     with pytest.raises(RegistryError, match="Unknown discovery parameter"):
         CapabilityRegistry(raw)
+
+
+def test_optional_climate_combination_proof_does_not_replace_base_route():
+    from custom_components.audiconnect.v3.command_parameters import climate_variant
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+    from custom_components.audiconnect.v3.registry import VehicleContext
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = V3Vehicle(VIN, "Audi", "", "", "DE", auth_family="auth0")
+    profile = DevelopmentProfile(registry, car.context, cooldown_seconds=0)
+    route = "cariad.climate.start.vehicle_settings"
+    revision = operation_revision(registry.operations[route])
+    first = profile.begin_test("climate", "start_with_settings", route, now=100)
+    profile.observe_http(first.sequence, 200)
+    profile.confirm(first.sequence, worked=True, inspected_vehicle=True, now=101)
+    profile.choose_working("climate", "start_with_settings", route)
+    assert climate_variant(route, {"temp_c": 22}) is None
+    good = climate_variant(route, {"temp_c": 22, "seat_fl": True})
+    bad = climate_variant(route, {"temp_c": 22, "seat_rl": True})
+    assert good != bad
+    for stamp, variant, worked in ((110, good, True), (120, bad, False)):
+        attempt = profile.begin_test("climate", "start_with_settings", route, now=stamp)
+        record = profile.engineering_record(attempt.sequence)
+        record.requested_climate_variant = variant
+        profile.observe_http(attempt.sequence, 200)
+        profile.confirm(
+            attempt.sequence, worked=worked, inspected_vehicle=True, now=stamp + 1
+        )
+    assert profile.active["climate.start_with_settings"] == route
+    assert profile.control_results[route] == "worked"
+    assert profile.verified_climate_variants[route] == {good: revision}
+    restored = restore_profile(registry, car.context, profile.snapshot())
+    assert restored.verified_climate_variants[route] == {good: revision}
+    restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert not restored.verified_climate_variants
+
+    # An interrupted optional test remains reviewable but cannot turn into
+    # evidence for the independently verified base route after restart.
+    pending = profile.begin_test("climate", "start_with_settings", route, now=130)
+    profile.engineering_record(pending.sequence).requested_climate_variant = bad
+    profile.observe_http(pending.sequence, 200)
+    saved = profile.snapshot()
+    assert saved["invalidated_attempt_sequence"] == pending.sequence
+    recovered = restore_profile(registry, car.context, saved, cooldown_seconds=0)
+    recovered.confirm(pending.sequence, worked=True, inspected_vehicle=True, now=131)
+    assert recovered.control_results[route] == "worked"
+    assert recovered.verified_climate_variants[route] == {good: revision}
+
+
+@pytest.mark.parametrize(
+    "action,route,params",
+    [
+        (
+            "start_with_settings",
+            "cariad.climate.start.vehicle_settings",
+            {"glass_heating": True},
+        ),
+        (
+            "set_settings",
+            "cariad.climate.settings",
+            {"windowHeatingEnabled": True},
+        ),
+    ],
+)
+def test_selective_climate_discovery_does_not_require_unrelated_temperature(
+    action, route, params
+):
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+    from custom_components.audiconnect.v3.command_engine import CommandEngine
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = V3Vehicle(VIN, "Audi", "", "", "DE", auth_family="auth0")
+    car.advertised_capabilities.add("climatisation")
+    profile = DevelopmentProfile(registry, car.context)
+    now = datetime.now(UTC)
+    observe_read_only(
+        car,
+        profile,
+        {
+            "climatisation": {
+                "climatisationSettings": {
+                    "value": {
+                        "targetTemperature_C": 20,
+                        "windowHeatingEnabled": False,
+                        "carCapturedTimestamp": now.isoformat(),
+                    }
+                }
+            }
+        },
+        now,
+    )
+    prepare = AsyncMock(side_effect=RuntimeError("prepared"))
+    obj = NS(
+        require_vehicle=lambda vin: car,
+        profiles={VIN.lower(): profile},
+        auth=NS(uses_auth0=True, service=NS(_spin="")),
+        _prepare_command=prepare,
+    )
+
+    def execute(values, expert):
+        return asyncio.run(
+            CommandEngine._test_action_once(
+                obj,
+                VIN,
+                action,
+                route,
+                params=values,
+                capability="climate",
+                guided=True,
+                expert=expert,
+                approval="non_spin",
+            )
+        )
+
+    with pytest.raises(ValueError):
+        execute(params, False)
+    with pytest.raises(ValueError, match="Choose at least one"):
+        execute({}, True)
+    prepare.assert_not_awaited()
+    with pytest.raises(RuntimeError, match="prepared"):
+        execute(params, True)
+    prepare.assert_awaited_once_with(car, route, params)
+    assert profile.discovery.active_attempt is None

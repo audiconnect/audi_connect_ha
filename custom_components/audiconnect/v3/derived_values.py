@@ -158,6 +158,49 @@ def observe_derived(
         path,
         10000,
     )
+    # Candidate technical fields are read-only and remain absent unless
+    # the existing batch actually supplies an explicit-unit numeric value.
+    for path, field, ident, maximum in (
+        (
+            "charging.chargingSettings.value",
+            "minChargeLimit_pct",
+            "minimumChargeLimit",
+            100,
+        ),
+        (
+            "charging.batteryStatus.value",
+            "navigationTargetSOC_pct",
+            "navigationTargetSOC",
+            100,
+        ),
+        (
+            "charging.chargingStatus.value",
+            "remainingChargingTimeNavigation_min",
+            "navigationRemainingChargingTime",
+            10080,
+        ),
+        (
+            "measurements.temperatureBatteryStatus.value",
+            "temperatureHvBatteryMin_K",
+            "hvBatteryMinimumTemperature",
+            400,
+        ),
+        (
+            "measurements.temperatureBatteryStatus.value",
+            "temperatureHvBatteryMax_K",
+            "hvBatteryMaximumTemperature",
+            400,
+        ),
+    ):
+        block = read_json_path(payload, path)
+        if ident.startswith("hvBattery") and (
+            not isinstance(block, dict)
+            or type(block.get(field)) not in (int, float)
+            or block[field] < 173.15
+        ):
+            continue
+        metric(block, field, ident, path.split(".", 1)[0], path, maximum)
+
     path = "measurements.fuelLevelStatus.value"
     metric(
         fuel_level, "currentSOC_pct", "measuredElectricSOC", "measurements", path, 100
@@ -191,6 +234,19 @@ def observe_derived(
                 # Keep engine-specific values; the product contract decides
                 # whether this is the actual combustion tank. Never last-wins
                 # across primary and secondary engines.
+    settings_path = "climatisation.climatisationSettings.value"
+    climate_settings = read_json_path(payload, settings_path)
+    if isinstance(climate_settings, dict) and climate_settings.get(
+        "climatisationMode"
+    ) in ("comfort", "economy"):
+        record(
+            "climatisationMode",
+            climate_settings["climatisationMode"],
+            climate_settings.get("carCapturedTimestamp"),
+            "climatisation",
+            settings_path + ".climatisationMode",
+        )
+
     # Operational window heating is not the preference windowHeatingEnabled,
     # and is not the legacy mirror-heating signal.
     from .vehicle import window_heating_active

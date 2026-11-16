@@ -493,3 +493,122 @@ async def test_opt_in_refresh_requires_known_acceptance_and_missing_native_captu
         )
     else:
         engine.commands.send_control.assert_not_awaited()
+
+
+def test_native_climate_setting_gate_requires_both_values_for_switch():
+    from custom_components.audiconnect.v3.command_parameters import climate_variant
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+
+    engine, car = make_engine()
+    car.advertised_capabilities.add("climatisation")
+    profile = engine.profiles[VIN.lower()]
+    route = "cariad.climate.settings"
+    revision = operation_revision(profile.registry.operations[route])
+    assert engine.control_enabled(VIN, "set_settings")
+    assert engine.control_enabled(VIN, "set_settings", params={"temp_c": 22})
+    for value in (False, True):
+        params = {"windowHeatingEnabled": value}
+        assert not engine.control_enabled(VIN, "set_settings", params=params)
+        profile.verified_climate_variants.setdefault(route, {})[
+            climate_variant(route, params)
+        ] = revision
+        assert engine.control_enabled(VIN, "set_settings", params=params)
+    assert not engine.control_enabled(
+        VIN, "set_settings", params={"zoneFrontLeftEnabled": True}
+    )
+    assert not engine.control_enabled(
+        VIN, "set_settings", params={"windowHeatingEnabled": "true"}
+    )
+    assert not engine.control_enabled(
+        VIN, "set_settings", params={"temp_c": 22, "windowHeatingEnabled": True}
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [200, 405])
+async def test_selective_climate_service_requires_its_own_review_after_restart(status):
+    from homeassistant.exceptions import HomeAssistantError
+    from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.service_commands import execute
+
+    engine, car = make_engine()
+    car.advertised_capabilities.add("climatisation")
+    profile = engine.profiles[VIN.lower()]
+    profile.discovery.cooldown_seconds = 0
+    route = "cariad.climate.start.vehicle_settings"
+    action = "start_with_settings"
+    base = profile.begin_test("climate", action, route, now=100)
+    profile.observe_http(base.sequence, 200)
+    profile.confirm(base.sequence, worked=True, inspected_vehicle=True, now=101)
+    profile.choose_working("climate", action, route)
+    now = datetime.now(UTC)
+    payload = {
+        "climatisation": {
+            "climatisationSettings": {
+                "value": {
+                    "targetTemperature_C": 20,
+                    "windowHeatingEnabled": False,
+                    "carCapturedTimestamp": now.isoformat(),
+                }
+            },
+            "climatisationStatus": {
+                "value": {
+                    "climatisationState": "off",
+                    "carCapturedTimestamp": now.isoformat(),
+                }
+            },
+        }
+    }
+    observe_read_only(car, profile, payload, now)
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path, kwargs))
+            if method == "GET":
+                return V3Response(207, payload, datetime.now(UTC))
+            data = {"error": {"code": "unsupported"}} if status == 405 else {}
+            return V3Response(status, data, datetime.now(UTC))
+
+    engine.transport = Transport()
+    params = {"glass_heating": True}
+    with pytest.raises(HomeAssistantError, match="requires vehicle discovery"):
+        await execute(engine, VIN, "start_climatisation", params)
+    assert calls == []
+    result = await engine.approved_control_discovery(
+        VIN,
+        action,
+        route,
+        approval="non_spin",
+        params=params,
+        guided=True,
+        expert=True,
+    )
+    assert [row[1] for row in calls] == ["GET", "POST"]
+    assert calls[-1][3]["body"]["windowHeatingEnabled"] is True
+    assert profile.engineering_record(result["sequence"]).readback_attribute is None
+    if status == 200:
+        assert result["physical_result"] == "requires_user_confirmation"
+        assert not profile.verified_climate_variants
+        await engine.review_action(VIN, result["sequence"], "worked")
+    else:
+        assert result["physical_result"] == "rejected"
+    assert profile.control_results[route] == "worked"
+    assert profile.active["climate." + action] == route
+    restored = restore_profile(
+        profile.registry, car.context, profile.snapshot(), cooldown_seconds=0
+    )
+    engine.profiles[VIN.lower()] = restored
+    assert engine.control_enabled(VIN, action, params={"temp_c": 22})
+    assert not engine.control_enabled(VIN, action, params={"glass_heating": False})
+    with pytest.raises(HomeAssistantError, match="requires vehicle discovery"):
+        await execute(engine, VIN, "start_climatisation", {"glass_heating": False})
+    assert len(calls) == 2
+    if status == 200:
+        await execute(engine, VIN, "start_climatisation", params)
+        assert [row[1] for row in calls] == ["GET", "POST", "GET", "POST"]
+    else:
+        with pytest.raises(HomeAssistantError, match="requires vehicle discovery"):
+            await execute(engine, VIN, "start_climatisation", params)
+        assert len(calls) == 2

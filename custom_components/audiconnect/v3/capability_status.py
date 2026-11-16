@@ -1314,7 +1314,35 @@ def diagnostic_route_label(ident, registry):
 _DIAGNOSTIC_SOC_ALIASES = frozenset(
     ("measuredElectricSOC", "primaryEngineRangePercent", "secondaryEngineRangePercent")
 )
+_DIAGNOSTIC_RANGE_PATHS = {
+    "measuredElectricRange": ("measurements.rangeStatus.value.electricRange",),
+    "measuredFuelRange": ("measurements.rangeStatus.value.gasolineRange",),
+    "measuredTotalRange": ("measurements.rangeStatus.value.totalRange_km",),
+    "batteryElectricRange": ("charging.batteryStatus.value.cruisingRangeElectric_km",),
+}
+_DIAGNOSTIC_CHARGING_PATHS = {
+    "minimumChargeLimit": ("charging.chargingSettings.value.minChargeLimit_pct",),
+    "navigationTargetSOC": ("charging.batteryStatus.value.navigationTargetSOC_pct",),
+    "navigationRemainingChargingTime": (
+        "charging.chargingStatus.value.remainingChargingTimeNavigation_min",
+    ),
+    "hvBatteryMinimumTemperature": (
+        "measurements.temperatureBatteryStatus.value.temperatureHvBatteryMin_K",
+    ),
+    "hvBatteryMaximumTemperature": (
+        "measurements.temperatureBatteryStatus.value.temperatureHvBatteryMax_K",
+    ),
+}
+_DIAGNOSTIC_CHARGING_UNITS = {
+    "minimumChargeLimit": "%",
+    "navigationTargetSOC": "%",
+    "navigationRemainingChargingTime": "min",
+    "hvBatteryMinimumTemperature": "K",
+    "hvBatteryMaximumTemperature": "K",
+}
 _DIAGNOSTIC_DERIVED_PATHS = {
+    **_DIAGNOSTIC_RANGE_PATHS,
+    **_DIAGNOSTIC_CHARGING_PATHS,
     "measuredElectricSOC": ("measurements.fuelLevelStatus.value.currentSOC_pct",),
     "charging_timer_enabled_count": ("chargingTimers.chargingTimersStatus.value",),
     "climatisation_timer_enabled_count": (
@@ -1404,6 +1432,8 @@ _DIAGNOSTIC_NUMERIC_FIELDS = (
         )
     )
     | _DIAGNOSTIC_SOC_ALIASES
+    | _DIAGNOSTIC_RANGE_PATHS.keys()
+    | _DIAGNOSTIC_CHARGING_PATHS.keys()
 )
 _DIAGNOSTIC_BOOLEAN_FIELDS = frozenset(
     (
@@ -1525,6 +1555,67 @@ def diagnostic_ha_state(key, state, registry=None):
     return diagnostic_technical_value(source, value)
 
 
+def diagnostic_request_queue(vehicle):
+    """Known technical queue metadata, without request IDs, group or raw body."""
+    from .attribute_runtime import _capture_in_utc
+
+    queues = []
+    for key in (
+        "climate_requests_detail",
+        "climate_settings_requests_detail",
+        "charging_requests_detail",
+        "access_requests_detail",
+    ):
+        row = vehicle.readings.get(key, {})
+        if row.get("family") != "cariad" or not row.get("informational"):
+            continue
+        value = row.get("value")
+        if not isinstance(value, dict) or not isinstance(value.get("items"), list):
+            continue
+        items = []
+        for item in value["items"][:30]:
+            if not isinstance(item, dict):
+                continue
+            operation, status = item.get("operation"), item.get("status")
+            if operation not in ("start", "stop", "settings", "lock", "unlock"):
+                continue
+            if status not in (
+                "queued",
+                "in_progress",
+                "pending",
+                "accepted",
+                "successful",
+                "completed",
+                "error",
+                "failed",
+                "rejected",
+                "cancelled",
+            ):
+                continue
+            safe = {"operation": operation, "status": status}
+            params = item.get("parameters")
+            if key.startswith("climate_") and isinstance(params, dict):
+                technical = {}
+                target = params.get("target_temperature_c")
+                if type(target) in (int, float) and 15 <= target <= 30:
+                    technical["target_temperature_c"] = target
+                for flag in ("window_heating_enabled", "without_external_power"):
+                    if type(params.get(flag)) is bool:
+                        technical[flag] = params[flag]
+                if technical:
+                    safe["parameters"] = technical
+            items.append(safe)
+        stamp = _capture_in_utc(row.get("observed"))
+        queues.append(
+            {
+                "queue": key.removesuffix("_detail"),
+                "observed_at": stamp.isoformat() if stamp else None,
+                "items": items,
+            }
+        )
+    return queues
+
+
 def diagnostic_telemetry(vehicle, registry):
     """Read-only current/retained candidates and canonical SOC selection."""
     from .attribute_runtime import _capture_in_utc
@@ -1597,6 +1688,10 @@ def diagnostic_telemetry(vehicle, registry):
         unit = contract_for(definition.get("entity_key", "")).get("unit")
         if ident in _DIAGNOSTIC_SOC_ALIASES:
             unit = "%"
+        elif ident in _DIAGNOSTIC_RANGE_PATHS:
+            unit = "km"
+        elif ident in _DIAGNOSTIC_CHARGING_UNITS:
+            unit = _DIAGNOSTIC_CHARGING_UNITS[ident]
         family = current.get("family")
         rows.append(
             {
@@ -1627,6 +1722,22 @@ def diagnostic_telemetry(vehicle, registry):
     family = known.get("family")
     return {
         "attributes": rows,
+        "request_queue": diagnostic_request_queue(vehicle),
+        "range_projections": [
+            {
+                "entity_attribute": attribute,
+                "selected_attribute": selected_ident,
+                "unit": "km",
+                **sample(selected_ident, reading),
+            }
+            for attribute in ("primaryEngineRange", "secondaryEngineRange")
+            for selected_ident, selected_row in (
+                projection_reading(
+                    vehicle, ATTRIBUTES[attribute], registry=registry, now=now
+                ),
+            )
+            if (reading := last_known_observation(selected_row))
+        ],
         "charging_observations": [
             {
                 "attribute": row["attribute"],

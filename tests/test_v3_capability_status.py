@@ -560,3 +560,32 @@ def test_charging_trace_follows_existing_source_invalidation():
     assert not car.charging_observations
     assert not car.family_readings.get("stateOfCharge")
     assert "charging_observations" not in profile.snapshot()
+
+
+def test_range_diagnostics_keep_alternative_values_and_units():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.capability_status import diagnostic_telemetry
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    car.readings["secondary_engine_type"] = {"value": "electric"}
+    car.readings["secondaryEngineRange"] = {
+        "value": 42,
+        "captured": (now - timedelta(hours=1)).isoformat(),
+        "family": "cariad",
+        "status": "verified",
+    }
+    car.readings["measuredElectricRange"] = {
+        "value": 31,
+        "captured": now.isoformat(),
+        "family": "cariad",
+        "status": "verified",
+        "path": "measurements.rangeStatus.value.electricRange",
+    }
+    report = diagnostic_telemetry(car, profile.registry)
+    rows = {row["attribute"]: row for row in report["attributes"]}
+    assert rows["measuredElectricRange"]["unit"] == "km"
+    assert rows["measuredElectricRange"]["selected"]["value"] == 31
+    assert (
+        report["range_projections"][0]["selected_attribute"] == "measuredElectricRange"
+    )

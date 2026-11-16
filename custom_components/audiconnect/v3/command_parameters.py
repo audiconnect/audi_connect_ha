@@ -73,6 +73,141 @@ CLIMATE_SETTINGS_INPUTS = {
 }
 
 
+# Existing native scalar observations are the only source of optional
+# CARIAD settings candidates. A read field is not proof of write support.
+CLIMATE_SETTING_FIELDS = {
+    "windowHeatingEnabled": "climatisationWindowHeatingEnabled",
+    "climatizationAtUnlock": "climatisationAtUnlock",
+    "climatisationWithoutExternalPower": "climatisationWithoutExternalPower",
+    "zoneFrontLeftEnabled": "climatisationZoneFrontLeft",
+    "zoneFrontRightEnabled": "climatisationZoneFrontRight",
+    "zoneRearLeftEnabled": "climatisationZoneRearLeft",
+    "zoneRearRightEnabled": "climatisationZoneRearRight",
+}
+CLIMATE_START_OVERRIDES = {
+    "climatisation_at_unlock": "climatizationAtUnlock",
+    "glass_heating": "windowHeatingEnabled",
+    "seat_fl": "zoneFrontLeftEnabled",
+    "seat_fr": "zoneFrontRightEnabled",
+    "seat_rl": "zoneRearLeftEnabled",
+    "seat_rr": "zoneRearRightEnabled",
+}
+CLIMATE_VARIANT_ROUTES = {
+    "cariad.climate.start.vehicle_settings": "climate_start_settings",
+    "cariad.climate.settings": "climate_settings_update",
+}
+
+
+def climate_variant(operation, params):
+    """A bounded semantic combination, not a raw body or temperature value."""
+    mode = CLIMATE_VARIANT_ROUTES.get(operation)
+    if mode is None:
+        return None
+    schema = (
+        CLIMATE_INPUTS if mode == "climate_start_settings" else CLIMATE_SETTINGS_INPUTS
+    )
+    validate_inputs(params, schema)
+    # Temperature-only remains the existing independently reviewed route.
+    # The same unit-normalized setpoint contract applies throughout its range.
+    tokens = []
+    if TEMPERATURE.keys() & params.keys():
+        tokens.append("temperature")
+    for key, value in sorted(params.items()):
+        if key in TEMPERATURE:
+            continue
+        field = CLIMATE_START_OVERRIDES.get(key, key)
+        if field in CLIMATE_SETTING_FIELDS:
+            tokens.append(field + "=" + str(value).lower())
+        elif key == "climatisation_mode":
+            tokens.append("mode=" + value)
+        elif key in ("targetTemperature_C", "targetTemperature_F"):
+            # Keep old raw temperature compatibility, but do not conflate it
+            # with the semantic-temperature variant.
+            tokens.append(key)
+        else:
+            raise ValueError("Climate setting has no reviewed parameter contract")
+    if not tokens or tokens == ["temperature"]:
+        return None
+    return "|".join(sorted(tokens))
+
+
+def valid_climate_variant(operation, variant):
+    """Validate stored keys without accepting arbitrary user strings."""
+    if operation not in CLIMATE_VARIANT_ROUTES or not isinstance(variant, str):
+        return False
+    tokens = variant.split("|")
+    if len(variant) > 300 or tokens != sorted(set(tokens)):
+        return False
+    mode = CLIMATE_VARIANT_ROUTES[operation]
+    fields = (
+        set(CLIMATE_START_OVERRIDES.values())
+        if mode == "climate_start_settings"
+        else set(CLIMATE_SETTING_FIELDS)
+    )
+    allowed = {"temperature"} | {
+        field + "=" + value for field in fields for value in ("true", "false")
+    }
+    if mode == "climate_start_settings":
+        allowed |= {"mode=comfort", "mode=economy"}
+    else:
+        allowed |= {"targetTemperature_C", "targetTemperature_F"}
+    return (
+        set(tokens) <= allowed
+        and tokens != ["temperature"]
+        and len({token.split("=")[0] for token in tokens}) == len(tokens)
+    )
+
+
+def native_climate_parameter_schema(operation, route, vehicle):
+    """Vehicle-specific discovery fields; a fresh GET still guards dispatch."""
+    schema = parameter_schema(operation, route)
+    mode = operation.get("request_mode")
+    if (
+        route
+        or operation.get("input_schema")
+        or mode
+        not in (
+            "climate_start_settings",
+            "climate_settings_update",
+        )
+    ):
+        return schema
+    from .attribute_runtime import select_reading
+
+    def reported(field):
+        ident = CLIMATE_SETTING_FIELDS[field]
+        _, row = select_reading(vehicle, (ident,), ident, families=("cariad",))
+        return (
+            row is not None
+            and row.get("status") != "invalid_value"
+            and type(row.get("value")) is bool
+            and row.get("path") == "climatisation.climatisationSettings.value." + field
+        )
+
+    result = {key: schema[key] for key in TEMPERATURE}
+    for key in schema:
+        field = CLIMATE_START_OVERRIDES.get(key, key)
+        if field in CLIMATE_SETTING_FIELDS and reported(field):
+            result[key] = schema[key]
+    # Only observed native modes are candidates; no guessed economy support.
+    if mode == "climate_start_settings":
+        _, row = select_reading(
+            vehicle, ("climatisationMode",), "climatisationMode", families=("cariad",)
+        )
+        if (
+            row is not None
+            and row.get("status") != "invalid_value"
+            and row.get("value") in ("comfort", "economy")
+            and row.get("path")
+            == "climatisation.climatisationSettings.value.climatisationMode"
+        ):
+            result["climatisation_mode"] = {
+                **schema["climatisation_mode"],
+                "enum": [row["value"]],
+            }
+    return result
+
+
 def validate_parameter(value, schema):
     kind = schema["type"]
     valid = (

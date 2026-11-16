@@ -24,8 +24,12 @@ def test_request_id_only_from_reviewed_shape():
 def test_pending_backend_state_is_not_vehicle_confirmation():
     reply = {"data": [{"id": "a", "status": "successful"}]}
     assert status_of(reply, "a") == "backend_completed"
-    assert status_of(reply, "b") == "unknown"
-    assert status_of({"data": [{"id": "a", "status": "in_progress"}]}, "a") == "pending"
+    assert status_of(reply, "b") == "not_listed"
+    assert (
+        status_of({"data": [{"id": "a", "status": "in_progress"}]}, "a")
+        == "in_progress"
+    )
+    assert status_of({"data": [{"id": "a", "status": "queued"}]}, "a") == "queued"
     assert status_of({"data": [{"id": "a", "status": "rejected"}]}, "a") == "rejected"
     assert status_of({"data": [{"id": "a", "status": "surprising"}]}, "a") == "unknown"
 
@@ -71,7 +75,7 @@ def test_pending_or_missing_outcome_never_claims_success():
             response(204, None),
         ]
     )
-    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "accepted_unconfirmed"
+    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "in_progress"
     assert obj.request.await_count == 3
 
 
@@ -88,3 +92,96 @@ def test_quota_and_auth_failures_stop_followup():
     bad = transport(replies=[response(403, None)])
     assert asyncio.run(confirm(bad, "VIN", "abc")) == "unknown"
     assert bad.request.await_count == 1
+
+
+def test_missing_is_not_completion_and_queue_is_not_physical_confirmation():
+    obj = transport(replies=[response(200, {"data": []})] * 3)
+    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "not_listed"
+    obj = transport(
+        replies=[
+            response(200, {"data": [{"id": "abc", "status": "queued"}]}),
+            response(200, {"data": [{"id": "abc", "status": "in_progress"}]}),
+            response(200, {"data": [{"id": "abc", "status": "error"}]}),
+        ]
+    )
+    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "rejected"
+    assert obj.request.await_count == 3
+
+
+def test_late_queue_result_is_exact_context_bound_and_not_physical_readback():
+    from datetime import UTC, datetime, timedelta
+    from pathlib import Path
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+    from custom_components.audiconnect.v3.registry import (
+        CapabilityRegistry,
+        VehicleContext,
+    )
+    from custom_components.audiconnect.v3.request_status import reconcile_native_queue
+
+    root = Path(__file__).parents[1] / "custom_components" / "audiconnect" / "v3"
+    registry = CapabilityRegistry.from_json_file(root / "full_catalog.json")
+    context = VehicleContext(auth="auth0", region="DE")
+    profile = DevelopmentProfile(registry, context)
+    now = datetime.now(UTC)
+    route = "cariad.climate.settings"
+    record = CommandRecord.begin(
+        "climate",
+        "set_settings",
+        route,
+        now.timestamp(),
+        operation_revision=operation_revision(profile.registry.operations[route]),
+    )
+    record.observe_http(200)
+    record.request_id = "own-request"
+    record.request_context = profile.discovery.context
+    profile.track_command(record)
+
+    def payload(*rows):
+        return {"climatisation": {"climatisationSettings": {"requests": list(rows)}}}
+
+    queued = {"requestId": "own-request", "operation": "settings", "status": "queued"}
+    later = now + timedelta(seconds=30)
+    assert not reconcile_native_queue(
+        profile,
+        payload({**queued, "requestId": "other", "vcfRequestId": "own-request"}),
+        later,
+    )
+    assert not reconcile_native_queue(
+        profile, payload({**queued, "operation": "start"}), later
+    )
+    assert not reconcile_native_queue(profile, payload(queued, queued), later)
+    assert reconcile_native_queue(profile, payload(queued), later) == [record]
+    assert record.backend_result == "queued"
+    assert record.state == "accepted_unconfirmed"
+    assert not reconcile_native_queue(profile, payload(), later)
+    assert record.backend_result == "queued"
+    error = {**queued, "status": "error"}
+    assert not reconcile_native_queue(profile, payload(error), now)
+    assert reconcile_native_queue(profile, payload(error), later) == [record]
+    assert record.state == "rejected"
+    assert record.readback_observed_at is None
+
+    # Rebind and restart do not authorize old journal IDs for new responses.
+    record.backend_result = "queued"
+    record.state = "accepted_unconfirmed"
+    profile.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert not reconcile_native_queue(profile, payload(error), later)
+    record.request_context = profile.discovery.context
+    restored = CommandRecord.restore(record.snapshot())
+    profile.command_journal[:] = [restored]
+    assert not reconcile_native_queue(profile, payload(error), later)
+
+
+def test_duplicate_request_ids_are_not_backend_evidence():
+    reply = {
+        "data": [
+            {"id": "a", "status": "successful"},
+            {"id": "a", "status": "rejected"},
+        ]
+    }
+    assert status_of(reply, "a") == "unknown"
+    assert status_of({"data": [{"id": "a", "status": "successful"}] * 201}, "a") == (
+        "unknown"
+    )

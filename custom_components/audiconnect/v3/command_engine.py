@@ -25,7 +25,8 @@ from .operation_revision import operation_revision
 from .command_parameters import (
     map_parameters,
     runtime_ready,
-    parameter_schema,
+    native_climate_parameter_schema,
+    climate_variant,
     validate_inputs,
     validate_parameter,
     SOC,
@@ -160,6 +161,9 @@ class CommandEngine:
     async def _execute_prepared(self, car, profile, record, prepared, params):
         """One physical dispatch and initial evidence path, after durable journaling."""
         proof_required, (family, method, path, body) = prepared
+        # Bind any returned request ID to the actual dispatch context.
+        # A context replacement or restart makes this correlation ineligible.
+        request_context = profile.discovery.context
 
         def observe(status):
             if record.origin == "workbench":
@@ -182,6 +186,7 @@ class CommandEngine:
             from .request_status import request_id_of
 
             record.request_id = request_id_of(response.data)
+            record.request_context = request_context
         self._api_record(profile, record.operation, family, method, response, car.vin)
         return family, path, response
 
@@ -203,14 +208,27 @@ class CommandEngine:
                     capability, action, profile.registry.operations[op]
                 ),
                 "parameters_required": bool(
-                    parameter_schema(
-                        profile.registry.operations[op], profile.custom.get(op, {})
+                    native_climate_parameter_schema(
+                        profile.registry.operations[op],
+                        profile.custom.get(op, {}),
+                        vehicle,
                     )
                 )
                 or profile.registry.operations[op].get("request_mode")
                 == "climate_settings_update",
-                "parameter_schema": parameter_schema(
-                    profile.registry.operations[op], profile.custom.get(op, {})
+                "parameter_schema": native_climate_parameter_schema(
+                    profile.registry.operations[op],
+                    profile.custom.get(op, {}),
+                    vehicle,
+                ),
+                "verified_climate_variants": sorted(
+                    variant
+                    for variant, revision in getattr(
+                        profile, "verified_climate_variants", {}
+                    )
+                    .get(op, {})
+                    .items()
+                    if revision == operation_revision(profile.registry.operations[op])
                 ),
                 "status": profile.control_results.get(op, "not_tested"),
                 "active": profile.active.get(f"{capability}.{action}") == op,
@@ -257,6 +275,18 @@ class CommandEngine:
                 profile.discovery.enable(capability, action)
             await self.storage.async_save(self.profiles)
             self._notify_discovery_change()
+
+    def reconcile_native_requests(self, car, profile, payload, observed_at):
+        """Receive existing native status evidence; never dispatch or retry."""
+        from .request_status import reconcile_native_queue
+
+        if self.profiles.get(car.vin.lower()) is not profile:
+            return
+        if not car.inventory_present:
+            return
+        for record in reconcile_native_queue(profile, payload, observed_at):
+            if record is profile.last_command:
+                car.last_command_result = record.state
 
     def reconcile_commands(self) -> None:
         """Correlate fresh scheduled observations without another request."""
@@ -324,10 +354,30 @@ class CommandEngine:
             car, self.profiles[vin.lower()], self.auth, capability, aspect
         )
 
+    @staticmethod
+    def _parameter_variant_verified(profile, operation, params):
+        variant = climate_variant(operation, params)
+        return variant is None or (
+            getattr(profile, "verified_climate_variants", {})
+            .get(operation, {})
+            .get(variant)
+            == operation_revision(profile.registry.operations[operation])
+        )
+
     def control_enabled(
-        self, vin: str, aspect: str, capability: str = "climate"
+        self, vin: str, aspect: str, capability: str = "climate", *, params=None
     ) -> bool:
-        return self.command_route(vin, aspect, capability) is not None
+        operation = self.command_route(vin, aspect, capability)
+        if operation is None:
+            return False
+        if params is None:
+            return True
+        try:
+            return self._parameter_variant_verified(
+                self.profiles[vin.lower()], operation, params
+            )
+        except ValueError:
+            return False
 
     def _command_allowance(self, family):
         quota = getattr(self.transport, "quota", None)
@@ -471,6 +521,12 @@ class CommandEngine:
                     "Discovery action changed; refresh status before testing"
                 )
             validate_inputs(params or {}, candidate["parameter_schema"])
+            if (
+                capability == "climate"
+                and aspect in ("start_with_settings", "set_settings")
+                and not params
+            ):
+                raise ValueError("Choose at least one climate setting")
         family = profile.registry.operations.get(operation, {}).get("family")
         if family not in ("cariad", "mbb") or (
             family == "mbb" and self.auth.uses_auth0
@@ -513,6 +569,7 @@ class CommandEngine:
             raise ValueError("Vehicle command cooldown still active")
         # Reject invalid templates/parameters BEFORE reserving a pending
         # physical action, otherwise a mere validation error locks the car.
+        variant = climate_variant(operation, params or {})
         prepared = await self._prepare_command(vehicle, operation, params)
         self._reserve_wake(vehicle.vin, operation)
         with profile.command_transaction():
@@ -520,13 +577,16 @@ class CommandEngine:
             record = profile.engineering_record(attempt.sequence)
             if record is None:
                 raise RuntimeError("Missing durable engineering command record")
+            record.requested_climate_variant = variant
             if (
                 capability == "charging"
                 and aspect == "set_charge_mode"
                 and operation == "cariad.charging.mode"
             ):
                 record.requested_charge_mode = (params or {}).get("value")
-            if guided:
+            # The single-field readback cannot verify an optional combination.
+            # Keep its physical review explicit; base actions retain readback.
+            if guided and variant is None:
                 configure_discovery_readback(
                     record, vehicle, params, registry=profile.registry
                 )
@@ -668,6 +728,10 @@ class CommandEngine:
             ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")
+            if not self._parameter_variant_verified(p, ident, params or {}):
+                raise ValueError(
+                    "Climate parameter combination requires vehicle discovery"
+                )
             prepared = await self._prepare_command(car, ident, params)
             self._reserve_wake(vin, ident)
             record = CommandRecord.begin(

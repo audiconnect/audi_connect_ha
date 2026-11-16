@@ -14,6 +14,8 @@ from .command_parameters import (
     validate_inputs,
     validate_parameter,
     temperature_celsius,
+    CLIMATE_SETTING_FIELDS,
+    CLIMATE_START_OVERRIDES,
 )
 
 CHARGE_FIELDS = frozenset(
@@ -25,14 +27,7 @@ CHARGE_FIELDS = frozenset(
     }
 )
 CLIMATE_FIELDS = frozenset(CLIMATE_SETTINGS_INPUTS) - TEMPERATURE.keys()
-OVERRIDES = {
-    "climatisation_at_unlock": "climatizationAtUnlock",
-    "glass_heating": "windowHeatingEnabled",
-    "seat_fl": "zoneFrontLeftEnabled",
-    "seat_fr": "zoneFrontRightEnabled",
-    "seat_rl": "zoneRearLeftEnabled",
-    "seat_rr": "zoneRearRightEnabled",
-}
+OVERRIDES = CLIMATE_START_OVERRIDES
 PASSTHROUGH = CLIMATE_FIELDS - {
     "targetTemperature",
     "targetTemperature_C",
@@ -93,7 +88,7 @@ async def patch_settings(transport, vin, mode, params):
         for key in TEMPERATURE:
             updates.pop(key, None)
         updates["targetTemperature_C"] = target
-        if "targetTemperature_F" in current:
+        if type(current.get("targetTemperature_F")) in (int, float):
             fahrenheit = target * 9 / 5 + 32
             updates["targetTemperature_F"] = (
                 round(fahrenheit)
@@ -104,7 +99,12 @@ async def patch_settings(transport, vin, mode, params):
         raise ValueError("Unknown climatisation setting")
     if strict and set(current) - allowed - {"carCapturedTimestamp"}:
         raise ValueError("Unrecognized charging settings; refusing destructive PUT")
-    if not strict and any(key not in current for key in updates):
+    if not strict and any(
+        key not in current
+        or current[key] is None
+        or (key in CLIMATE_SETTING_FIELDS and type(current[key]) is not bool)
+        for key in updates
+    ):
         raise ValueError("Setting is not reported by this vehicle")
     return {
         **{
@@ -148,17 +148,26 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
             transport, vin, "climatisation", "climatisation.climatisationSettings.value"
         )
         target = temperature_celsius(params, current.get("targetTemperature_C"))
-        body = {k: current[k] for k in PASSTHROUGH if k in current}
-        body.update(
-            targetTemperature=target,
-            targetTemperatureUnit="celsius",
-            climatisationMode=params.get("climatisation_mode")
-            or current.get("climatisationMode")
-            or "comfort",
+        body = {
+            k: current[k]
+            for k in PASSTHROUGH
+            if k in current
+            and current[k] is not None
+            and (k not in CLIMATE_SETTING_FIELDS or type(current[k]) is bool)
+        }
+        body.update(targetTemperature=target, targetTemperatureUnit="celsius")
+        reported_mode = current.get("climatisationMode")
+        requested_mode = params.get("climatisation_mode")
+        if requested_mode is not None and requested_mode != reported_mode:
+            raise ValueError("Climate mode is not reported by this vehicle")
+        # Retain the reviewed historical default for the existing standard
+        # start route; do not offer it as evidence of selectable modes.
+        body["climatisationMode"] = (
+            reported_mode if reported_mode in ("comfort", "economy") else "comfort"
         )
         for name, field in OVERRIDES.items():
-            if params.get(name) is not None:
-                if type(params[name]) is not bool or field not in current:
+            if name in params:
+                if type(current.get(field)) is not bool:
                     raise ValueError("Climate setting not supported")
                 body[field] = params[name]
         return body

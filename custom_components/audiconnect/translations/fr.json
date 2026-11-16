@@ -343,7 +343,10 @@
         "name": "Température extérieure"
       },
       "v3_park_time": {
-        "name": "Heure de stationnement"
+        "name": "Stationné depuis"
+      },
+      "v3_parked_in": {
+        "name": "Stationné à"
       },
       "v3_position_last_updated": {
         "name": "Dernière mise à jour de position"

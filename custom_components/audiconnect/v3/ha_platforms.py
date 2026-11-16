@@ -24,6 +24,7 @@ from .entities import (
     V3ClimateQuickSwitch,
     V3LockEntity,
     V3ParkedTracker,
+    V3ParkedInSensor,
     V3ChargeTargetNumber,
     V3ChargeModeSelect,
     V3LocationChargeTargetNumber,
@@ -127,6 +128,8 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 # Manufacturer identity is universal, even when the OEM label
                 # is temporarily absent. Preserve the existing model entity ID.
                 add_once(f"{vin}:model", V3ModelSensor)
+                if getattr(car, "position", None) is not None or retained("parked_in"):
+                    add_once(f"{vin}:parked_in", V3ParkedInSensor)
                 for kind in ("integration_status", "last_error", "data_act_status"):
                     add_once(f"{vin}:health:{kind}", V3HealthSensor, kind)
                 for kind in ("door", "window"):
@@ -192,6 +195,8 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                             "TOTAL_RANGE",
                             "TANK_LEVEL_IN_PERCENTAGE",
                             "carType",
+                            "primaryEngineRange",
+                            "secondaryEngineRange",
                         )
                     )
                 for ident, descriptor in sorted(attributes.items()):

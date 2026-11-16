@@ -99,6 +99,7 @@ class StatusEngine:
         api_record,
         notify=None,
         apply_identity=None,
+        observe_native_requests=None,
     ):
         self.hass = hass
         self.entry = entry
@@ -113,6 +114,7 @@ class StatusEngine:
         self._api_record = api_record
         self._notify = notify
         self._apply_identity = apply_identity
+        self._observe_native_requests = observe_native_requests
         self._data_act_identity_attempt_at = None
         self._data_act_task = None
         self.last_cloud_poll_success = None
@@ -718,6 +720,11 @@ class StatusEngine:
                     "job": None,
                 }
 
+    def _observe_cariad_status(self, car, profile, reply):
+        observe_read_only(car, profile, reply.data, reply.observed_at)
+        if self._observe_native_requests is not None:
+            self._observe_native_requests(car, profile, reply.data, reply.observed_at)
+
     async def _poll_native_status(self):
         """Existing native family reads; preserve shared request deduplication."""
         cloud_reachable = False
@@ -749,9 +756,7 @@ class StatusEngine:
                         reply = None
                     if reply and 200 <= reply.status < 300:
                         polled_responses[(key, "cariad", path)] = reply
-                        observe_read_only(
-                            vehicle, profile, reply.data, reply.observed_at
-                        )
+                        self._observe_cariad_status(vehicle, profile, reply)
                         record_jobs(
                             profile,
                             tuple(path.rsplit("jobs=", 1)[-1].split(",")),
@@ -827,9 +832,7 @@ class StatusEngine:
                         cloud_reachable = True
                         if ident == batch and family == "cariad":
                             requested = tuple(path.rsplit("jobs=", 1)[-1].split(","))
-                            observe_read_only(
-                                vehicle, profile, response.data, response.observed_at
-                            )
+                            self._observe_cariad_status(vehicle, profile, response)
                             record_jobs(
                                 profile,
                                 requested,
@@ -1003,7 +1006,7 @@ class StatusEngine:
                 reserve_group(profile, jobs)
                 if 200 <= response.status < 300:
                     cloud_reachable = True
-                    observe_read_only(car, profile, response.data, response.observed_at)
+                    self._observe_cariad_status(car, profile, response)
                 record_jobs(
                     profile, jobs, status=response.status, payload=response.data
                 )

@@ -465,7 +465,14 @@ async def test_expired_setting_remains_explicitly_writable(kind):
         "status": "verified",
     }
     engine = NS(
-        control_enabled=lambda *args: True,
+        control_enabled=lambda *args, params=None: (
+            params is None
+            or params
+            in (
+                {"windowHeatingEnabled": False},
+                {"windowHeatingEnabled": True},
+            )
+        ),
         profiles={VIN.lower(): NS(command_journal=[command])},
         send_control=AsyncMock(),
         send_setting=AsyncMock(),
@@ -476,6 +483,12 @@ async def test_expired_setting_remains_explicitly_writable(kind):
             co, car, ("climatisation_window_heating", ident, "windowHeatingEnabled")
         )
         assert entity.is_on is None
+        assert entity.available
+        proven = engine.control_enabled
+        engine.control_enabled = lambda *args, params=None: params is None
+        assert not entity.available
+        assert not entity.extra_state_attributes["control_actions"]["set_settings"]
+        engine.control_enabled = proven
         assert entity.available
         entity.async_write_ha_state = lambda: None
         await entity.async_turn_off()

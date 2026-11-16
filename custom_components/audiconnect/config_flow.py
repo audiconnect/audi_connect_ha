@@ -753,6 +753,12 @@ class OptionsFlowHandler(OptionsFlow):
                 name: value for name, value in user_input.items() if name != "accept"
             }
             self._discovery_candidate = None  # Single-use explicit action approval.
+            for name, contract in schema.items():
+                if contract["type"] == "boolean" and params.get(name) in (
+                    "true",
+                    "false",
+                ):
+                    params[name] = params[name] == "true"
             try:
                 validate_inputs(params, schema)
                 result = await engine.approved_control_discovery(
@@ -792,6 +798,13 @@ class OptionsFlowHandler(OptionsFlow):
                                 )
                             )
                             if "enum" in contract
+                            else SelectSelector(
+                                SelectSelectorConfig(
+                                    options=["true", "false"],
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                )
+                            )
+                            if contract["type"] == "boolean"
                             else NumberSelector(
                                 NumberSelectorConfig(
                                     min=contract["minimum"],

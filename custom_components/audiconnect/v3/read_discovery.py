@@ -684,7 +684,7 @@ def user_test_candidates(engine, car, profile, *, include_verified=False):
     """Reviewed native actions for guided and selective physical tests."""
     from .control_resolution import control_decision
     from .action_discovery import approval_group
-    from .command_parameters import parameter_schema
+    from .command_parameters import native_climate_parameter_schema, parameter_schema
 
     definitions = (
         (capability, action, node["discovery"])
@@ -713,15 +713,42 @@ def user_test_candidates(engine, car, profile, *, include_verified=False):
         ):
             continue
         key = f"{capability}.{action}"
+        schema = parameter_schema(
+            op, {}, discovery_parameters=discovery.get("parameters", [])
+        )
+        label = discovery["label"]
+        instructions = discovery["instructions"]
+        if include_verified and op.get("request_mode") in (
+            "climate_start_settings",
+            "climate_settings_update",
+        ):
+            # Keep the guided temperature proof independent. Selective testing
+            # must not force a temperature change when testing another field.
+            selective = native_climate_parameter_schema(op, {}, car)
+            selective.pop("temp_f", None)
+            if len(selective) > 1:
+                schema = selective
+                label = (
+                    "Start climate with selected settings"
+                    if action == "start_with_settings"
+                    else "Change selected climate settings"
+                )
+                instructions = (
+                    "With climate off, choose only the reported settings to test. "
+                    "Check that each selected setting takes effect"
+                    + (
+                        " and climate starts."
+                        if action == "start_with_settings"
+                        else " without starting climate."
+                    )
+                )
         result[key] = {
-            "label": discovery["label"],
-            "instructions": discovery["instructions"],
+            "label": label,
+            "instructions": instructions,
             "capability": capability,
             "action": action,
             "operation": operation,
             "approval_group": group,
-            "parameter_schema": parameter_schema(
-                op, {}, discovery_parameters=discovery.get("parameters", [])
-            ),
+            "parameter_schema": schema,
         }
     return result
