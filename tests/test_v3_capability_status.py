@@ -397,7 +397,14 @@ def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
     car.readings["measuredElectricSOC"] = {**sample, "value": 97}
     car.readings["chargingState"] = {**sample, "value": "private-free-text"}
     car.readings["model"] = {**sample, "value": "private-model"}
-    report = diagnostic_telemetry(car, profile, profile.registry)
+    car.readings["chargingPower"] = {
+        **sample,
+        "value": 2.0,
+        "path": "private-path",
+        "reason": "private-reason",
+        "observed": "private-receipt",
+    }
+    report = diagnostic_telemetry(car, profile.registry)
     rows = {row["attribute"]: row for row in report["attributes"]}
     assert rows["stateOfCharge"]["selected"]["value"] == 91
     assert rows["measuredElectricSOC"]["selected"]["value"] == 97
@@ -406,3 +413,8 @@ def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
     assert "private-free-text" not in json.dumps(report)
     assert "private-model" not in json.dumps(report)
     assert car.vin not in json.dumps(report)
+    assert rows["chargingPower"]["selected"]["value"] == 2.0
+    assert rows["chargingPower"]["unit"] == "kW"
+    assert "private-path" not in json.dumps(report)
+    assert "private-reason" not in json.dumps(report)
+    assert "private-receipt" not in json.dumps(report)

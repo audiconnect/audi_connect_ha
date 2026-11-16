@@ -1308,26 +1308,63 @@ def diagnostic_route_label(ident, registry):
     return "custom_or_discovery_route"
 
 
-# Explicit technical string allowlist: never export arbitrary OEM/user strings.
+# Only reviewed technical attributes, not arbitrary custom/OEM payloads.
+_DIAGNOSTIC_SOC_ALIASES = frozenset(
+    ("measuredElectricSOC", "primaryEngineRangePercent", "secondaryEngineRangePercent")
+)
 _DIAGNOSTIC_ENUMS = {
     "chargingState": frozenset(
-        ("charging", "off", "readyForCharging", "notReadyForCharging",
-         "conservation", "chargePurposeReached", "error", "invalid", "unsupported")
+        (
+            "charging",
+            "off",
+            "stopped",
+            "notcharging",
+            "not_charging",
+            "readyforcharging",
+            "notreadyforcharging",
+            "conservation",
+            "chargepurposereached",
+            "error",
+            "invalid",
+            "unsupported",
+        )
     ),
     "plugState": frozenset(("connected", "disconnected", "plugged", "unplugged")),
     "preferredChargeMode": frozenset(("manual", "timer")),
     "availableChargeModes": frozenset(("manual", "timer")),
     "chargeMode": frozenset(("manual", "timer", "immediate", "off", "invalid")),
-    "engineTypeFirstEngine": frozenset(("electric", "gasoline", "diesel", "petrol", "hybrid")),
-    "engineTypeSecondEngine": frozenset(("electric", "gasoline", "diesel", "petrol", "hybrid")),
-    "primary_engine_type": frozenset(("electric", "fuel")),
-    "secondary_engine_type": frozenset(("electric", "fuel")),
+    "engineTypeFirstEngine": frozenset(
+        ("electric", "gasoline", "diesel", "petrol", "hybrid", "cng", "lpg")
+    ),
+    "engineTypeSecondEngine": frozenset(
+        ("electric", "gasoline", "diesel", "petrol", "hybrid", "cng", "lpg")
+    ),
+    "primary_engine_type": frozenset(
+        ("electric", "fuel", "gasoline", "diesel", "petrol", "cng", "lpg")
+    ),
+    "secondary_engine_type": frozenset(
+        ("electric", "fuel", "gasoline", "diesel", "petrol", "cng", "lpg")
+    ),
     "doorLockStatus": frozenset(("locked", "unlocked")),
-    "climatisationState": frozenset(("off", "on", "heating", "cooling", "ventilation")),
+    "climatisationState": frozenset(
+        ("off", "on", "heating", "cooling", "ventilation", "active", "inactive", "stopped")
+    ),
+    "externalPower": frozenset(("available", "unavailable", "active", "inactive")),
+    "plugLockState": frozenset(("locked", "unlocked")),
+    "chargeType": frozenset(("ac", "dc", "invalid")),
 }
-# Internal aliases are fixed product fields, not arbitrary custom attributes.
-_DIAGNOSTIC_SOC_ALIASES = frozenset(
-    ("measuredElectricSOC", "primaryEngineRangePercent", "secondaryEngineRangePercent")
+_DIAGNOSTIC_REASONS = frozenset(
+    (
+        "conflicting_source_values",
+        "invalid_source_value",
+        "invalid_charge_mode_options",
+        "invalid_preferred_charge_mode",
+        "numeric_type_required",
+        "percentage_out_of_range",
+        "negative_duration",
+        "invalid_climate_state",
+        "restored_history",
+    )
 )
 
 
@@ -1351,34 +1388,51 @@ def diagnostic_technical_value(ident, value):
             return value
         return None
     allowed = _DIAGNOSTIC_ENUMS.get(ident, ())
-    if isinstance(value, str) and value in allowed:
+    if isinstance(value, str) and value.lower() in allowed:
         return value
-    if ident == "availableChargeModes" and isinstance(value, list):
-        if len(value) <= 32 and all(isinstance(v, str) and v in allowed for v in value):
-            return value
+    if (
+        ident == "availableChargeModes"
+        and isinstance(value, list)
+        and len(value) <= 32
+        and all(isinstance(v, str) and v in allowed for v in value)
+    ):
+        return value
     return None
 
 
-def diagnostic_telemetry(vehicle, profile, registry):
+def diagnostic_telemetry(vehicle, registry):
     """Read-only current/retained candidates and canonical SOC selection."""
+    from .attribute_runtime import _capture_in_utc
     from .freshness import capture_age_minutes
     from .historical_catalog import ATTRIBUTES
     from .product_contract import projection_reading
 
     now = datetime.now(UTC)
+
+    def safe_stamp(value):
+        stamp = _capture_in_utc(value)
+        return stamp.isoformat() if stamp is not None else None
+
     # Only reviewed field paths may leave diagnostics; custom paths stay private.
     def sample(ident, row):
         definition = ATTRIBUTES.get(ident, {})
         path = row.get("path")
         operation = row.get("operation")
+        reason = row.get("reason")
+        status = row.get("status")
         return {
             "value": diagnostic_technical_value(ident, row.get("value")),
-            "captured": row.get("captured"),
-            "observed_at": row.get("observed"),
-            "delivered_at": row.get("delivered_at"),
+            "captured": safe_stamp(row.get("captured")),
+            "observed_at": safe_stamp(row.get("observed")),
+            "delivered_at": safe_stamp(row.get("delivered_at")),
             "age_minutes": capture_age_minutes(row.get("captured"), now),
-            "status": row.get("status"),
-            "operation": diagnostic_route_label(operation, registry) if operation else None,
+            "status": status
+            if status in ("verified", "readable_but_stale", "invalid_value")
+            else None,
+            "reason": reason if reason in _DIAGNOSTIC_REASONS else None,
+            "operation": diagnostic_route_label(operation, registry)
+            if isinstance(operation, str)
+            else None,
             "path": path if path in definition.get("paths", ()) else None,
         }
 
@@ -1392,34 +1446,44 @@ def diagnostic_telemetry(vehicle, profile, registry):
         unit = contract_for(definition.get("entity_key", "")).get("unit")
         if ident in _DIAGNOSTIC_SOC_ALIASES:
             unit = "%"
-        rows.append({
-            "attribute": ident,
-            "unit": unit,
-            "selected_family": current.get("family"),
-            "selected": sample(ident, current) if current else None,
-            "candidates": [
-                {
-                    "family": family,
-                    **sample(ident, row),
-                    "last_known": sample(ident, row["last_known"])
-                    if row.get("last_known") else None,
-                }
-                for family, row in sorted(candidates.items())
-                if family in registry.families
-            ],
-        })
+        family = current.get("family")
+        rows.append(
+            {
+                "attribute": ident,
+                "unit": unit,
+                "selected_family": family if family in registry.families else None,
+                "selected": sample(ident, current) if current else None,
+                "last_known": sample(ident, current["last_known"])
+                if current.get("last_known")
+                else None,
+                "candidates": [
+                    {
+                        "family": family,
+                        **sample(ident, row),
+                        "last_known": sample(ident, row["last_known"])
+                        if row.get("last_known")
+                        else None,
+                    }
+                    for family, row in sorted(candidates.items())
+                    if family in registry.families
+                ],
+            }
+        )
     ident, selected = projection_reading(
         vehicle, ATTRIBUTES["stateOfCharge"], registry=registry, now=now
     )
     known = last_known_observation(selected)
+    family = known.get("family")
     return {
         "attributes": rows,
         "state_of_charge_projection": {
             "attribute": ident,
-            "family": known.get("family"),
+            "family": family if family in registry.families else None,
             "unit": "%",
             **sample(ident, known),
-        } if known else None,
+        }
+        if known
+        else None,
     }
 
 
@@ -1537,7 +1601,7 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                 }
             )
     return {
-        "technical_telemetry": diagnostic_telemetry(vehicle, profile, base_registry),
+        "technical_telemetry": diagnostic_telemetry(vehicle, base_registry),
         "pending_engineering_test": pending_summary,
         "unresolved_normal_commands": unresolved,
         "capabilities": summaries,
