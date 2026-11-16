@@ -109,11 +109,9 @@ def control_reading(vehicle, attribute, *, registry=None):
 def control_projection(profile, attribute, reading, *, now=None):
     """Effective HA control state, never a physical or authorization proof.
 
-    Retain the newest valid observed value across sleep and sentinel data.
-    Acknowledged commands may temporarily overlay other controls. Charging
-    never projects intent or a pre-command sample as current state after an
-    accepted START/STOP. Preserve reported telemetry and command feedback
-    separately. A newer dated observation wins even when it contradicts intent.
+    Keep actual observations separate from bounded command intent. A newer
+    valid capture wins, even when contrary to the request. After an accepted
+    mutation, an older sample is historical, not the effective control state.
     """
     from datetime import UTC, datetime
 
@@ -121,6 +119,7 @@ def control_projection(profile, attribute, reading, *, now=None):
     from .command_readback import (
         latest_projection_command,
         optimistic_expiry,
+        projection_attributes,
         requested_projection,
     )
     from .freshness import timestamp_is_fresh
@@ -131,27 +130,6 @@ def control_projection(profile, attribute, reading, *, now=None):
     record = latest_projection_command(profile, attribute)
     expiry = optimistic_expiry(record)
     stamp = _valid_capture(known.get("captured"), now)
-    if attribute == "chargingState":
-        # An accepted mutation may have changed physical state. An older
-        # sample is historical even after command cooldown or restart. A
-        # later failed attempt must not erase an earlier accepted mutation.
-        accepted = next(
-            (
-                row
-                for row in reversed(getattr(profile, "command_journal", ()))
-                if row.origin == "home_assistant"
-                and row.capability == "charging"
-                and row.action in ("start", "stop")
-                and row.http_status is not None
-                and 200 <= row.http_status < 300
-                and row.started_at <= now.timestamp()
-            ),
-            None,
-        )
-        if accepted is not None and (
-            stamp is None or stamp.timestamp() <= accepted.started_at
-        ):
-            return None, "unknown"
     observed_stamp = _valid_capture(reading.get("captured"), now)
     if (
         expiry is not None
@@ -162,8 +140,26 @@ def control_projection(profile, attribute, reading, *, now=None):
         and record.readback_mismatch_at is None
     ):
         requested = requested_projection(record, attribute)
-        if attribute != "chargingState" and requested is not None:
+        if requested is not None:
             return requested, "optimistic"
+    # A known HTTP acceptance may have changed the vehicle. Keep this
+    # boundary after expiry, restart or a subsequent rejected attempt.
+    accepted = next(
+        (
+            row
+            for row in reversed(getattr(profile, "command_journal", ()))
+            if row.origin == "home_assistant"
+            and attribute in projection_attributes(row)
+            and row.http_status is not None
+            and 200 <= row.http_status < 300
+            and row.started_at <= now.timestamp()
+        ),
+        None,
+    )
+    if accepted is not None and (
+        stamp is None or stamp.timestamp() <= accepted.started_at
+    ):
+        return None, "unknown"
     if known.get("value") is None:
         return None, "unknown"
     return known["value"], (

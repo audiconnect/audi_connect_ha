@@ -140,9 +140,9 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
             self, (ClimateEntity, SwitchEntity, LockEntity, NumberEntity, SelectEntity)
         ):
             return False
-        return (self.extra_state_attributes or {}).get("state_source") in (
-            "optimistic",
-            "last_known_vehicle",
+        source = (self.extra_state_attributes or {}).get("state_source")
+        return source in ("optimistic", "last_known_vehicle") or (
+            source == "unknown" and isinstance(self, (SwitchEntity, LockEntity))
         )
 
     def _control_attributes(

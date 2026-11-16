@@ -71,7 +71,7 @@ is persisted here. Command owns intent, outcome and bounded expiry; HA derives
 effective state from these existing owners, with no independent state cache.
 Restart restores observations and outcomes but never reactivates intent.
 One coordinator-local timer expires the overlay without a vehicle request.
-Read-only telemetry never projects intent. The charging switch reports unknown until a newer vehicle capture follows an accepted START/STOP; the previous measured state remains available as historical evidence. Existing comfort/access overlays remain bounded and explicitly labeled. The HA assumed-state indicator and
+Read-only telemetry never projects intent. Stateful controls may project accepted intent for at most five minutes from dispatch. A newer valid capture supersedes intent; after expiry or restart without such a capture the effective control state is unknown. Preserve the last reported observation separately. The HA assumed-state indicator and
 explicit source/last-reported attributes distinguish estimated controls.
 No automatic replay, new store or polling owner.
 
