@@ -7,6 +7,8 @@ import math
 import re
 from uuid import uuid4
 
+from .request_status import PENDING_RESULTS
+
 
 _UNRESOLVED = frozenset({"pending", "uncertain"})
 _STATES = _UNRESOLVED | {
@@ -102,10 +104,8 @@ class CommandRecord:
             ):
                 self.state = "backend_completed"
                 self.completed_at = max(self.started_at, now)
-        elif outcome in (
-            "unknown",
-            "quota_limited",
-            "pending",
+        elif (
+            outcome in PENDING_RESULTS or outcome in ("unknown", "quota_limited")
         ) and self.capability not in ("climate", "charging", "access"):
             self.state = "uncertain"
 
@@ -123,7 +123,16 @@ class CommandRecord:
             and self.http_status is not None
             and 200 <= self.http_status < 300
             and self.backend_result
-            in ("accepted_unconfirmed", "unknown", "pending", "quota_limited")
+            in (
+                "accepted_unconfirmed",
+                "unknown",
+                "pending",
+                "queued",
+                "in_progress",
+                "accepted",
+                "not_listed",
+                "quota_limited",
+            )
         )
 
     @property
@@ -278,6 +287,10 @@ class CommandRecord:
                     "rejected",
                     "unknown",
                     "pending",
+                    "queued",
+                    "in_progress",
+                    "accepted",
+                    "not_listed",
                     "quota_limited",
                     "transport_uncertain",
                 )

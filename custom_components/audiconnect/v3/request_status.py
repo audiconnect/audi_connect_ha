@@ -15,7 +15,7 @@ from .quota import QuotaUnavailable
 
 
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
-_PENDING = frozenset({"in_progress", "pending", "queued", "accepted"})
+PENDING_RESULTS = frozenset({"in_progress", "pending", "queued", "accepted"})
 _SUCCESS = frozenset({"successful", "succeeded", "completed"})
 _REJECTED = frozenset(
     {"failed", "rejected", "error", "cancelled", "canceled", "timeout"}
@@ -44,10 +44,10 @@ def status_of(payload: Any, request_id: str) -> str:
             return "backend_completed"
         if value in _REJECTED:
             return "rejected"
-        if value in _PENDING:
-            return "pending"
+        if value in PENDING_RESULTS:
+            return value
         return "unknown"
-    return "unknown"
+    return "not_listed" if len(payload["data"]) <= 200 else "unknown"
 
 
 async def confirm(
@@ -61,6 +61,8 @@ async def confirm(
     """Check only the known VIN request; never POST/retry a physical command."""
     if not _ID.fullmatch(request_id):
         return "unknown"
+    last_pending = None
+    missing = False
     for attempt in range(max_reads):
         if attempt:
             await asyncio.sleep(delay_s)
@@ -79,10 +81,17 @@ async def confirm(
         if response.status in (401, 403) or response.status >= 500:
             return "unknown"
         if response.status == 204:
+            missing = True
             continue
         if not 200 <= response.status < 300:
             return "unknown"
         outcome = status_of(response.data, request_id)
         if outcome in ("rejected", "backend_completed"):
             return outcome
-    return "accepted_unconfirmed"
+        if outcome in PENDING_RESULTS:
+            last_pending = outcome
+        elif outcome == "not_listed":
+            missing = True
+    # Disappearance is not completion. Preserve the last explicit queue
+    # evidence instead of treating an empty response as success.
+    return last_pending or ("not_listed" if missing else "accepted_unconfirmed")

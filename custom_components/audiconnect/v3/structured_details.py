@@ -471,6 +471,10 @@ def observe_structured(
     # never physical readback or proof of a matching command.
     for key, requests_path in (
         ("climate_requests_detail", "climatisation.climatisationStatus.requests"),
+        (
+            "climate_settings_requests_detail",
+            "climatisation.climatisationSettings.requests",
+        ),
         ("access_requests_detail", "access.accessStatus.requests"),
         ("charging_requests_detail", "charging.chargingStatus.requests"),
     ):

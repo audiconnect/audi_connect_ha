@@ -192,6 +192,8 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                             "TOTAL_RANGE",
                             "TANK_LEVEL_IN_PERCENTAGE",
                             "carType",
+                            "primaryEngineRange",
+                            "secondaryEngineRange",
                         )
                     )
                 for ident, descriptor in sorted(attributes.items()):

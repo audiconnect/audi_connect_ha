@@ -402,6 +402,7 @@ class V3ClimateEntity(V3BaseEntity, ClimateEntity):
                 "departure_climate_timers_detail",
                 "window_heating_detail",
                 "climate_requests_detail",
+                "climate_settings_requests_detail",
             ),
             "climatisation_without_external_power": (
                 self.vehicle.readings.get("climatisationWithoutExternalPower", {}).get(

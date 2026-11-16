@@ -24,8 +24,12 @@ def test_request_id_only_from_reviewed_shape():
 def test_pending_backend_state_is_not_vehicle_confirmation():
     reply = {"data": [{"id": "a", "status": "successful"}]}
     assert status_of(reply, "a") == "backend_completed"
-    assert status_of(reply, "b") == "unknown"
-    assert status_of({"data": [{"id": "a", "status": "in_progress"}]}, "a") == "pending"
+    assert status_of(reply, "b") == "not_listed"
+    assert (
+        status_of({"data": [{"id": "a", "status": "in_progress"}]}, "a")
+        == "in_progress"
+    )
+    assert status_of({"data": [{"id": "a", "status": "queued"}]}, "a") == "queued"
     assert status_of({"data": [{"id": "a", "status": "rejected"}]}, "a") == "rejected"
     assert status_of({"data": [{"id": "a", "status": "surprising"}]}, "a") == "unknown"
 
@@ -71,7 +75,7 @@ def test_pending_or_missing_outcome_never_claims_success():
             response(204, None),
         ]
     )
-    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "accepted_unconfirmed"
+    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "in_progress"
     assert obj.request.await_count == 3
 
 
@@ -88,3 +92,17 @@ def test_quota_and_auth_failures_stop_followup():
     bad = transport(replies=[response(403, None)])
     assert asyncio.run(confirm(bad, "VIN", "abc")) == "unknown"
     assert bad.request.await_count == 1
+
+
+def test_missing_is_not_completion_and_queue_is_not_physical_confirmation():
+    obj = transport(replies=[response(200, {"data": []})] * 3)
+    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "not_listed"
+    obj = transport(
+        replies=[
+            response(200, {"data": [{"id": "abc", "status": "queued"}]}),
+            response(200, {"data": [{"id": "abc", "status": "in_progress"}]}),
+            response(200, {"data": [{"id": "abc", "status": "error"}]}),
+        ]
+    )
+    assert asyncio.run(confirm(obj, "VIN", "abc", delay_s=0)) == "rejected"
+    assert obj.request.await_count == 3

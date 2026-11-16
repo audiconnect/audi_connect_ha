@@ -334,3 +334,15 @@ def test_accepted_control_boundary_survives_rejection_and_journal_rotation():
         old,
         now=datetime.fromtimestamp(1790001000, UTC),
     ) == (None, "unknown")
+
+
+def test_queue_backend_evidence_survives_restart_without_reactivating_intent():
+    p = DevelopmentProfile(model(), VehicleContext(auth="auth0", region="DE"))
+    record = CommandRecord.begin("access", "lock", "cariad.access.lock", 100)
+    record.observe_http(200)
+    record.observe_backend("queued", 101)
+    p.track_command(record)
+    recovered = restore_profile(model(), p.discovery.context, p.snapshot())
+    assert recovered.last_command.backend_result == "queued"
+    assert recovered.last_command.state == "accepted_unconfirmed"
+    assert recovered.last_command.restored

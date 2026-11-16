@@ -184,6 +184,14 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
         sources.extend(("hybridRange", "measuredTotalRange"))
     if key == "state_of_charge":
         sources.extend(electric_soc_sources(vehicle))
+    if key in ("primary_engine_range", "secondary_engine_range"):
+        role = engine_role(vehicle, key.split("_", 1)[0])
+        # A PHEV may have its electric engine in either slot. Never
+        # substitute total range or the other engine's measurement.
+        if role == "electric":
+            sources.extend(("measuredElectricRange", "batteryElectricRange"))
+        elif role == "fuel":
+            sources.append("measuredFuelRange")
     if key == "tank_level":
         sources.extend(
             role + "EngineFuelLevel"

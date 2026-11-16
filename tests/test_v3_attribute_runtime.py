@@ -888,3 +888,67 @@ def test_conflicting_native_observation_roundtrips_and_repairs_old_profile():
     saved["attribute_evidence"][ident]["path"] = "untrusted.path"
     with pytest.raises(DevelopmentProfileError, match="Untrusted attribute evidence"):
         restore_profile(catalog, vehicle.context, saved)
+
+
+def test_engine_range_projection_uses_semantic_role_and_capture():
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.product_contract import projection_reading
+
+    car1 = car()
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=1)).isoformat()
+    fresh = now.isoformat()
+    car1.readings.update(
+        {
+            "primary_engine_type": {"value": "gasoline"},
+            "secondary_engine_type": {"value": "electric"},
+            "primaryEngineRange": {"value": 700, "captured": old},
+            "secondaryEngineRange": {"value": 42, "captured": old},
+            "measuredFuelRange": {"value": 690, "captured": fresh},
+            "measuredElectricRange": {"value": 31, "captured": fresh},
+            "batteryElectricRange": {"value": 0, "captured": old},
+            "measuredTotalRange": {"value": 721, "captured": fresh},
+        }
+    )
+    for ident, expected in (("primaryEngineRange", 690), ("secondaryEngineRange", 31)):
+        _, reading = projection_reading(car1, ATTRIBUTES[ident], now=now)
+        assert reading["value"] == expected
+    car1.readings["secondary_engine_type"]["value"] = "gasoline"
+    _, reading = projection_reading(car1, ATTRIBUTES["secondaryEngineRange"], now=now)
+    assert reading["value"] == 690
+    car1.readings["secondary_engine_type"]["value"] = "unknown"
+    _, reading = projection_reading(car1, ATTRIBUTES["secondaryEngineRange"], now=now)
+    assert reading["value"] == 42
+
+
+def test_climate_settings_queue_is_informational_and_no_ids_or_body_exported():
+    from custom_components.audiconnect.v3.structured_details import details_for
+
+    car1, p, now = car(), Profile(), datetime.now(UTC)
+    observe_read_only(
+        car1,
+        p,
+        {
+            "climatisation": {
+                "climatisationSettings": {
+                    "requests": [
+                        {
+                            "operation": "settings",
+                            "status": "queued",
+                            "requestId": "private-id",
+                            "body": {"targetTemperature": 19},
+                        }
+                    ]
+                }
+            }
+        },
+        now,
+    )
+    row = car1.readings["climate_settings_requests_detail"]
+    assert row["informational"]
+    assert row["captured"] is None
+    detail = details_for(car1, "climate_settings_requests_detail")
+    assert detail["climate_settings_requests"]["data"]["items"] == [
+        {"operation": "settings", "status": "queued"}
+    ]
+    assert "private-id" not in str(detail)
