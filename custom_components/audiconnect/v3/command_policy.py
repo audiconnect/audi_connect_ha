@@ -22,11 +22,24 @@ def charge_mode_fallback_candidate(car):
 def charge_mode_recovery_candidate(car):
     """Undated discovery evidence may invite a physical test, never authorize one."""
     row = car.readings.get("availableChargeModes", {})
+    actual = car.readings.get("chargeMode", {})
     return charge_mode_fallback_candidate(car) or (
         row.get("family") == "cariad"
-        and row.get("captured") is None
-        and row.get("reason") == "conflicting_source_values"
-        and bool(row.get("discovered_options"))
+        and (
+            (
+                row.get("value") == []
+                and row.get("status") != "invalid_value"
+                and "charging" in car.advertised_capabilities
+                and actual.get("family") == "cariad"
+                and actual.get("status") != "invalid_value"
+                and actual.get("value") in ("manual", "timer")
+            )
+            or (
+                row.get("captured") is None
+                and row.get("reason") == "conflicting_source_values"
+                and bool(row.get("discovered_options"))
+            )
+        )
     )
 
 
