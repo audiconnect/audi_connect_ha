@@ -975,7 +975,6 @@ def test_climate_settings_queue_is_informational_and_no_ids_or_body_exported():
     assert "not-exported" not in str(queues)
 
 
-
 def test_api_broadening_read_only_charging_metrics_keep_units_and_capture():
     from custom_components.audiconnect.v3.capability_status import (
         diagnostic_telemetry,
