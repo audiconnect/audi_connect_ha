@@ -735,7 +735,11 @@ def user_test_candidates(engine, car, profile, *, include_verified=False):
             )
             label = discovery["label"]
             if len(decisions) > 1:
-                label += " (combined API)" if operation.endswith(".combined") else " (direct API)"
+                label += (
+                    " (combined API)"
+                    if operation.endswith(".combined")
+                    else " (direct API)"
+                )
             instructions = discovery["instructions"]
             if op.get("request_mode") in (
                 "climate_start_settings",
@@ -761,7 +765,9 @@ def user_test_candidates(engine, car, profile, *, include_verified=False):
                             else " without starting climate."
                         )
                     )
-            candidate_key = key if operation == primary["operation"] else f"{key}:{operation}"
+            candidate_key = (
+                key if operation == primary["operation"] else f"{key}:{operation}"
+            )
             result[candidate_key] = {
                 "label": label,
                 "instructions": instructions,
