@@ -61,8 +61,8 @@ def _accept_observation(
     return incoming is not None and incoming >= prior
 
 
-# Persist native, dated scalar status only; no location, raw payload,
-# custom attributes, capability proof or optional Data Act data.
+# Persist native dated scalar history and bounded conflict markers only;
+# no location, raw payload, custom attributes or optional Data Act data.
 _RETAINED_CONTROL_FIELDS = {
     "doorLockStatus",
     "climatisationState",
@@ -100,14 +100,79 @@ def retained_status_field(ident):
     return contract.get("display_last_known") is True
 
 
+# These raw/derived timer and electric observations have no retained scalar
+# contract of their own. Persist only their conflict boundary, never a list.
+_CONFLICT_FIELDS = {
+    "chargingTimers",
+    "climatisationTimers",
+    "charging_timers_detail",
+    "climate_timers_detail",
+    "batteryElectricRange",
+    "measuredElectricSOC",
+    "measuredElectricRange",
+}
+
+
+def _historical_scalar(ident, known, now):
+    value, captured = known.get("value"), known.get("captured")
+    family = known.get("family")
+    if (
+        retained_status_field(ident)
+        and family in ("cariad", "mbb")
+        and type(value) in (str, int, float, bool)
+        and (not isinstance(value, str) or 0 < len(value) <= 100)
+        and (type(value) not in (int, float) or abs(value) <= 1e100)
+        and _valid_capture(captured, now) is not None
+        and not semantic_value_issue(
+            ATTRIBUTES.get(ident, {}).get("entity_key", ""), value
+        )
+    ):
+        return {
+            "value": value,
+            "captured": captured,
+            "family": family,
+            "status": "readable_but_stale",
+        }
+    return None
+
+
 def status_snapshot(readings, *, family_readings=None, now=None):
-    """Serialize retained native evidence from the existing Status owner."""
+    """Persist eligible scalar history and selected native conflict boundaries."""
     result = {}
     reference = now or datetime.now(UTC)
     for ident, reading in readings.items():
         candidates = [reading, *((family_readings or {}).get(ident, {}).values())]
         native = [row for row in candidates if row.get("family") in ("cariad", "mbb")]
         if not native:
+            continue
+        current = max(native, key=lambda row: _observation_rank(row, None, reference))
+        if (
+            current.get("status") == "invalid_value"
+            and current.get("reason") == "conflicting_source_values"
+            and (retained_status_field(ident) or ident in _CONFLICT_FIELDS)
+        ):
+            captured = current.get("captured")
+            if captured is not None and _valid_capture(captured, reference) is None:
+                continue
+            marker = {
+                "value": None,
+                "captured": captured,
+                "family": current["family"],
+                "status": "invalid_value",
+                "reason": "conflicting_source_values",
+            }
+            known = _historical_scalar(
+                ident, last_known_observation(current), reference
+            )
+            if (
+                known
+                and captured is not None
+                and known["family"] == marker["family"]
+                and _valid_capture(known["captured"], reference)
+                < _valid_capture(captured, reference)
+            ):
+                marker["last_known"] = known
+            result[ident] = marker
             continue
         known = last_known_observation(
             max(
@@ -117,25 +182,8 @@ def status_snapshot(readings, *, family_readings=None, now=None):
                 ),
             )
         )
-        value, captured = known.get("value"), known.get("captured")
-        family = known.get("family")
-        if (
-            retained_status_field(ident)
-            and family in ("cariad", "mbb")
-            and type(value) in (str, int, float, bool)
-            and (not isinstance(value, str) or 0 < len(value) <= 100)
-            and (type(value) not in (int, float) or abs(value) <= 1e100)
-            and _valid_capture(captured, now) is not None
-            and not semantic_value_issue(
-                ATTRIBUTES.get(ident, {}).get("entity_key", ""), value
-            )
-        ):
-            result[ident] = {
-                "value": value,
-                "captured": captured,
-                "family": family,
-                "status": "readable_but_stale",
-            }
+        if historical := _historical_scalar(ident, known, reference):
+            result[ident] = historical
     return result
 
 
@@ -168,7 +216,9 @@ def restore_status(saved, legacy_climate=None):
         if isinstance(ident, str) and isinstance(row, dict)
     }
     return {
-        ident: {
+        ident: row
+        if row.get("reason") == "conflicting_source_values"
+        else {
             "value": None,
             "captured": row["captured"],
             "family": row["family"],

@@ -67,7 +67,7 @@ Independent read sessions may run concurrently within one coordinator. Keep the 
 ### Control-state continuity
 
 Status owns canonical readings and their historical scalar representation.
-The profile serializes only eligible native historical scalar evidence from the existing vehicle and family maps; the old climate-only cache is migrated and removed. Restored observations are historical, never fresh
+The profile serializes eligible native historical scalar evidence and selected native conflict boundaries from the existing vehicle and family maps; conflict markers contain only capture, family and reason plus an eligible strictly older scalar if available. Undated conflicts remain uncertain across restart; no raw timer list or family cache is persisted. The same observation writer resolves a conflict only on a newer valid capture. The old climate-only cache is migrated and removed. Restored observations are historical, never fresh
 readback or route authorization. No optional Data Act, location or raw response
 is persisted here. Command owns intent, outcome and bounded expiry; HA derives
 effective state from these existing owners, with no independent state cache.
