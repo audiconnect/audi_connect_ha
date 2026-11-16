@@ -426,7 +426,8 @@ def entity_projection_report(engine):
     Unknown registry keys get a suffix fingerprint for a later exact migration.
     """
     from collections import Counter
-    from .capability_status import diagnostic_ha_state
+    from .attribute_runtime import _capture_in_utc
+    from .capability_status import diagnostic_ha_state, diagnostic_route_label
 
     projected = {uid for group in engine.projected_entities.values() for uid in group}
     report = {"projected": len(projected), "registry_available": False, "rows": []}
@@ -438,6 +439,11 @@ def entity_projection_report(engine):
     entries = er.async_entries_for_config_entry(registry, engine.entry.entry_id)
     counts = Counter()
     rows = []
+    vehicle_slots = {
+        vin.lower(): index
+        for index, vin in enumerate(getattr(engine, "vehicles", {}), 1)
+    }
+    catalog = getattr(engine, "registry", None)
     for entry in entries:
         uid = entry.unique_id
         key = entity_key(uid, engine.entry.entry_id)
@@ -460,7 +466,12 @@ def entity_projection_report(engine):
             else "registered_not_projected"
         )
         counts[status] += 1
+        attrs = getattr(state, "attributes", {})
+        source = attrs.get("state_source")
+        captured = _capture_in_utc(attrs.get("vehicle_captured"))
+        operation = attrs.get("source_operation")
         row = {
+            "vehicle_slot": vehicle_slots.get(uid.split("_", 1)[0].lower()),
             "platform": platform,
             "contract_key": key or "unrecognized_registry_key",
             "status": status,
@@ -472,6 +483,13 @@ def entity_projection_report(engine):
             if state.state in ("unknown", "unavailable")
             else "known",
             "ha_projected_state": diagnostic_ha_state(key, state) if key else None,
+            "ha_state_source": source
+            if source in ("vehicle", "optimistic", "last_known_vehicle", "unknown")
+            else None,
+            "ha_vehicle_captured": captured.isoformat() if captured else None,
+            "ha_source_operation": diagnostic_route_label(operation, catalog)
+            if catalog is not None and isinstance(operation, str)
+            else None,
             "availability_reason": (
                 "button_no_press_timestamp"
                 if platform == "button"

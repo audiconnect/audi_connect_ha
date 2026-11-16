@@ -105,7 +105,9 @@ async def test_refresh_is_not_repeated_and_known_acceptance_allows_followup():
     transport.request.side_effect = None
     transport.request.return_value = V3Response(200, {}, datetime.now(UTC), 50)
     await engine.send_control(VIN, "start", "climate")
-    posts = [c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"]
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
     assert len(posts) == 2
     assert posts[0].endswith("climatisation/start")
     assert posts[1].endswith("vehiclewakeup")
