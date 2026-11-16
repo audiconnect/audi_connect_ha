@@ -95,7 +95,7 @@ async def test_completed_climate_has_one_cloud_followup_and_optional_linked_wake
 
 
 @pytest.mark.asyncio
-async def test_refresh_is_not_repeated_and_uncertainty_never_creates_followup():
+async def test_refresh_is_not_repeated_and_known_acceptance_allows_followup():
     engine, transport, coordinator, events = fixture(True)
     await engine.send_control(VIN, "refresh", "remote")
     posts = [c for c in transport.request.await_args_list if c.args[1] == "POST"]
@@ -105,9 +105,20 @@ async def test_refresh_is_not_repeated_and_uncertainty_never_creates_followup():
     transport.request.side_effect = None
     transport.request.return_value = V3Response(200, {}, datetime.now(UTC), 50)
     await engine.send_control(VIN, "start", "climate")
+    posts = [c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"]
+    assert len(posts) == 2
+    assert posts[0].endswith("climatisation/start")
+    assert posts[1].endswith("vehiclewakeup")
+    history = engine.profiles[VIN.lower()].command_journal
+    assert history[-1].parent_command_id == history[0].command_id
+    coordinator.async_request_refresh.assert_awaited_once()
+    engine, transport, coordinator, events = fixture(True)
+    transport.request.side_effect = None
+    transport.request.return_value = V3Response(502, {}, datetime.now(UTC), 50)
+    with pytest.raises(RuntimeError, match="uncertain"):
+        await engine.send_control(VIN, "start", "climate")
     assert transport.request.await_count == 1
     assert events == []
-    coordinator.async_request_refresh.assert_awaited_once()
 
 
 @pytest.mark.asyncio

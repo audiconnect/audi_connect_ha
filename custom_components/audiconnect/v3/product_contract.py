@@ -421,10 +421,12 @@ def entity_availability_reason(engine, uid, key, status, state_present):
 def entity_projection_report(engine):
     """Separate registry records, offered entities and HA state availability.
 
-    No entity IDs, unique IDs, VINs, names or state values leave this function.
+    No entity IDs, unique IDs, VINs or names leave this function.
+    Only allowlisted technical HA state values are included.
     Unknown registry keys get a suffix fingerprint for a later exact migration.
     """
     from collections import Counter
+    from .capability_status import diagnostic_ha_state
 
     projected = {uid for group in engine.projected_entities.values() for uid in group}
     report = {"projected": len(projected), "registry_available": False, "rows": []}
@@ -469,6 +471,7 @@ def entity_projection_report(engine):
             else state.state
             if state.state in ("unknown", "unavailable")
             else "known",
+            "ha_projected_state": diagnostic_ha_state(key, state) if key else None,
             "availability_reason": (
                 "button_no_press_timestamp"
                 if platform == "button"

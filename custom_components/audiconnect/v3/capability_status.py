@@ -1312,6 +1312,15 @@ def diagnostic_route_label(ident, registry):
 _DIAGNOSTIC_SOC_ALIASES = frozenset(
     ("measuredElectricSOC", "primaryEngineRangePercent", "secondaryEngineRangePercent")
 )
+_DIAGNOSTIC_DERIVED_PATHS = {
+    "measuredElectricSOC": ("measurements.fuelLevelStatus.value.currentSOC_pct",),
+    "charging_timer_enabled_count": ("chargingTimers.chargingTimersStatus.value",),
+    "climatisation_timer_enabled_count": (
+        "climatisationTimers.climatisationTimersStatus.value",
+    ),
+    "windowHeatingActive": ("climatisation.windowHeatingStatus.value",),
+    "preheater_active": ("climatisation.auxiliaryHeatingStatus.value",),
+}
 _DIAGNOSTIC_ENUMS = {
     "chargingState": frozenset(
         (
@@ -1373,6 +1382,10 @@ _DIAGNOSTIC_REASONS = frozenset(
         "negative_duration",
         "invalid_climate_state",
         "restored_history",
+        "incomplete_timer_data",
+        "no_enabled_climatisation_timer",
+        "next_single_timer_not_determined",
+        "unknown_window_heating_state",
     )
 )
 
@@ -1382,12 +1395,25 @@ def diagnostic_technical_value(ident, value):
     import math
 
     definition = CANONICAL_ATTRIBUTES.get(ident, {})
-    if ident not in CANONICAL_ATTRIBUTES and ident not in _DIAGNOSTIC_SOC_ALIASES:
+    if (
+        ident not in CANONICAL_ATTRIBUTES
+        and ident not in _DIAGNOSTIC_SOC_ALIASES
+        and ident not in _DIAGNOSTIC_DERIVED_PATHS
+    ):
         return None
     key = definition.get("entity_key", "")
     if ident in _NATIVE_TRIP_ATTRIBUTES or any(
         word in key.lower()
-        for word in ("position", "location", "model", "vin", "nickname", "trip")
+        for word in (
+            "position",
+            "location",
+            "model",
+            "vin",
+            "nickname",
+            "trip",
+            "profile_name",
+            "park_time",
+        )
     ):
         return None
     if type(value) is bool:
@@ -1409,12 +1435,47 @@ def diagnostic_technical_value(ident, value):
     return None
 
 
+def diagnostic_ha_state(key, state):
+    """Allowlisted actual HA projection; never export names, location or IDs."""
+    from .product_contract import product_inventory
+
+    definition = product_inventory()["entities"].get(key, {})
+    if not definition or state is None:
+        return None
+    value = state.state
+    if value in ("unknown", "unavailable"):
+        return value
+    platform = key.split(".", 1)[0]
+    if platform in ("switch", "binary_sensor") and value in ("on", "off"):
+        return value
+    if platform == "lock" and value in ("locked", "unlocked", "locking", "unlocking"):
+        return value
+    if platform == "climate" and value in ("off", "heat_cool"):
+        return value
+    if key == "select.charge_mode":
+        return diagnostic_technical_value("preferredChargeMode", value)
+    if key == "number.target_state_of_charge":
+        source = "targetstateOfCharge"
+    elif platform == "sensor":
+        source = next(iter(definition.get("source_attributes", ())), None)
+    else:
+        return None
+    if source is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = float(value)
+        except ValueError:
+            pass
+    return diagnostic_technical_value(source, value)
+
+
 def diagnostic_telemetry(vehicle, registry):
     """Read-only current/retained candidates and canonical SOC selection."""
     from .attribute_runtime import _capture_in_utc
     from .freshness import capture_age_minutes
     from .historical_catalog import ATTRIBUTES
-    from .product_contract import projection_reading
+    from .product_contract import electric_soc_sources, projection_reading
 
     now = datetime.now(UTC)
 
@@ -1442,11 +1503,18 @@ def diagnostic_telemetry(vehicle, registry):
             "operation": diagnostic_route_label(operation, registry)
             if isinstance(operation, str)
             else None,
-            "path": path if path in definition.get("paths", ()) else None,
+            "path": path
+            if path in definition.get("paths", ())
+            or path in _DIAGNOSTIC_DERIVED_PATHS.get(ident, ())
+            else None,
         }
 
     rows = []
-    for ident in sorted(set(CANONICAL_ATTRIBUTES) | _DIAGNOSTIC_SOC_ALIASES):
+    for ident in sorted(
+        set(CANONICAL_ATTRIBUTES)
+        | _DIAGNOSTIC_SOC_ALIASES
+        | _DIAGNOSTIC_DERIVED_PATHS.keys()
+    ):
         current = vehicle.readings.get(ident, {})
         candidates = getattr(vehicle, "family_readings", {}).get(ident, {})
         if not current and not candidates:
@@ -1496,6 +1564,7 @@ def diagnostic_telemetry(vehicle, registry):
             if row["family"] in registry.families
         ],
         "state_of_charge_projection": {
+            "eligible_attributes": ["stateOfCharge", *electric_soc_sources(vehicle)],
             "attribute": ident,
             "family": family if family in registry.families else None,
             "unit": "%",

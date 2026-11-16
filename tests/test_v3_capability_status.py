@@ -393,7 +393,11 @@ def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
     }
     car.readings["stateOfCharge"] = sample
     car.family_readings["stateOfCharge"] = {"cariad": sample}
-    car.readings["measuredElectricSOC"] = {**sample, "value": 97}
+    car.readings["measuredElectricSOC"] = {
+        **sample,
+        "value": 97,
+        "path": "measurements.fuelLevelStatus.value.currentSOC_pct",
+    }
     car.readings["chargingState"] = {**sample, "value": "private-free-text"}
     car.readings["model"] = {**sample, "value": "private-model"}
     car.readings["chargingPower"] = {
@@ -407,6 +411,9 @@ def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
     rows = {row["attribute"]: row for row in report["attributes"]}
     assert rows["stateOfCharge"]["selected"]["value"] == 91
     assert rows["measuredElectricSOC"]["selected"]["value"] == 97
+    assert rows["measuredElectricSOC"]["selected"]["path"] == (
+        "measurements.fuelLevelStatus.value.currentSOC_pct"
+    )
     assert rows["stateOfCharge"]["candidates"][0]["value"] == 91
     assert report["state_of_charge_projection"]["value"] == 91
     assert "private-free-text" not in json.dumps(report)
@@ -449,3 +456,14 @@ def test_charging_observation_trace_is_bounded_and_keeps_old_receipts():
     assert trace[-1]["observed_at"] == observed.isoformat()
     assert trace[0]["observed_at"] != trace[-1]["observed_at"]
     assert car.readings["stateOfCharge"]["captured"] == now.isoformat()
+
+
+def test_diagnostic_ha_projection_is_technical_and_allowlisted():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.capability_status import diagnostic_ha_state
+
+    assert diagnostic_ha_state("sensor.state_of_charge", NS(state="91")) == 91
+    assert diagnostic_ha_state("switch.charging", NS(state="on")) == "on"
+    assert diagnostic_ha_state("sensor.model", NS(state="private-model")) is None
+    assert diagnostic_ha_state("device_tracker.position", NS(state="home")) is None
+    assert diagnostic_ha_state("sensor.unknown_custom", NS(state="12345")) is None

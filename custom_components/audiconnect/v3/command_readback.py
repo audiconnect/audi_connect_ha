@@ -287,6 +287,8 @@ def follow_up_refresh_allowed(record, car, registry=None):
     """One opt-in refresh after known acceptance, never a replay or proof."""
     if (
         record is None
+        or car is None
+        or not getattr(car, "inventory_present", True)
         or record.origin != "home_assistant"
         or getattr(record, "restored", False)
         or record.parent_command_id is not None
@@ -297,7 +299,10 @@ def follow_up_refresh_allowed(record, car, registry=None):
         or (record.capability == "remote" and record.action in ("refresh", "wake"))
     ):
         return False
-    if record.readback_observed_at is not None or record.readback_mismatch_at is not None:
+    if (
+        record.readback_observed_at is not None
+        or record.readback_mismatch_at is not None
+    ):
         return False
     # A newer actual native capture is useful even if the requested state
     # differs. A stale receipt or an optional Data Act sample is not enough.

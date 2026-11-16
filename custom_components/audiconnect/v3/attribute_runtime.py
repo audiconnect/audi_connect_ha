@@ -452,12 +452,13 @@ _CHARGING_TRACE_FIELDS = frozenset(
 )
 
 
-def _trace_charging_observation(vehicle, ident, row, selected):
+def _trace_charging_observation(vehicle, ident, row):
     """Bounded receipt evidence only; never participates in state selection."""
     trace = getattr(vehicle, "charging_observations", None)
     if trace is None or ident not in _CHARGING_TRACE_FIELDS:
         return
     value = row.get("value")
+    current = vehicle.readings.get(ident, {})
     trace.append(
         {
             "attribute": ident,
@@ -470,7 +471,10 @@ def _trace_charging_observation(vehicle, ident, row, selected):
             "operation": row.get("operation"),
             "status": row.get("status"),
             "reason": row.get("reason"),
-            "selected": selected,
+            "selected": all(
+                row.get(key) == current.get(key)
+                for key in ("family", "captured", "value", "status")
+            ),
         }
     )
     del trace[:-128]
@@ -499,13 +503,11 @@ def commit_observation(vehicle, ident, row, registry, now):
         if modes != set(selected.get("discovered_options", ())):
             selected = {**selected, "discovered_options": sorted(modes)}
     if selected is previous:
-        _trace_charging_observation(vehicle, ident, row, False)
+        _trace_charging_observation(vehicle, ident, row)
         return False
     candidates[family] = selected
     _select_observation(vehicle, ident, candidates, registry, now)
-    _trace_charging_observation(
-        vehicle, ident, row, vehicle.readings[ident] is row
-    )
+    _trace_charging_observation(vehicle, ident, row)
     # A historical-only enrichment is not a new current observation.
     return previous is None or any(
         selected.get(key) != previous.get(key)

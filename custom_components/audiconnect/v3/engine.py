@@ -1235,11 +1235,10 @@ class V3Engine:
         remote_refresh = record.capability == "remote" and record.action == "refresh"
         if remote_refresh:
             self._refresh_event(vin, record)
-        elif (
-            getattr(self.entry, "options", {}).get(CONF_REFRESH_AFTER_ACTION, False)
-            and follow_up_refresh_allowed(
-                record, self.require_vehicle(vin), self.registry
-            )
+        elif getattr(self.entry, "options", {}).get(
+            CONF_REFRESH_AFTER_ACTION, False
+        ) and follow_up_refresh_allowed(
+            record, self.vehicles.get(vin.lower()), self.registry
         ):
             # The existing opt-in V2 option permits one explicit refresh after
             # known HTTP acceptance without a newer native capture. Never
