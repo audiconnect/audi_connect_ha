@@ -936,7 +936,12 @@ def test_climate_settings_queue_is_informational_and_no_ids_or_body_exported():
                             "operation": "settings",
                             "status": "queued",
                             "requestId": "private-id",
-                            "body": {"targetTemperature": 19},
+                            "body": {
+                                "targetTemperature": 19,
+                                "targetTemperatureUnit": "celsius",
+                                "windowHeatingEnabled": False,
+                                "private": "not-exported",
+                            },
                         }
                     ]
                 }
@@ -949,6 +954,22 @@ def test_climate_settings_queue_is_informational_and_no_ids_or_body_exported():
     assert row["captured"] is None
     detail = details_for(car1, "climate_settings_requests_detail")
     assert detail["climate_settings_requests"]["data"]["items"] == [
-        {"operation": "settings", "status": "queued"}
+        {
+            "operation": "settings",
+            "status": "queued",
+            "parameters": {
+                "target_temperature_c": 19,
+                "window_heating_enabled": False,
+            },
+        }
     ]
     assert "private-id" not in str(detail)
+    assert "not-exported" not in str(detail)
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_request_queue,
+    )
+
+    queues = diagnostic_request_queue(car1)
+    assert queues[0]["items"] == detail["climate_settings_requests"]["data"]["items"]
+    assert "private-id" not in str(queues)
+    assert "not-exported" not in str(queues)
