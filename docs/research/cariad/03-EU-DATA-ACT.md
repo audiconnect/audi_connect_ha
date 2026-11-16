@@ -36,7 +36,7 @@ Record at least:
 
 ## Portal workflow (documented in community implementations)
 
-1. Sign in at [VW Group EU Data Act portal](https://eu-data-act.drivesomethinggreater.com/) with the brand identity; complete eligibility, vehicle relation and consent.
+1. Sign in at [VW Group EU Data Act portal](https://eu-data-act.vwgroup-datahub.com/) with the brand identity; complete eligibility, vehicle relation and consent.
 2. Under vehicle/data clusters, create an authorized **continuous/customized data request**, selecting appropriate clusters (usually All Data) and the available frequency, commonly 15 minutes.
 3. Inspect whether the portal actually lists **non-empty datasets**. Empty `*_no_content_found.zip` is a first-class state, not a parsing exception.
 4. Use the authorized list/download flow to retrieve only available datasets. Decode ZIP JSON preserving **source field names and timestamps**.
@@ -47,7 +47,7 @@ Record at least:
 From [ioBroker `lib/euDataAct.js`](https://github.com/TA2k/ioBroker.vw-connect/blob/master/lib/euDataAct.js):
 
 ```text
-BASE: https://eu-data-act.drivesomethinggreater.com
+BASE: https://eu-data-act.vwgroup-datahub.com
 IDENTITY: https://identity.vwgroup.io/oidc/v1/authorize
 
 /proxy_api/consent/me/vehicles
@@ -109,7 +109,7 @@ Avoid blindly preferring BFF if its measurement timestamp is older than the Data
 
 ## Sources
 
-- [VW Group EU Data Act portal](https://eu-data-act.drivesomethinggreater.com/)
+- [VW Group EU Data Act portal](https://eu-data-act.vwgroup-datahub.com/)
 - [VW Group Vehicle2MQTT](https://github.com/StephanHenke/vwgroup-vehicle2mqtt)
 - [VW Group EU Data Act Home Assistant integration](https://github.com/TommiG1/HA_VAG-EU-Data-Act)
 - [Audi continuous ZIP failure: issue #1403](https://github.com/its-me-prash/vwgroup-connect-ha/issues/1403)
