@@ -743,3 +743,43 @@ async def test_explicit_read_rescan_retests_prior_evidence_in_bounded_batches():
         await engine.test_family_reads(
             VIN, "cariad", full=True, rescan_after="not_a_reviewed_route"
         )
+
+
+@pytest.mark.parametrize(
+    "job,detail,count",
+    [
+        ("chargingTimers", "charging_timers_detail", "charging_timer_enabled_count"),
+        ("climatisationTimers", "climate_timers_detail", "climatisation_timer_enabled_count"),
+    ],
+)
+def test_timer_count_follows_selected_list_even_when_count_is_unchanged(job, detail, count):
+    from datetime import timedelta
+    from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    now = datetime.now(UTC)
+
+    def observe(timers, capture, receipt):
+        observe_read_only(
+            car,
+            profile,
+            {job: {job + "Status": {"value": {
+                "carCapturedTimestamp": capture.isoformat(), "timers": timers
+            }}}},
+            receipt,
+        )
+
+    observe([{"id": 1, "enabled": False}], now, now)
+    assert car.readings[count]["value"] == 0
+    observe([{"id": 2, "enabled": False}], now, now + timedelta(seconds=1))
+    assert car.readings[detail]["reason"] == "conflicting_source_values"
+    assert car.readings[count]["value"] is None
+    assert car.readings[count]["reason"] == "conflicting_source_values"
+    observe([{"id": 1, "enabled": True}], now - timedelta(minutes=1), now + timedelta(seconds=2))
+    assert car.readings[count]["value"] is None
+    newer = now + timedelta(seconds=3)
+    observe([{"id": 2, "enabled": True}], newer, newer)
+    assert car.readings[count]["value"] == 1
+    assert car.readings[detail]["value"]["items"][0]["id"] == 2
+    assert car.readings[count]["captured"] == car.readings[detail]["captured"]
