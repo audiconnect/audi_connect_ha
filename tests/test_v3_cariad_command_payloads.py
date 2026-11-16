@@ -283,7 +283,10 @@ def test_vehicle_specific_climate_discovery_schema_and_payload():
     assert "seat_fl" in schema
     assert "seat_rl" not in schema
     assert schema["climatisation_mode"]["enum"] == ["comfort"]
-    assert set(native_climate_parameter_schema(route, {}, car())) == {"temp_c", "temp_f"}
+    assert set(native_climate_parameter_schema(route, {}, car())) == {
+        "temp_c",
+        "temp_f",
+    }
     obj = engine(payload)
     body = asyncio.run(
         build(obj, vehicle, "climate_start_settings", {"temp_c": 22, "seat_fl": True})

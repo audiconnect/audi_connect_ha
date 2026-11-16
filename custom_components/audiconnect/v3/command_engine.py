@@ -225,7 +225,9 @@ class CommandEngine:
                     variant
                     for variant, revision in getattr(
                         profile, "verified_climate_variants", {}
-                    ).get(op, {}).items()
+                    )
+                    .get(op, {})
+                    .items()
                     if revision == operation_revision(profile.registry.operations[op])
                 ),
                 "status": profile.control_results.get(op, "not_tested"),
