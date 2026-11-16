@@ -294,7 +294,12 @@ def test_vehicle_specific_climate_discovery_schema_and_payload():
     guided = user_test_candidates(obj, vehicle, profile)
     selective = user_test_candidates(obj, vehicle, profile, include_verified=True)
     key = "climate.start_with_settings"
-    assert set(guided[key]["parameter_schema"]) == {"temp_c"}
+    assert guided[key]["parameter_schema"] == selective[key]["parameter_schema"]
+    assert set(guided[key]["parameter_schema"]) == {
+        "temp_c",
+        "seat_fl",
+        "climatisation_mode",
+    }
     assert "seat_fl" in selective[key]["parameter_schema"]
     assert "seat_rl" not in selective[key]["parameter_schema"]
     assert not selective[key]["parameter_schema"]["temp_c"].get("required")
