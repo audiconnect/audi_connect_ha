@@ -481,6 +481,7 @@ async def test_portal_auth_rejection_is_terminal_and_no_native_reauth():
         "https://untrusted.invalid/login/authenticate",
         "/signin-service/v1/oauth/consent",
         "https://eu-data-act.drivesomethinggreater.com/login",
+        "https://eu-data-act.vwgroup-datahub.com/login",
     ],
 )
 def test_portal_credentials_never_submit_to_other_destinations(action):
@@ -1682,3 +1683,113 @@ async def test_empty_subscription_after_throttle_clears_recovery(resource):
     assert client.quota.rate_limit_streak == 0
     assert client.quota.rate_limit_checkpoint() == {}
     assert session.get.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://evil.vwgroup-datahub.com/login",
+        "https://eu-data-act.vwgroup-datahub.com.evil.invalid/login",
+        "https://eu-data-act.vwgroup-datahub.com@evil.invalid/login",
+        "http://eu-data-act.vwgroup-datahub.com/login",
+        "https://eu-data-act.vwgroup-datahub.com:444/login",
+    ],
+)
+def test_portal_migration_does_not_widen_host_allowlist(url):
+    from custom_components.audiconnect.v3.data_act_auth import _host
+
+    with pytest.raises(DataActUnavailable):
+        _host(url)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy_hop", [False, True])
+async def test_portal_migration_login_callback_and_credentials(legacy_hop):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from urllib.parse import parse_qs, urlsplit
+
+    from custom_components.audiconnect.v3.data_act import PORTAL
+    from custom_components.audiconnect.v3.data_act_auth import (
+        CALLBACK,
+        IDENTITY,
+        DataActPortalLogin,
+    )
+
+    session = MagicMock()
+    login = DataActPortalLogin(session, "synthetic@example.invalid", "secret", "BE")
+    identifier = IDENTITY + "/signin-service/v1/audi/login/identifier"
+    authenticate = IDENTITY + "/signin-service/v1/audi/login/authenticate"
+    landing = PORTAL + "/login?state=" + login.state
+    legacy = "https://eu-data-act.drivesomethinggreater.com/login?state=" + login.state
+
+    def reply(status, *, location=None, html="", cookies=None):
+        async def chunks(_size):
+            yield html.encode()
+
+        response = SimpleNamespace(
+            status=status,
+            headers={"Location": location} if location else {},
+            cookies=cookies or {},
+            content_length=len(html),
+            content=SimpleNamespace(iter_chunked=chunks),
+        )
+        context = MagicMock()
+        context.__aenter__.return_value = response
+        return context
+
+    def form(action):
+        return (
+            f'<form action="{action}">'
+            '<input type="hidden" name="hmac" value="example">'
+            '<input type="hidden" name="_csrf" value="example">'
+            "</form>"
+        )
+
+    responses = [
+        reply(200, html=form(identifier)),
+        reply(200, html=form(authenticate)),
+        reply(302, location=legacy if legacy_hop else landing),
+    ]
+    if legacy_hop:
+        responses.append(reply(301, location=landing))
+    responses.extend(
+        [
+            reply(302, location=PORTAL + CALLBACK),
+            reply(302, cookies={"access_token": "synthetic"}),
+        ]
+    )
+    session.request.side_effect = responses
+    await login.authenticate(MagicMock())
+    calls = session.request.call_args_list
+    assert parse_qs(urlsplit(calls[0].args[1]).query)["redirect_uri"] == [
+        "https://eu-data-act.vwgroup-datahub.com/login"
+    ]
+    assert calls[-1].args == ("GET", PORTAL + CALLBACK)
+    assert all(call.kwargs["allow_redirects"] is False for call in calls)
+    for call in calls:
+        if call.args[0] == "POST":
+            assert call.args[1] in (identifier, authenticate)
+        else:
+            assert call.kwargs["data"] is None
+
+
+@pytest.mark.asyncio
+async def test_portal_migration_data_reads_use_new_host_and_refuse_redirect():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    session = MagicMock()
+    session.get.return_value.__aenter__.return_value = SimpleNamespace(
+        status=302, headers={"Location": "https://evil.invalid/"}
+    )
+    client = DataActClient(session)
+    with pytest.raises(DataActUnavailable):
+        await client._get("/proxy_api/test", limit=100)
+    session.get.assert_called_once_with(
+        "https://eu-data-act.vwgroup-datahub.com/proxy_api/test",
+        headers=None,
+        allow_redirects=False,
+    )

@@ -26,6 +26,8 @@ from .data_act import (
 IDENTITY = "https://identity.vwgroup.io"
 CLIENT_ID = "cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com"
 CALLBACK = "/services/callbacklogin"
+PORTAL_HOST = urlsplit(PORTAL).hostname
+LEGACY_PORTAL_HOST = "eu-data-act.drivesomethinggreater.com"
 
 
 def _host(url):
@@ -38,7 +40,8 @@ def _host(url):
         or parsed.hostname
         not in (
             "identity.vwgroup.io",
-            "eu-data-act.drivesomethinggreater.com",
+            PORTAL_HOST,
+            LEGACY_PORTAL_HOST,
         )
     ):
         raise DataActUnavailable("Unexpected Data Act login destination")
@@ -102,12 +105,12 @@ class DataActPortalLogin:
                 )
             ):
                 raise DataActAuthorizationRequired("Unexpected credential destination")
-            if host == "eu-data-act.drivesomethinggreater.com" and parsed.path not in (
+            if host != "identity.vwgroup.io" and parsed.path not in (
                 "/login",
                 CALLBACK,
             ):
                 raise DataActAuthorizationRequired("Unexpected portal callback")
-            if host == "eu-data-act.drivesomethinggreater.com" and (
+            if host != "identity.vwgroup.io" and (
                 parsed.path == "/login"
                 and parse_qs(parsed.query).get("state") != [self.state]
             ):
@@ -130,10 +133,7 @@ class DataActPortalLogin:
                     raise DataActAuthorizationRequired("Data Act sign-in rejected")
                 if response.status >= 400:
                     raise DataActUnavailable("Data Act sign-in unavailable")
-                if (
-                    host == "eu-data-act.drivesomethinggreater.com"
-                    and parsed.path == CALLBACK
-                ):
+                if host == PORTAL_HOST and parsed.path == CALLBACK:
                     if not response.cookies.get("access_token"):
                         raise DataActUnavailable("Data Act session not established")
                     return url, None
