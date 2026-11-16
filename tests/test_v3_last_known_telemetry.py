@@ -331,9 +331,7 @@ def test_conflict_snapshot_retains_only_older_safe_scalar_and_no_location():
     commit_observation(vehicle, ident, reading(77, now), None, now)
     commit_observation(vehicle, ident, reading(81, now), None, now)
     marker = vehicle.readings[ident]
-    saved = status_snapshot(
-        {ident: marker, "position_last_updated": marker}, now=now
-    )
+    saved = status_snapshot({ident: marker, "position_last_updated": marker}, now=now)
     assert set(saved) == {ident}
     restored = restore_status(saved)[ident]
     assert restored["reason"] == "conflicting_source_values"
