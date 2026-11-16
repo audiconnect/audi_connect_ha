@@ -200,6 +200,8 @@ class V3Vehicle:
     readings: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Latest normalized sample per family, in memory only; no raw payload cache.
     family_readings: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
+    # Bounded, non-persisted diagnostic receipt trace; never a state source.
+    charging_observations: list[dict[str, Any]] = field(default_factory=list)
     capability_readings: dict[str, dict[str, Any]] = field(default_factory=dict)
     position: dict[str, Any] | None = None  # V3-owned, in-memory parked GPS
     charging_profiles: list[dict[str, Any]] = field(default_factory=list)

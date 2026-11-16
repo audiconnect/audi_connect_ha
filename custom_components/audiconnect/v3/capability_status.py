@@ -1347,7 +1347,16 @@ _DIAGNOSTIC_ENUMS = {
     ),
     "doorLockStatus": frozenset(("locked", "unlocked")),
     "climatisationState": frozenset(
-        ("off", "on", "heating", "cooling", "ventilation", "active", "inactive", "stopped")
+        (
+            "off",
+            "on",
+            "heating",
+            "cooling",
+            "ventilation",
+            "active",
+            "inactive",
+            "stopped",
+        )
     ),
     "externalPower": frozenset(("available", "unavailable", "active", "inactive")),
     "plugLockState": frozenset(("locked", "unlocked")),
@@ -1476,6 +1485,16 @@ def diagnostic_telemetry(vehicle, registry):
     family = known.get("family")
     return {
         "attributes": rows,
+        "charging_observations": [
+            {
+                "attribute": row["attribute"],
+                "family": row["family"],
+                **sample(row["attribute"], row),
+                "selected": row["selected"],
+            }
+            for row in getattr(vehicle, "charging_observations", ())
+            if row["family"] in registry.families
+        ],
         "state_of_charge_projection": {
             "attribute": ident,
             "family": family if family in registry.families else None,
@@ -1490,7 +1509,7 @@ def diagnostic_telemetry(vehicle, registry):
 def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
     """Safe diagnostic projection of the same capability model as the dashboard.
 
-    No nickname, user route, VIN, payload, setting values or custom identifiers.
+    No nickname, user route, VIN, raw payload or custom identifiers.
     Catalog compatibility, current command eligibility and physical evidence
     remain independent. This is a read-only computation from current state.
     """
@@ -1602,6 +1621,20 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
             )
     return {
         "technical_telemetry": diagnostic_telemetry(vehicle, base_registry),
+        "charging_command_history": [
+            {
+                **item,
+                "state": record.state,
+                "backend_result": record.backend_result,
+                "completed_at": record.completed_at,
+                "readback_observed_at": record.readback_observed_at,
+                "readback_mismatch_at": record.readback_mismatch_at,
+            }
+            for record in getattr(profile, "command_journal", ())
+            if record.origin == "home_assistant"
+            and record.capability == "charging"
+            and (item := safe_command(record)) is not None
+        ],
         "pending_engineering_test": pending_summary,
         "unresolved_normal_commands": unresolved,
         "capabilities": summaries,

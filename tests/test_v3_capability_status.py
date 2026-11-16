@@ -379,7 +379,6 @@ def test_implemented_derived_fields_and_history_are_not_missing_mappings():
     )
 
 
-
 def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
     from datetime import UTC, datetime
     from custom_components.audiconnect.v3.capability_status import diagnostic_telemetry
@@ -418,3 +417,35 @@ def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
     assert "private-path" not in json.dumps(report)
     assert "private-reason" not in json.dumps(report)
     assert "private-receipt" not in json.dumps(report)
+
+
+def test_charging_observation_trace_is_bounded_and_keeps_old_receipts():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.attribute_runtime import commit_observation
+    from custom_components.audiconnect.v3.capability_status import diagnostic_telemetry
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    for i in range(140):
+        observed = now + timedelta(seconds=i)
+        commit_observation(
+            car,
+            "stateOfCharge",
+            {
+                "value": 91,
+                "captured": now.isoformat(),
+                "observed": observed.isoformat(),
+                "family": "cariad",
+                "status": "verified",
+            },
+            profile.registry,
+            observed,
+        )
+    report = diagnostic_telemetry(car, profile.registry)
+    trace = report["charging_observations"]
+    assert len(trace) == 128
+    assert trace[-1]["value"] == 91
+    assert trace[-1]["captured"] == now.isoformat()
+    assert trace[-1]["observed_at"] == observed.isoformat()
+    assert trace[0]["observed_at"] != trace[-1]["observed_at"]
+    assert car.readings["stateOfCharge"]["captured"] == now.isoformat()
