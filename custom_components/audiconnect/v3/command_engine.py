@@ -37,6 +37,7 @@ from .command_readback import (
     reconcile_access_mismatch,
     observe_command_response,
     latest_readback_command,
+    follow_up_refresh_allowed,
 )
 from .control_resolution import control_decision, resolve_control
 from .command_policy import supported_charge_modes
@@ -619,7 +620,7 @@ class CommandEngine:
     ) -> CommandRecord:
         """One journaled mutation, persisted before dispatch; never replay.
 
-        Only an opt-in, linked refresh after a completed user command may
+        Only an opt-in, linked refresh after an accepted user command may
         bypass the general command cooldown. It still needs its own route,
         security policy, wake budget and durable journal entry.
         """
@@ -640,15 +641,10 @@ class CommandEngine:
                     or aspect != "refresh"
                     or parent is None
                     or parent.command_id != _follow_up_to
-                    or parent.state not in ("backend_completed", "verified")
-                    or parent.parent_command_id is not None
-                    or (
-                        parent.capability == "remote"
-                        and parent.action in ("refresh", "wake")
-                    )
+                    or not follow_up_refresh_allowed(parent, car, p.registry)
                 ):
                     raise RuntimeError(
-                        "No eligible completed parent command for vehicle refresh"
+                        "No eligible accepted parent command for vehicle refresh"
                     )
             else:
                 blocked = dispatch_block_reason(p, capability, aspect)

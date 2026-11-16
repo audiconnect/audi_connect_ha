@@ -283,6 +283,33 @@ def optimistic_expiry(record):
     return record.started_at + OPTIMISTIC_TTL_SECONDS
 
 
+def follow_up_refresh_allowed(record, car, registry=None):
+    """One opt-in refresh after known acceptance, never a replay or proof."""
+    if (
+        record is None
+        or record.origin != "home_assistant"
+        or getattr(record, "restored", False)
+        or record.parent_command_id is not None
+        or record.http_status is None
+        or not 200 <= record.http_status < 300
+        or record.state not in ("accepted_unconfirmed", "backend_completed", "verified")
+        or record.backend_result in ("rejected", "transport_uncertain", "quota_limited")
+        or (record.capability == "remote" and record.action in ("refresh", "wake"))
+    ):
+        return False
+    if record.readback_observed_at is not None or record.readback_mismatch_at is not None:
+        return False
+    # A newer actual native capture is useful even if the requested state
+    # differs. A stale receipt or an optional Data Act sample is not enough.
+    for attribute in projection_attributes(record):
+        value, stamp = _readback_value(
+            car, attribute, registry=registry, started_at=record.started_at
+        )
+        if value is not None and stamp and stamp.timestamp() > record.started_at:
+            return False
+    return True
+
+
 def requested_projection(record, attribute):
     if record is None:
         return None

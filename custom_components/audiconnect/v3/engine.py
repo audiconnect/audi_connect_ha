@@ -1225,6 +1225,8 @@ class V3Engine:
             _LOGGER.warning("Audi command follow-up cloud read failed")
 
     async def _after_command(self, vin: str, record) -> None:
+        from .command_readback import follow_up_refresh_allowed
+
         if (
             getattr(getattr(self.entry, "runtime_data", None), "coordinator", None)
             is None
@@ -1235,12 +1237,13 @@ class V3Engine:
             self._refresh_event(vin, record)
         elif (
             getattr(self.entry, "options", {}).get(CONF_REFRESH_AFTER_ACTION, False)
-            and record.state in ("backend_completed", "verified")
-            and not (record.capability == "remote" and record.action == "wake")
+            and follow_up_refresh_allowed(
+                record, self.require_vehicle(vin), self.registry
+            )
         ):
             # The existing opt-in V2 option permits one explicit refresh after
-            # an accepted action. Never send it after uncertainty, recurse, or
-            # bypass the wake quota/security/evidence checks.
+            # known HTTP acceptance without a newer native capture. Never
+            # recurse or bypass the wake quota/security/evidence checks.
             try:
                 refresh = await self.commands.send_control(
                     vin, "refresh", "remote", _follow_up_to=record.command_id
