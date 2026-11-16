@@ -660,3 +660,47 @@ def test_failed_native_control_is_discoverable_but_not_dispatch_ready():
     assert "climate.window_heating_start" not in user_test_candidates(
         engine, car, profile
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("combined", [False, True])
+async def test_expert_charging_routes_are_explicit_and_never_auto_retried(combined):
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.advertised_capabilities.add("charging")
+    direct = "cariad.charging.start"
+    alternate = direct + ".combined"
+    profile.control_results[direct] = "failed"
+    candidates = user_test_candidates(engine, car, profile, include_verified=True)
+    assert {
+        row["operation"]
+        for row in candidates.values()
+        if row["capability"] == "charging" and row["action"] == "start"
+    } == {direct, alternate}
+    assert not engine.control_enabled(VIN, "start", "charging")
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path, kwargs))
+            return V3Response(405, {"error": "unsupported"}, datetime.now(UTC))
+
+    engine.transport = Transport()
+    chosen = alternate if combined else direct
+    result = await engine.approved_control_discovery(
+        VIN,
+        "start",
+        chosen,
+        approval="non_spin",
+        capability="charging",
+        guided=True,
+        expert=True,
+    )
+    assert result["physical_result"] == "rejected"
+    assert result["operation"] == chosen
+    assert len(calls) == 1
+    assert calls[0][2].endswith("/start-stop" if combined else "/start")
+    assert calls[0][3]["body"] == ({"action": "start"} if combined else {})
+    assert not engine.control_enabled(VIN, "start", "charging")
