@@ -25,7 +25,8 @@ from .operation_revision import operation_revision
 from .command_parameters import (
     map_parameters,
     runtime_ready,
-    parameter_schema,
+    native_climate_parameter_schema,
+    climate_variant,
     validate_inputs,
     validate_parameter,
     SOC,
@@ -207,14 +208,25 @@ class CommandEngine:
                     capability, action, profile.registry.operations[op]
                 ),
                 "parameters_required": bool(
-                    parameter_schema(
-                        profile.registry.operations[op], profile.custom.get(op, {})
+                    native_climate_parameter_schema(
+                        profile.registry.operations[op],
+                        profile.custom.get(op, {}),
+                        vehicle,
                     )
                 )
                 or profile.registry.operations[op].get("request_mode")
                 == "climate_settings_update",
-                "parameter_schema": parameter_schema(
-                    profile.registry.operations[op], profile.custom.get(op, {})
+                "parameter_schema": native_climate_parameter_schema(
+                    profile.registry.operations[op],
+                    profile.custom.get(op, {}),
+                    vehicle,
+                ),
+                "verified_climate_variants": sorted(
+                    variant
+                    for variant, revision in getattr(
+                        profile, "verified_climate_variants", {}
+                    ).get(op, {}).items()
+                    if revision == operation_revision(profile.registry.operations[op])
                 ),
                 "status": profile.control_results.get(op, "not_tested"),
                 "active": profile.active.get(f"{capability}.{action}") == op,
@@ -529,6 +541,7 @@ class CommandEngine:
             raise ValueError("Vehicle command cooldown still active")
         # Reject invalid templates/parameters BEFORE reserving a pending
         # physical action, otherwise a mere validation error locks the car.
+        variant = climate_variant(operation, params or {})
         prepared = await self._prepare_command(vehicle, operation, params)
         self._reserve_wake(vehicle.vin, operation)
         with profile.command_transaction():
@@ -536,6 +549,7 @@ class CommandEngine:
             record = profile.engineering_record(attempt.sequence)
             if record is None:
                 raise RuntimeError("Missing durable engineering command record")
+            record.requested_climate_variant = variant
             if (
                 capability == "charging"
                 and aspect == "set_charge_mode"
@@ -684,6 +698,14 @@ class CommandEngine:
             ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")
+            variant = climate_variant(ident, params or {})
+            if variant is not None and (
+                getattr(p, "verified_climate_variants", {}).get(ident, {}).get(variant)
+                != operation_revision(p.registry.operations[ident])
+            ):
+                raise ValueError(
+                    "Climate parameter combination requires vehicle discovery"
+                )
             prepared = await self._prepare_command(car, ident, params)
             self._reserve_wake(vin, ident)
             record = CommandRecord.begin(

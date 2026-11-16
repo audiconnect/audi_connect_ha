@@ -368,6 +368,7 @@ class DevelopmentProfile:
         self.control_results: dict[str, str] = {}
         # Parameter-specific physical proof, scoped to this vehicle context.
         self.verified_charge_modes: dict[str, str] = {}
+        self.verified_climate_variants: dict[str, dict[str, str]] = {}
         # Historical physical reviews are evidence only, never authorization.
         self.historical_control_evidence: list[dict[str, Any]] = []
         self.manufacturer_identity: dict[str, Any] = {}
@@ -723,6 +724,7 @@ class DevelopmentProfile:
             self.read_results,
             self.control_results,
             self.verified_charge_modes,
+            self.verified_climate_variants,
             self.attribute_routes,
             self.attribute_evidence,
             self.attribute_drafts,
@@ -779,6 +781,21 @@ class DevelopmentProfile:
             if worked is not None:
                 self.invalidated_attempt_sequence = None
             return  # A review of an old vehicle context is not proof for the new one.
+        if record is not None and record.requested_climate_variant is not None:
+            # Optional combinations never activate or invalidate a base route.
+            # Preserve its independent proof even after a failed experiment.
+            variants = self.verified_climate_variants.setdefault(record.operation, {})
+            if worked is True and record.operation_revision is not None:
+                variants[record.requested_climate_variant] = record.operation_revision
+                while len(variants) > 32:
+                    variants.pop(next(iter(variants)))
+            elif worked is not None:
+                variants.pop(record.requested_climate_variant, None)
+            if self.control_results.get(record.operation) == "worked":
+                self.discovery.preferred[key] = record.operation
+            elif self.discovery.preferred.get(key) == record.operation:
+                self.discovery.preferred.pop(key)
+            return
         if (
             record is not None
             and record.operation == "cariad.charging.mode"
@@ -816,6 +833,14 @@ class DevelopmentProfile:
         record.completed_at = now
         if sequence == self.invalidated_attempt_sequence:
             self.invalidated_attempt_sequence = None
+            return
+        if record.requested_climate_variant is not None:
+            self.verified_climate_variants.get(attempt.operation, {}).pop(
+                record.requested_climate_variant, None
+            )
+            key = f"{attempt.capability}.{attempt.action}"
+            if self.control_results.get(attempt.operation) == "worked":
+                self.discovery.preferred[key] = attempt.operation
             return
         self.control_results[attempt.operation] = "failed"
         if attempt.operation == "cariad.charging.mode":
@@ -957,6 +982,7 @@ class DevelopmentProfile:
                 for operation in self.control_results
             },
             "verified_charge_modes": dict(self.verified_charge_modes),
+            "verified_climate_variants": deepcopy(self.verified_climate_variants),
             "historical_control_evidence": deepcopy(self.historical_control_evidence),
             "manufacturer_identity": deepcopy(self.manufacturer_identity),
             "status_observations": status_snapshot(

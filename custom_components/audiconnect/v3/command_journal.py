@@ -64,6 +64,7 @@ class CommandRecord:
     parent_command_id: str | None = None
     http_status: int | None = None
     requested_charge_mode: str | None = None
+    requested_climate_variant: str | None = None
 
     @classmethod
     def begin(
@@ -223,6 +224,8 @@ class CommandRecord:
             record = cls(**value)
         except TypeError as exc:
             raise ValueError("Invalid stored command fields") from exc
+        from .command_parameters import valid_climate_variant
+
         if (
             not isinstance(record.command_id, str)
             or len(record.command_id) != 32
@@ -250,6 +253,17 @@ class CommandRecord:
                     or record.action != "set_charge_mode"
                     or record.operation != "cariad.charging.mode"
                     or record.requested_charge_mode not in ("manual", "timer")
+                )
+            )
+            or (
+                record.requested_climate_variant is not None
+                and (
+                    record.origin != "workbench"
+                    or record.capability != "climate"
+                    or record.action not in ("set_settings", "start_with_settings")
+                    or not valid_climate_variant(
+                        record.operation, record.requested_climate_variant
+                    )
                 )
             )
             or record.origin not in ("home_assistant", "workbench")

@@ -248,3 +248,48 @@ def test_conflicting_temperature_inputs_rejected_before_settings_request(mode, p
     with pytest.raises(ValueError, match="Supply"):
         asyncio.run(build(obj, car(), mode, params))
     obj.transport.request.assert_not_awaited()
+
+
+def test_vehicle_specific_climate_discovery_schema_and_payload():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+    from custom_components.audiconnect.v3.command_parameters import (
+        native_climate_parameter_schema,
+    )
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    route = registry.operations["cariad.climate.start.vehicle_settings"]
+    now = datetime.now(UTC)
+    vehicle = car()
+    profile = DevelopmentProfile(registry, vehicle.context)
+    payload = {
+        "climatisation": {
+            "climatisationSettings": {
+                "value": {
+                    "targetTemperature_C": 20,
+                    "zoneFrontLeftEnabled": False,
+                    "zoneRearLeftEnabled": None,
+                    "climatisationMode": "comfort",
+                    "carCapturedTimestamp": now.isoformat(),
+                }
+            }
+        }
+    }
+    observe_read_only(vehicle, profile, payload, now)
+    schema = native_climate_parameter_schema(route, {}, vehicle)
+    assert "seat_fl" in schema
+    assert "seat_rl" not in schema
+    assert schema["climatisation_mode"]["enum"] == ["comfort"]
+    assert set(native_climate_parameter_schema(route, {}, car())) == {"temp_c", "temp_f"}
+    obj = engine(payload)
+    body = asyncio.run(
+        build(obj, vehicle, "climate_start_settings", {"temp_c": 22, "seat_fl": True})
+    )
+    assert body["zoneFrontLeftEnabled"] is True
+    assert "zoneRearLeftEnabled" not in body
+    for params in ({"seat_rl": True}, {"climatisation_mode": "economy"}):
+        with pytest.raises(ValueError):
+            asyncio.run(build(obj, vehicle, "climate_start_settings", params))

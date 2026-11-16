@@ -207,3 +207,39 @@ def test_discovery_can_extend_existing_command_by_catalog_metadata_only():
     node["discovery"]["parameters"] = ["unknown_parameter"]
     with pytest.raises(RegistryError, match="Unknown discovery parameter"):
         CapabilityRegistry(raw)
+
+
+def test_optional_climate_combination_proof_does_not_replace_base_route():
+    from custom_components.audiconnect.v3.command_parameters import climate_variant
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+    from custom_components.audiconnect.v3.registry import VehicleContext
+
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    car = V3Vehicle(VIN, "Audi", "", "", "DE", auth_family="auth0")
+    profile = DevelopmentProfile(registry, car.context, cooldown_seconds=0)
+    route = "cariad.climate.start.vehicle_settings"
+    revision = operation_revision(registry.operations[route])
+    first = profile.begin_test("climate", "start_with_settings", route, now=100)
+    profile.observe_http(first.sequence, 200)
+    profile.confirm(first.sequence, worked=True, inspected_vehicle=True, now=101)
+    profile.choose_working("climate", "start_with_settings", route)
+    assert climate_variant(route, {"temp_c": 22}) is None
+    good = climate_variant(route, {"temp_c": 22, "seat_fl": True})
+    bad = climate_variant(route, {"temp_c": 22, "seat_rl": True})
+    assert good != bad
+    for stamp, variant, worked in ((110, good, True), (120, bad, False)):
+        attempt = profile.begin_test("climate", "start_with_settings", route, now=stamp)
+        record = profile.engineering_record(attempt.sequence)
+        record.requested_climate_variant = variant
+        profile.observe_http(attempt.sequence, 200)
+        profile.confirm(
+            attempt.sequence, worked=worked, inspected_vehicle=True, now=stamp + 1
+        )
+    assert profile.active["climate.start_with_settings"] == route
+    assert profile.control_results[route] == "worked"
+    assert profile.verified_climate_variants[route] == {good: revision}
+    restored = restore_profile(registry, car.context, profile.snapshot())
+    assert restored.verified_climate_variants[route] == {good: revision}
+    restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
+    assert not restored.verified_climate_variants

@@ -234,6 +234,19 @@ def observe_derived(
                 # Keep engine-specific values; the product contract decides
                 # whether this is the actual combustion tank. Never last-wins
                 # across primary and secondary engines.
+    settings_path = "climatisation.climatisationSettings.value"
+    climate_settings = read_json_path(payload, settings_path)
+    if isinstance(climate_settings, dict) and climate_settings.get(
+        "climatisationMode"
+    ) in ("comfort", "economy"):
+        record(
+            "climatisationMode",
+            climate_settings["climatisationMode"],
+            climate_settings.get("carCapturedTimestamp"),
+            "climatisation",
+            settings_path + ".climatisationMode",
+        )
+
     # Operational window heating is not the preference windowHeatingEnabled,
     # and is not the legacy mirror-heating signal.
     from .vehicle import window_heating_active

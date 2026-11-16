@@ -164,6 +164,26 @@ def restore_profile(
     ):
         raise DevelopmentProfileError("Malformed charge mode evidence")
     profile.verified_charge_modes = dict(modes)
+    from .command_parameters import CLIMATE_VARIANT_ROUTES, valid_climate_variant
+
+    variants = saved.get("verified_climate_variants", {})
+    if not isinstance(variants, dict) or any(
+        route not in CLIMATE_VARIANT_ROUTES
+        or not isinstance(rows, dict)
+        or len(rows) > 32
+        or any(
+            not valid_climate_variant(route, variant)
+            or not isinstance(revision, str)
+            or len(revision) != 64
+            or any(char not in "0123456789abcdef" for char in revision)
+            for variant, revision in rows.items()
+        )
+        for route, rows in variants.items()
+    ):
+        raise DevelopmentProfileError("Malformed climate variant evidence")
+    profile.verified_climate_variants = {
+        route: dict(rows) for route, rows in variants.items()
+    }
     history = saved.get("historical_control_evidence", [])
     if not isinstance(history, list) or len(history) > 50:
         raise DevelopmentProfileError("Invalid historical control evidence")
@@ -553,6 +573,7 @@ def restore_profile(
         profile.control_results.pop(operation, None)
         if operation == "cariad.charging.mode":
             profile.verified_charge_modes.clear()
+        profile.verified_climate_variants.pop(operation, None)
     profile.historical_control_evidence = profile.historical_control_evidence[-50:]
     pending = profile.discovery.active_attempt
     if pending is not None:
