@@ -584,7 +584,9 @@ class CommandEngine:
                 and operation == "cariad.charging.mode"
             ):
                 record.requested_charge_mode = (params or {}).get("value")
-            if guided:
+            # The single-field readback cannot verify an optional combination.
+            # Keep its physical review explicit; base actions retain readback.
+            if guided and variant is None:
                 configure_discovery_readback(
                     record, vehicle, params, registry=profile.registry
                 )
