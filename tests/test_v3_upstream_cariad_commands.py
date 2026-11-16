@@ -181,7 +181,9 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
     if outcome == "rejected":
         with pytest.raises(RuntimeError, match="rejected"):
             await engine.commands.send_control(VIN, "start", "climate")
-        assert notifications[-1] == ("off", "vehicle")
+        # A correlated rejection ends intent, but the pre-dispatch capture
+        # cannot prove the current physical state after HTTP acceptance.
+        assert notifications[-1] == (None, "unknown")
     else:
         record = await engine.commands.send_control(VIN, "start", "climate")
         assert record.state == "accepted_unconfirmed"
@@ -434,3 +436,60 @@ def test_failed_charge_mode_does_not_withdraw_independently_verified_mode():
     restored = restore_profile(profile.registry, car.context, profile.snapshot())
     assert supported_charge_modes(car, restored) == ["manual"]
     assert restored.control_results[route] == "worked"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "enabled,http_status,backend,new_capture,expected",
+    [
+        (False, 200, "accepted_unconfirmed", False, False),
+        (True, 200, "accepted_unconfirmed", False, True),
+        (True, 200, "backend_completed", False, True),
+        (True, 200, "accepted_unconfirmed", True, False),
+        (True, 200, "quota_limited", False, False),
+        (True, 200, "rejected", False, False),
+        (True, 403, "rejected", False, False),
+        (True, None, "transport_uncertain", False, False),
+    ],
+)
+async def test_opt_in_refresh_requires_known_acceptance_and_missing_native_capture(
+    enabled, http_status, backend, new_capture, expected
+):
+    from datetime import timedelta
+    from unittest.mock import AsyncMock
+    from custom_components.audiconnect.const import CONF_REFRESH_AFTER_ACTION
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+
+    engine, car = make_engine()
+    now = datetime.now(UTC)
+    record = CommandRecord.begin(
+        "charging",
+        "start",
+        "cariad.charging.start",
+        (now - timedelta(seconds=5)).timestamp(),
+    )
+    record.observe_http(http_status)
+    record.observe_backend(backend, now.timestamp())
+    configure_readback(record, {})
+    if new_capture:
+        car.readings["chargingState"] = {
+            "value": "off",
+            "family": "cariad",
+            "captured": now.isoformat(),
+            "observed": now.isoformat(),
+            "status": "verified",
+        }
+    engine.entry.options[CONF_REFRESH_AFTER_ACTION] = enabled
+    engine.entry.runtime_data = SimpleNamespace(coordinator=object())
+    engine.commands.send_control = AsyncMock(return_value=record)
+    engine._refresh_event = lambda *args: None
+    engine._follow_up_cloud = AsyncMock()
+    await engine._after_command(VIN, record)
+    engine._follow_up_cloud.assert_awaited_once()
+    if expected:
+        engine.commands.send_control.assert_awaited_once_with(
+            VIN, "refresh", "remote", _follow_up_to=record.command_id
+        )
+    else:
+        engine.commands.send_control.assert_not_awaited()

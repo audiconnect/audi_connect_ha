@@ -377,3 +377,186 @@ def test_implemented_derived_fields_and_history_are_not_missing_mappings():
         attribute_status(car, profile, ATTRIBUTES["remainingChargingTime"], now)[0]
         == "not_observed"
     )
+
+
+def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.capability_status import diagnostic_telemetry
+
+    car, profile = _fixture()
+    stamp = datetime.now(UTC).isoformat()
+    sample = {
+        "value": 91,
+        "family": "cariad",
+        "captured": stamp,
+        "status": "verified",
+    }
+    car.readings["stateOfCharge"] = sample
+    car.family_readings["stateOfCharge"] = {"cariad": sample}
+    car.readings["measuredElectricSOC"] = {
+        **sample,
+        "value": 97,
+        "path": "measurements.fuelLevelStatus.value.currentSOC_pct",
+    }
+    car.readings["chargingState"] = {**sample, "value": "private-free-text"}
+    car.readings["model"] = {**sample, "value": "private-model"}
+    car.readings["chargingPower"] = {
+        **sample,
+        "value": 2.0,
+        "path": "private-path",
+        "reason": "private-reason",
+        "observed": "private-receipt",
+    }
+    report = diagnostic_telemetry(car, profile.registry)
+    rows = {row["attribute"]: row for row in report["attributes"]}
+    assert rows["stateOfCharge"]["selected"]["value"] == 91
+    assert rows["measuredElectricSOC"]["selected"]["value"] == 97
+    assert rows["measuredElectricSOC"]["selected"]["path"] == (
+        "measurements.fuelLevelStatus.value.currentSOC_pct"
+    )
+    assert rows["stateOfCharge"]["candidates"][0]["value"] == 91
+    assert report["state_of_charge_projection"]["value"] == 91
+    assert "private-free-text" not in json.dumps(report)
+    assert "private-model" not in json.dumps(report)
+    assert car.vin not in json.dumps(report)
+    assert rows["chargingPower"]["selected"]["value"] == 2.0
+    assert rows["chargingPower"]["unit"] == "kW"
+    assert "private-path" not in json.dumps(report)
+    assert "private-reason" not in json.dumps(report)
+    assert "private-receipt" not in json.dumps(report)
+
+
+def test_charging_observation_trace_is_bounded_and_keeps_old_receipts():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.attribute_runtime import commit_observation
+    from custom_components.audiconnect.v3.capability_status import diagnostic_telemetry
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    for i in range(140):
+        observed = now + timedelta(seconds=i)
+        commit_observation(
+            car,
+            "stateOfCharge",
+            {
+                "value": 91,
+                "captured": now.isoformat(),
+                "observed": observed.isoformat(),
+                "family": "cariad",
+                "status": "verified",
+            },
+            profile.registry,
+            observed,
+        )
+    report = diagnostic_telemetry(car, profile.registry)
+    trace = report["charging_observations"]
+    assert len(trace) == 128
+    assert trace[-1]["value"] == 91
+    assert trace[-1]["captured"] == now.isoformat()
+    assert trace[-1]["observed_at"] == observed.isoformat()
+    assert trace[0]["observed_at"] != trace[-1]["observed_at"]
+    assert car.readings["stateOfCharge"]["captured"] == now.isoformat()
+
+
+def test_diagnostic_ha_projection_is_technical_and_allowlisted():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.capability_status import diagnostic_ha_state
+
+    assert diagnostic_ha_state("sensor.state_of_charge", NS(state="91")) == 91
+    assert diagnostic_ha_state("switch.charging", NS(state="on")) == "on"
+    assert diagnostic_ha_state("sensor.model", NS(state="private-model")) is None
+    assert diagnostic_ha_state("device_tracker.position", NS(state="home")) is None
+    assert diagnostic_ha_state("sensor.unknown_custom", NS(state="12345")) is None
+
+
+def test_diagnostic_values_exclude_untyped_and_custom_mapping_data():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_ha_state,
+        diagnostic_technical_value,
+        diagnostic_telemetry,
+    )
+
+    car, profile = _fixture()
+    assert diagnostic_technical_value("chargingProfiles", 123456) is None
+    assert diagnostic_technical_value("availableChargeModes", 123456) is None
+    assert diagnostic_technical_value("stateOfCharge", True) is None
+    assert diagnostic_technical_value("stateOfCharge", 0) == 0
+    assert diagnostic_technical_value("climatisationAtUnlock", False) is False
+    car.readings["stateOfCharge"] = {
+        "value": 123456,
+        "family": "cariad",
+        "operation": "user.private.route",
+        "status": "verified",
+    }
+    report = diagnostic_telemetry(car, profile.registry)
+    assert report["attributes"][0]["selected"]["value"] is None
+    assert "123456" not in json.dumps(report)
+    state = NS(state="123456", attributes={"source_operation": "user.private.route"})
+    assert (
+        diagnostic_ha_state("sensor.state_of_charge", state, profile.registry) is None
+    )
+
+
+def test_diagnostic_data_act_values_and_paths_are_not_custom_routes():
+    from types import SimpleNamespace as NS
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_ha_state,
+        diagnostic_telemetry,
+    )
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    car, _ = _fixture()
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    path = next(
+        path
+        for path, mapping in registry.families["eu_data_act"]["observations"].items()
+        if mapping["attribute"] == "stateOfCharge"
+    )
+    car.readings["stateOfCharge"] = {
+        "value": 91,
+        "family": "eu_data_act",
+        "operation": "eu_data_act.dataset",
+        "path": path,
+        "status": "verified",
+    }
+    report = diagnostic_telemetry(car, registry)
+    selected = report["attributes"][0]["selected"]
+    assert selected["value"] == 91
+    assert selected["operation"] == "eu_data_act.dataset"
+    assert selected["path"] == path
+    state = NS(state="91", attributes={"source_operation": "eu_data_act.dataset"})
+    assert diagnostic_ha_state("sensor.state_of_charge", state, registry) == 91
+
+
+def test_charging_trace_follows_existing_source_invalidation():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        invalidate_attribute,
+        remove_family_observations,
+    )
+
+    car, profile = _fixture()
+    now = datetime.now(UTC)
+    sample = {
+        "value": 91,
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "status": "verified",
+    }
+    for family in ("cariad", "eu_data_act"):
+        commit_observation(
+            car,
+            "stateOfCharge",
+            {**sample, "family": family},
+            None,
+            now,
+        )
+    assert len(car.charging_observations) == 2
+    remove_family_observations(car, profile, "eu_data_act", now)
+    assert [row["family"] for row in car.charging_observations] == ["cariad"]
+    invalidate_attribute(car, "stateOfCharge")
+    assert not car.charging_observations
+    assert not car.family_readings.get("stateOfCharge")
+    assert "charging_observations" not in profile.snapshot()

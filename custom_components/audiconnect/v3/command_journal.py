@@ -152,6 +152,23 @@ class CommandRecord:
             "verified",
         )
 
+    def allows_immediate_reverse(self, capability, action):
+        """Only an explicit stop of a known accepted reversible operation."""
+        reversible = {
+            ("climate", "start"): "stop",
+            ("climate", "start_with_settings"): "stop",
+            ("climate", "window_heating_start"): "window_heating_stop",
+            ("charging", "start"): "stop",
+            ("climate", "preheater_start"): "preheater_stop",
+        }
+        return (
+            self.origin == "home_assistant"
+            and self.state in ("accepted_unconfirmed", "backend_completed", "verified")
+            and capability == self.capability
+            and action is not None
+            and reversible.get((self.capability, self.action)) == action
+        )
+
     def check_next(
         self,
         now: float,
@@ -177,21 +194,7 @@ class CommandRecord:
             # A user can explicitly stop a just-accepted comfort/charging
             # operation. No bypass for repeated starts, locks, engine or
             # unresolved commands; a subsequent start still waits.
-            reversible = {
-                ("climate", "start"): "stop",
-                ("climate", "start_with_settings"): "stop",
-                ("climate", "window_heating_start"): "window_heating_stop",
-                ("charging", "start"): "stop",
-                ("climate", "preheater_start"): "preheater_stop",
-            }
-            if (
-                self.origin == "home_assistant"
-                and self.state
-                in ("accepted_unconfirmed", "backend_completed", "verified")
-                and capability == self.capability
-                and reversible.get((self.capability, self.action)) == action
-                and action is not None
-            ):
+            if self.allows_immediate_reverse(capability, action):
                 return
             remaining = math.ceil(self.started_at + cooldown - now)
             raise RuntimeError(
@@ -421,6 +424,16 @@ def check_command_sequence(
             now, cooldown=cooldown, capability=capability, action=action
         )
     if latest is None:
+        return
+    # Optional linked refresh must not hide the original accepted START
+    # or delay its explicit STOP when the auxiliary refresh fails.
+    # Route/security/server restrictions still apply at dispatch.
+    if (
+        latest.is_wake
+        and previous is not None
+        and latest.parent_command_id == previous.command_id
+        and previous.allows_immediate_reverse(capability, action)
+    ):
         return
     if latest.unresolved:
         # Its capability is already checked above. Never erase the journal.

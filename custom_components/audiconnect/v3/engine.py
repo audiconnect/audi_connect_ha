@@ -151,6 +151,7 @@ class V3Engine:
             if not metadata_refined:
                 vehicle.readings.clear()
                 vehicle.family_readings.clear()
+                vehicle.charging_observations.clear()
                 vehicle.position = None
             vehicle.capability_readings.clear()
             vehicle.charging_profiles.clear()
@@ -1225,6 +1226,8 @@ class V3Engine:
             _LOGGER.warning("Audi command follow-up cloud read failed")
 
     async def _after_command(self, vin: str, record) -> None:
+        from .command_readback import follow_up_refresh_allowed
+
         if (
             getattr(getattr(self.entry, "runtime_data", None), "coordinator", None)
             is None
@@ -1233,14 +1236,14 @@ class V3Engine:
         remote_refresh = record.capability == "remote" and record.action == "refresh"
         if remote_refresh:
             self._refresh_event(vin, record)
-        elif (
-            getattr(self.entry, "options", {}).get(CONF_REFRESH_AFTER_ACTION, False)
-            and record.state in ("backend_completed", "verified")
-            and not (record.capability == "remote" and record.action == "wake")
+        elif getattr(self.entry, "options", {}).get(
+            CONF_REFRESH_AFTER_ACTION, False
+        ) and follow_up_refresh_allowed(
+            record, self.vehicles.get(vin.lower()), self.registry
         ):
             # The existing opt-in V2 option permits one explicit refresh after
-            # an accepted action. Never send it after uncertainty, recurse, or
-            # bypass the wake quota/security/evidence checks.
+            # known HTTP acceptance without a newer native capture. Never
+            # recurse or bypass the wake quota/security/evidence checks.
             try:
                 refresh = await self.commands.send_control(
                     vin, "refresh", "remote", _follow_up_to=record.command_id
@@ -1693,7 +1696,7 @@ class V3Engine:
         return {
             "mode": "v3",
             "diagnostics_schema_version": 2,
-            "privacy_scope": "structural_evidence_only_no_response_previews",
+            "privacy_scope": "allowlisted_technical_telemetry_no_response_previews",
             "polling_owner": "independent_v3_discovery_engine",
             "data_act_polling": self.status.data_act_poll_status(),
             "requests": self.transport.request_count,

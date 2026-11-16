@@ -140,9 +140,9 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
             self, (ClimateEntity, SwitchEntity, LockEntity, NumberEntity, SelectEntity)
         ):
             return False
-        return (self.extra_state_attributes or {}).get("state_source") in (
-            "optimistic",
-            "last_known_vehicle",
+        source = (self.extra_state_attributes or {}).get("state_source")
+        return source in ("optimistic", "last_known_vehicle") or (
+            source == "unknown" and isinstance(self, (SwitchEntity, LockEntity))
         )
 
     def _control_attributes(
@@ -1870,11 +1870,15 @@ class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
     def available(self) -> bool:
         if not getattr(self.vehicle, "inventory_present", True):
             return False
+        # A previously observed target remains evidence of this control,
+        # not the effective setting after an unconfirmed mutation.
+        reported = last_known_observation(
+            _control_reading(self.coordinator, self.vehicle, "targetstateOfCharge")
+        ).get("value")
         return (
-            self.native_value is not None
-            and self.coordinator.engine.control_enabled(
-                self.vehicle.vin, "set_target_soc", "charging"
-            )
+            self.native_value is not None or type(reported) in (int, float)
+        ) and self.coordinator.engine.control_enabled(
+            self.vehicle.vin, "set_target_soc", "charging"
         )
 
     @property
@@ -2058,7 +2062,12 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
     def available(self):
         if not getattr(self.vehicle, "inventory_present", True):
             return False
-        return self.is_on is not None and self.coordinator.engine.control_enabled(
+        reported = last_known_observation(
+            _control_reading(self.coordinator, self.vehicle, self.reading)
+        ).get("value")
+        return (
+            self.is_on is not None or type(reported) is bool
+        ) and self.coordinator.engine.control_enabled(
             self.vehicle.vin, "set_settings", "climate"
         )
 

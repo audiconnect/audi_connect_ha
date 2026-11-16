@@ -95,7 +95,7 @@ async def test_completed_climate_has_one_cloud_followup_and_optional_linked_wake
 
 
 @pytest.mark.asyncio
-async def test_refresh_is_not_repeated_and_uncertainty_never_creates_followup():
+async def test_refresh_is_not_repeated_and_known_acceptance_allows_followup():
     engine, transport, coordinator, events = fixture(True)
     await engine.send_control(VIN, "refresh", "remote")
     posts = [c for c in transport.request.await_args_list if c.args[1] == "POST"]
@@ -105,9 +105,22 @@ async def test_refresh_is_not_repeated_and_uncertainty_never_creates_followup():
     transport.request.side_effect = None
     transport.request.return_value = V3Response(200, {}, datetime.now(UTC), 50)
     await engine.send_control(VIN, "start", "climate")
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
+    assert len(posts) == 2
+    assert posts[0].endswith("climatisation/start")
+    assert posts[1].endswith("vehiclewakeup")
+    history = engine.profiles[VIN.lower()].command_journal
+    assert history[-1].parent_command_id == history[0].command_id
+    coordinator.async_request_refresh.assert_awaited_once()
+    engine, transport, coordinator, events = fixture(True)
+    transport.request.side_effect = None
+    transport.request.return_value = V3Response(502, {}, datetime.now(UTC), 50)
+    with pytest.raises(RuntimeError, match="uncertain"):
+        await engine.send_control(VIN, "start", "climate")
     assert transport.request.await_count == 1
     assert events == []
-    coordinator.async_request_refresh.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -279,3 +292,60 @@ async def test_http_502_reports_error_and_allows_explicit_retry_after_cooldown()
     assert (
         len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 2
     )
+
+
+def test_combined_refresh_requires_all_native_captures():
+    from datetime import timedelta
+    from custom_components.audiconnect.v3.command_readback import (
+        configure_readback,
+        follow_up_refresh_allowed,
+    )
+
+    engine, _, _, _ = fixture(True)
+    car = engine.vehicles[VIN.lower()]
+    now = datetime.now(UTC)
+    record = CommandRecord.begin(
+        "climate",
+        "start_with_settings",
+        "route",
+        (now - timedelta(seconds=5)).timestamp(),
+    )
+    configure_readback(record, {"temp_c": 22})
+    record.observe_http(200)
+    sample = {
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "family": "cariad",
+        "status": "verified",
+    }
+    car.readings["climatisationTargetTemperatureC"] = {**sample, "value": 22}
+    assert follow_up_refresh_allowed(record, car, engine.registry)
+    car.readings["climatisationState"] = {**sample, "value": "heating"}
+    assert not follow_up_refresh_allowed(record, car, engine.registry)
+    stateless = CommandRecord.begin("remote", "flash", "route", record.started_at)
+    stateless.observe_http(200)
+    assert not follow_up_refresh_allowed(stateless, car, engine.registry)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [403, 502])
+async def test_failed_linked_refresh_does_not_block_explicit_stop(status):
+    engine, transport, coordinator, _ = fixture(True)
+    original = transport.request.side_effect
+
+    async def request(family, method, path, **kwargs):
+        if method == "POST" and path.endswith("vehiclewakeup"):
+            return V3Response(status, {}, datetime.now(UTC), 50)
+        return await original(family, method, path, **kwargs)
+
+    transport.request.side_effect = request
+    await engine.send_control(VIN, "start", "climate")
+    coordinator.async_request_refresh.assert_awaited_once()
+    with pytest.raises(RuntimeError, match="cooldown"):
+        await engine.commands.send_control(VIN, "start", "climate")
+    await engine.commands.send_control(VIN, "stop", "climate")
+    posts = [
+        c.args[2] for c in transport.request.await_args_list if c.args[1] == "POST"
+    ]
+    assert len(posts) == 3
+    assert posts[-1].endswith("climatisation/stop")

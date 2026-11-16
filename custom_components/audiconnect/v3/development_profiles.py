@@ -565,14 +565,22 @@ class DevelopmentProfile:
         rows = [*self.command_journal, record]
         # Preserve latest control outcomes and active engineering/wake evidence.
         # Old routine failures must not consume all journal capacity.
-        from .command_readback import projection_attributes
+        from .command_readback import (
+            accepted_projection_attributes,
+            projection_attributes,
+        )
 
         latest_controls = {
             attribute: row.command_id
             for row in rows
             for attribute in projection_attributes(row)
         }
-        protected = set(latest_controls.values())
+        latest_accepted = {
+            attribute: row.command_id
+            for row in rows
+            for attribute in accepted_projection_attributes(row)
+        }
+        protected = set(latest_controls.values()) | set(latest_accepted.values())
         while len(rows) > HISTORY_LIMIT:
             active = self.discovery.active_attempt
             index = next(

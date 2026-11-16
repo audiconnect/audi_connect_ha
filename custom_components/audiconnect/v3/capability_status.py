@@ -29,7 +29,7 @@ from .custom_attributes import attributes_for
 from .attribute_routes import get_read_variant, read_variants
 from .legacy_read_mappings import variant_for as legacy_variant_for
 from .registry import builtin_read_path, selective_status_path
-from .read_discovery import summary as discovery_summary
+from .read_discovery import DATA_ACT_DATASET, summary as discovery_summary
 from .transport import (
     INVENTORY_OPERATION,
     IDENTITY_QUERIES,
@@ -1296,6 +1296,8 @@ def diagnostic_route_label(ident, registry):
         or ident in ("cariad.discovery.full", "cariad.selectivestatus.batch")
     ):
         return ident
+    if ident == DATA_ACT_DATASET and "eu_data_act" in registry.families:
+        return ident
     if ident.startswith("cariad.discovery."):
         jobs = ident.removeprefix("cariad.discovery.").split("_")
         if jobs and all(job in _V2_SELECTIVE_JOBS for job in jobs):
@@ -1308,10 +1310,349 @@ def diagnostic_route_label(ident, registry):
     return "custom_or_discovery_route"
 
 
+# Only reviewed technical attributes, not arbitrary custom/OEM payloads.
+_DIAGNOSTIC_SOC_ALIASES = frozenset(
+    ("measuredElectricSOC", "primaryEngineRangePercent", "secondaryEngineRangePercent")
+)
+_DIAGNOSTIC_DERIVED_PATHS = {
+    "measuredElectricSOC": ("measurements.fuelLevelStatus.value.currentSOC_pct",),
+    "charging_timer_enabled_count": ("chargingTimers.chargingTimersStatus.value",),
+    "climatisation_timer_enabled_count": (
+        "climatisationTimers.climatisationTimersStatus.value",
+    ),
+    "windowHeatingActive": ("climatisation.windowHeatingStatus.value",),
+    "preheater_active": ("climatisation.auxiliaryHeatingStatus.value",),
+}
+_DIAGNOSTIC_ENUMS = {
+    "chargingState": frozenset(
+        (
+            "charging",
+            "off",
+            "stopped",
+            "notcharging",
+            "not_charging",
+            "readyforcharging",
+            "notreadyforcharging",
+            "conservation",
+            "conservationcharging",
+            "completed",
+            "chargepurposereached",
+            "error",
+            "invalid",
+            "unsupported",
+        )
+    ),
+    "plugState": frozenset(("connected", "disconnected", "plugged", "unplugged")),
+    "preferredChargeMode": frozenset(("manual", "timer")),
+    "availableChargeModes": frozenset(("manual", "timer")),
+    "chargeMode": frozenset(("manual", "timer", "immediate", "off", "invalid")),
+    "engineTypeFirstEngine": frozenset(
+        ("electric", "gasoline", "diesel", "petrol", "hybrid", "cng", "lpg")
+    ),
+    "engineTypeSecondEngine": frozenset(
+        ("electric", "gasoline", "diesel", "petrol", "hybrid", "cng", "lpg")
+    ),
+    "primary_engine_type": frozenset(
+        ("electric", "fuel", "gasoline", "diesel", "petrol", "cng", "lpg")
+    ),
+    "secondary_engine_type": frozenset(
+        ("electric", "fuel", "gasoline", "diesel", "petrol", "cng", "lpg")
+    ),
+    "doorLockStatus": frozenset(("locked", "unlocked")),
+    "climatisationState": frozenset(
+        (
+            "off",
+            "on",
+            "heating",
+            "cooling",
+            "ventilation",
+            "active",
+            "inactive",
+            "stopped",
+        )
+    ),
+    "externalPower": frozenset(("available", "unavailable", "active", "inactive")),
+    "plugLockState": frozenset(("locked", "unlocked")),
+    "chargeType": frozenset(("ac", "dc", "invalid")),
+}
+_DIAGNOSTIC_REASONS = frozenset(
+    (
+        "conflicting_source_values",
+        "invalid_source_value",
+        "invalid_charge_mode_options",
+        "invalid_preferred_charge_mode",
+        "numeric_type_required",
+        "percentage_out_of_range",
+        "negative_duration",
+        "invalid_climate_state",
+        "restored_history",
+        "incomplete_timer_data",
+        "no_enabled_climatisation_timer",
+        "next_single_timer_not_determined",
+        "unknown_window_heating_state",
+    )
+)
+
+
+_DIAGNOSTIC_NUMERIC_FIELDS = (
+    frozenset(
+        (
+            "remainingChargingTime",
+            "actualChargeRate",
+            "charging_timer_enabled_count",
+            "climatisation_timer_enabled_count",
+        )
+    )
+    | _DIAGNOSTIC_SOC_ALIASES
+)
+_DIAGNOSTIC_BOOLEAN_FIELDS = frozenset(
+    (
+        "windowHeatingActive",
+        "preheater_active",
+        "climatisationWindowHeatingEnabled",
+        "climatisationAtUnlock",
+        "climatisationWithoutExternalPower",
+        "climatisationZoneFrontLeft",
+        "climatisationZoneFrontRight",
+        "climatisationZoneRearLeft",
+        "climatisationZoneRearRight",
+        "chargingPlugAutoUnlock",
+        "vehicleReportedOnline",
+        "vehicleReportedActive",
+        "externalPower",
+    )
+)
+
+
+def diagnostic_technical_value(ident, value):
+    """Bounded technical scalars only; no raw payloads or free text."""
+    import math
+
+    definition = CANONICAL_ATTRIBUTES.get(ident, {})
+    if (
+        ident not in CANONICAL_ATTRIBUTES
+        and ident not in _DIAGNOSTIC_SOC_ALIASES
+        and ident not in _DIAGNOSTIC_DERIVED_PATHS
+    ):
+        return None
+    key = definition.get("entity_key", "")
+    if ident in _NATIVE_TRIP_ATTRIBUTES or any(
+        word in key.lower()
+        for word in (
+            "position",
+            "location",
+            "model",
+            "vin",
+            "nickname",
+            "trip",
+            "profile_name",
+            "park_time",
+        )
+    ):
+        return None
+    contract = contract_for(key)
+    if type(value) is bool:
+        return (
+            value
+            if definition.get("platform") == "binary_sensor"
+            or ident in _DIAGNOSTIC_BOOLEAN_FIELDS
+            else None
+        )
+    if type(value) in (int, float):
+        if (
+            (
+                ident in _DIAGNOSTIC_NUMERIC_FIELDS
+                or contract.get("unit") is not None
+                or contract.get("state_class")
+                in ("measurement", "total", "total_increasing")
+            )
+            and abs(value) <= 1e100
+            and math.isfinite(value)
+        ):
+            return value
+        return None
+    allowed = _DIAGNOSTIC_ENUMS.get(ident, ())
+    if isinstance(value, str) and value.lower() in allowed:
+        return value
+    if (
+        ident == "availableChargeModes"
+        and isinstance(value, list)
+        and len(value) <= 32
+        and all(isinstance(v, str) and v in allowed for v in value)
+    ):
+        return value
+    return None
+
+
+def diagnostic_ha_state(key, state, registry=None):
+    """Allowlisted actual HA projection; never export names, location or IDs."""
+    from contextlib import suppress
+    from .product_contract import product_inventory
+
+    definition = product_inventory()["entities"].get(key, {})
+    if not definition or state is None:
+        return None
+    value = state.state
+    operation = getattr(state, "attributes", {}).get("source_operation")
+    if (
+        registry is not None
+        and isinstance(operation, str)
+        and diagnostic_route_label(operation, registry) == "custom_or_discovery_route"
+    ):
+        return None
+    if value in ("unknown", "unavailable"):
+        return value
+    platform = key.split(".", 1)[0]
+    if platform in ("switch", "binary_sensor") and value in ("on", "off"):
+        return value
+    if platform == "lock" and value in ("locked", "unlocked", "locking", "unlocking"):
+        return value
+    if platform == "climate" and value in ("off", "heat_cool"):
+        return value
+    if key == "select.charge_mode":
+        return diagnostic_technical_value("preferredChargeMode", value)
+    if key == "number.target_state_of_charge":
+        source = "targetstateOfCharge"
+    elif platform == "sensor":
+        source = next(iter(definition.get("source_attributes", ())), None)
+    else:
+        return None
+    if source is None:
+        return None
+    if isinstance(value, str):
+        with suppress(ValueError):
+            value = float(value)
+    return diagnostic_technical_value(source, value)
+
+
+def diagnostic_telemetry(vehicle, registry):
+    """Read-only current/retained candidates and canonical SOC selection."""
+    from .attribute_runtime import _capture_in_utc
+    from .freshness import capture_age_minutes
+    from .historical_catalog import ATTRIBUTES
+    from .product_contract import electric_soc_sources, projection_reading
+
+    now = datetime.now(UTC)
+
+    def safe_stamp(value):
+        stamp = _capture_in_utc(value)
+        return stamp.isoformat() if stamp is not None else None
+
+    # Only reviewed field paths may leave diagnostics; custom paths stay private.
+    def sample(ident, row):
+        definition = ATTRIBUTES.get(ident, {})
+        path = row.get("path")
+        operation = row.get("operation")
+        reason = row.get("reason")
+        status = row.get("status")
+        label = (
+            diagnostic_route_label(operation, registry)
+            if isinstance(operation, str)
+            else None
+        )
+        # A custom mapping can deliberately point even a known technical
+        # attribute at unrelated data. Do not export that value.
+        value = (
+            diagnostic_technical_value(ident, row.get("value"))
+            if label != "custom_or_discovery_route"
+            else None
+        )
+        legacy = legacy_variant_for(ident) or {}
+        data_act = registry.families.get("eu_data_act", {}).get("observations", {})
+        known_path = (
+            path in definition.get("paths", ())
+            or path in _DIAGNOSTIC_DERIVED_PATHS.get(ident, ())
+            or path in legacy.get("response_paths", ())
+            or (
+                label == DATA_ACT_DATASET
+                and path in data_act
+                and data_act[path]["attribute"] == ident
+            )
+        )
+        return {
+            "value": value,
+            "captured": safe_stamp(row.get("captured")),
+            "observed_at": safe_stamp(row.get("observed")),
+            "delivered_at": safe_stamp(row.get("delivered_at")),
+            "age_minutes": capture_age_minutes(row.get("captured"), now),
+            "status": status
+            if status in ("verified", "readable_but_stale", "invalid_value")
+            else None,
+            "reason": reason if reason in _DIAGNOSTIC_REASONS else None,
+            "operation": label,
+            "path": path if known_path else None,
+        }
+
+    rows = []
+    for ident in sorted(
+        set(CANONICAL_ATTRIBUTES)
+        | _DIAGNOSTIC_SOC_ALIASES
+        | _DIAGNOSTIC_DERIVED_PATHS.keys()
+    ):
+        current = vehicle.readings.get(ident, {})
+        candidates = getattr(vehicle, "family_readings", {}).get(ident, {})
+        if not current and not candidates:
+            continue
+        definition = ATTRIBUTES.get(ident, {})
+        unit = contract_for(definition.get("entity_key", "")).get("unit")
+        if ident in _DIAGNOSTIC_SOC_ALIASES:
+            unit = "%"
+        family = current.get("family")
+        rows.append(
+            {
+                "attribute": ident,
+                "unit": unit,
+                "selected_family": family if family in registry.families else None,
+                "selected": sample(ident, current) if current else None,
+                "last_known": sample(ident, current["last_known"])
+                if current.get("last_known")
+                else None,
+                "candidates": [
+                    {
+                        "family": family,
+                        **sample(ident, row),
+                        "last_known": sample(ident, row["last_known"])
+                        if row.get("last_known")
+                        else None,
+                    }
+                    for family, row in sorted(candidates.items())
+                    if family in registry.families
+                ],
+            }
+        )
+    ident, selected = projection_reading(
+        vehicle, ATTRIBUTES["stateOfCharge"], registry=registry, now=now
+    )
+    known = last_known_observation(selected)
+    family = known.get("family")
+    return {
+        "attributes": rows,
+        "charging_observations": [
+            {
+                "attribute": row["attribute"],
+                "family": row["family"],
+                **sample(row["attribute"], row),
+                "selected": row["selected"],
+            }
+            for row in getattr(vehicle, "charging_observations", ())
+            if row["family"] in registry.families
+        ],
+        "state_of_charge_projection": {
+            "eligible_attributes": ["stateOfCharge", *electric_soc_sources(vehicle)],
+            "attribute": ident,
+            "family": family if family in registry.families else None,
+            "unit": "%",
+            **sample(ident, known),
+        }
+        if known
+        else None,
+    }
+
+
 def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
     """Safe diagnostic projection of the same capability model as the dashboard.
 
-    No nickname, user route, VIN, payload, setting values or custom identifiers.
+    No nickname, user route, VIN, raw payload or custom identifiers.
     Catalog compatibility, current command eligibility and physical evidence
     remain independent. This is a read-only computation from current state.
     """
@@ -1422,6 +1763,21 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                 }
             )
     return {
+        "technical_telemetry": diagnostic_telemetry(vehicle, base_registry),
+        "charging_command_history": [
+            {
+                **item,
+                "state": record.state,
+                "backend_result": record.backend_result,
+                "completed_at": record.completed_at,
+                "readback_observed_at": record.readback_observed_at,
+                "readback_mismatch_at": record.readback_mismatch_at,
+            }
+            for record in getattr(profile, "command_journal", ())
+            if record.origin == "home_assistant"
+            and record.capability == "charging"
+            and (item := safe_command(record)) is not None
+        ],
         "pending_engineering_test": pending_summary,
         "unresolved_normal_commands": unresolved,
         "capabilities": summaries,

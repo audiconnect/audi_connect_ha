@@ -293,3 +293,44 @@ def test_physical_review_survives_routine_and_discovery_history_rotation():
     assert row["discovery_review"] == attempt.public()
     restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
     assert restored.reviewed_control(route) is None
+
+
+def test_accepted_control_boundary_survives_rejection_and_journal_rotation():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.product_contract import control_projection
+
+    p = DevelopmentProfile(model(), VehicleContext(auth="auth0", region="DE"))
+    accepted = CommandRecord.begin(
+        "charging", "start", "cariad.charging.start", 1790000100
+    )
+    configure_readback(accepted, {})
+    accepted.observe_http(200)
+    p.track_command(accepted)
+    rejected = CommandRecord.begin(
+        "charging", "stop", "cariad.charging.stop", 1790000200
+    )
+    configure_readback(rejected, {})
+    rejected.observe_http(403)
+    p.track_command(rejected)
+    for i in range(HISTORY_LIMIT + 5):
+        other = CommandRecord.begin(
+            "climate", "start", "cariad.climate.start.stored", 1790000300 + i
+        )
+        configure_readback(other, {})
+        other.observe_http(200)
+        p.track_command(other)
+    restored = restore_profile(model(), p.discovery.context, p.snapshot())
+    assert len(restored.command_journal) == HISTORY_LIMIT
+    assert accepted.command_id in {row.command_id for row in restored.command_journal}
+    old = {
+        "value": "off",
+        "captured": datetime.fromtimestamp(1790000000, UTC).isoformat(),
+        "status": "verified",
+    }
+    assert control_projection(
+        restored,
+        "chargingState",
+        old,
+        now=datetime.fromtimestamp(1790001000, UTC),
+    ) == (None, "unknown")

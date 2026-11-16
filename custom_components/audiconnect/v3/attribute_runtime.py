@@ -341,7 +341,18 @@ def _retain_history(selected, previous, incoming, now):
         }
     else:
         known = {
-            key: first.get(key) for key in ("value", "captured", "family", "status")
+            key: first[key]
+            for key in (
+                "value",
+                "captured",
+                "family",
+                "status",
+                "path",
+                "operation",
+                "observed",
+                "delivered_at",
+            )
+            if key in first
         }
     if selected.get("last_known") == known:
         return selected
@@ -436,6 +447,50 @@ def _select_observation(vehicle, ident, candidates, registry, now):
     )
 
 
+_CHARGING_TRACE_FIELDS = frozenset(
+    (
+        "stateOfCharge",
+        "measuredElectricSOC",
+        "primaryEngineRangePercent",
+        "secondaryEngineRangePercent",
+        "chargingState",
+        "chargingPower",
+        "plugState",
+        "targetstateOfCharge",
+        "preferredChargeMode",
+        "charging_timer_enabled_count",
+    )
+)
+
+
+def _trace_charging_observation(vehicle, ident, row):
+    """Bounded receipt evidence only; never participates in state selection."""
+    trace = getattr(vehicle, "charging_observations", None)
+    if trace is None or ident not in _CHARGING_TRACE_FIELDS:
+        return
+    value = row.get("value")
+    current = vehicle.readings.get(ident, {})
+    trace.append(
+        {
+            "attribute": ident,
+            "value": value if type(value) in (bool, int, float, str) else None,
+            "family": row.get("family"),
+            "captured": row.get("captured"),
+            "observed": row.get("observed"),
+            "delivered_at": row.get("delivered_at"),
+            "path": row.get("path"),
+            "operation": row.get("operation"),
+            "status": row.get("status"),
+            "reason": row.get("reason"),
+            "selected": all(
+                row.get(key) == current.get(key)
+                for key in ("family", "captured", "value", "status")
+            ),
+        }
+    )
+    del trace[:-128]
+
+
 def commit_observation(vehicle, ident, row, registry, now):
     """Keep one canonical sample per family; never order by polling time."""
     received = _capture_in_utc(row.get("observed")) or now
@@ -459,9 +514,11 @@ def commit_observation(vehicle, ident, row, registry, now):
         if modes != set(selected.get("discovered_options", ())):
             selected = {**selected, "discovered_options": sorted(modes)}
     if selected is previous:
+        _trace_charging_observation(vehicle, ident, row)
         return False
     candidates[family] = selected
     _select_observation(vehicle, ident, candidates, registry, now)
+    _trace_charging_observation(vehicle, ident, row)
     # A historical-only enrichment is not a new current observation.
     return previous is None or any(
         selected.get(key) != previous.get(key)
@@ -473,6 +530,9 @@ def invalidate_attribute(vehicle, ident):
     """A route/enablement change invalidates both current and competing samples."""
     vehicle.readings.pop(ident, None)
     vehicle.family_readings.pop(ident, None)
+    trace = getattr(vehicle, "charging_observations", None)
+    if trace is not None:
+        trace[:] = [row for row in trace if row["attribute"] != ident]
 
 
 def refresh_family_observations(vehicle, profile, now):
@@ -485,6 +545,9 @@ def refresh_family_observations(vehicle, profile, now):
 
 def remove_family_observations(vehicle, profile, family, now):
     """Remove explicitly revoked read access without losing other observations."""
+    trace = getattr(vehicle, "charging_observations", None)
+    if trace is not None:
+        trace[:] = [row for row in trace if row["family"] != family]
     changed = False
     for ident in set(vehicle.readings) | set(vehicle.family_readings):
         current = vehicle.readings.get(ident)

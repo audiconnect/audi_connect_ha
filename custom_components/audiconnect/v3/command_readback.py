@@ -255,6 +255,17 @@ def projection_attributes(record):
     return (attribute,) if attribute else ()
 
 
+def accepted_projection_attributes(record):
+    """Known mutation boundary, retained even after correlated rejection."""
+    if (
+        record.origin == "home_assistant"
+        and record.http_status is not None
+        and 200 <= record.http_status < 300
+    ):
+        return projection_attributes(record)
+    return ()
+
+
 def latest_projection_command(profile, attribute):
     # A later attempt supersedes an earlier one even if rejected or uncertain.
     return next(
@@ -281,6 +292,43 @@ def optimistic_expiry(record):
     ):
         return None
     return record.started_at + OPTIMISTIC_TTL_SECONDS
+
+
+def follow_up_refresh_allowed(record, car, registry=None):
+    """One opt-in refresh after known acceptance, never a replay or proof."""
+    if (
+        record is None
+        or car is None
+        or not getattr(car, "inventory_present", True)
+        or record.origin != "home_assistant"
+        or getattr(record, "restored", False)
+        or record.parent_command_id is not None
+        or record.http_status is None
+        or not 200 <= record.http_status < 300
+        or record.state not in ("accepted_unconfirmed", "backend_completed", "verified")
+        or record.backend_result in ("rejected", "transport_uncertain", "quota_limited")
+        or (record.capability == "remote" and record.action in ("refresh", "wake"))
+    ):
+        return False
+    if (
+        record.readback_observed_at is not None
+        or record.readback_mismatch_at is not None
+    ):
+        return False
+    attributes = projection_attributes(record)
+    if not attributes:
+        # Keep the old completed-action behavior for stateless actions;
+        # unconfirmed flash/horn/etc. do not warrant a new vehicle request.
+        return record.state in ("backend_completed", "verified")
+    # Every affected field needs a newer native capture, not merely one
+    # field of a combined start-and-temperature request.
+    for attribute in attributes:
+        value, stamp = _readback_value(
+            car, attribute, registry=registry, started_at=record.started_at
+        )
+        if value is None or stamp is None or stamp.timestamp() <= record.started_at:
+            return True
+    return False
 
 
 def requested_projection(record, attribute):

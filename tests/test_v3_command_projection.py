@@ -253,7 +253,7 @@ def test_lock_transition_expires_without_fabricating_physical_state():
     ) == ("locked", "vehicle")
     assert control_projection(
         profile, "doorLockStatus", reading, now=NOW + timedelta(minutes=30)
-    ) == ("locked", "vehicle")
+    ) == (None, "unknown")
     assert projected_state(profile, "doorLockStatus", "locked", OLD, now=NOW) == (
         "unlocked",
         "optimistic",
@@ -454,6 +454,9 @@ def test_manual_stop_after_failed_remote_stop_is_not_command_success():
         ("access", "unlock", {}, "doorLockStatus", "locked", "unlocked"),
         ("access", "lock", {}, "doorLockStatus", "unlocked", "locked"),
         ("climate", "start", {}, "climate", "off", "on"),
+        ("charging", "start", {}, "chargingState", "off", "charging"),
+        ("charging", "stop", {}, "chargingState", "charging", "off"),
+        ("climate", "window_heating_start", {}, "windowHeatingActive", False, True),
         ("climate", "preheater_stop", {}, "preheater_active", True, False),
         ("charging", "set_target_soc", {"value": 80}, "targetstateOfCharge", 70, 80),
         (
@@ -497,13 +500,18 @@ def test_accepted_control_projection_expires_and_newer_observation_wins(
     ) == (reported, "vehicle")
     expiry = datetime.fromtimestamp(command.started_at + OPTIMISTIC_TTL_SECONDS, UTC)
     assert control_projection(profile, attribute, reading, now=expiry) == (
-        reported,
-        "vehicle",
+        None,
+        "unknown",
+    )
+    restored = NS(command_journal=[CommandRecord.restore(command.snapshot())])
+    assert control_projection(restored, attribute, reading, now=NOW) == (
+        None,
+        "unknown",
     )
     command.observe_backend("rejected", NOW.timestamp())
     assert control_projection(profile, attribute, reading, now=NOW) == (
-        reported,
-        "vehicle",
+        None,
+        "unknown",
     )
 
 
@@ -511,7 +519,9 @@ def test_accepted_control_projection_expires_and_newer_observation_wins(
     "action,reported,new_state",
     [("stop", "charging", "off"), ("start", "off", "charging")],
 )
-def test_charging_intent_never_replaces_reported_state(action, reported, new_state):
+def test_charging_intent_is_bounded_and_preserves_reported_state(
+    action, reported, new_state
+):
     from custom_components.audiconnect.v3.product_contract import control_projection
 
     command = record("charging", action)
@@ -523,19 +533,46 @@ def test_charging_intent_never_replaces_reported_state(action, reported, new_sta
         "status": "verified",
     }
     assert control_projection(profile, "chargingState", reading, now=NOW) == (
-        reported,
-        "last_known_vehicle",
+        new_state,
+        "optimistic",
     )
     assert control_projection(profile, "chargingState", {}, now=NOW) == (
+        new_state,
+        "optimistic",
+    )
+    # The old capture must never become current solely because time passes.
+    for elapsed in (5, 30, 120):
+        later = NOW + timedelta(minutes=elapsed)
+        assert control_projection(profile, "chargingState", reading, now=later) == (
+            None,
+            "unknown",
+        )
+    restored = NS(command_journal=[CommandRecord.restore(command.snapshot())])
+    assert control_projection(restored, "chargingState", reading, now=NOW) == (
         None,
         "unknown",
     )
+    # A newer valid capture wins even when it contradicts the request.
+    for value in (new_state, reported):
+        assert control_projection(
+            profile,
+            "chargingState",
+            {**reading, "value": value, "captured": NEW.isoformat()},
+            now=NEW,
+        ) == (value, "vehicle")
+    # A subsequent HTTP rejection must not resurrect pre-START/STOP telemetry.
+    rejected = record("charging", "stop" if action == "start" else "start")
+    rejected.started_at = NEW.timestamp()
+    rejected.observe_http(403)
+    profile.command_journal.append(rejected)
+    assert control_projection(profile, "chargingState", reading, now=NEW) == (
+        None,
+        "unknown",
+    )
+    # A vehicle with no accepted command retains its ordinary reported state.
     assert control_projection(
-        profile,
-        "chargingState",
-        {**reading, "value": new_state, "captured": NEW.isoformat()},
-        now=NEW,
-    ) == (new_state, "vehicle")
+        NS(command_journal=[]), "chargingState", reading, now=NOW
+    ) == (reported, "vehicle")
 
 
 def test_sleeping_lock_retains_last_observation_and_explicit_reverse_dispatch():
@@ -569,8 +606,9 @@ def test_sleeping_lock_retains_last_observation_and_explicit_reverse_dispatch():
     asyncio.run(entity.async_lock())
     entity._send_access.assert_awaited_once_with("lock")
     command.state = "rejected"
-    assert entity.is_locked is True
-    assert entity.extra_state_attributes["state_source"] == "last_known_vehicle"
+    assert entity.is_locked is None
+    assert entity.assumed_state
+    assert entity.extra_state_attributes["state_source"] == "unknown"
     assert entity.extra_state_attributes["last_reported_state"] == "locked"
 
 
@@ -587,4 +625,4 @@ def test_restart_never_reactivates_optimistic_state():
     }
     assert control_projection(
         NS(command_journal=[restored]), "doorLockStatus", reading, now=NOW
-    ) == ("locked", "vehicle")
+    ) == (None, "unknown")
