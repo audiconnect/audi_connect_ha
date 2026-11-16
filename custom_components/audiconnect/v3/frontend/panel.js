@@ -1582,7 +1582,7 @@ class AudiConnectV3Panel extends HTMLElement {
       <p>${escapeHTML(p.controls_route_available ?? rows.filter((c) => c.eligible).length)} routes available · ${escapeHTML(p.controls_dispatch_ready ?? 0)} dispatch ready · ${escapeHTML(p.controls_physically_verified ?? 0)} physically verified / ${escapeHTML(p.controls_catalog_applicable ?? 0)} catalog applicable · ${escapeHTML(p.controls_ineligible ?? 0)} ineligible · ${this.skippedControls.size} skipped · ${candidates.filter((c) => !this.skippedControls.has(c.capability + "." + c.action)).length} ready to test</p>
       ${
         this.expertDiscovery
-          ? `<p>Select any eligible action below. Each Test authorizes that action only; a reviewed equivalent may be tried after definitive rejection. No mandatory sequence. Failed routes can be edited in the existing API editor.</p>`
+          ? `<p>Select any eligible action below. Each Test authorizes only the selected route. No mandatory sequence. Retry a failed route directly, or edit it in the API editor.</p>`
           : candidate && !this.pending
             ? `<div class="callout"><b>Discover ${escapeHTML(candidate.label)}?</b><p>Yes authorizes this action only. If definitively rejected, one reviewed equivalent route may be tried. Be present at the safely parked vehicle and able to restore its state.</p>
       ${candidate.instructions ? `<p>${escapeHTML(candidate.instructions)}</p>` : ""}
@@ -1601,9 +1601,10 @@ class AudiConnectV3Panel extends HTMLElement {
             c.capability === this.capabilityFilter,
         )
         .map((c) => {
-          const candidate = expertCandidates.find(
+          const routeCandidates = expertCandidates.filter(
             (x) => x.capability === c.capability && x.action === c.action,
           );
+          const candidate = routeCandidates[0];
           const latest = [...history]
             .reverse()
             .find(
@@ -1615,8 +1616,11 @@ class AudiConnectV3Panel extends HTMLElement {
           return `<div class="attribute-row"><div><b>${escapeHTML(this.actionName(c.capability, c.action))}</b> · ${escapeHTML(friendly(c.route_status || c.status))} · ${escapeHTML(!this.expertDiscovery && this.skippedControls.has(c.capability + "." + c.action) ? "Skipped" : friendly(c.physical))}<div class="subline">${escapeHTML(c.reason ? friendly(c.reason) : c.dispatch_ready === false && c.dispatch_reason ? friendly(c.dispatch_reason) : this.pending ? "Testing paused: finish the pending engineering test above" : latest ? `Last command: ${friendly(latest.state)}${latest.http_status ? ` · HTTP ${latest.http_status}` : ""}` : "No current command restriction")}</div>${c.charge_mode_evidence ? `<div class="subline">Locally verified modes: ${escapeHTML(c.charge_mode_evidence.locally_verified_modes.join(", ") || "None")} · Writable options: ${escapeHTML(c.charge_mode_evidence.writable_modes.join(", ") || "None")}</div>` : ""}</div>
         ${
           this.expertDiscovery
-            ? `<div>${candidate?.instructions ? `<p class="helper">${escapeHTML(candidate.instructions)}</p>` : ""}${this.parameterFields(candidate)}<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(candidate?.operation || "")}" ${!candidate || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !candidate ? friendly(c.reason || c.status) : "Test this action")}">Test</button>
-        <button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div></div>`
+            ? `<div>${(routeCandidates.length ? routeCandidates : [null])
+                .map(
+                  (route) => `<div>${routeCandidates.length > 1 ? `<b>${escapeHTML(route.label)}</b>` : ""}${route?.instructions ? `<p class="helper">${escapeHTML(route.instructions)}</p>` : ""}${this.parameterFields(route)}<div class="actions"><button data-action="end-user-yes" ${attrs} data-operation="${escapeHTML(route?.operation || "")}" ${!route || this.pending || this.loading ? "disabled" : ""} title="${escapeHTML(this.pending ? "Finish the pending engineering test above" : !route ? friendly(c.reason || c.status) : "Test this route")}">Test</button></div></div>`,
+                )
+                .join("")}<div class="actions"><button data-action="select-control" ${attrs} data-operation="${escapeHTML(failed ? latest.operation : candidate?.operation || "")}">${failed ? "Edit failed API" : "Edit API"}</button></div></div>`
             : ""
         }</div>`;
         })
