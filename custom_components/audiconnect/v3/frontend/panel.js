@@ -566,6 +566,12 @@ class AudiConnectV3Panel extends HTMLElement {
       this.render();
       return;
     }
+    if (action === "resume-skipped-controls") {
+      if (this.pending) return;
+      this.skippedControls.clear();
+      this.render();
+      return;
+    }
     if (action === "end-user-no" || action === "end-user-yes") {
       if (this.step !== 5 || this.pending) return;
       const candidate = this.expertDiscovery
@@ -1578,7 +1584,7 @@ class AudiConnectV3Panel extends HTMLElement {
         .join("")}</tbody></table></div>
 
       <h3>3 · Control discovery &amp; physical verification</h3>
-      <div class="actions"><button data-action="discovery-mode" data-mode="guided" class="${!this.expertDiscovery ? "primary" : ""}">Guided</button><button data-action="discovery-mode" data-mode="expert" class="${this.expertDiscovery ? "primary" : ""}">Expert · selective</button></div>
+      <div class="actions"><button data-action="discovery-mode" data-mode="guided" class="${!this.expertDiscovery ? "primary" : ""}">Guided</button><button data-action="discovery-mode" data-mode="expert" class="${this.expertDiscovery ? "primary" : ""}">Expert · selective</button>${this.skippedControls.size ? `<button data-action="resume-skipped-controls" ${this.pending || this.loading ? "disabled" : ""}>Resume skipped controls</button>` : ""}</div>
       <p>${escapeHTML(p.controls_route_available ?? rows.filter((c) => c.eligible).length)} routes available · ${escapeHTML(p.controls_dispatch_ready ?? 0)} dispatch ready · ${escapeHTML(p.controls_physically_verified ?? 0)} physically verified / ${escapeHTML(p.controls_catalog_applicable ?? 0)} catalog applicable · ${escapeHTML(p.controls_ineligible ?? 0)} ineligible · ${this.skippedControls.size} skipped · ${candidates.filter((c) => !this.skippedControls.has(c.capability + "." + c.action)).length} ready to test</p>
       ${
         this.expertDiscovery
