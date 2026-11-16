@@ -243,3 +243,15 @@ def test_optional_climate_combination_proof_does_not_replace_base_route():
     assert restored.verified_climate_variants[route] == {good: revision}
     restored.rebind_context(VehicleContext(auth="auth0", region="BE"))
     assert not restored.verified_climate_variants
+
+    # An interrupted optional test remains reviewable but cannot turn into
+    # evidence for the independently verified base route after restart.
+    pending = profile.begin_test("climate", "start_with_settings", route, now=130)
+    profile.engineering_record(pending.sequence).requested_climate_variant = bad
+    profile.observe_http(pending.sequence, 200)
+    saved = profile.snapshot()
+    assert saved["invalidated_attempt_sequence"] == pending.sequence
+    recovered = restore_profile(registry, car.context, saved, cooldown_seconds=0)
+    recovered.confirm(pending.sequence, worked=True, inspected_vehicle=True, now=131)
+    assert recovered.control_results[route] == "worked"
+    assert recovered.verified_climate_variants[route] == {good: revision}

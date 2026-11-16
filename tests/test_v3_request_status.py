@@ -172,3 +172,16 @@ def test_late_queue_result_is_exact_context_bound_and_not_physical_readback():
     restored = CommandRecord.restore(record.snapshot())
     profile.command_journal[:] = [restored]
     assert not reconcile_native_queue(profile, payload(error), later)
+
+
+def test_duplicate_request_ids_are_not_backend_evidence():
+    reply = {
+        "data": [
+            {"id": "a", "status": "successful"},
+            {"id": "a", "status": "rejected"},
+        ]
+    }
+    assert status_of(reply, "a") == "unknown"
+    assert status_of({"data": [{"id": "a", "status": "successful"}] * 201}, "a") == (
+        "unknown"
+    )

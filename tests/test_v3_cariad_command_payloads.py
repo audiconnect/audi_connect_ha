@@ -283,6 +283,20 @@ def test_vehicle_specific_climate_discovery_schema_and_payload():
     assert "seat_fl" in schema
     assert "seat_rl" not in schema
     assert schema["climatisation_mode"]["enum"] == ["comfort"]
+
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    vehicle.advertised_capabilities.add("climatisation")
+    obj = engine(payload)
+    from types import SimpleNamespace
+
+    obj.auth = SimpleNamespace(uses_auth0=True, service=SimpleNamespace(_spin=""))
+    guided = user_test_candidates(obj, vehicle, profile)
+    selective = user_test_candidates(obj, vehicle, profile, include_verified=True)
+    key = "climate.start_with_settings"
+    assert set(guided[key]["parameter_schema"]) == {"temp_c"}
+    assert "seat_fl" in selective[key]["parameter_schema"]
+    assert "seat_rl" not in selective[key]["parameter_schema"]
     assert set(native_climate_parameter_schema(route, {}, car())) == {
         "temp_c",
         "temp_f",

@@ -962,6 +962,13 @@ class DevelopmentProfile:
             validate_identity_body(body)
         self.identity_drafts[operation] = deepcopy(body)
 
+    def _pending_climate_variant_sequence(self):
+        # An interrupted optional experiment cannot become base-route proof
+        # after a restart or downgrade. Retain the existing review guard.
+        attempt = self.discovery.active_attempt
+        record = self.engineering_record(attempt.sequence) if attempt else None
+        return attempt.sequence if record and record.requested_climate_variant else None
+
     def snapshot(self) -> dict[str, Any]:
         """Safe local profile record. No VIN, tokens or raw HTTP payloads."""
         from .attribute_runtime import status_snapshot
@@ -969,7 +976,10 @@ class DevelopmentProfile:
         return {
             "schema_version": 1,
             "vehicle_context": asdict(self.discovery.context),
-            "invalidated_attempt_sequence": self.invalidated_attempt_sequence,
+            "invalidated_attempt_sequence": (
+                self.invalidated_attempt_sequence
+                or self._pending_climate_variant_sequence()
+            ),
             "custom_routes": deepcopy(list(self.custom.values())),
             "active": dict(self.active),
             "active_revisions": dict(self.active_revisions),

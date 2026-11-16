@@ -88,7 +88,7 @@ async def patch_settings(transport, vin, mode, params):
         for key in TEMPERATURE:
             updates.pop(key, None)
         updates["targetTemperature_C"] = target
-        if "targetTemperature_F" in current:
+        if type(current.get("targetTemperature_F")) in (int, float):
             fahrenheit = target * 9 / 5 + 32
             updates["targetTemperature_F"] = (
                 round(fahrenheit)

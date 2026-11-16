@@ -46,11 +46,15 @@ def _backend_status(status):
 def status_of(payload: Any, request_id: str) -> str:
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         return "unknown"
-    for request in payload["data"][:200]:
-        if not isinstance(request, dict) or request.get("id") != request_id:
-            continue
-        return _backend_status(request.get("status"))
-    return "not_listed" if len(payload["data"]) <= 200 else "unknown"
+    rows = payload["data"]
+    if len(rows) > 200:
+        return "unknown"
+    matches = [
+        row for row in rows if isinstance(row, dict) and row.get("id") == request_id
+    ]
+    if len(matches) != 1:
+        return "unknown" if matches else "not_listed"
+    return _backend_status(matches[0].get("status"))
 
 
 async def confirm(

@@ -214,7 +214,15 @@ class CommandRecord:
             )
 
     def snapshot(self) -> dict:
-        return asdict(self)
+        # Keep the B47 journal wire contract. Queue detail is runtime evidence;
+        # after restart the coarse backend outcome is sufficient for safety.
+        row = asdict(self)
+        row.pop("requested_climate_variant", None)
+        if self.backend_result in PENDING_RESULTS:
+            row["backend_result"] = "pending"
+        elif self.backend_result == "not_listed":
+            row["backend_result"] = "accepted_unconfirmed"
+        return row
 
     @classmethod
     def restore(cls, value: dict, *, recover_pending: bool = True):

@@ -343,6 +343,7 @@ def test_queue_backend_evidence_survives_restart_without_reactivating_intent():
     record.observe_backend("queued", 101)
     p.track_command(record)
     recovered = restore_profile(model(), p.discovery.context, p.snapshot())
-    assert recovered.last_command.backend_result == "queued"
+    assert "requested_climate_variant" not in record.snapshot()
+    assert recovered.last_command.backend_result == "pending"
     assert recovered.last_command.state == "accepted_unconfirmed"
     assert recovered.last_command.restored

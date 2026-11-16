@@ -162,9 +162,14 @@ def native_climate_parameter_schema(operation, route, vehicle):
     """Vehicle-specific discovery fields; a fresh GET still guards dispatch."""
     schema = parameter_schema(operation, route)
     mode = operation.get("request_mode")
-    if route or operation.get("input_schema") or mode not in (
-        "climate_start_settings",
-        "climate_settings_update",
+    if (
+        route
+        or operation.get("input_schema")
+        or mode
+        not in (
+            "climate_start_settings",
+            "climate_settings_update",
+        )
     ):
         return schema
     from .attribute_runtime import select_reading
