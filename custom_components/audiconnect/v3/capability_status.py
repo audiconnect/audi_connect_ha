@@ -1437,6 +1437,7 @@ def diagnostic_technical_value(ident, value):
 
 def diagnostic_ha_state(key, state):
     """Allowlisted actual HA projection; never export names, location or IDs."""
+    from contextlib import suppress
     from .product_contract import product_inventory
 
     definition = product_inventory()["entities"].get(key, {})
@@ -1463,10 +1464,8 @@ def diagnostic_ha_state(key, state):
     if source is None:
         return None
     if isinstance(value, str):
-        try:
+        with suppress(ValueError):
             value = float(value)
-        except ValueError:
-            pass
     return diagnostic_technical_value(source, value)
 
 
