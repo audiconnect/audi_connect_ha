@@ -185,12 +185,14 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
     if key == "state_of_charge":
         sources.extend(electric_soc_sources(vehicle))
     if key in ("primary_engine_range", "secondary_engine_range"):
-        role = engine_role(vehicle, key.split("_", 1)[0])
-        # A PHEV may have its electric engine in either slot. Never
-        # substitute total range or the other engine's measurement.
-        if role == "electric":
+        slot = key.split("_", 1)[0]
+        role = engine_role(vehicle, slot)
+        other = engine_role(vehicle, "secondary" if slot == "primary" else "primary")
+        # An aggregate role value cannot identify either of two engines
+        # of the same type. Keep the slot-specific readings in that case.
+        if role == "electric" and other != role:
             sources.extend(("measuredElectricRange", "batteryElectricRange"))
-        elif role == "fuel":
+        elif role == "fuel" and other != role:
             sources.append("measuredFuelRange")
     if key == "tank_level":
         sources.extend(
@@ -312,6 +314,7 @@ def entity_availability_reason(engine, uid, key, status, state_present):
             "button.flash_lights",
             "device_tracker.position",
             "sensor.park_time",
+            "sensor.parked_in",
             "sensor.position_last_updated",
         )
         and car.position is None

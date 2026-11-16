@@ -1798,16 +1798,9 @@ class V3ParkedTracker(V3BaseEntity, TrackerEntity):
         position = self.vehicle.position
         if not isinstance(position, dict):
             return None
-        lat, lon = position.get("latitude"), position.get("longitude")
-        if isinstance(lat, bool) or isinstance(lon, bool):
-            return None
-        try:
-            latitude, longitude = float(lat), float(lon)
-        except (ValueError, TypeError):
-            return None
-        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-            return None
-        return latitude, longitude
+        from .parking import parked_coordinates
+
+        return parked_coordinates(position.get("latitude"), position.get("longitude"))
 
     @property
     def available(self) -> bool:
@@ -1849,6 +1842,48 @@ class V3ParkedTracker(V3BaseEntity, TrackerEntity):
                 if attrs["vehicle_freshness"] == "stale_last_known"
                 else attrs["vehicle_freshness"]
             ),
+        }
+
+
+class V3ParkedInSensor(V3BaseEntity, SensorEntity):
+    """Last reported parked position resolved only against local HA zones."""
+
+    entity_description = _product_description("sensor.parked_in")
+    _attr_icon = "mdi:map-marker"
+
+    def __init__(self, coordinator, vehicle):
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = f"{vehicle.vin.lower()}_sensor_parked_in"
+
+    def _coordinates(self):
+        from .parking import parked_coordinates
+
+        position = self.vehicle.position or {}
+        return parked_coordinates(position.get("latitude"), position.get("longitude"))
+
+    @property
+    def available(self):
+        return (
+            getattr(self.vehicle, "inventory_present", True)
+            and self._coordinates() is not None
+        )
+
+    @property
+    def native_value(self):
+        from homeassistant.components.zone import async_active_zone
+
+        coordinates = self._coordinates()
+        if coordinates is None or not self.available or self.hass is None:
+            return None
+        zone = async_active_zone(self.hass, *coordinates)
+        return zone.name if zone is not None else None
+
+    @property
+    def extra_state_attributes(self):
+        row = self.vehicle.readings.get("position_last_updated", {})
+        return {
+            **reading_freshness_attributes(row, allow_last_known=True),
+            "position_source": "Audi last reported parking position / local HA zone",
         }
 
 

@@ -484,7 +484,10 @@
         "name": "Außentemperatur"
       },
       "v3_park_time": {
-        "name": "Parkzeitpunkt"
+        "name": "Geparkt seit"
+      },
+      "v3_parked_in": {
+        "name": "Geparkt in"
       },
       "v3_position_last_updated": {
         "name": "Letzte Positionsaktualisierung"

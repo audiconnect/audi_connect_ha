@@ -273,7 +273,10 @@
         "name": "Buitentemperatuur"
       },
       "v3_park_time": {
-        "name": "Parkeertijdstip"
+        "name": "Geparkeerd sinds"
+      },
+      "v3_parked_in": {
+        "name": "Geparkeerd in"
       },
       "v3_position_last_updated": {
         "name": "Laatste positie-update"

@@ -14,13 +14,8 @@ from typing import Any
 from .freshness import capture_age_minutes
 
 
-def parse_parked_position(
-    payload: Any, now: datetime | None = None
-) -> dict[str, Any] | None:
-    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
-        return None
-    item = payload["data"]
-    lat, lon = item.get("lat"), item.get("lon")
+def parked_coordinates(lat, lon) -> tuple[float, float] | None:
+    """One coordinate validity contract for parsing and local HA projections."""
     if isinstance(lat, bool) or isinstance(lon, bool):
         return None
     try:
@@ -34,6 +29,19 @@ def parse_parked_position(
         and -180 <= lon <= 180
     ):
         return None
+    return lat, lon
+
+
+def parse_parked_position(
+    payload: Any, now: datetime | None = None
+) -> dict[str, Any] | None:
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
+        return None
+    item = payload["data"]
+    coordinates = parked_coordinates(item.get("lat"), item.get("lon"))
+    if coordinates is None:
+        return None
+    lat, lon = coordinates
     captured = item.get("carCapturedTimestamp")
     timestamp = None
     if capture_age_minutes(captured, now) is not None:

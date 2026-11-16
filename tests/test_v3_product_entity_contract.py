@@ -425,3 +425,28 @@ def test_product_presentation_and_categories_have_one_contract():
         "Electric range",
         "v3_electric_range",
     )
+
+
+def test_parked_in_resolves_local_zone_without_network_or_new_state(monkeypatch):
+    from custom_components.audiconnect.v3.entities import V3ParkedInSensor
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle(VIN, "Audi", "Test", "q8", "DE")
+    entity = V3ParkedInSensor(NS(), car)
+    entity.hass = NS()
+    assert not entity.available
+    assert entity.native_value is None
+    car.position = {"latitude": 0, "longitude": 0}
+    monkeypatch.setattr(
+        "homeassistant.components.zone.async_active_zone",
+        lambda hass, lat, lon: NS(name="Test zone"),
+    )
+    assert entity.available
+    assert entity.native_value == "Test zone"
+    assert entity.unique_id == VIN.lower() + "_sensor_parked_in"
+    monkeypatch.setattr(
+        "homeassistant.components.zone.async_active_zone", lambda *args: None
+    )
+    assert entity.native_value is None
+    car.position = None
+    assert entity.native_value is None

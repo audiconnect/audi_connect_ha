@@ -915,7 +915,7 @@ def test_engine_range_projection_uses_semantic_role_and_capture():
         assert reading["value"] == expected
     car1.readings["secondary_engine_type"]["value"] = "gasoline"
     _, reading = projection_reading(car1, ATTRIBUTES["secondaryEngineRange"], now=now)
-    assert reading["value"] == 690
+    assert reading["value"] == 42
     car1.readings["secondary_engine_type"]["value"] = "unknown"
     _, reading = projection_reading(car1, ATTRIBUTES["secondaryEngineRange"], now=now)
     assert reading["value"] == 42

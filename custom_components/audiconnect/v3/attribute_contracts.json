@@ -600,7 +600,7 @@
       "icon": "mdi:temperature-celsius"
     },
     "park_time": {
-      "name": "Park time",
+      "name": "Parked since",
       "unit": null,
       "device_class": "timestamp",
       "state_class": null,
