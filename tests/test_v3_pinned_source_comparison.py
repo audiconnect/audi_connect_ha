@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = json.loads((ROOT / "docs/V2_V3_PARITY_BASELINE.json").read_text())
-COMPARISON = json.loads((ROOT / "docs/V2_V3_SOURCE_COMPARISON.json").read_text())
+BASE = json.loads((ROOT / "governance/V2_V3_PARITY_BASELINE.json").read_text())
+COMPARISON = json.loads((ROOT / "governance/V2_V3_SOURCE_COMPARISON.json").read_text())
 
 
 def test_pinned_source_declarations_are_accounted_for():

@@ -1,24 +1,18 @@
-# Engineering Documentation
+# Audi Connect documentation
 
-Start with the [Audi Connect README](../readme.md) for installation and product status. The [V2 user guide](V2_USER_GUIDE.md) retains detailed options, controls, services and dashboard examples. The [contribution guide](../CONTRIBUTING.md) explains how to extend coverage.
+## User guides
 
-## V3 engineering and release
+- [Installation and overview](../readme.md)
+- [V2 configuration, controls, services and dashboards](V2_USER_GUIDE.md)
+- [V3 setup, controls, Workbench and diagnostics](V3_REVIEW.md)
 
-- [Architecture and ownership](V3_ARCHITECTURE_CLOSURE.md) — mandatory boundaries and maintainability gates.
-- [Feature closure](V3_FEATURE_CLOSURE.md) — verified functionality, remaining OEM evidence and release blockers.
-- [V3 user and engineering guide](V3_REVIEW.md) — setup, everyday use, discovery, safe diagnostics and upstream review.
-- [V2 parity baseline](V2_V3_PARITY_BASELINE.json) — inventory, not proof of acceptance.
+## Contributing and technical reference
 
-Review diagnostics against the installed runtime version before changing code.
-Distinguish missing mappings, unavailable OEM data, invalid samples, historical
-evidence and confirmed physical behavior. Reuse the existing owner and add a
-focused regression test; do not add routes or polling to compensate for missing
-evidence. Release candidates require exact-head CI and separate live acceptance.
+- [Contributing](../CONTRIBUTING.md) — report problems, validate vehicle capabilities and contribute improvements.
+- [V3 architecture and ownership](V3_ARCHITECTURE_CLOSURE.md) — technical responsibilities, data flow, command safety and lifecycle.
 
 ## Research
 
-Finish the current stabilisation release first ([stable gate #44](https://github.com/npinguin/audi_connect_ha/issues/44)). The [post-stabilisation feature roadmap](research/cariad/README.md#post-stabilisation-research-roadmap) consolidates future feature research and the time-sensitive official VW Group API beta registration action. No runtime expansion during stabilisation.
+- [VW Group / CARIAD API research](research/cariad/README.md) — API evolution, cross-brand endpoint comparisons, EU Data Act, data freshness, authentication, capability detection and future research paths.
 
-- **[VW Group / CARIAD API research](research/cariad/README.md)** — canonical English research knowledge base, including the VW Group API evolution, cross-brand endpoint atlas, Audi/VW/Škoda/CUPRA/Porsche overlap, read-only and delayed EU Data Act feed, parked-vehicle data freshness, authentication/capabilities, an adaptive multi-generation auth/API/vehicle/capability target architecture, NFR requirements, early experimental feature delivery and an engineering playbook.
-
-This documentation is **research**, not an active deployment or a manufacturer-endorsed API contract. Do not assume unverified cross-brand endpoints work for Audi.
+Research describes evidence and hypotheses, not a manufacturer-endorsed API contract or guaranteed vehicle support.
