@@ -354,10 +354,30 @@ class CommandEngine:
             car, self.profiles[vin.lower()], self.auth, capability, aspect
         )
 
+    @staticmethod
+    def _parameter_variant_verified(profile, operation, params):
+        variant = climate_variant(operation, params)
+        return variant is None or (
+            getattr(profile, "verified_climate_variants", {})
+            .get(operation, {})
+            .get(variant)
+            == operation_revision(profile.registry.operations[operation])
+        )
+
     def control_enabled(
-        self, vin: str, aspect: str, capability: str = "climate"
+        self, vin: str, aspect: str, capability: str = "climate", *, params=None
     ) -> bool:
-        return self.command_route(vin, aspect, capability) is not None
+        operation = self.command_route(vin, aspect, capability)
+        if operation is None:
+            return False
+        if params is None:
+            return True
+        try:
+            return self._parameter_variant_verified(
+                self.profiles[vin.lower()], operation, params
+            )
+        except ValueError:
+            return False
 
     def _command_allowance(self, family):
         quota = getattr(self.transport, "quota", None)
@@ -706,11 +726,7 @@ class CommandEngine:
             ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")
-            variant = climate_variant(ident, params or {})
-            if variant is not None and (
-                getattr(p, "verified_climate_variants", {}).get(ident, {}).get(variant)
-                != operation_revision(p.registry.operations[ident])
-            ):
+            if not self._parameter_variant_verified(p, ident, params or {}):
                 raise ValueError(
                     "Climate parameter combination requires vehicle discovery"
                 )

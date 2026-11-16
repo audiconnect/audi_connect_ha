@@ -493,3 +493,32 @@ async def test_opt_in_refresh_requires_known_acceptance_and_missing_native_captu
         )
     else:
         engine.commands.send_control.assert_not_awaited()
+
+
+def test_native_climate_setting_gate_requires_both_values_for_switch():
+    from custom_components.audiconnect.v3.command_parameters import climate_variant
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+
+    engine, car = make_engine()
+    car.advertised_capabilities.add("climatisation")
+    profile = engine.profiles[VIN.lower()]
+    route = "cariad.climate.settings"
+    revision = operation_revision(profile.registry.operations[route])
+    assert engine.control_enabled(VIN, "set_settings")
+    assert engine.control_enabled(VIN, "set_settings", params={"temp_c": 22})
+    for value in (False, True):
+        params = {"windowHeatingEnabled": value}
+        assert not engine.control_enabled(VIN, "set_settings", params=params)
+        profile.verified_climate_variants.setdefault(route, {})[
+            climate_variant(route, params)
+        ] = revision
+        assert engine.control_enabled(VIN, "set_settings", params=params)
+    assert not engine.control_enabled(
+        VIN, "set_settings", params={"zoneFrontLeftEnabled": True}
+    )
+    assert not engine.control_enabled(
+        VIN, "set_settings", params={"windowHeatingEnabled": "true"}
+    )
+    assert not engine.control_enabled(
+        VIN, "set_settings", params={"temp_c": 22, "windowHeatingEnabled": True}
+    )

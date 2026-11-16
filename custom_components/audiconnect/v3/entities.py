@@ -2110,13 +2110,22 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
         ).get("value")
         return (
             self.is_on is not None or type(reported) is bool
-        ) and self.coordinator.engine.control_enabled(
-            self.vehicle.vin, "set_settings", "climate"
+        ) and self._writable
+
+    @property
+    def _writable(self):
+        # A native switch promises both directions. A route-level proof is
+        # not proof of either individual setting value.
+        return all(
+            self.coordinator.engine.control_enabled(
+                self.vehicle.vin, "set_settings", "climate", params={self.field: value}
+            )
+            for value in (False, True)
         )
 
     @property
     def extra_state_attributes(self):
-        return self._control_attributes(
+        result = self._control_attributes(
             "climate",
             ("set_settings",),
             attribute=self.reading,
@@ -2125,6 +2134,13 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
             )[1],
             allow_last_known=True,
         )
+        writable = self._writable
+        result["control_actions"]["set_settings"] = writable
+        dispatch = result.get("control_dispatch", {}).get("set_settings")
+        if dispatch is not None and not writable:
+            dispatch["ready"] = False
+            dispatch["reason"] = dispatch["reason"] or "climate_setting_requires_discovery"
+        return result
 
     async def _write(self, value):
         if not self.available:
