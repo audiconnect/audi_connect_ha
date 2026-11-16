@@ -133,10 +133,7 @@ class DataActPortalLogin:
                     raise DataActAuthorizationRequired("Data Act sign-in rejected")
                 if response.status >= 400:
                     raise DataActUnavailable("Data Act sign-in unavailable")
-                if (
-                    host == PORTAL_HOST
-                    and parsed.path == CALLBACK
-                ):
+                if host == PORTAL_HOST and parsed.path == CALLBACK:
                     if not response.cookies.get("access_token"):
                         raise DataActUnavailable("Data Act session not established")
                     return url, None

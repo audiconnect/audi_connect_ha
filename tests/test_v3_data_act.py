@@ -1721,9 +1721,7 @@ async def test_portal_migration_login_callback_and_credentials(legacy_hop):
     identifier = IDENTITY + "/signin-service/v1/audi/login/identifier"
     authenticate = IDENTITY + "/signin-service/v1/audi/login/authenticate"
     landing = PORTAL + "/login?state=" + login.state
-    legacy = (
-        "https://eu-data-act.drivesomethinggreater.com/login?state=" + login.state
-    )
+    legacy = "https://eu-data-act.drivesomethinggreater.com/login?state=" + login.state
 
     def reply(status, *, location=None, html="", cookies=None):
         async def chunks(_size):
