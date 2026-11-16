@@ -523,19 +523,46 @@ def test_charging_intent_never_replaces_reported_state(action, reported, new_sta
         "status": "verified",
     }
     assert control_projection(profile, "chargingState", reading, now=NOW) == (
-        reported,
-        "last_known_vehicle",
+        None,
+        "unknown",
     )
     assert control_projection(profile, "chargingState", {}, now=NOW) == (
         None,
         "unknown",
     )
+    # The old capture must never become current solely because time passes.
+    for elapsed in (5, 30, 120):
+        later = NOW + timedelta(minutes=elapsed)
+        assert control_projection(profile, "chargingState", reading, now=later) == (
+            None,
+            "unknown",
+        )
+    restored = NS(command_journal=[CommandRecord.restore(command.snapshot())])
+    assert control_projection(restored, "chargingState", reading, now=NOW) == (
+        None,
+        "unknown",
+    )
+    # A newer valid capture wins even when it contradicts the request.
+    for value in (new_state, reported):
+        assert control_projection(
+            profile,
+            "chargingState",
+            {**reading, "value": value, "captured": NEW.isoformat()},
+            now=NEW,
+        ) == (value, "vehicle")
+    # A subsequent HTTP rejection must not resurrect pre-START/STOP telemetry.
+    rejected = record("charging", "stop" if action == "start" else "start")
+    rejected.started_at = NEW.timestamp()
+    rejected.observe_http(403)
+    profile.command_journal.append(rejected)
+    assert control_projection(profile, "chargingState", reading, now=NEW) == (
+        None,
+        "unknown",
+    )
+    # A vehicle with no accepted command retains its ordinary reported state.
     assert control_projection(
-        profile,
-        "chargingState",
-        {**reading, "value": new_state, "captured": NEW.isoformat()},
-        now=NEW,
-    ) == (new_state, "vehicle")
+        NS(command_journal=[]), "chargingState", reading, now=NOW
+    ) == (reported, "vehicle")
 
 
 def test_sleeping_lock_retains_last_observation_and_explicit_reverse_dispatch():

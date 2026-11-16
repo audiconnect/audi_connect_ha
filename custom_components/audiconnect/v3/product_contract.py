@@ -110,9 +110,10 @@ def control_projection(profile, attribute, reading, *, now=None):
     """Effective HA control state, never a physical or authorization proof.
 
     Retain the newest valid observed value across sleep and sentinel data.
-    Acknowledged commands may temporarily overlay other controls, but charging
-    always displays observed state; request feedback stays separate.
-    A newer dated observation wins whether or not it matches the request.
+    Acknowledged commands may temporarily overlay other controls. Charging
+    never projects intent or a pre-command sample as current state after an
+    accepted START/STOP. Preserve reported telemetry and command feedback
+    separately. A newer dated observation wins even when it contradicts intent.
     """
     from datetime import UTC, datetime
 
@@ -130,6 +131,27 @@ def control_projection(profile, attribute, reading, *, now=None):
     record = latest_projection_command(profile, attribute)
     expiry = optimistic_expiry(record)
     stamp = _valid_capture(known.get("captured"), now)
+    if attribute == "chargingState":
+        # An accepted mutation may have changed physical state. An older
+        # sample is historical even after command cooldown or restart. A
+        # later failed attempt must not erase an earlier accepted mutation.
+        accepted = next(
+            (
+                row
+                for row in reversed(getattr(profile, "command_journal", ()))
+                if row.origin == "home_assistant"
+                and row.capability == "charging"
+                and row.action in ("start", "stop")
+                and row.http_status is not None
+                and 200 <= row.http_status < 300
+                and row.started_at <= now.timestamp()
+            ),
+            None,
+        )
+        if accepted is not None and (
+            stamp is None or stamp.timestamp() <= accepted.started_at
+        ):
+            return None, "unknown"
     observed_stamp = _valid_capture(reading.get("captured"), now)
     if (
         expiry is not None
@@ -139,16 +161,8 @@ def control_projection(profile, attribute, reading, *, now=None):
         and record.readback_observed_at is None
         and record.readback_mismatch_at is None
     ):
-        if attribute == "chargingState":
-            # Accepted charging requests may fail while the car continues to
-            # charge. Retain reported state; assumed_state exposes both actions.
-            return (
-                (known["value"], "last_known_vehicle")
-                if known.get("value") is not None
-                else (None, "unknown")
-            )
         requested = requested_projection(record, attribute)
-        if requested is not None:
+        if attribute != "chargingState" and requested is not None:
             return requested, "optimistic"
     if known.get("value") is None:
         return None, "unknown"
