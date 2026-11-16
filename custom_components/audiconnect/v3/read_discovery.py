@@ -696,59 +696,85 @@ def user_test_candidates(engine, car, profile, *, include_verified=False):
     for capability, action, discovery in sorted(
         definitions, key=lambda row: row[2]["order"]
     ):
-        decision = control_decision(
+        key = f"{capability}.{action}"
+        primary = control_decision(
             car, profile, engine.auth, capability, action, for_discovery=True
         )
-        operation = decision["operation"]
-        if (
-            not operation
-            or operation in profile.custom
-            or (decision["status"] == "local_verified" and not include_verified)
-        ):
-            continue
-        op = profile.registry.operations[operation]
-        group = approval_group(capability, action, op)
-        if group not in ("non_spin", "spin") or (
-            op.get("request_variables") and not op.get("input_schema")
-        ):
-            continue
-        key = f"{capability}.{action}"
-        schema = parameter_schema(
-            op, {}, discovery_parameters=discovery.get("parameters", [])
-        )
-        label = discovery["label"]
-        instructions = discovery["instructions"]
-        if include_verified and op.get("request_mode") in (
-            "climate_start_settings",
-            "climate_settings_update",
-        ):
-            # Keep the guided temperature proof independent. Selective testing
-            # must not force a temperature change when testing another field.
-            selective = native_climate_parameter_schema(op, {}, car)
-            selective.pop("temp_f", None)
-            if len(selective) > 1:
-                schema = selective
-                label = (
-                    "Start climate with selected settings"
-                    if action == "start_with_settings"
-                    else "Change selected climate settings"
+        decisions = [primary]
+        if include_verified:
+            for operation in profile.registry.operations_for(capability, action):
+                if operation == primary["operation"]:
+                    continue
+                extra = control_decision(
+                    car,
+                    profile,
+                    engine.auth,
+                    capability,
+                    action,
+                    for_discovery=True,
+                    discovery_operation=operation,
                 )
-                instructions = (
-                    "With climate off, choose only the reported settings to test. "
-                    "Check that each selected setting takes effect"
-                    + (
-                        " and climate starts."
+                if extra["operation"] == operation:
+                    decisions.append(extra)
+        for decision in decisions:
+            operation = decision["operation"]
+            if (
+                not operation
+                or operation in profile.custom
+                or (decision["status"] == "local_verified" and not include_verified)
+            ):
+                continue
+            op = profile.registry.operations[operation]
+            group = approval_group(capability, action, op)
+            if group not in ("non_spin", "spin") or (
+                op.get("request_variables") and not op.get("input_schema")
+            ):
+                continue
+            schema = parameter_schema(
+                op, {}, discovery_parameters=discovery.get("parameters", [])
+            )
+            label = discovery["label"]
+            if len(decisions) > 1:
+                label += (
+                    " (combined API)"
+                    if operation.endswith(".combined")
+                    else " (direct API)"
+                )
+            instructions = discovery["instructions"]
+            if op.get("request_mode") in (
+                "climate_start_settings",
+                "climate_settings_update",
+            ):
+                # Both journeys use the same vehicle-specific parameter contract.
+                # An optional setting must not force an unrelated temperature change.
+                selective = native_climate_parameter_schema(op, {}, car)
+                selective.pop("temp_f", None)
+                if len(selective) > 1:
+                    schema = selective
+                    label = (
+                        "Start climate with selected settings"
                         if action == "start_with_settings"
-                        else " without starting climate."
+                        else "Change selected climate settings"
                     )
-                )
-        result[key] = {
-            "label": label,
-            "instructions": instructions,
-            "capability": capability,
-            "action": action,
-            "operation": operation,
-            "approval_group": group,
-            "parameter_schema": schema,
-        }
+                    instructions = (
+                        "With climate off, choose only the reported settings to test. "
+                        "Check that each selected setting takes effect"
+                        + (
+                            " and climate starts."
+                            if action == "start_with_settings"
+                            else " without starting climate."
+                        )
+                    )
+            candidate_key = (
+                key if operation == primary["operation"] else f"{key}:{operation}"
+            )
+            result[candidate_key] = {
+                "label": label,
+                "instructions": instructions,
+                "capability": capability,
+                "action": action,
+                "operation": operation,
+                "approval_group": group,
+                "parameter_schema": schema,
+            }
     return result

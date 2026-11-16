@@ -157,7 +157,11 @@ def control_projection(profile, attribute, reading, *, now=None):
         stamp is None or stamp.timestamp() <= accepted.started_at
     ):
         return None, "unknown"
-    if known.get("value") is None:
+    # A newer explicit invalid cabin-climate capture cannot be shown as
+    # a current HVAC mode. Keep the historical value in control attributes.
+    if known.get("value") is None or (
+        attribute == "climate" and reading.get("status") == "invalid_value"
+    ):
         return None, "unknown"
     return known["value"], (
         "vehicle"

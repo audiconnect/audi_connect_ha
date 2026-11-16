@@ -24,12 +24,21 @@ def test_passive_last_known_held_without_marking_live():
     }
     assert _reading_available(row, allow_last_known=True)
     assert not _reading_available(row)  # safety-critical binary/lock consumers
-    fake = SimpleNamespace(
-        vehicle=SimpleNamespace(readings={"stateOfCharge": row}),
-        attribute={"capability": "charging", "id": "stateOfCharge"},
-        _allow_last_known=True,
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    vehicle = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "", "DE")
+    vehicle.readings["stateOfCharge"] = row
+    sensor = V3ReadOnlySensor(
+        SimpleNamespace(async_add_listener=lambda cb: None),
+        vehicle,
+        {
+            "capability": "charging",
+            "id": "stateOfCharge",
+            "entity_key": "state_of_charge",
+        },
     )
-    attrs = V3ReadOnlySensor.extra_state_attributes.fget(fake)
+    assert sensor.available and sensor.native_value == 52
+    attrs = sensor.extra_state_attributes
     assert attrs["vehicle_freshness"] == "stale_last_known"
     assert attrs["age_minutes"] >= 240
 

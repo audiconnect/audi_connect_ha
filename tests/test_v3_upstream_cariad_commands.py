@@ -612,3 +612,191 @@ async def test_selective_climate_service_requires_its_own_review_after_restart(s
         with pytest.raises(HomeAssistantError, match="requires vehicle discovery"):
             await execute(engine, VIN, "start_climatisation", params)
         assert len(calls) == 2
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_q8_empty_charge_modes_with_invalid_preference_are_discoverable(failed):
+    from custom_components.audiconnect.v3.command_policy import supported_charge_modes
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.advertised_capabilities.add("charging")
+    car.readings.update(
+        availableChargeModes={"family": "cariad", "value": []},
+        preferredChargeMode={"family": "cariad", "status": "invalid_value"},
+        chargeMode={"family": "cariad", "value": "manual"},
+    )
+    route = "cariad.charging.mode"
+    if failed:
+        profile.control_results[route] = "failed"
+    assert supported_charge_modes(car, profile) == []
+    assert not engine.control_enabled(VIN, "set_charge_mode", "charging")
+    for expert in (False, True):
+        candidate = user_test_candidates(engine, car, profile, include_verified=expert)[
+            "charging.set_charge_mode"
+        ]
+        assert candidate["operation"] == route
+        assert candidate["parameter_schema"]["value"]["enum"] == ["manual", "timer"]
+    car.impaired_capabilities.add("charging")
+    assert "charging.set_charge_mode" not in user_test_candidates(engine, car, profile)
+
+
+def test_failed_native_control_is_discoverable_but_not_dispatch_ready():
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.advertised_capabilities.add("climatisation")
+    route = "cariad.climate.window_heating_start"
+    profile.control_results[route] = "failed"
+    assert not engine.control_enabled(VIN, "window_heating_start", "climate")
+    for expert in (False, True):
+        candidate = user_test_candidates(engine, car, profile, include_verified=expert)[
+            "climate.window_heating_start"
+        ]
+        assert candidate["operation"] == route
+    profile.discovery.disabled.add("climate.window_heating_start")
+    assert "climate.window_heating_start" not in user_test_candidates(
+        engine, car, profile
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("combined", [False, True])
+async def test_expert_charging_routes_are_explicit_and_never_auto_retried(combined):
+    from custom_components.audiconnect.v3.read_discovery import user_test_candidates
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    car.advertised_capabilities.add("charging")
+    direct = "cariad.charging.start"
+    alternate = direct + ".combined"
+    profile.control_results[direct] = "failed"
+    candidates = user_test_candidates(engine, car, profile, include_verified=True)
+    assert {
+        row["operation"]
+        for row in candidates.values()
+        if row["capability"] == "charging" and row["action"] == "start"
+    } == {direct, alternate}
+    assert not engine.control_enabled(VIN, "start", "charging")
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path, kwargs))
+            return V3Response(405, {"error": "unsupported"}, datetime.now(UTC))
+
+    engine.transport = Transport()
+    chosen = alternate if combined else direct
+    result = await engine.approved_control_discovery(
+        VIN,
+        "start",
+        chosen,
+        approval="non_spin",
+        capability="charging",
+        guided=True,
+        expert=True,
+    )
+    assert result["physical_result"] == "rejected"
+    assert result["operation"] == chosen
+    assert len(calls) == 1
+    assert calls[0][2].endswith("/start-stop" if combined else "/start")
+    assert calls[0][3]["body"] == ({"action": "start"} if combined else {})
+    assert not engine.control_enabled(VIN, "start", "charging")
+
+
+@pytest.mark.asyncio
+async def test_explicit_read_rescan_retests_prior_evidence_in_bounded_batches():
+    from custom_components.audiconnect.v3.read_discovery import full_read_plan
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    plan, _ = full_read_plan(profile, car.context, "cariad")
+    expected = [ident for ident, _ in sorted(plan)]
+    assert len(expected) > 12
+    for ident in expected:
+        profile.api_observations[ident] = {"http_status": 200}
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path))
+            return V3Response(200, {}, datetime.now(UTC))
+
+    engine.transport = Transport()
+    normal = await engine.test_family_reads(VIN, "cariad", full=True)
+    assert normal["request_count"] == 0
+    result = await engine.test_family_reads(VIN, "cariad", full=True, rescan_after="")
+    assert result["request_count"] == 12
+    assert [row["operation"] for row in result["results"]] == expected[:12]
+    assert result["next_rescan_after"] == expected[11]
+    assert result["remaining_routes"] == expected[12:]
+    result = await engine.test_family_reads(
+        VIN, "cariad", full=True, rescan_after=result["next_rescan_after"]
+    )
+    assert [row["operation"] for row in result["results"]] == expected[12:24]
+    assert len(calls) <= 24
+    assert all(method == "GET" for _, method, _ in calls)
+    assert not car.readings
+    with pytest.raises(ValueError, match="Rescan route changed"):
+        await engine.test_family_reads(
+            VIN, "cariad", full=True, rescan_after="not_a_reviewed_route"
+        )
+
+
+@pytest.mark.parametrize(
+    "job,detail,count",
+    [
+        ("chargingTimers", "charging_timers_detail", "charging_timer_enabled_count"),
+        (
+            "climatisationTimers",
+            "climate_timers_detail",
+            "climatisation_timer_enabled_count",
+        ),
+    ],
+)
+def test_timer_count_follows_selected_list_even_when_count_is_unchanged(
+    job, detail, count
+):
+    from datetime import timedelta
+    from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+
+    engine, car = make_engine()
+    profile = engine.profiles[VIN.lower()]
+    now = datetime.now(UTC)
+
+    def observe(timers, capture, receipt):
+        observe_read_only(
+            car,
+            profile,
+            {
+                job: {
+                    job + "Status": {
+                        "value": {
+                            "carCapturedTimestamp": capture.isoformat(),
+                            "timers": timers,
+                        }
+                    }
+                }
+            },
+            receipt,
+        )
+
+    observe([{"id": 1, "enabled": False}], now, now)
+    assert car.readings[count]["value"] == 0
+    observe([{"id": 2, "enabled": False}], now, now + timedelta(seconds=1))
+    assert car.readings[detail]["reason"] == "conflicting_source_values"
+    assert car.readings[count]["value"] is None
+    assert car.readings[count]["reason"] == "conflicting_source_values"
+    observe(
+        [{"id": 1, "enabled": True}],
+        now - timedelta(minutes=1),
+        now + timedelta(seconds=2),
+    )
+    assert car.readings[count]["value"] is None
+    newer = now + timedelta(seconds=3)
+    observe([{"id": 2, "enabled": True}], newer, newer)
+    assert car.readings[count]["value"] == 1
+    assert car.readings[detail]["value"]["items"][0]["id"] == 2
+    assert car.readings[count]["captured"] == car.readings[detail]["captured"]

@@ -626,3 +626,30 @@ def test_restart_never_reactivates_optimistic_state():
     assert control_projection(
         NS(command_journal=[restored]), "doorLockStatus", reading, now=NOW
     ) == (None, "unknown")
+
+
+def test_invalid_climate_capture_does_not_publish_historical_off():
+    from custom_components.audiconnect.v3.product_contract import control_projection
+
+    historical = {
+        "value": "off",
+        "captured": OLD.isoformat(),
+        "status": "verified",
+    }
+    invalid = {
+        "value": None,
+        "captured": NOW.isoformat(),
+        "status": "invalid_value",
+        "reason": "invalid_climate_state",
+        "last_known": historical,
+    }
+    profile = NS(command_journal=[])
+    assert control_projection(profile, "climate", invalid, now=NOW) == (
+        None,
+        "unknown",
+    )
+    assert control_projection(profile, "climate", historical, now=NOW) == (
+        "off",
+        "vehicle",
+    )
+    assert invalid["last_known"] is historical

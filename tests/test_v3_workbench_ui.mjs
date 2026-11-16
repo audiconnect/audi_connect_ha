@@ -1529,7 +1529,15 @@ test("Expert mode tests selected action out of order and opens failed route for 
       ],
     },
     end_user_candidates: [first],
-    expert_candidates: [first, second],
+    expert_candidates: [
+      first,
+      second,
+      {
+        ...second,
+        label: "Stop charging (combined API)",
+        operation: second.operation + ".combined",
+      },
+    ],
     command_journal: [
       {
         capability: "charging",
@@ -1567,14 +1575,15 @@ test("Expert mode tests selected action out of order and opens failed route for 
   await click("step-5");
   await click("discovery-mode", { mode: "expert" });
   assert.match(p.shadowRoot.innerHTML, /Edit failed API/);
+  assert.match(p.shadowRoot.innerHTML, /Stop charging \(combined API\)/);
   assert.equal(calls.length, 0);
   await click("end-user-yes", {
     capability: "charging",
     control: "stop",
-    operation: second.operation,
+    operation: second.operation + ".combined",
   });
   assert.equal(calls[0][0], "control_test");
-  assert.equal(calls[0][1].operation, second.operation);
+  assert.equal(calls[0][1].operation, second.operation + ".combined");
   assert.equal(calls[0][1].expert, true);
   await click("select-control", {
     capability: "charging",

@@ -29,8 +29,17 @@ def reviewed_alternative(capability, action, operation):
 
 
 def control_decision(
-    car, profile, auth, capability: str, aspect: str, *, for_discovery=False
+    car,
+    profile,
+    auth,
+    capability: str,
+    aspect: str,
+    *,
+    for_discovery=False,
+    discovery_operation=None,
 ) -> dict:
+    if discovery_operation is not None and not for_discovery:
+        raise ValueError("Explicit route selection is discovery-only")
     key = f"{capability}.{aspect}"
     pending_reason = None
 
@@ -119,8 +128,9 @@ def control_decision(
         route = "cariad.charging.mode"
         if (
             charge_mode_recovery_candidate(car)
+            and discovery_operation in (None, route)
             and currently_safe(route)
-            and profile.control_results.get(route) != "failed"
+            and (for_discovery or profile.control_results.get(route) != "failed")
         ):
             return decision(
                 "candidate_unverified",
@@ -142,6 +152,7 @@ def control_decision(
     ident = profile.active.get(key)
     if (
         ident
+        and discovery_operation in (None, ident)
         and profile.control_results.get(ident) == "worked"
         and runtime_ready(profile.custom.get(ident, {}))
         and (
@@ -164,9 +175,28 @@ def control_decision(
         return decision("unknown")
     ident = eligible_operation(car, auth, capability, aspect, profile=profile)
     if ident and currently_safe(ident):
+        alternative = reviewed_alternative(capability, aspect, ident)
+        if discovery_operation is not None:
+            if (
+                discovery_operation not in (ident, alternative)
+                or discovery_operation in profile.custom
+                or not currently_safe(discovery_operation)
+            ):
+                return decision("unknown")
+            if profile.control_results.get(discovery_operation) == "failed":
+                return decision(
+                    "candidate_unverified",
+                    discovery_operation,
+                    "retry_requires_verification",
+                )
+            if discovery_operation == alternative:
+                return decision(
+                    "candidate_unverified",
+                    discovery_operation,
+                    "alternative_requires_verification",
+                )
         if profile.control_results.get(ident) != "failed":
             return decision("catalog_matched", ident)
-        alternative = reviewed_alternative(capability, aspect, ident)
         if (
             alternative
             and currently_safe(alternative)
@@ -178,6 +208,12 @@ def control_decision(
                 "candidate_unverified",
                 alternative if for_discovery else None,
                 "alternative_requires_verification",
+            )
+        if for_discovery:
+            # A past failure is evidence, not a permanent discovery ban.
+            # Production eligibility stays fail-closed until physical review.
+            return decision(
+                "candidate_unverified", ident, "retry_requires_verification"
             )
         return decision("no_working_route", reason="reviewed_candidates_failed")
     return decision("unknown")

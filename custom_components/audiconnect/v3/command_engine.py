@@ -413,7 +413,9 @@ class CommandEngine:
             context = car.context
             profile = self.profiles[vin.lower()]
             alternative = (
-                reviewed_alternative(capability, aspect, operation) if guided else None
+                reviewed_alternative(capability, aspect, operation)
+                if guided and not expert
+                else None
             )
             if alternative and (
                 alternative in profile.custom
@@ -510,9 +512,21 @@ class CommandEngine:
         if guided:
             from .read_discovery import user_test_candidates
 
-            candidate = user_test_candidates(
-                self, vehicle, profile, include_verified=expert
-            ).get(f"{capability}.{aspect}")
+            candidate = next(
+                (
+                    row
+                    for row in user_test_candidates(
+                        self, vehicle, profile, include_verified=expert
+                    ).values()
+                    if (
+                        row["capability"],
+                        row["action"],
+                        row["operation"],
+                    )
+                    == (capability, aspect, operation)
+                ),
+                None,
+            )
             if not candidate or (
                 candidate["operation"],
                 candidate["approval_group"],

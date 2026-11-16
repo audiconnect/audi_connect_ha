@@ -192,14 +192,16 @@ def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
         last_update_success=True,
     )
     entity = V3ClimateEntity(coordinator, rebooted)
-    assert entity.hvac_mode.value == ("off" if initial == "off" else "heat_cool")
+    assert entity.hvac_mode is None
     assert entity.hvac_action is None
+    assert entity.available  # Explicit controls are still usable.
     assert entity.extra_state_attributes["last_known_climate_state"] == initial
     assert (
         entity.extra_state_attributes["last_known_climate_source"]
         == "last_known_vehicle"
     )
-    assert entity.extra_state_attributes["state_source"] == "last_known_vehicle"
+    assert entity.extra_state_attributes["state_source"] == "unknown"
+    assert entity.extra_state_attributes["vehicle_freshness"] == "unknown"
     assert not entity.extra_state_attributes["state_is_current"]
     assert rebooted.readings["climatisationState"]["value"] is None
     assert rebooted.readings["climatisationState"]["reason"] == "restored_history"

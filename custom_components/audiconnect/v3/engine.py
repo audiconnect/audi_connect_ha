@@ -806,7 +806,12 @@ class V3Engine:
         }
 
     async def test_family_reads(
-        self, vin: str, family: str, *, full: bool = False
+        self,
+        vin: str,
+        family: str,
+        *,
+        full: bool = False,
+        rescan_after: str | None = None,
     ) -> dict[str, Any]:
         """Explicit, bounded read-only API-family sweep, never remote commands.
 
@@ -815,6 +820,8 @@ class V3Engine:
         The API cloud budget remains enforced by V3Transport.
         """
         vehicle = self.require_vehicle(vin)
+        if rescan_after is not None and (not full or family == "graphql"):
+            raise ValueError("Rescan cursor requires a native full read scan")
         if family == "graphql":
             from .transport import IDENTITY_QUERIES
 
@@ -835,7 +842,9 @@ class V3Engine:
             raise ValueError("API family is not applicable to this vehicle")
         profile = self.profiles[vehicle.vin.lower()]
         if full:
-            return await self._scan_catalog_reads(vehicle, profile, family)
+            return await self._scan_catalog_reads(
+                vehicle, profile, family, rescan_after=rescan_after
+            )
         outcomes: list[dict[str, Any]] = []
         if family == "cariad":
             plans = [
@@ -907,13 +916,24 @@ class V3Engine:
             "note": "Only safe GET requests were sent. Stale cloud data is not current vehicle data.",
         }
 
-    async def _scan_catalog_reads(self, car, profile, family):
+    async def _scan_catalog_reads(self, car, profile, family, *, rescan_after=None):
         """Explicit exhaustive reviewed-route scan, in bounded resumable batches."""
         plan, excluded = full_read_plan(profile, car.context, family)
         results = []
         pending = []
         stopped = None
+        if rescan_after is not None:
+            # Stable route ordering is independent of changing observations.
+            # The caller's explicit cursor does not erase or persist new evidence.
+            plan = sorted(plan)
+            if rescan_after and rescan_after not in {ident for ident, _ in plan}:
+                raise ValueError("Rescan route changed; start a new read scan")
+        last_completed = rescan_after
         for ident, template in plan:
+            if rescan_after is not None:
+                if ident > rescan_after:
+                    pending.append((ident, template))
+                continue
             prior = profile.api_observations.get(ident, {})
             status = prior.get("http_status")
             if status is not None and status not in (401, 403, 429) and status < 500:
@@ -960,6 +980,7 @@ class V3Engine:
             if reply.status in (401, 403, 429) or reply.status >= 500:
                 stopped = "account_or_service_error"
                 break
+            last_completed = ident
         await self.storage.async_save(self.profiles)
         self._notify_discovery_change()
         remaining = [
@@ -972,9 +993,16 @@ class V3Engine:
                 and http < 500
             )
         ]
+        if rescan_after is not None:
+            remaining = [ident for ident, _ in plan if ident > last_completed]
         return {
             "family": family,
             "mode": "full",
+            **(
+                {"next_rescan_after": last_completed if remaining else None}
+                if rescan_after is not None
+                else {}
+            ),
             "request_count": attempted,
             "eligible_routes": len(plan),
             "remaining_routes": remaining,

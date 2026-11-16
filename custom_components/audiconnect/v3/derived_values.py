@@ -656,22 +656,44 @@ def observe_derived(
                         operation=operation,
                     )
 
-    for job, count in (
-        ("chargingTimers", "charging_timer_enabled_count"),
-        ("climatisationTimers", "climatisation_timer_enabled_count"),
-    ):
-        path = f"{job}.{job}Status.value"
-        block = read_json_path(payload, path)
-        if not isinstance(block, dict) or not isinstance(block.get("timers"), list):
-            continue
-        captured = block.get("carCapturedTimestamp")
-        # The count retains the capture boundary even if the next single
-        # timer disappears. Older responses must not resurrect removed timers.
-        if not accepts(car.readings.get(count), captured, observed_at):
-            continue
-        from .structured_details import _array, _timer
+    from .structured_details import observe_structured
 
-        timers = _array(block["timers"], _timer, 30)
+    # Normalize the lists once. Derive scalars from the selected observation,
+    # not independently from the incoming response.
+    observe_structured(car, payload, observed_at, accepts, operation=operation)
+    for job, detail, count in (
+        ("chargingTimers", "charging_timers_detail", "charging_timer_enabled_count"),
+        (
+            "climatisationTimers",
+            "climate_timers_detail",
+            "climatisation_timer_enabled_count",
+        ),
+    ):
+        source = car.readings.get(detail)
+        # A retained detail cannot acquire a new receipt or capture time.
+        if source is None or source.get("observed") != observed_at.isoformat():
+            continue
+        path = f"{job}.{job}Status.value"
+        captured = source.get("captured")
+        timers = source.get("value")
+        if source.get("status") == "invalid_value" or not isinstance(timers, dict):
+            for ident in (
+                (count, "next_climatisation_timer_local")
+                if detail == "climate_timers_detail"
+                else (count,)
+            ):
+                record_invalid_observation(
+                    car,
+                    ident,
+                    captured,
+                    observed_at,
+                    path,
+                    job,
+                    source.get("reason") or "incomplete_timer_data",
+                    profile=profile,
+                    operation=operation,
+                )
+            continue
         entries = timers["items"]
         complete = timers["all_items_recognized"] and all(
             "enabled" in timer for timer in entries
@@ -690,7 +712,7 @@ def observe_derived(
                 profile=profile,
                 operation=operation,
             )
-        if job == "climatisationTimers":
+        if detail == "climate_timers_detail":
             ident = "next_climatisation_timer_local"
             starts = [
                 t["start_datetime_local"]
@@ -702,17 +724,12 @@ def observe_derived(
             single_starts_complete = complete and all(
                 timer.get("enabled") is not True
                 or "start_datetime_local" in timer
-                or (
-                    isinstance(raw.get("recurringTimer"), dict)
-                    and raw.get("singleTimer") is None
-                )
-                for raw, timer in zip(block["timers"], entries, strict=True)
+                or timer.get("recurring_only") is True
+                for timer in entries
             )
             # Local wall-clock timestamps require a vehicle clock anchor.
             # Never infer its timezone from the HA host or API market.
-            from .structured_details import _zoned_datetime
-
-            clock = _zoned_datetime(block.get("timeInCar"))
+            clock = timers.get("vehicle_time")
             if (
                 clock is not None
                 and timestamp_is_fresh(clock, observed_at)

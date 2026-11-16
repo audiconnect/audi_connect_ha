@@ -204,7 +204,9 @@ class V3BaseEntity(CoordinatorEntity[V3CleanCoordinator]):
             )
             expiry = optimistic_expiry(record)
             result.update(
-                reading_freshness_attributes(row, allow_last_known=True),
+                reading_freshness_attributes(
+                    row, allow_last_known=source == "last_known_vehicle"
+                ),
                 last_reported_state=last_known_observation(row).get("value"),
                 state_source=source or "unknown",
                 state_is_current=source == "vehicle",
@@ -1050,6 +1052,12 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
         if contract.get("precision") is not None:
             self._attr_suggested_display_precision = contract["precision"]
 
+    def _display_history(self, reading):
+        return self._allow_last_known and (
+            not self._semantic_contract.get("require_valid_observation")
+            or reading.get("status") != "invalid_value"
+        )
+
     @property
     def available(self) -> bool:
         if not getattr(self.vehicle, "inventory_present", True):
@@ -1072,11 +1080,10 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
         ):
             return False
         reading = _sensor_projection(self)[1] or {}
-        value_row = (
-            last_known_observation(reading) if self._allow_last_known else reading
-        )
+        display_history = self._display_history(reading)
+        value_row = last_known_observation(reading) if display_history else reading
         return _reading_available(
-            reading, allow_last_known=self._allow_last_known
+            reading, allow_last_known=display_history
         ) and not semantic_value_issue(
             self.attribute["entity_key"],
             value_row.get("value"),
@@ -1092,9 +1099,11 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
 
             return powertrain_identity(self.vehicle)["value"]
         reading = _sensor_projection(self)[1] or {}
-        if self._allow_last_known:
+        if self._display_history(reading):
             reading = last_known_observation(reading)
-        value = reading.get("value")
+        value = (
+            reading.get("value") if reading.get("status") != "invalid_value" else None
+        )
         if semantic_value_issue(
             self.attribute["entity_key"], value, self._semantic_contract
         ):
@@ -1213,7 +1222,7 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             "api_family": reading.get("family", "cariad"),
             "response_mapping": reading.get("path"),
             **reading_freshness_attributes(
-                reading, allow_last_known=self._allow_last_known
+                reading, allow_last_known=self._display_history(reading)
             ),
         }
 
@@ -2200,12 +2209,13 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
             "charging",
             ("set_charge_mode",),
             attribute="preferredChargeMode",
-            source=_reading_projection(
-                self.coordinator,
-                self.vehicle,
-                "preferredChargeMode",
-                allow_last_known=True,
-            )[1],
+            source=(
+                _reading_projection(
+                    self.coordinator, self.vehicle, "preferredChargeMode"
+                )[1]
+                if self.current_option is not None
+                else "unknown"
+            ),
             allow_last_known=True,
         )
 

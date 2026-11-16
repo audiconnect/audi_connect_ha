@@ -677,7 +677,9 @@ class OptionsFlowHandler(OptionsFlow):
             if choice == "refresh":
                 await engine.resume_read_discovery(car.vin)
                 return await self.async_step_discovery()
-            self._discovery_guided = choice == "guided"
+            if choice == "retry_skipped":
+                self._discovery_skipped.clear()
+            self._discovery_guided = choice in ("guided", "retry_skipped")
             if not self._discovery_guided and choice in candidates:
                 self._discovery_action = choice
                 self._discovery_candidate = candidates[choice]
@@ -704,6 +706,11 @@ class OptionsFlowHandler(OptionsFlow):
                         {
                             "finish": "Finish / skip for now",
                             "guided": "Guided discovery",
+                            **(
+                                {"retry_skipped": "Resume skipped controls"}
+                                if self._discovery_skipped
+                                else {}
+                            ),
                             "refresh": "Resume unresolved read discovery",
                             **{key: row["label"] for key, row in candidates.items()},
                         }
