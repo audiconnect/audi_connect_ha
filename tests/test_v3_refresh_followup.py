@@ -292,3 +292,36 @@ async def test_http_502_reports_error_and_allows_explicit_retry_after_cooldown()
     assert (
         len([c for c in transport.request.await_args_list if c.args[1] == "POST"]) == 2
     )
+
+
+def test_combined_refresh_requires_all_native_captures():
+    from datetime import timedelta
+    from custom_components.audiconnect.v3.command_readback import (
+        configure_readback,
+        follow_up_refresh_allowed,
+    )
+
+    engine, _, _, _ = fixture(True)
+    car = engine.vehicles[VIN.lower()]
+    now = datetime.now(UTC)
+    record = CommandRecord.begin(
+        "climate",
+        "start_with_settings",
+        "route",
+        (now - timedelta(seconds=5)).timestamp(),
+    )
+    configure_readback(record, {"temp_c": 22})
+    record.observe_http(200)
+    sample = {
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "family": "cariad",
+        "status": "verified",
+    }
+    car.readings["climatisationTargetTemperatureC"] = {**sample, "value": 22}
+    assert follow_up_refresh_allowed(record, car, engine.registry)
+    car.readings["climatisationState"] = {**sample, "value": "heating"}
+    assert not follow_up_refresh_allowed(record, car, engine.registry)
+    stateless = CommandRecord.begin("remote", "flash", "route", record.started_at)
+    stateless.observe_http(200)
+    assert not follow_up_refresh_allowed(stateless, car, engine.registry)

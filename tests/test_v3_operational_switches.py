@@ -432,3 +432,64 @@ def test_switch_display_and_metadata_share_retained_source_selection():
     assert attrs["vehicle_captured"] == recent
     assert attrs["state_source"] == "last_known_vehicle"
     assert car.readings["chargingState"] is current
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["setting", "target"])
+async def test_expired_setting_remains_explicitly_writable(kind):
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.entities import (
+        V3ChargeTargetNumber,
+        V3ClimateSettingSwitch,
+    )
+
+    car = V3Vehicle(VIN, "Audi", "", "", "DE")
+    now = datetime.now(UTC)
+    if kind == "setting":
+        capability, action = "climate", "set_settings"
+        ident, old, params = (
+            "climatisationWindowHeatingEnabled",
+            False,
+            {"windowHeatingEnabled": True},
+        )
+    else:
+        capability, action = "charging", "set_target_soc"
+        ident, old, params = "targetstateOfCharge", 70, {"value": 80}
+    command = CommandRecord.begin(
+        capability, action, "route", now.timestamp() - 600
+    )
+    configure_readback(command, params)
+    command.observe_http(200)
+    car.readings[ident] = {
+        "value": old,
+        "family": "cariad",
+        "captured": (now - timedelta(minutes=20)).isoformat(),
+        "status": "verified",
+    }
+    engine = NS(
+        control_enabled=lambda *args: True,
+        profiles={VIN.lower(): NS(command_journal=[command])},
+        send_control=AsyncMock(),
+        send_setting=AsyncMock(),
+    )
+    co = NS(engine=engine, last_update_success=True, async_add_listener=lambda cb: None)
+    if kind == "setting":
+        entity = V3ClimateSettingSwitch(
+            co, car, ("climate_window_heating", ident, "windowHeatingEnabled")
+        )
+        assert entity.is_on is None
+        assert entity.available
+        entity.async_write_ha_state = lambda: None
+        await entity.async_turn_off()
+        engine.send_control.assert_awaited_once_with(
+            VIN, "set_settings", "climate", params={"windowHeatingEnabled": False}
+        )
+    else:
+        entity = V3ChargeTargetNumber(co, car)
+        assert entity.native_value is None
+        assert entity.available
+        entity.async_write_ha_state = lambda: None
+        await entity.async_set_native_value(75)
+        engine.send_setting.assert_awaited_once_with(VIN, "set_target_soc", 75)
+    car.readings.clear()
+    assert not entity.available

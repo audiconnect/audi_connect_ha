@@ -117,9 +117,9 @@ def control_projection(profile, attribute, reading, *, now=None):
 
     from .attribute_runtime import _valid_capture, last_known_observation
     from .command_readback import (
+        accepted_projection_attributes,
         latest_projection_command,
         optimistic_expiry,
-        projection_attributes,
         requested_projection,
     )
     from .freshness import timestamp_is_fresh
@@ -148,10 +148,7 @@ def control_projection(profile, attribute, reading, *, now=None):
         (
             row
             for row in reversed(getattr(profile, "command_journal", ()))
-            if row.origin == "home_assistant"
-            and attribute in projection_attributes(row)
-            and row.http_status is not None
-            and 200 <= row.http_status < 300
+            if attribute in accepted_projection_attributes(row)
             and row.started_at <= now.timestamp()
         ),
         None,

@@ -255,6 +255,17 @@ def projection_attributes(record):
     return (attribute,) if attribute else ()
 
 
+def accepted_projection_attributes(record):
+    """Known mutation boundary, retained even after correlated rejection."""
+    if (
+        record.origin == "home_assistant"
+        and record.http_status is not None
+        and 200 <= record.http_status < 300
+    ):
+        return projection_attributes(record)
+    return ()
+
+
 def latest_projection_command(profile, attribute):
     # A later attempt supersedes an earlier one even if rejected or uncertain.
     return next(
@@ -304,15 +315,20 @@ def follow_up_refresh_allowed(record, car, registry=None):
         or record.readback_mismatch_at is not None
     ):
         return False
-    # A newer actual native capture is useful even if the requested state
-    # differs. A stale receipt or an optional Data Act sample is not enough.
-    for attribute in projection_attributes(record):
+    attributes = projection_attributes(record)
+    if not attributes:
+        # Keep the old completed-action behavior for stateless actions;
+        # unconfirmed flash/horn/etc. do not warrant a new vehicle request.
+        return record.state in ("backend_completed", "verified")
+    # Every affected field needs a newer native capture, not merely one
+    # field of a combined start-and-temperature request.
+    for attribute in attributes:
         value, stamp = _readback_value(
             car, attribute, registry=registry, started_at=record.started_at
         )
-        if value is not None and stamp and stamp.timestamp() > record.started_at:
-            return False
-    return True
+        if value is None or stamp is None or stamp.timestamp() <= record.started_at:
+            return True
+    return False
 
 
 def requested_projection(record, attribute):
