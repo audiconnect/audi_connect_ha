@@ -117,6 +117,10 @@ class StatusEngine:
         self._observe_native_requests = observe_native_requests
         self._data_act_identity_attempt_at = None
         self._data_act_task = None
+        self._parking_address_task = None
+        self._parking_address_cache = {}
+        self._parking_address_endpoint = None
+        self._parking_address_retry_at = 0.0
         self.last_cloud_poll_success = None
         self.last_cloud_poll_attempt = None
         self.last_cloud_poll_succeeded = None
@@ -471,6 +475,7 @@ class StatusEngine:
         # portal read must not delay the native coordinator's publication.
         self._start_data_act()
         await self._poll_native_status()
+        self._start_parking_address()
         # Inventory enrichment is secondary to primary vehicle measurements.
         # Recheck remaining allowance after the native reads, not before them.
         if not initial and identity_refresh_due(self.vehicles, elapsed):
@@ -479,6 +484,85 @@ class StatusEngine:
                 await self.discover()
         self._update_capture_projection()
         return list(self.vehicles.values())
+
+    def _parking_address_point(self, car):
+        from .parking import geocoding_point
+
+        if (
+            self.vehicles.get(car.vin.lower()) is car
+            and car.inventory_present
+            and self.parking_read_allowed(car, address=True)
+        ):
+            return geocoding_point(car.position)
+        return None
+
+    def parking_address(self, car):
+        """Read only the address for this vehicle's current rounded parked point."""
+        from .parking import geocoding_endpoint
+
+        endpoint = geocoding_endpoint(self.entry)
+        if endpoint is None or endpoint != self._parking_address_endpoint:
+            return None
+        return self._parking_address_cache.get(self._parking_address_point(car))
+
+    def _start_parking_address(self):
+        """One optional, HA-managed lookup from the existing polling boundary."""
+        from .parking import geocoding_endpoint
+
+        endpoint = geocoding_endpoint(self.entry)
+        if endpoint != self._parking_address_endpoint:
+            self._parking_address_cache.clear()
+            self._parking_address_endpoint = endpoint
+            self._parking_address_retry_at = 0.0
+            if self._parking_address_task is not None:
+                self._parking_address_task.cancel()
+        if (
+            endpoint is None
+            or not hasattr(self.hass, "data")
+            or time.monotonic() < self._parking_address_retry_at
+            or (
+                self._parking_address_task is not None
+                and not self._parking_address_task.done()
+            )
+        ):
+            return
+        create_task = getattr(self.entry, "async_create_background_task", None)
+        if not callable(create_task):
+            return
+        for car in self.vehicles.values():
+            point = self._parking_address_point(car)
+            if point is None or point in self._parking_address_cache:
+                continue
+            self._parking_address_task = create_task(
+                self.hass,
+                self._collect_parking_address(car, endpoint, point),
+                "Audi parking address",
+            )
+            break
+
+    async def _collect_parking_address(self, car, endpoint, point):
+        """Recheck consent and the existing tracker before dispatch and publication."""
+        from .parking import geocoding_endpoint, reverse_address
+
+        if (
+            endpoint != geocoding_endpoint(self.entry)
+            or self._parking_address_point(car) != point
+        ):
+            return
+        address = await reverse_address(self.hass, endpoint, point)
+        if (
+            endpoint != geocoding_endpoint(self.entry)
+            or self._parking_address_point(car) != point
+        ):
+            return
+        if address is None:
+            self._parking_address_retry_at = time.monotonic() + 3600
+            return
+        self._parking_address_cache[point] = address
+        if len(self._parking_address_cache) > 64:
+            self._parking_address_cache.pop(next(iter(self._parking_address_cache)))
+        if self._notify is not None:
+            self._notify()
 
     def _start_data_act(self):
         if self._data_act_task is not None and not self._data_act_task.done():
@@ -1123,17 +1207,19 @@ class StatusEngine:
                     ):
                         await self._poll_trips(car)
 
-    def parking_read_allowed(self, car):
-        """Same explicit tracker policy for discovery planning and coverage."""
+    def parking_read_allowed(self, car, *, address=False):
+        """Respect the tracker choice and optionally the address sensor choice."""
         if not hasattr(self.hass, "data"):
             return None  # Unknown in a synthetic/no-registry context.
         from homeassistant.helpers import entity_registry as er
 
         registry = er.async_get(self.hass)
-        tracker = f"{car.vin.lower()}_device_tracker_position"
+        vin = car.vin.lower()
+        targets = {("device_tracker", f"{vin}_device_tracker_position")}
+        if address:
+            targets.add(("sensor", f"{vin}_sensor_parking_address"))
         return not any(
-            entity.domain == "device_tracker"
-            and entity.unique_id == tracker
+            (entity.domain, entity.unique_id) in targets
             and entity.disabled_by is not None
             for entity in er.async_entries_for_config_entry(
                 registry, self.entry.entry_id

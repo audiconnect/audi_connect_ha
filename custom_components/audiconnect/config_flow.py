@@ -41,6 +41,7 @@ from .const import (
     CONF_FILTER_VINS,
     CONF_PASSWORD,
     CONF_REFRESH_AFTER_ACTION,
+    CONF_V3_CHARGING_STOP_RETRY,
     CONF_REFRESH_TOKEN,
     CONF_REGION,
     CONF_SCAN_INITIAL,
@@ -922,8 +923,31 @@ class OptionsFlowHandler(OptionsFlow):
             # existing custom API profiles untouched when it is turned off.
             if user_input["runtime_version"] != "v3_climate":
                 user_input["v3_development_workbench"] = False
+                user_input[CONF_V3_CHARGING_STOP_RETRY] = False
             else:
                 user_input.setdefault("v3_development_workbench", False)
+                user_input[CONF_V3_CHARGING_STOP_RETRY] = (
+                    user_input.get(CONF_V3_CHARGING_STOP_RETRY) is True
+                )
+            from .v3.parking import (
+                GEOCODING_ENDPOINT,
+                REVERSE_GEOCODING,
+                valid_geocoding_endpoint,
+            )
+
+            if user_input["runtime_version"] != "v3_climate":
+                user_input[REVERSE_GEOCODING] = False
+            elif user_input.get(REVERSE_GEOCODING) is True:
+                endpoint = user_input.get(GEOCODING_ENDPOINT)
+                if not valid_geocoding_endpoint(endpoint):
+                    return self.async_show_form(
+                        step_id="init",
+                        errors={GEOCODING_ENDPOINT: "invalid_geocoding_endpoint"},
+                        data_schema=self._options_schema(user_input),
+                        description_placeholders=await self._data_act_placeholders(
+                            user_input
+                        ),
+                    )
             edit_dealer = bool(user_input.pop("edit_local_dealer", False))
             run_discovery = bool(user_input.pop("run_vehicle_discovery", True))
             # On runtime switch, some HA clients submit only the changed
@@ -1142,9 +1166,27 @@ class OptionsFlowHandler(OptionsFlow):
         }
 
         if values.get("runtime_version", "v2") == "v3_climate":
+            from .v3.parking import GEOCODING_ENDPOINT, REVERSE_GEOCODING
+
+            schema[
+                vol.Required(
+                    REVERSE_GEOCODING, default=values.get(REVERSE_GEOCODING, False)
+                )
+            ] = bool
+            schema[
+                vol.Optional(
+                    GEOCODING_ENDPOINT, default=values.get(GEOCODING_ENDPOINT, "")
+                )
+            ] = TextSelector()
             schema[vol.Optional("edit_local_dealer", default=False)] = bool
             schema[vol.Optional("manage_data_act", default=False)] = bool
             schema[vol.Optional("run_vehicle_discovery", default=True)] = bool
+            schema[
+                vol.Required(
+                    CONF_V3_CHARGING_STOP_RETRY,
+                    default=values.get(CONF_V3_CHARGING_STOP_RETRY) is True,
+                )
+            ] = bool
             schema[
                 vol.Required(
                     "v3_development_workbench",

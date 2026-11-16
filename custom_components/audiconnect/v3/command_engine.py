@@ -39,6 +39,7 @@ from .command_readback import (
     observe_command_response,
     latest_readback_command,
     follow_up_refresh_allowed,
+    recent_charging_state,
 )
 from .control_resolution import control_decision, resolve_control
 from .command_policy import supported_charge_modes
@@ -58,6 +59,7 @@ class CommandEngine:
         operation_request,
         api_record,
         notify,
+        stop_retry_enabled=lambda: False,
     ):
         self.auth = auth
         self._transport = transport
@@ -67,6 +69,7 @@ class CommandEngine:
         self._operation_request = operation_request
         self._api_record = api_record
         self._notify_discovery_change = notify
+        self._stop_retry_enabled = stop_retry_enabled
         self._actions = asyncio.Lock()
 
     def exclusive(self):
@@ -683,6 +686,124 @@ class CommandEngine:
             self._notify_discovery_change()
             return {"confirmed": outcome, "active": dict(profile.active)}
 
+    def charging_stop_retry_current(self, car, profile, record, *, child=None):
+        """One same-session explicit STOP intent, never a restored or superseded one."""
+        latest = profile.last_command
+        return (
+            self._stop_retry_enabled()
+            and self.profiles.get(car.vin.lower()) is profile
+            and car.inventory_present
+            and record.origin == "home_assistant"
+            and record.operation == "cariad.charging.stop"
+            and record.capability == "charging"
+            and record.action == "stop"
+            and record.parent_command_id is None
+            and not getattr(record, "restored", False)
+            and record.http_status is not None
+            and 200 <= record.http_status < 300
+            and record.request_id is not None
+            and getattr(record, "request_context", None) is profile.discovery.context
+            and any(row is record for row in profile.command_journal)
+            and sum(
+                row.request_id == record.request_id for row in profile.command_journal
+            )
+            == 1
+            and (
+                latest is child
+                and child is not None
+                and child.parent_command_id == record.command_id
+                if child is not None
+                else latest is record
+                or (
+                    latest is not None
+                    and latest.parent_command_id == record.command_id
+                    and latest.capability == "remote"
+                    and latest.action == "refresh"
+                )
+            )
+            # Workbench uses a separate latest pointer. Its newer explicit
+            # physical intent must supersede this delayed recovery as well.
+            and not (
+                profile.discovery.history
+                and profile.discovery.history[-1].started_at >= record.started_at
+            )
+            and record.readback_observed_at is None
+            and 0 <= time.time() - record.started_at <= 360
+            and self.command_route(car.vin, "stop", "charging") == record.operation
+            and record.operation_revision
+            == operation_revision(profile.registry.operations[record.operation])
+        )
+
+    def charging_stop_retry_ready(self, car, profile, record, *, child=None):
+        """Require a correlated terminal timeout and recent native still-charging evidence."""
+        if (
+            not self.charging_stop_retry_current(car, profile, record, child=child)
+            or not record.stop_retry_timed_out
+            or not optional_budget_available(self._command_allowance("cariad"), cost=4)
+        ):
+            return False
+        return (
+            recent_charging_state(
+                record,
+                car,
+                registry=profile.registry,
+                receipt_after=record.completed_at,
+            )
+            is True
+        )
+
+    async def retry_charging_stop(self, vin, record, refresh):
+        """Experimental one-shot STOP recovery; never retry pending/uncertain actions."""
+        from .request_status import PENDING_RESULTS, confirm
+
+        if not self._stop_retry_enabled():
+            return None
+        await asyncio.sleep(max(0, record.started_at + 300 - time.time()))
+        try:
+            car = self.require_vehicle(vin)
+            profile = self.profiles[vin.lower()]
+            if not self.charging_stop_retry_current(car, profile, record):
+                return None
+            if not record.stop_retry_timed_out:
+                if (
+                    record.state != "accepted_unconfirmed"
+                    or record.backend_result not in PENDING_RESULTS
+                    or not optional_budget_available(
+                        self._command_allowance("cariad"), cost=5
+                    )
+                ):
+                    return None
+                outcome = await confirm(
+                    self.transport,
+                    car.vin,
+                    record.request_id,
+                    max_reads=1,
+                    distinguish_timeout=True,
+                )
+                if outcome not in ("timeout", "backend_completed", "rejected"):
+                    return None
+                async with self._actions:
+                    if not self.charging_stop_retry_current(car, profile, record):
+                        return None
+                    if (
+                        record.state == "accepted_unconfirmed"
+                        and record.backend_result in PENDING_RESULTS
+                    ):
+                        record.observe_backend(outcome, time.time())
+                        if profile.last_command is record:
+                            car.last_command_result = record.state
+                        await self.storage.async_save(self.profiles)
+                        self._notify_discovery_change()
+                    elif outcome != "timeout":
+                        return None  # Conflicting terminal observations.
+            if not record.stop_retry_timed_out:
+                return None
+            # Reuse the normal read-only cloud refresh; never wake the car.
+            await refresh()
+            return await self.send_control(vin, "stop", "charging", _retry_of=record)
+        except (RuntimeError, ValueError, OSError, TimeoutError):
+            return None
+
     async def send_control(
         self,
         vin: str,
@@ -691,8 +812,9 @@ class CommandEngine:
         *,
         params: dict[str, Any] | None = None,
         _follow_up_to: str | None = None,
+        _retry_of: CommandRecord | None = None,
     ) -> CommandRecord:
-        """One journaled mutation, persisted before dispatch; never replay.
+        """One journaled mutation, persisted before dispatch; no uncertain replay.
 
         Only an opt-in, linked refresh after an accepted user command may
         bypass the general command cooldown. It still needs its own route,
@@ -708,6 +830,14 @@ class CommandEngine:
                 raise RuntimeError(
                     "A control experiment for this capability is awaiting physical confirmation"
                 )
+            if _retry_of is not None and (
+                _follow_up_to is not None
+                or capability != "charging"
+                or aspect != "stop"
+                or params
+                or not self.charging_stop_retry_ready(car, p, _retry_of)
+            ):
+                raise RuntimeError("Charging STOP recovery is no longer eligible")
             if _follow_up_to is not None:
                 parent = p.last_command
                 if (
@@ -742,6 +872,8 @@ class CommandEngine:
             ident = self.command_route(vin, aspect, capability)
             if ident is None:
                 raise RuntimeError("No eligible Audi command route")
+            if _retry_of is not None and ident != _retry_of.operation:
+                raise RuntimeError("Charging STOP recovery route changed")
             if not self._parameter_variant_verified(p, ident, params or {}):
                 raise ValueError(
                     "Climate parameter combination requires vehicle discovery"
@@ -754,13 +886,23 @@ class CommandEngine:
                 ident,
                 time.time(),
                 operation_revision=operation_revision(p.registry.operations[ident]),
-                parent_command_id=_follow_up_to,
+                parent_command_id=_retry_of.command_id if _retry_of else _follow_up_to,
             )
             configure_readback(record, params)
             with p.command_transaction():
                 p.track_command(record)
                 # No physical action until the pending record is durable.
                 await self.storage.async_save(self.profiles)
+            if _retry_of is not None and not self.charging_stop_retry_ready(
+                car, p, _retry_of, child=record
+            ):
+                # Consent, route or telemetry can change while storage awaits.
+                # This is a local cancellation, not an Audi response.
+                record.observe_backend("rejected", time.time())
+                car.last_command_result = record.state
+                await self.storage.async_save(self.profiles)
+                self._notify_discovery_change()
+                raise RuntimeError("Charging STOP recovery cancelled before dispatch")
             try:
                 family, path, response = await self._execute_prepared(
                     car, p, record, prepared, params
@@ -779,9 +921,21 @@ class CommandEngine:
                         from .request_status import confirm
 
                         if record.request_id is not None:
-                            outcome = await confirm(
-                                self.transport, car.vin, record.request_id
-                            )
+                            if (
+                                self._stop_retry_enabled()
+                                and record.operation == "cariad.charging.stop"
+                                and record.parent_command_id is None
+                            ):
+                                outcome = await confirm(
+                                    self.transport,
+                                    car.vin,
+                                    record.request_id,
+                                    distinguish_timeout=True,
+                                )
+                            else:
+                                outcome = await confirm(
+                                    self.transport, car.vin, record.request_id
+                                )
                     elif family == "mbb":
                         from .legacy_commands import confirm
 
@@ -808,7 +962,14 @@ class CommandEngine:
                         f"HTTP {record.http_status}; {record.state}; "
                         "result processing failed"
                     )
-                if record.state in ("rejected", "uncertain"):
+                if (
+                    record.state
+                    in (
+                        "rejected",
+                        "uncertain",
+                    )
+                    and not record.stop_retry_timed_out
+                ):
                     record.completed_at = max(record.started_at, time.time())
                 await self.storage.async_save(self.profiles)
                 self._notify_discovery_change()
@@ -816,7 +977,14 @@ class CommandEngine:
                 raise RuntimeError(
                     f"Audi {capability}.{aspect}: {detail}. {advice}."
                 ) from err
-            if record.state in ("rejected", "uncertain"):
+            if (
+                record.state
+                in (
+                    "rejected",
+                    "uncertain",
+                )
+                and not record.stop_retry_timed_out
+            ):
                 record.completed_at = max(record.started_at, time.time())
             await self.storage.async_save(self.profiles)
             self._notify_discovery_change()

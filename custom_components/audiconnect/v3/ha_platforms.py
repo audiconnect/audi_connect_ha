@@ -25,6 +25,7 @@ from .entities import (
     V3LockEntity,
     V3ParkedTracker,
     V3ParkedInSensor,
+    V3ParkingAddressSensor,
     V3ChargeTargetNumber,
     V3ChargeModeSelect,
     V3LocationChargeTargetNumber,
@@ -39,6 +40,7 @@ from .entities import (
     V3AccessSummary,
 )
 from .command_policy import supported_charge_modes
+from .parking import geocoding_endpoint
 from .custom_attributes import attributes_for
 from .attribute_contracts import semantic_value_issue
 from .product_contract import (
@@ -130,6 +132,11 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                 add_once(f"{vin}:model", V3ModelSensor)
                 if getattr(car, "position", None) is not None or retained("parked_in"):
                     add_once(f"{vin}:parked_in", V3ParkedInSensor)
+                if retained("parking_address") or (
+                    geocoding_endpoint(entry) is not None
+                    and getattr(car, "position", None) is not None
+                ):
+                    add_once(f"{vin}:parking_address", V3ParkingAddressSensor)
                 for kind in ("integration_status", "last_error", "data_act_status"):
                     add_once(f"{vin}:health:{kind}", V3HealthSensor, kind)
                 for kind in ("door", "window"):

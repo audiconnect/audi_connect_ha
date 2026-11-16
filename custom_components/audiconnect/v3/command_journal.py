@@ -88,6 +88,17 @@ class CommandRecord:
 
     def observe_backend(self, outcome: str, now: float) -> None:
         """Apply correlated backend evidence without undoing terminal results."""
+        stop_timeout = (
+            outcome == "timeout"
+            and self.origin == "home_assistant"
+            and self.operation == "cariad.charging.stop"
+            and self.capability == "charging"
+            and self.action == "stop"
+            and self.parent_command_id is None
+            and self.state == "accepted_unconfirmed"
+        )
+        if outcome == "timeout":
+            outcome = "rejected"
         if self.backend_result == "rejected" or (
             self.backend_result == "backend_completed" and outcome != "rejected"
         ):
@@ -98,6 +109,9 @@ class CommandRecord:
         if outcome == "rejected":
             self.state = "rejected"
             self.completed_at = max(self.started_at, now)
+            if stop_timeout:
+                # Runtime evidence only; never authorize recovery after restart.
+                self.stop_retry_timeout_at = self.completed_at
         elif outcome == "backend_completed":
             if self.state not in (
                 "verified",
@@ -113,6 +127,16 @@ class CommandRecord:
             "access",
         ):
             self.state = "uncertain"
+
+    @property
+    def stop_retry_timed_out(self) -> bool:
+        return (
+            self.state == "rejected"
+            and self.backend_result == "rejected"
+            and self.completed_at is not None
+            and getattr(self, "stop_retry_timeout_at", None) == self.completed_at
+            and not getattr(self, "restored", False)
+        )
 
     @property
     def unresolved(self) -> bool:
@@ -283,8 +307,13 @@ class CommandRecord:
                     not isinstance(record.parent_command_id, str)
                     or not re.fullmatch(r"[a-f0-9]{32}", record.parent_command_id)
                     or record.parent_command_id == record.command_id
-                    or record.capability != "remote"
-                    or record.action != "refresh"
+                    or not (
+                        (record.capability, record.action) == ("remote", "refresh")
+                        or (
+                            (record.capability, record.action) == ("charging", "stop")
+                            and record.operation == "cariad.charging.stop"
+                        )
+                    )
                     or record.origin != "home_assistant"
                 )
             )

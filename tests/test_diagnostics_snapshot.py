@@ -38,6 +38,7 @@ class TestSnapshot(TestCase):
         values = {
             "CONF_API_LEVEL": "api_level",
             "CONF_REFRESH_AFTER_ACTION": "refresh_vehicle_data_after_action",
+            "CONF_V3_CHARGING_STOP_RETRY": "v3_charging_stop_retry",
             "CONF_REGION": "region",
             "CONF_SCAN_INTERVAL": "scan_interval",
             "DEFAULT_API_LEVEL": 0,
@@ -127,6 +128,23 @@ class TestSnapshot(TestCase):
                 result = asyncio.run(
                     diagnostics.async_get_config_entry_diagnostics(NS(), entry)
                 )
+                for mode, enabled, expected in (
+                    ("v2", True, False),
+                    ("v3_climate", True, True),
+                    ("v3_climate", False, False),
+                    ("v3_climate", "true", False),
+                ):
+                    entry.options = {
+                        "runtime_version": mode,
+                        "v3_charging_stop_retry": enabled,
+                    }
+                    option_result = asyncio.run(
+                        diagnostics.async_get_config_entry_diagnostics(NS(), entry)
+                    )
+                    self.assertIs(
+                        option_result["entry"]["v3_charging_stop_retry"], expected
+                    )
+        self.assertIs(result["entry"]["v3_charging_stop_retry"], False)
         rendered = repr(result)
         for secret in (
             "EXAMPLEVIN0000001",

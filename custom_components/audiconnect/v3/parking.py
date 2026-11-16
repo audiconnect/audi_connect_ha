@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from .freshness import capture_age_minutes
 
@@ -104,3 +105,98 @@ def observe_parking(vehicle, profile, reply, operation):
             operation=operation,
             persist_evidence=False,
         )
+
+
+REVERSE_GEOCODING = "v3_reverse_geocoding"
+GEOCODING_ENDPOINT = "v3_geocoding_endpoint"
+
+
+def valid_geocoding_endpoint(value):
+    """An explicitly configured HTTPS reverse endpoint, never the public OSM API."""
+    if not isinstance(value, str) or not value or len(value) > 2048:
+        return False
+    if any(char.isspace() or ord(char) < 32 for char in value):
+        return False
+    try:
+        url = urlsplit(value)
+        return bool(
+            url.scheme == "https"
+            and url.hostname
+            # Reject ambiguous host spellings before the HTTP client can
+            # normalize them into a blocked public endpoint. Use ASCII IDNA
+            # (punycode) for internationalized authorized hostnames.
+            and url.hostname.isascii()
+            and "%" not in url.hostname
+            and url.hostname.rstrip(".").lower() != "nominatim.openstreetmap.org"
+            and url.username is None
+            and url.password is None
+            and (url.port is None or 0 < url.port <= 65535)
+            and not url.query
+            and not url.fragment
+            and url.path.rstrip("/").endswith("/reverse")
+        )
+    except ValueError:
+        return False
+
+
+def geocoding_endpoint(entry):
+    options = getattr(entry, "options", {})
+    endpoint = options.get(GEOCODING_ENDPOINT)
+    return (
+        endpoint
+        if options.get(REVERSE_GEOCODING) is True and valid_geocoding_endpoint(endpoint)
+        else None
+    )
+
+
+def geocoding_point(position):
+    """Reduce location precision before constructing any external request."""
+    point = parked_coordinates(
+        (position or {}).get("latitude"), (position or {}).get("longitude")
+    )
+    return tuple(round(value, 3) for value in point) if point is not None else None
+
+
+async def reverse_address(hass, endpoint, point):
+    """Optional address enrichment, not an Audi API or a new location source."""
+    import json
+
+    from aiohttp import ClientError, ClientTimeout
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+    if (
+        not valid_geocoding_endpoint(endpoint)
+        or not isinstance(point, (tuple, list))
+        or len(point) != 2
+    ):
+        return None
+    rounded = geocoding_point({"latitude": point[0], "longitude": point[1]})
+    if rounded is None:
+        return None
+    lat, lon = rounded
+    try:
+        session = async_get_clientsession(hass)
+        async with session.get(
+            endpoint,
+            params={"lat": str(lat), "lon": str(lon), "format": "jsonv2"},
+            headers={
+                "User-Agent": "AudiConnectHA/3 (+https://github.com/audiconnect/audi_connect_ha)"
+            },
+            timeout=ClientTimeout(total=5),
+            allow_redirects=False,
+        ) as response:
+            if response.status != 200:
+                return None
+            body = bytearray()
+            async for chunk in response.content.iter_chunked(8192):
+                body.extend(chunk)
+                if len(body) > 65536:
+                    return None
+        payload = json.loads(body)
+    except (ClientError, OSError, TimeoutError, ValueError, RecursionError):
+        return None
+    address = payload.get("display_name") if isinstance(payload, dict) else None
+    if not isinstance(address, str) or not address.strip():
+        return None
+    # HA sensor state has a 255-character limit. Do not retain a raw response.
+    return " ".join(address.split())[:255]

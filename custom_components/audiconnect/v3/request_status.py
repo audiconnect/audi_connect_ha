@@ -30,20 +30,20 @@ def request_id_of(payload: Any) -> str | None:
     return value if isinstance(value, str) and _ID.fullmatch(value) else None
 
 
-def _backend_status(status):
+def _backend_status(status, *, distinguish_timeout=False):
     if not isinstance(status, str):
         return "unknown"
     value = status.strip().lower()
     if value in _SUCCESS:
         return "backend_completed"
     if value in _REJECTED:
-        return "rejected"
+        return "timeout" if distinguish_timeout and value == "timeout" else "rejected"
     if value in PENDING_RESULTS:
         return value
     return "unknown"
 
 
-def status_of(payload: Any, request_id: str) -> str:
+def status_of(payload: Any, request_id: str, *, distinguish_timeout=False) -> str:
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         return "unknown"
     rows = payload["data"]
@@ -54,7 +54,9 @@ def status_of(payload: Any, request_id: str) -> str:
     ]
     if len(matches) != 1:
         return "unknown" if matches else "not_listed"
-    return _backend_status(matches[0].get("status"))
+    return _backend_status(
+        matches[0].get("status"), distinguish_timeout=distinguish_timeout
+    )
 
 
 async def confirm(
@@ -64,6 +66,7 @@ async def confirm(
     *,
     max_reads: int = 3,
     delay_s: float = 4,
+    distinguish_timeout: bool = False,
 ) -> str:
     """Check only the known VIN request; never POST/retry a physical command."""
     if not _ID.fullmatch(request_id):
@@ -92,8 +95,10 @@ async def confirm(
             continue
         if not 200 <= response.status < 300:
             return "unknown"
-        outcome = status_of(response.data, request_id)
-        if outcome in ("rejected", "backend_completed"):
+        outcome = status_of(
+            response.data, request_id, distinguish_timeout=distinguish_timeout
+        )
+        if outcome in ("rejected", "backend_completed", "timeout"):
             return outcome
         if outcome in PENDING_RESULTS:
             last_pending = outcome
@@ -165,7 +170,10 @@ def reconcile_native_queue(profile, payload, observed_at):
         ]
         if len(matches) != 1 or matches[0].get("operation") != expected:
             continue
-        outcome = _backend_status(matches[0].get("status"))
+        outcome = _backend_status(
+            matches[0].get("status"),
+            distinguish_timeout=record.operation == "cariad.charging.stop",
+        )
         if outcome == "unknown":
             continue
         before = (record.state, record.backend_result)

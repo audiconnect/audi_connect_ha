@@ -36,6 +36,7 @@ async def test_switch_v2_to_v3_saves_mode_and_preserves_legacy_options():
     saved = result["data"]
     assert saved["runtime_version"] == "v3_climate"
     assert saved["v3_development_workbench"] is False
+    assert saved["v3_charging_stop_retry"] is False
     assert saved["climate_quick_start"] is True
     assert saved["experimental_commands"] is True
     assert "local_dealers" in saved
@@ -55,6 +56,7 @@ async def test_switch_back_to_v2_preserves_legacy_configuration():
         options={
             "runtime_version": "v3_climate",
             "v3_development_workbench": True,
+            "v3_charging_stop_retry": True,
             "climate_quick_start": True,
             "scan_interval": 15,
         },
@@ -68,6 +70,7 @@ async def test_switch_back_to_v2_preserves_legacy_configuration():
     assert result["type"] == "create_entry"
     saved = result["data"]
     assert saved["runtime_version"] == "v2"
+    assert saved["v3_charging_stop_retry"] is False
     assert saved["v3_development_workbench"] is False
     assert saved["climate_quick_start"] is True
 
@@ -92,6 +95,16 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
     )
     fields = [key.schema for key in schema.schema]
     assert "v3_development_workbench" in fields
+    assert "v3_charging_stop_retry" in fields
+    assert (
+        next(
+            key for key in schema.schema if key.schema == "v3_charging_stop_retry"
+        ).default()
+        is False
+    )
+    assert "v3_charging_stop_retry" not in [
+        key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
+    ]
     assert "scan_initial" not in fields
     assert "scan_initial" in [
         key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
@@ -413,3 +426,71 @@ async def test_native_selective_discovery_accepts_typed_temperature(monkeypatch)
         guided=True,
         expert=True,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_charging_stop_retry_requires_explicit_v3_option(enabled):
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    flow._test_entry = SimpleNamespace(
+        data={"scan_interval": 15},
+        options={
+            "runtime_version": "v3_climate",
+            "v3_charging_stop_retry": not enabled,
+        },
+    )
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    result = await flow.async_step_init({"v3_charging_stop_retry": enabled})
+    assert result["data"]["v3_charging_stop_retry"] is enabled
+
+
+@pytest.mark.asyncio
+async def test_reverse_geocoding_is_explicit_and_v3_only():
+    from custom_components.audiconnect.v3.parking import (
+        GEOCODING_ENDPOINT,
+        REVERSE_GEOCODING,
+    )
+
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    flow._test_entry = SimpleNamespace(
+        data={}, options={"runtime_version": "v3_climate"}
+    )
+    schema = flow._options_schema(flow._test_entry.options).schema
+    assert (
+        next(key for key in schema if key.schema == REVERSE_GEOCODING).default()
+        is False
+    )
+    assert REVERSE_GEOCODING not in {
+        key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
+    }
+    result = await flow.async_step_init(
+        {
+            REVERSE_GEOCODING: True,
+            GEOCODING_ENDPOINT: "",
+            "run_vehicle_discovery": False,
+        }
+    )
+    assert result["errors"][GEOCODING_ENDPOINT] == "invalid_geocoding_endpoint"
+    result = await flow.async_step_init(
+        {
+            REVERSE_GEOCODING: True,
+            GEOCODING_ENDPOINT: "https://geocoder.example.invalid/reverse",
+            "run_vehicle_discovery": False,
+        }
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"][REVERSE_GEOCODING] is True
+    flow._test_entry.options = result["data"]
+    result = await flow.async_step_init({"runtime_version": "v2"})
+    assert result["data"][REVERSE_GEOCODING] is False

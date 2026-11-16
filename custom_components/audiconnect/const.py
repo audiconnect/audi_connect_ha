@@ -37,6 +37,7 @@ CONF_SPIN = "spin"
 CONF_REGION = "region"
 CONF_FILTER_VINS = "filter_vins"
 CONF_REFRESH_AFTER_ACTION = "refresh_vehicle_data_after_action"
+CONF_V3_CHARGING_STOP_RETRY = "v3_charging_stop_retry"
 CONF_REFRESH_TOKEN = "refresh_token"
 CONF_UPDATE_SLEEP = "update_sleep"
 AUTH0_REFRESH_TOKEN_PREFIX = "auth0:"
@@ -111,6 +112,7 @@ __all__ = [
     "CONF_FILTER_VINS",
     "CONF_PASSWORD",
     "CONF_REFRESH_AFTER_ACTION",
+    "CONF_V3_CHARGING_STOP_RETRY",
     "CONF_REFRESH_TOKEN",
     "CONF_REGION",
     "CONF_SCAN_INITIAL",

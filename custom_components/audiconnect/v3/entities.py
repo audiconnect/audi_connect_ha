@@ -1903,6 +1903,36 @@ class V3ParkedInSensor(V3BaseEntity, SensorEntity):
         }
 
 
+class V3ParkingAddressSensor(V3BaseEntity, SensorEntity):
+    """Optional address of the last reported parking position, not live GPS."""
+
+    entity_description = _product_description("sensor.parking_address")
+    _attr_icon = "mdi:map-marker-outline"
+
+    def __init__(self, coordinator, vehicle):
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = f"{vehicle.vin.lower()}_sensor_parking_address"
+
+    @property
+    def native_value(self):
+        status = getattr(self.coordinator.engine, "status", None)
+        return status.parking_address(self.vehicle) if status is not None else None
+
+    @property
+    def available(self):
+        return self.native_value is not None
+
+    @property
+    def extra_state_attributes(self):
+        row = self.vehicle.readings.get("position_last_updated", {})
+        return {
+            **reading_freshness_attributes(row, allow_last_known=True),
+            "position_source": "Audi last reported parking position",
+            "attribution": "© OpenStreetMap contributors",
+            "address_precision": "approximate",
+        }
+
+
 class V3ChargeTargetNumber(V3BaseEntity, NumberEntity):
     """V2 global charge-target identity; command gated by V3 route evidence."""
 
