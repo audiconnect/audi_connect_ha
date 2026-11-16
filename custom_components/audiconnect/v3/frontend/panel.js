@@ -953,7 +953,9 @@ class AudiConnectV3Panel extends HTMLElement {
           : result;
         this.lastResult = result;
         this.step = 3;
-      } else if (action === "family-test" || action === "family-full-test") {
+      } else if (
+        ["family-test", "family-full-test", "family-rescan"].includes(action)
+      ) {
         const car = this.entries
           .find((e) => e.entry_id === this.selected)
           ?.vehicles.find((v) => v.vin === this.vin);
@@ -964,7 +966,15 @@ class AudiConnectV3Panel extends HTMLElement {
         this.lastResult = await this.api("test_family_reads", {
           ...this.selection,
           family,
-          full: action === "family-full-test",
+          full: action !== "family-test",
+          ...(action === "family-rescan" && family !== "graphql"
+            ? {
+                rescan_after:
+                  this.lastResult?.family === family
+                    ? (this.lastResult.next_rescan_after ?? "")
+                    : "",
+              }
+            : {}),
         });
       } else if (action === "control-add") {
         this.lastResult = await this.api("add_route", {
@@ -2462,7 +2472,8 @@ class AudiConnectV3Panel extends HTMLElement {
             <p>${applicableFamily ? "Scan reviewed read-only operations. No vehicle commands or automatic activation." : "This source has no applicable manual scan. Inspect its discovery evidence above; automatic collection follows its normal cadence."}</p>
             <div class="actions"><button data-action="family-test" class="primary"
               ${this.loading || !applicableFamily ? "disabled" : ""}>Quick scan</button>
-              <button data-action="family-full-test" ${this.loading || !applicableFamily ? "disabled" : ""}>Full read-only scan / continue</button></div>
+              <button data-action="family-full-test" ${this.loading || !applicableFamily ? "disabled" : ""}>Full read-only scan / continue</button>
+              <button data-action="family-rescan" ${this.loading || !applicableFamily ? "disabled" : ""}>${this.lastResult?.next_rescan_after != null && this.lastResult?.family === (family === "all" ? vehicleFamily : family) ? "Continue rescan" : "Retest all reviewed reads"}</button></div>
             ${this.lastResult?.mode === "full" ? `<p><b>${this.lastResult.request_count} requests · ${this.lastResult.eligible_routes} eligible routes · ${this.lastResult.remaining_routes.length} remaining</b> ${escapeHTML(this.lastResult.stopped || "Completed")}</p><details open><summary>Remaining and excluded routes</summary><pre>${escapeHTML(JSON.stringify({ remaining: this.lastResult.remaining_routes, excluded: this.lastResult.excluded_routes }, null, 2))}</pre></details>` : ""}
             <div class="helper">${escapeHTML(this.lastResult?.family ? JSON.stringify(this.lastResult) : "No manual family test in this session")}</div>
           </section>
