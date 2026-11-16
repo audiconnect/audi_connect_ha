@@ -805,11 +805,6 @@ def observe_read_only(
         _accept_observation,
         operation=operation,
     )
-    from .structured_details import observe_structured
-
-    observe_structured(
-        vehicle, payload, observed_at, _accept_observation, operation=operation
-    )
     if complete_discovery:
         vehicle.v2_initial_discovery_completed = True
     return {"mapped": mapped, "fresh": fresh_count}
