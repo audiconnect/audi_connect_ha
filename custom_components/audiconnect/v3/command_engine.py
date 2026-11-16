@@ -522,7 +522,8 @@ class CommandEngine:
                         row["capability"],
                         row["action"],
                         row["operation"],
-                    ) == (capability, aspect, operation)
+                    )
+                    == (capability, aspect, operation)
                 ),
                 None,
             )
