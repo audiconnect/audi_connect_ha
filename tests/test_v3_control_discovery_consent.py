@@ -323,12 +323,12 @@ def test_selective_climate_discovery_does_not_require_unrelated_temperature(
             )
         )
 
-    with pytest.raises(ValueError):
-        execute(params, False)
-    with pytest.raises(ValueError, match="Choose at least one"):
-        execute({}, True)
-    prepare.assert_not_awaited()
-    with pytest.raises(RuntimeError, match="prepared"):
-        execute(params, True)
-    prepare.assert_awaited_once_with(car, route, params)
-    assert profile.discovery.active_attempt is None
+    for expert in (False, True):
+        with pytest.raises(ValueError, match="Choose at least one"):
+            execute({}, expert)
+        prepare.assert_not_awaited()
+        with pytest.raises(RuntimeError, match="prepared"):
+            execute(params, expert)
+        prepare.assert_awaited_once_with(car, route, params)
+        prepare.reset_mock()
+        assert profile.discovery.active_attempt is None
