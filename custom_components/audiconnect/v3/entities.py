@@ -2108,9 +2108,7 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
         reported = last_known_observation(
             _control_reading(self.coordinator, self.vehicle, self.reading)
         ).get("value")
-        return (
-            self.is_on is not None or type(reported) is bool
-        ) and self._writable
+        return (self.is_on is not None or type(reported) is bool) and self._writable
 
     @property
     def _writable(self):
@@ -2139,7 +2137,9 @@ class V3ClimateSettingSwitch(V3BaseEntity, SwitchEntity):
         dispatch = result.get("control_dispatch", {}).get("set_settings")
         if dispatch is not None and not writable:
             dispatch["ready"] = False
-            dispatch["reason"] = dispatch["reason"] or "climate_setting_requires_discovery"
+            dispatch["reason"] = (
+                dispatch["reason"] or "climate_setting_requires_discovery"
+            )
         return result
 
     async def _write(self, value):
