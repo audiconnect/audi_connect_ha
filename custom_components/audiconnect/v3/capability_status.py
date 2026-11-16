@@ -1308,6 +1308,121 @@ def diagnostic_route_label(ident, registry):
     return "custom_or_discovery_route"
 
 
+# Explicit technical string allowlist: never export arbitrary OEM/user strings.
+_DIAGNOSTIC_ENUMS = {
+    "chargingState": frozenset(
+        ("charging", "off", "readyForCharging", "notReadyForCharging",
+         "conservation", "chargePurposeReached", "error", "invalid", "unsupported")
+    ),
+    "plugState": frozenset(("connected", "disconnected", "plugged", "unplugged")),
+    "preferredChargeMode": frozenset(("manual", "timer")),
+    "availableChargeModes": frozenset(("manual", "timer")),
+    "chargeMode": frozenset(("manual", "timer", "immediate", "off", "invalid")),
+    "engineTypeFirstEngine": frozenset(("electric", "gasoline", "diesel", "petrol", "hybrid")),
+    "engineTypeSecondEngine": frozenset(("electric", "gasoline", "diesel", "petrol", "hybrid")),
+    "primary_engine_type": frozenset(("electric", "fuel")),
+    "secondary_engine_type": frozenset(("electric", "fuel")),
+    "doorLockStatus": frozenset(("locked", "unlocked")),
+    "climatisationState": frozenset(("off", "on", "heating", "cooling", "ventilation")),
+}
+# Internal aliases are fixed product fields, not arbitrary custom attributes.
+_DIAGNOSTIC_SOC_ALIASES = frozenset(
+    ("measuredElectricSOC", "primaryEngineRangePercent", "secondaryEngineRangePercent")
+)
+
+
+def diagnostic_technical_value(ident, value):
+    """Bounded technical scalars only; no raw payloads or free text."""
+    import math
+
+    definition = CANONICAL_ATTRIBUTES.get(ident, {})
+    if ident not in CANONICAL_ATTRIBUTES and ident not in _DIAGNOSTIC_SOC_ALIASES:
+        return None
+    key = definition.get("entity_key", "")
+    if ident in _NATIVE_TRIP_ATTRIBUTES or any(
+        word in key.lower()
+        for word in ("position", "location", "model", "vin", "nickname", "trip")
+    ):
+        return None
+    if type(value) is bool:
+        return value
+    if type(value) in (int, float):
+        if abs(value) <= 1e100 and math.isfinite(value):
+            return value
+        return None
+    allowed = _DIAGNOSTIC_ENUMS.get(ident, ())
+    if isinstance(value, str) and value in allowed:
+        return value
+    if ident == "availableChargeModes" and isinstance(value, list):
+        if len(value) <= 32 and all(isinstance(v, str) and v in allowed for v in value):
+            return value
+    return None
+
+
+def diagnostic_telemetry(vehicle, profile, registry):
+    """Read-only current/retained candidates and canonical SOC selection."""
+    from .freshness import capture_age_minutes
+    from .historical_catalog import ATTRIBUTES
+    from .product_contract import projection_reading
+
+    now = datetime.now(UTC)
+    # Only reviewed field paths may leave diagnostics; custom paths stay private.
+    def sample(ident, row):
+        definition = ATTRIBUTES.get(ident, {})
+        path = row.get("path")
+        operation = row.get("operation")
+        return {
+            "value": diagnostic_technical_value(ident, row.get("value")),
+            "captured": row.get("captured"),
+            "observed_at": row.get("observed"),
+            "delivered_at": row.get("delivered_at"),
+            "age_minutes": capture_age_minutes(row.get("captured"), now),
+            "status": row.get("status"),
+            "operation": diagnostic_route_label(operation, registry) if operation else None,
+            "path": path if path in definition.get("paths", ()) else None,
+        }
+
+    rows = []
+    for ident in sorted(set(CANONICAL_ATTRIBUTES) | _DIAGNOSTIC_SOC_ALIASES):
+        current = vehicle.readings.get(ident, {})
+        candidates = getattr(vehicle, "family_readings", {}).get(ident, {})
+        if not current and not candidates:
+            continue
+        definition = ATTRIBUTES.get(ident, {})
+        unit = contract_for(definition.get("entity_key", "")).get("unit")
+        if ident in _DIAGNOSTIC_SOC_ALIASES:
+            unit = "%"
+        rows.append({
+            "attribute": ident,
+            "unit": unit,
+            "selected_family": current.get("family"),
+            "selected": sample(ident, current) if current else None,
+            "candidates": [
+                {
+                    "family": family,
+                    **sample(ident, row),
+                    "last_known": sample(ident, row["last_known"])
+                    if row.get("last_known") else None,
+                }
+                for family, row in sorted(candidates.items())
+                if family in registry.families
+            ],
+        })
+    ident, selected = projection_reading(
+        vehicle, ATTRIBUTES["stateOfCharge"], registry=registry, now=now
+    )
+    known = last_known_observation(selected)
+    return {
+        "attributes": rows,
+        "state_of_charge_projection": {
+            "attribute": ident,
+            "family": known.get("family"),
+            "unit": "%",
+            **sample(ident, known),
+        } if known else None,
+    }
+
+
 def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
     """Safe diagnostic projection of the same capability model as the dashboard.
 
@@ -1422,6 +1537,7 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                 }
             )
     return {
+        "technical_telemetry": diagnostic_telemetry(vehicle, profile, base_registry),
         "pending_engineering_test": pending_summary,
         "unresolved_normal_commands": unresolved,
         "capabilities": summaries,

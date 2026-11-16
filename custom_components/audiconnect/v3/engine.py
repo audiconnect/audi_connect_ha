@@ -1693,7 +1693,7 @@ class V3Engine:
         return {
             "mode": "v3",
             "diagnostics_schema_version": 2,
-            "privacy_scope": "structural_evidence_only_no_response_previews",
+            "privacy_scope": "allowlisted_technical_telemetry_no_response_previews",
             "polling_owner": "independent_v3_discovery_engine",
             "data_act_polling": self.status.data_act_poll_status(),
             "requests": self.transport.request_count,

@@ -181,7 +181,9 @@ async def test_accepted_comfort_feedback_precedes_confirmation(monkeypatch, outc
     if outcome == "rejected":
         with pytest.raises(RuntimeError, match="rejected"):
             await engine.commands.send_control(VIN, "start", "climate")
-        assert notifications[-1] == ("off", "vehicle")
+        # A correlated rejection ends intent, but the pre-dispatch capture
+        # cannot prove the current physical state after HTTP acceptance.
+        assert notifications[-1] == (None, "unknown")
     else:
         record = await engine.commands.send_control(VIN, "start", "climate")
         assert record.state == "accepted_unconfirmed"

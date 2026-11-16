@@ -377,3 +377,32 @@ def test_implemented_derived_fields_and_history_are_not_missing_mappings():
         attribute_status(car, profile, ATTRIBUTES["remainingChargingTime"], now)[0]
         == "not_observed"
     )
+
+
+
+def test_technical_diagnostics_preserve_soc_candidates_and_redact_text():
+    from datetime import UTC, datetime
+    from custom_components.audiconnect.v3.capability_status import diagnostic_telemetry
+
+    car, profile = _fixture()
+    stamp = datetime.now(UTC).isoformat()
+    sample = {
+        "value": 91,
+        "family": "cariad",
+        "captured": stamp,
+        "status": "verified",
+    }
+    car.readings["stateOfCharge"] = sample
+    car.family_readings["stateOfCharge"] = {"cariad": sample}
+    car.readings["measuredElectricSOC"] = {**sample, "value": 97}
+    car.readings["chargingState"] = {**sample, "value": "private-free-text"}
+    car.readings["model"] = {**sample, "value": "private-model"}
+    report = diagnostic_telemetry(car, profile, profile.registry)
+    rows = {row["attribute"]: row for row in report["attributes"]}
+    assert rows["stateOfCharge"]["selected"]["value"] == 91
+    assert rows["measuredElectricSOC"]["selected"]["value"] == 97
+    assert rows["stateOfCharge"]["candidates"][0]["value"] == 91
+    assert report["state_of_charge_projection"]["value"] == 91
+    assert "private-free-text" not in json.dumps(report)
+    assert "private-model" not in json.dumps(report)
+    assert car.vin not in json.dumps(report)

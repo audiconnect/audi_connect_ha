@@ -519,7 +519,9 @@ def test_accepted_control_projection_expires_and_newer_observation_wins(
     "action,reported,new_state",
     [("stop", "charging", "off"), ("start", "off", "charging")],
 )
-def test_charging_intent_is_bounded_and_preserves_reported_state(action, reported, new_state):
+def test_charging_intent_is_bounded_and_preserves_reported_state(
+    action, reported, new_state
+):
     from custom_components.audiconnect.v3.product_contract import control_projection
 
     command = record("charging", action)
