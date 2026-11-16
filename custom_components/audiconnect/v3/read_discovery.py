@@ -718,12 +718,12 @@ def user_test_candidates(engine, car, profile, *, include_verified=False):
         )
         label = discovery["label"]
         instructions = discovery["instructions"]
-        if include_verified and op.get("request_mode") in (
+        if op.get("request_mode") in (
             "climate_start_settings",
             "climate_settings_update",
         ):
-            # Keep the guided temperature proof independent. Selective testing
-            # must not force a temperature change when testing another field.
+            # Both journeys use the same vehicle-specific parameter contract.
+            # An optional setting must not force an unrelated temperature change.
             selective = native_climate_parameter_schema(op, {}, car)
             selective.pop("temp_f", None)
             if len(selective) > 1:
