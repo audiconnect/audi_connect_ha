@@ -952,7 +952,7 @@ class OptionsFlowHandler(OptionsFlow):
                         ),
                     )
             edit_dealer = bool(user_input.pop("edit_local_dealer", False))
-            run_discovery = bool(user_input.pop("run_vehicle_discovery", True))
+            run_discovery = bool(user_input.pop("run_vehicle_discovery", False))
             # On runtime switch, some HA clients submit only the changed
             # fields. Never let an absent interval prevent saving the choice.
             interval = user_input.get(
@@ -1183,7 +1183,7 @@ class OptionsFlowHandler(OptionsFlow):
             ] = TextSelector()
             schema[vol.Optional("edit_local_dealer", default=False)] = bool
             schema[vol.Optional("manage_data_act", default=False)] = bool
-            schema[vol.Optional("run_vehicle_discovery", default=True)] = bool
+            schema[vol.Optional("run_vehicle_discovery", default=False)] = bool
             schema[
                 vol.Required(
                     CONF_V3_CHARGING_STOP_RETRY,

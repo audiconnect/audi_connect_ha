@@ -116,7 +116,7 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
         next(
             key for key in schema.schema if key.schema == "run_vehicle_discovery"
         ).default()
-        is True
+        is False
     )
 
 
@@ -337,7 +337,7 @@ async def test_data_act_wizard_reuses_runtime_status_without_authentication():
 
 
 @pytest.mark.asyncio
-async def test_default_discovery_is_repeatable_and_does_not_dispatch_on_save():
+async def test_discovery_is_explicit_and_does_not_dispatch_on_save():
     from unittest.mock import AsyncMock
 
     flow = OptionsFlowHandler()
@@ -354,6 +354,12 @@ async def test_default_discovery_is_repeatable_and_does_not_dispatch_on_save():
     )
     flow.async_step_discovery_vehicle = AsyncMock(return_value={"step_id": "discovery"})
     result = await flow.async_step_init({"scan_interval": 20})
+    assert result["type"] == "create_entry"
+    assert result["data"]["scan_interval"] == 20
+    flow.async_step_discovery_vehicle.assert_not_awaited()
+    result = await flow.async_step_init(
+        {"scan_interval": 20, "run_vehicle_discovery": True}
+    )
     assert result["step_id"] == "discovery"
     assert flow._pending_options["scan_interval"] == 20
     assert "run_vehicle_discovery" not in flow._pending_options
@@ -364,6 +370,12 @@ async def test_default_discovery_is_repeatable_and_does_not_dispatch_on_save():
     assert result["data"]["scan_interval"] == 25
     flow.async_step_discovery_vehicle.assert_awaited_once()
     result = await flow.async_step_init({"manage_data_act": True})
+    assert result["step_id"] == "data_act"
+    result = await flow.async_step_data_act({"action": "keep"})
+    assert result["type"] == "create_entry"
+    result = await flow.async_step_init(
+        {"manage_data_act": True, "run_vehicle_discovery": True}
+    )
     assert result["step_id"] == "data_act"
     result = await flow.async_step_data_act({"action": "keep"})
     assert result["step_id"] == "discovery"

@@ -1,7 +1,7 @@
 # Pinned deliberately, so a release of Home Assistant or pytest cannot turn CI
 # red on a pull request that did not change anything. Pin the latest stable
 # Home Assistant monthly release (including its latest stable patch).
-homeassistant==2026.11.1
+homeassistant==2026.11.2
 beautifulsoup4
 pytest==9.1.1
 pytest-asyncio==1.4.0
