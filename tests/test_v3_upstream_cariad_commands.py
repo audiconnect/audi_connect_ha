@@ -1158,6 +1158,43 @@ async def test_initial_stop_confirmation_timeout_preserves_recovery_intent(
     assert tasks == (["Audi charging STOP recovery"] if enabled else [])
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("initial,changed", [(False, True), (True, False)])
+async def test_stop_recovery_requires_consent_at_intent_and_schedule(
+    monkeypatch, initial, changed
+):
+    engine, _car = make_engine()
+    engine.entry.options["v3_charging_stop_retry"] = initial
+    engine.hass = object()
+    tasks = []
+
+    def create_task(hass, coroutine, name):
+        tasks.append(name)
+        coroutine.close()
+
+    engine.entry.async_create_background_task = create_task
+    route = "cariad.charging.stop"
+    monkeypatch.setattr(engine.commands, "command_route", lambda *args: route)
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            if method == "POST":
+                engine.entry.options["v3_charging_stop_retry"] = changed
+                return V3Response(
+                    200, {"data": {"requestID": "original"}}, datetime.now(UTC)
+                )
+            return V3Response(
+                200,
+                {"data": [{"id": "original", "status": "timeout"}]},
+                datetime.now(UTC),
+            )
+
+    engine.transport = Transport()
+    with pytest.raises(RuntimeError, match="rejected"):
+        await engine.send_control(VIN, "stop", "charging")
+    assert tasks == []
+
+
 @pytest.mark.parametrize(
     "capture_offset,receipt_offset,family,value,expected",
     [
