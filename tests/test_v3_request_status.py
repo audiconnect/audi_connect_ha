@@ -185,3 +185,24 @@ def test_duplicate_request_ids_are_not_backend_evidence():
     assert status_of({"data": [{"id": "a", "status": "successful"}] * 201}, "a") == (
         "unknown"
     )
+
+
+def test_timeout_detail_is_opt_in_and_exact_request_only():
+    reply = {"data": [{"id": "own", "status": "timeout"}]}
+    assert status_of(reply, "own") == "rejected"
+    assert status_of(reply, "own", distinguish_timeout=True) == "timeout"
+    assert status_of(reply, "other", distinguish_timeout=True) == "not_listed"
+    assert (
+        status_of(
+            {"data": [{"id": "own", "status": "failed"}]},
+            "own",
+            distinguish_timeout=True,
+        )
+        == "rejected"
+    )
+    obj = transport(replies=[response(200, reply)])
+    assert (
+        asyncio.run(confirm(obj, "VIN", "own", max_reads=1, distinguish_timeout=True))
+        == "timeout"
+    )
+    obj.request.assert_awaited_once()

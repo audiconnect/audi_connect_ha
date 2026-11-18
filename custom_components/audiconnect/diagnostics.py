@@ -19,6 +19,7 @@ from .freshness import vehicle_age_minutes, vehicle_freshness
 from .const import (
     CONF_API_LEVEL,
     CONF_REFRESH_AFTER_ACTION,
+    CONF_V3_CHARGING_STOP_RETRY,
     CONF_REGION,
     CONF_SCAN_INTERVAL,
     DEFAULT_API_LEVEL,
@@ -129,8 +130,17 @@ async def async_get_config_entry_diagnostics(
         "refresh_vehicle_data_after_action": bool(
             entry.options.get(CONF_REFRESH_AFTER_ACTION, False)
         ),
+        "v3_charging_stop_retry": (
+            entry.options.get("runtime_version") == "v3_climate"
+            and entry.options.get(CONF_V3_CHARGING_STOP_RETRY) is True
+        ),
         "entry_state": str(getattr(entry, "state", "unknown")).split(".")[-1].lower(),
     }
+
+    if entry_info["v3_charging_stop_retry"]:
+        from .const import stop_recovery_options
+
+        entry_info["stop_recovery_options"] = stop_recovery_options(entry.options)
 
     # Names and entity IDs may include vehicle identifiers: count only.
     entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)

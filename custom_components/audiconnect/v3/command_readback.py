@@ -19,6 +19,7 @@ from .vehicle import (
     CLIMATE_OFF_STATES,
     CHARGING_ON_STATES,
     CHARGING_OFF_STATES,
+    charging_active,
 )
 
 
@@ -94,6 +95,62 @@ def _readback_value(car, attribute, now=None, *, registry=None, started_at=None)
     return row.get("value"), _valid_capture(row.get("captured"), observed or now)
 
 
+def recent_native_value(
+    record,
+    car,
+    attribute,
+    *,
+    registry=None,
+    now=None,
+    max_age_seconds=60,
+    receipt_after=None,
+    capture_after=None,
+):
+    """Require fresh native evidence, not a new receipt of an old capture."""
+    now = now or datetime.now(UTC)
+    row = _readback_row(car, attribute, now, registry=registry)
+    observed = _capture_in_utc(row.get("observed"))
+    captured = _valid_capture(row.get("captured"), observed or now)
+    if (
+        row.get("family") not in ("cariad", "mbb")
+        or row.get("status") == "invalid_value"
+        or observed is None
+        or observed.timestamp() <= record.started_at
+        or (receipt_after is not None and observed.timestamp() < receipt_after)
+        or captured is None
+        or captured.timestamp() <= record.started_at
+        or (capture_after is not None and captured.timestamp() <= capture_after)
+        or not 0 <= (now - captured).total_seconds() <= max_age_seconds
+    ):
+        return None
+    return row.get("value")
+
+
+def recent_charging_state(
+    record,
+    car,
+    *,
+    registry=None,
+    now=None,
+    max_age_seconds=60,
+    receipt_after=None,
+    capture_after=None,
+):
+    """Use a recent native capture after this command, not intent or history."""
+    return charging_active(
+        recent_native_value(
+            record,
+            car,
+            "chargingState",
+            registry=registry,
+            now=now,
+            max_age_seconds=max_age_seconds,
+            receipt_after=receipt_after,
+            capture_after=capture_after,
+        )
+    )
+
+
 def configure_discovery_readback(record, car, params, *, registry=None):
     """Only auto-confirm an observed change from a known, different pre-test state."""
     configure_readback(record, params)
@@ -146,6 +203,11 @@ def reconcile_readback(record, car, now=None, *, registry=None) -> bool:
         started_at=record.started_at,
     )
     if captured is None or captured.timestamp() <= record.started_at:
+        return False
+    if (
+        record.readback_attribute == "chargingState"
+        and captured.timestamp() > record.started_at + OPTIMISTIC_TTL_SECONDS
+    ):
         return False
     age = (now - captured).total_seconds()
     if not -300 <= age <= 3600:
@@ -287,6 +349,7 @@ def optimistic_expiry(record):
         or record.http_status is None
         or not 200 <= record.http_status < 300
         or not projection_attributes(record)
+        or record.readback_attribute == "chargingState"
         or record.backend_result in ("rejected", "transport_uncertain")
         or record.state not in _ACCEPTED
     ):

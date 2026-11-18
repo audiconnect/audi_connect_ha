@@ -454,8 +454,6 @@ def test_manual_stop_after_failed_remote_stop_is_not_command_success():
         ("access", "unlock", {}, "doorLockStatus", "locked", "unlocked"),
         ("access", "lock", {}, "doorLockStatus", "unlocked", "locked"),
         ("climate", "start", {}, "climate", "off", "on"),
-        ("charging", "start", {}, "chargingState", "off", "charging"),
-        ("charging", "stop", {}, "chargingState", "charging", "off"),
         ("climate", "window_heating_start", {}, "windowHeatingActive", False, True),
         ("climate", "preheater_stop", {}, "preheater_active", True, False),
         ("charging", "set_target_soc", {"value": 80}, "targetstateOfCharge", 70, 80),
@@ -519,9 +517,7 @@ def test_accepted_control_projection_expires_and_newer_observation_wins(
     "action,reported,new_state",
     [("stop", "charging", "off"), ("start", "off", "charging")],
 )
-def test_charging_intent_is_bounded_and_preserves_reported_state(
-    action, reported, new_state
-):
+def test_charging_intent_never_overrides_reported_state(action, reported, new_state):
     from custom_components.audiconnect.v3.product_contract import control_projection
 
     command = record("charging", action)
@@ -533,26 +529,24 @@ def test_charging_intent_is_bounded_and_preserves_reported_state(
         "status": "verified",
     }
     assert control_projection(profile, "chargingState", reading, now=NOW) == (
-        new_state,
-        "optimistic",
+        reported,
+        "last_known_vehicle",
     )
     assert control_projection(profile, "chargingState", {}, now=NOW) == (
-        new_state,
-        "optimistic",
-    )
-    # The old capture must never become current solely because time passes.
-    for elapsed in (5, 30, 120):
-        later = NOW + timedelta(minutes=elapsed)
-        assert control_projection(profile, "chargingState", reading, now=later) == (
-            None,
-            "unknown",
-        )
-    restored = NS(command_journal=[CommandRecord.restore(command.snapshot())])
-    assert control_projection(restored, "chargingState", reading, now=NOW) == (
         None,
         "unknown",
     )
-    # A newer valid capture wins even when it contradicts the request.
+    for elapsed in (5, 30, 120):
+        later = NOW + timedelta(minutes=elapsed)
+        assert control_projection(profile, "chargingState", reading, now=later) == (
+            reported,
+            "last_known_vehicle",
+        )
+    restored = NS(command_journal=[CommandRecord.restore(command.snapshot())])
+    assert control_projection(restored, "chargingState", reading, now=NOW) == (
+        reported,
+        "last_known_vehicle",
+    )
     for value in (new_state, reported):
         assert control_projection(
             profile,
@@ -560,19 +554,40 @@ def test_charging_intent_is_bounded_and_preserves_reported_state(
             {**reading, "value": value, "captured": NEW.isoformat()},
             now=NEW,
         ) == (value, "vehicle")
-    # A subsequent HTTP rejection must not resurrect pre-START/STOP telemetry.
     rejected = record("charging", "stop" if action == "start" else "start")
     rejected.started_at = NEW.timestamp()
     rejected.observe_http(403)
     profile.command_journal.append(rejected)
     assert control_projection(profile, "chargingState", reading, now=NEW) == (
-        None,
-        "unknown",
+        reported,
+        "last_known_vehicle",
     )
-    # A vehicle with no accepted command retains its ordinary reported state.
     assert control_projection(
         NS(command_journal=[]), "chargingState", reading, now=NOW
     ) == (reported, "vehicle")
+
+
+def test_late_charging_capture_is_telemetry_not_command_readback():
+    from custom_components.audiconnect.v3.command_readback import reconcile_readback
+    from custom_components.audiconnect.v3.product_contract import control_projection
+
+    command = record("charging", "stop")
+    command.observe_http(200)
+    later = NOW + timedelta(minutes=37)
+    reading = {
+        "value": "readyForCharging",
+        "captured": later.isoformat(),
+        "observed": later.isoformat(),
+        "status": "verified",
+        "family": "cariad",
+    }
+    car = NS(readings={"chargingState": reading})
+    assert not reconcile_readback(command, car, later)
+    assert command.readback_observed_at is None
+    assert command.state == "accepted_unconfirmed"
+    assert control_projection(
+        NS(command_journal=[command]), "chargingState", reading, now=later
+    ) == ("readyForCharging", "vehicle")
 
 
 def test_sleeping_lock_retains_last_observation_and_explicit_reverse_dispatch():

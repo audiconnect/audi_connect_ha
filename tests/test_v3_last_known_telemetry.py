@@ -274,3 +274,66 @@ def test_canonical_status_restart_retains_only_historical_evidence(ident, value)
     commit_observation(vehicle, ident, reading(value, old), None, now)
     assert vehicle.readings[ident]["value"] == value
     assert vehicle.readings[ident].get("reason") != "restored_history"
+
+
+@pytest.mark.parametrize(
+    "ident,first,second",
+    [
+        ("stateOfCharge", 77, 81),
+        ("batteryElectricRange", 31, 32),
+        ("charging_timers_detail", {"items": [1]}, {"items": [2]}),
+    ],
+)
+@pytest.mark.parametrize("dated", [True, False])
+def test_native_conflict_survives_restart_until_newer_capture(
+    ident, first, second, dated
+):
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        restore_status,
+        status_snapshot,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=1)
+    a, b = reading(first, old), reading(second, old)
+    if not dated:
+        a["captured"] = b["captured"] = None
+    commit_observation(vehicle, ident, a, None, now)
+    commit_observation(vehicle, ident, b, None, now)
+    assert vehicle.readings[ident]["reason"] == "conflicting_source_values"
+    saved = status_snapshot(vehicle.readings, now=now)
+    assert saved[ident]["value"] is None
+    assert saved[ident]["reason"] == "conflicting_source_values"
+    assert "last_known" not in saved[ident]
+    rebooted = car()
+    rebooted.readings.update(restore_status(saved))
+    commit_observation(rebooted, ident, dict(a), None, now)
+    assert rebooted.readings[ident]["reason"] == "conflicting_source_values"
+    commit_observation(rebooted, ident, reading(second, now), None, now)
+    assert rebooted.readings[ident]["value"] == second
+
+
+def test_conflict_snapshot_retains_only_older_safe_scalar_and_no_location():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        last_known_observation,
+        restore_status,
+        status_snapshot,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=1)
+    ident = "stateOfCharge"
+    commit_observation(vehicle, ident, reading(70, old), None, now)
+    commit_observation(vehicle, ident, reading(77, now), None, now)
+    commit_observation(vehicle, ident, reading(81, now), None, now)
+    marker = vehicle.readings[ident]
+    saved = status_snapshot({ident: marker, "position_last_updated": marker}, now=now)
+    assert set(saved) == {ident}
+    restored = restore_status(saved)[ident]
+    assert restored["reason"] == "conflicting_source_values"
+    assert restored["value"] is None
+    assert last_known_observation(restored)["value"] == 70

@@ -337,6 +337,14 @@
       "freshness": "native_entity_contract",
       "name": "Parked in"
     },
+    "sensor.parking_address": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "name": "Parking address"
+    },
     "sensor.position_last_updated": {
       "origin": "v2",
       "scope": "vehicle",

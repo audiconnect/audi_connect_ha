@@ -21,7 +21,7 @@ from aiohttp import ClientError
 
 from .quota import RateLimit
 
-PORTAL = "https://eu-data-act.drivesomethinggreater.com"
+PORTAL = "https://eu-data-act.vwgroup-datahub.com"
 IDENTITY_OPERATION = "eu_data_act.identity.vehicles"
 MAX_ZIP_BYTES = 5_000_000
 MAX_JSON_BYTES = 10_000_000

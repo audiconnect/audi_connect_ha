@@ -1883,6 +1883,8 @@ def diagnostic_capability_summary(vehicle, profile, base_registry, auth):
                 "completed_at": record.completed_at,
                 "readback_observed_at": record.readback_observed_at,
                 "readback_mismatch_at": record.readback_mismatch_at,
+                "recovery_result": getattr(record, "recovery_result", None),
+                "terminal_timeout_observed": record.stop_retry_timed_out,
             }
             for record in getattr(profile, "command_journal", ())
             if record.origin == "home_assistant"

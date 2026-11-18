@@ -800,3 +800,565 @@ def test_timer_count_follows_selected_list_even_when_count_is_unchanged(
     assert car.readings[count]["value"] == 1
     assert car.readings[detail]["value"]["items"][0]["id"] == 2
     assert car.readings[count]["captured"] == car.readings[detail]["captured"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "backend,telemetry,expected",
+    [
+        ("timeout", "charging", True),
+        ("in_progress", "charging", False),
+        ("successful", "charging", False),
+        ("failed", "charging", False),
+        ("timeout", "readyForCharging", False),
+        ("timeout", "stale", False),
+        ("timeout", "stale_then_fresh", True),
+        ("timeout", "data_act", False),
+        ("timeout", "superseded", False),
+        ("timeout", "workbench_superseded", False),
+        ("timeout", "workbench_during_refresh", False),
+        ("timeout", "disabled", False),
+        ("timeout", "disabled_during_refresh", False),
+        ("native_timeout", "charging", True),
+        ("native_timeout", "readyForCharging", False),
+        ("native_error", "charging", False),
+        ("timeout", "disabled_during_save", False),
+        ("timeout", "retry_zero_during_save", False),
+        ("timeout", "stopped_during_save", False),
+    ],
+)
+async def test_charging_stop_recovery_requires_exact_timeout_and_fresh_native_state(
+    monkeypatch, backend, telemetry, expected
+):
+    from datetime import timedelta
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+
+    engine, car = make_engine()
+    engine.entry.options["v3_charging_stop_retry"] = telemetry != "disabled"
+    profile = engine.profiles[VIN.lower()]
+    route = "cariad.charging.stop"
+    monkeypatch.setattr(engine.commands, "command_route", lambda *args: route)
+    started = datetime.now(UTC) - timedelta(seconds=301)
+    first = CommandRecord.begin(
+        "charging",
+        "stop",
+        route,
+        started.timestamp(),
+        operation_revision=operation_revision(profile.registry.operations[route]),
+    )
+    first.observe_http(200)
+    first.observe_backend("in_progress", started.timestamp())
+    first.request_id = "original"
+    first.request_context = profile.discovery.context
+    configure_readback(first, {})
+    profile.track_command(first)
+    calls = []
+    refresh_count = 0
+
+    async def no_delay(_seconds):
+        pass
+
+    monkeypatch.setattr(
+        "custom_components.audiconnect.v3.command_engine.asyncio.sleep", no_delay
+    )
+
+    def workbench_start(stamp):
+        attempt = profile.begin_test(
+            "charging", "start", "cariad.charging.start", now=stamp
+        )
+        profile.observe_http(attempt.sequence, 200)
+        profile.confirm(
+            attempt.sequence, worked=True, inspected_vehicle=True, now=stamp + 1
+        )
+        assert profile.last_command is first
+
+    if telemetry == "workbench_superseded":
+        # The experiment is complete and its normal cooldown has elapsed.
+        workbench_start(started.timestamp() + 10)
+
+    if backend in ("native_timeout", "native_error"):
+        engine.commands.reconcile_native_requests(
+            car,
+            profile,
+            {
+                "charging": {
+                    "chargingStatus": {
+                        "requests": [
+                            {
+                                "requestId": "original",
+                                "operation": "stop",
+                                "status": backend.removeprefix("native_"),
+                            }
+                        ]
+                    }
+                }
+            },
+            datetime.now(UTC),
+        )
+        assert first.state == "rejected"
+        assert first.stop_retry_timed_out == (backend == "native_timeout")
+        assert not CommandRecord.restore(first.snapshot()).stop_retry_timed_out
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((family, method, path))
+            if method == "POST":
+                return V3Response(
+                    200, {"data": {"requestID": "second"}}, datetime.now(UTC)
+                )
+            item = (
+                {"id": "original", "status": backend}
+                if len(calls) == 1
+                else {"id": "second", "status": "successful"}
+            )
+            return V3Response(200, {"data": [item]}, datetime.now(UTC))
+
+    engine.transport = Transport()
+
+    async def refresh(current):
+        assert current()
+        nonlocal refresh_count
+        refresh_count += 1
+        now = datetime.now(UTC)
+        car.readings["chargingState"] = {
+            "value": "readyForCharging"
+            if telemetry == "readyForCharging"
+            else "charging",
+            "family": "eu_data_act" if telemetry == "data_act" else "cariad",
+            "captured": (
+                started
+                if telemetry == "stale"
+                or (telemetry == "stale_then_fresh" and refresh_count == 1)
+                else now
+            ).isoformat(),
+            "observed": now.isoformat(),
+            "status": "verified",
+        }
+        if telemetry == "disabled_during_refresh":
+            engine.entry.options["v3_charging_stop_retry"] = False
+        if telemetry == "superseded":
+            profile.track_command(
+                CommandRecord.begin("charging", "start", route, now.timestamp())
+            )
+        if telemetry == "workbench_during_refresh":
+            workbench_start(now.timestamp())
+
+    if telemetry in (
+        "disabled_during_save",
+        "retry_zero_during_save",
+        "stopped_during_save",
+    ):
+
+        async def save(_profiles):
+            latest = profile.last_command
+            if latest.parent_command_id != first.command_id:
+                return
+            if telemetry == "disabled_during_save":
+                engine.entry.options["v3_charging_stop_retry"] = False
+            elif telemetry == "retry_zero_during_save":
+                engine.entry.options["v3_stop_extra_retries"] = 0
+            else:
+                stamp = datetime.now(UTC).isoformat()
+                car.readings["chargingState"].update(
+                    value="readyForCharging", captured=stamp, observed=stamp
+                )
+
+        monkeypatch.setattr(engine.storage, "async_save", save)
+
+    result = await engine.commands.retry_charging_stop(VIN, first, refresh)
+    writes = [call for call in calls if call[1] == "POST"]
+    if telemetry == "stale_then_fresh":
+        assert refresh_count == 2
+    if telemetry == "stale":
+        assert refresh_count == 10
+    if telemetry in ("disabled", "workbench_superseded") or backend == "native_error":
+        assert calls == []
+    if backend == "native_timeout":
+        assert all(call[1] != "GET" for call in calls[:1])
+    assert len(writes) == int(expected)
+    if expected:
+        assert writes == [
+            ("cariad", "POST", f"/vehicle/v1/vehicles/{VIN}/charging/stop")
+        ]
+        assert result.parent_command_id == first.command_id
+        assert first.state == "rejected"
+        assert result.state == "backend_completed"
+        assert result.readback_observed_at is None
+        restored = CommandRecord.restore(result.snapshot())
+        assert restored.parent_command_id == first.command_id
+        before = list(calls)
+        assert await engine.commands.retry_charging_stop(VIN, first, refresh) is None
+        assert calls == before
+    else:
+        assert result is None
+    if telemetry in (
+        "disabled_during_save",
+        "retry_zero_during_save",
+        "stopped_during_save",
+    ):
+        child = profile.last_command
+        assert child.parent_command_id == first.command_id
+        assert child.state == "rejected"
+        assert child.http_status is None
+    if backend == "in_progress":
+        assert first.state == "accepted_unconfirmed"
+    if backend == "successful":
+        assert first.state == "backend_completed"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "outcome,readback,current,superseded,notice",
+    [
+        (None, False, None, False, None),
+        ("rejected", False, None, False, "rejected"),
+        ("local_cancel", False, None, False, None),
+        ("uncertain", False, None, False, "could not be confirmed"),
+        ("accepted_unconfirmed", False, None, False, "could not be confirmed"),
+        ("backend_completed", False, None, False, "could not be confirmed"),
+        ("backend_completed", True, "readyForCharging", False, None),
+        ("accepted_unconfirmed", True, "readyForCharging", False, None),
+        ("backend_completed", True, "charging", False, "still reports charging"),
+        ("backend_completed", True, None, False, "could not be confirmed"),
+        ("backend_completed", False, "readyForCharging", False, None),
+        ("rejected", False, None, True, None),
+    ],
+)
+async def test_second_stop_reports_failure_or_unconfirmed_once(
+    monkeypatch, outcome, readback, current, superseded, notice
+):
+    from unittest.mock import AsyncMock, Mock
+
+    from homeassistant.components import persistent_notification
+
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+
+    engine, car = make_engine()
+    engine.hass = object()
+    profile = engine.profiles[VIN.lower()]
+    first = CommandRecord.begin(
+        "charging", "stop", "cariad.charging.stop", datetime.now(UTC).timestamp()
+    )
+    profile.track_command(first)
+    notify = Mock()
+    monkeypatch.setattr(persistent_notification, "async_create", notify)
+
+    async def retry(*args):
+        if outcome is None:
+            return
+        second = CommandRecord.begin(
+            "charging",
+            "stop",
+            first.operation,
+            datetime.now(UTC).timestamp(),
+            parent_command_id=first.command_id,
+        )
+        second.state = "rejected" if outcome == "local_cancel" else outcome
+        second.http_status = None if outcome in ("local_cancel", "uncertain") else 200
+        if readback:
+            second.readback_observed_at = second.started_at + 1
+        if current is not None:
+            from datetime import timedelta
+
+            second.started_at -= 2
+            stamp = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+            car.readings["chargingState"] = {
+                "value": current,
+                "captured": stamp,
+                "observed": stamp,
+                "family": "cariad",
+                "status": "verified",
+            }
+        profile.track_command(second)
+        if superseded:
+            profile.track_command(
+                CommandRecord.begin(
+                    "charging", "start", "cariad.charging.start", second.started_at
+                )
+            )
+
+    monkeypatch.setattr(engine.commands, "retry_charging_stop", retry)
+    refresh = AsyncMock()
+    monkeypatch.setattr(engine, "_recovery_cloud", refresh)
+    monkeypatch.setattr(
+        engine.commands,
+        "charging_stop_retry_current",
+        lambda *args, **kwargs: not superseded,
+    )
+
+    async def verify(*args):
+        if outcome == "rejected":
+            return None, "dispatch_or_verification_failed"
+        if current == "readyForCharging":
+            return False, "expected_state_observed"
+        if current == "charging":
+            return True, "fresh_still_charging"
+        return None, "fresh_capture_unavailable"
+
+    monkeypatch.setattr(engine.commands, "verify_recovery_attempt", verify)
+    await engine._recover_charging_stop(VIN, first)
+    if notice is None:
+        notify.assert_not_called()
+    else:
+        notify.assert_called_once()
+        assert notice in notify.call_args.args[1]
+        assert "No further automatic STOP" in notify.call_args.args[1]
+        assert VIN not in notify.call_args.kwargs["notification_id"]
+    refresh.assert_not_awaited()  # The shared verification owns reads.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "enabled,backend,expected",
+    [(True, "timeout", True), (False, "timeout", False), (True, "error", False)],
+)
+async def test_initial_stop_confirmation_timeout_preserves_recovery_intent(
+    monkeypatch, enabled, backend, expected
+):
+    """An exact early timeout remains a rejection and may schedule one recovery."""
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+
+    engine, _car = make_engine()
+    engine.entry.options["v3_charging_stop_retry"] = enabled
+    engine.hass = object()
+    route = "cariad.charging.stop"
+    monkeypatch.setattr(engine.commands, "command_route", lambda *args: route)
+    calls = []
+    tasks = []
+
+    def create_task(hass, coroutine, name):
+        tasks.append(name)
+        coroutine.close()
+
+    engine.entry.async_create_background_task = create_task
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append(method)
+            if method == "POST":
+                return V3Response(
+                    200, {"data": {"requestID": "original"}}, datetime.now(UTC)
+                )
+            return V3Response(
+                200,
+                {"data": [{"id": "original", "status": backend}]},
+                datetime.now(UTC),
+            )
+
+    engine.transport = Transport()
+    with pytest.raises(RuntimeError, match="rejected"):
+        await engine.send_control(VIN, "stop", "charging")
+    record = engine.profiles[VIN.lower()].last_command
+    assert record.state == "rejected"
+    assert record.stop_retry_timed_out is expected
+    assert not CommandRecord.restore(record.snapshot()).stop_retry_timed_out
+    assert calls == ["POST", "GET"]
+    assert tasks == (["Audi charging STOP recovery"] if enabled else [])
+
+
+@pytest.mark.parametrize(
+    "capture_offset,receipt_offset,family,value,expected",
+    [
+        (-1, 2, "cariad", "charging", None),
+        (0, 2, "cariad", "charging", None),
+        (1, 2, "cariad", "charging", True),
+        (1, 2, "cariad", "readyForCharging", False),
+        (1, 2, "eu_data_act", "charging", None),
+        (1, -1, "cariad", "charging", None),
+    ],
+)
+def test_recovery_readback_requires_capture_after_timeout(
+    capture_offset, receipt_offset, family, value, expected
+):
+    from datetime import timedelta
+
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import recent_charging_state
+
+    engine, car = make_engine()
+    now = datetime.now(UTC)
+    timeout = now - timedelta(seconds=5)
+    record = CommandRecord.begin(
+        "charging", "stop", "cariad.charging.stop", timeout.timestamp() - 300
+    )
+    car.readings["chargingState"] = {
+        "value": value,
+        "family": family,
+        "captured": (timeout + timedelta(seconds=capture_offset)).isoformat(),
+        "observed": (timeout + timedelta(seconds=receipt_offset)).isoformat(),
+        "status": "verified",
+    }
+    assert (
+        recent_charging_state(
+            record,
+            car,
+            registry=engine.registry,
+            now=now,
+            receipt_after=timeout.timestamp(),
+            capture_after=timeout.timestamp(),
+        )
+        is expected
+    )
+
+
+@pytest.mark.asyncio
+async def test_recovery_reuses_already_fresh_native_evidence():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+
+    engine, _car = make_engine()
+    record = CommandRecord.begin(
+        "charging", "stop", "cariad.charging.stop", datetime.now(UTC).timestamp()
+    )
+    refresh = AsyncMock()
+    result = await engine.commands.verify_recovery(
+        record, refresh, lambda: True, lambda: False
+    )
+    assert result == (False, "fresh_native_capture")
+    refresh.assert_not_awaited()
+
+
+def test_linked_stop_timeout_is_evidence_not_retry_authority():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+
+    engine, car = make_engine()
+    engine.entry.options["v3_charging_stop_retry"] = True
+    profile = engine.profiles[VIN.lower()]
+    now = datetime.now(UTC).timestamp()
+    child = CommandRecord.begin(
+        "charging",
+        "stop",
+        "cariad.charging.stop",
+        now - 10,
+        parent_command_id="a" * 32,
+    )
+    child.observe_http(200)
+    child.observe_backend("timeout", now)
+    assert child.stop_retry_timed_out
+    assert not engine.commands.charging_stop_retry_current(car, profile, child)
+    assert not CommandRecord.restore(child.snapshot()).stop_retry_timed_out
+
+
+@pytest.mark.asyncio
+async def test_skipped_stop_recovery_notifies_without_second_write(monkeypatch):
+    from unittest.mock import Mock
+
+    from homeassistant.components import persistent_notification
+
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+
+    engine, _car = make_engine()
+    engine.hass = object()
+    engine.entry.options["v3_charging_stop_retry"] = True
+    profile = engine.profiles[VIN.lower()]
+    first = CommandRecord.begin(
+        "charging", "stop", "cariad.charging.stop", datetime.now(UTC).timestamp()
+    )
+    profile.track_command(first)
+
+    async def retry(*args):
+        first.recovery_result = "fresh_capture_unavailable"
+
+    monkeypatch.setattr(engine.commands, "retry_charging_stop", retry)
+    monkeypatch.setattr(
+        engine.commands, "charging_stop_retry_current", lambda *a, **kw: True
+    )
+    notify = Mock()
+    monkeypatch.setattr(persistent_notification, "async_create", notify)
+    await engine._recover_charging_stop(VIN, first)
+    notify.assert_called_once()
+    assert "No retry was sent" in notify.call_args.args[1]
+    assert profile.last_command is first
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("final_state", ["readyForCharging", "charging"])
+async def test_recovery_uses_only_targeted_reads_for_both_attempts(
+    monkeypatch, final_state
+):
+    from datetime import timedelta
+    from unittest.mock import Mock
+
+    from homeassistant.components import persistent_notification
+
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+
+    engine, car = make_engine()
+    engine.hass = object()
+    engine.entry.options["v3_charging_stop_retry"] = True
+    profile = engine.profiles[VIN.lower()]
+    route = "cariad.charging.stop"
+    monkeypatch.setattr(engine.commands, "command_route", lambda *args: route)
+    monkeypatch.setattr(engine, "_notify_discovery_change", lambda **kwargs: None)
+
+    async def no_delay(_seconds):
+        pass
+
+    monkeypatch.setattr(
+        "custom_components.audiconnect.v3.command_engine.asyncio.sleep", no_delay
+    )
+    now = datetime.now(UTC)
+    first = CommandRecord.begin(
+        "charging",
+        "stop",
+        route,
+        (now - timedelta(seconds=301)).timestamp(),
+        operation_revision=operation_revision(profile.registry.operations[route]),
+    )
+    configure_readback(first, {})
+    first.observe_http(200)
+    first.request_id = "original"
+    first.request_context = profile.discovery.context
+    first.observe_backend("timeout", now.timestamp())
+    profile.track_command(first)
+    calls = []
+
+    class Transport:
+        async def request(self, family, method, path, **kwargs):
+            calls.append((method, path))
+            stamp = datetime.now(UTC)
+            if method == "POST":
+                return V3Response(200, {"data": {"requestID": "second"}}, stamp)
+            if path.endswith("/pendingrequests"):
+                return V3Response(
+                    200, {"data": [{"id": "second", "status": "timeout"}]}, stamp
+                )
+            assert path.endswith("/selectivestatus?jobs=charging")
+            value = final_state if any(m == "POST" for m, _ in calls) else "charging"
+            return V3Response(
+                200,
+                {
+                    "charging": {
+                        "chargingStatus": {
+                            "value": {
+                                "carCapturedTimestamp": stamp.isoformat(),
+                                "chargingState": value,
+                            }
+                        }
+                    }
+                },
+                stamp,
+            )
+
+    engine.transport = Transport()
+    notify = Mock()
+    monkeypatch.setattr(persistent_notification, "async_create", notify)
+    await engine._recover_charging_stop(VIN, first)
+    assert [method for method, _ in calls].count("POST") == 1
+    assert sum(path.endswith("jobs=charging") for _, path in calls) == 2
+    assert len(profile.command_journal) == 2
+    child = profile.last_command
+    assert child.parent_command_id == first.command_id
+    assert child.stop_retry_timed_out
+    assert not car.v2_initial_discovery_completed
+    if final_state == "charging":
+        notify.assert_called_once()
+        assert child.recovery_result == "fresh_still_charging"
+    else:
+        notify.assert_not_called()
+        assert child.recovery_result == "expected_state_observed"
