@@ -42,6 +42,8 @@ from .const import (
     CONF_PASSWORD,
     CONF_REFRESH_AFTER_ACTION,
     CONF_V3_CHARGING_STOP_RETRY,
+    STOP_RECOVERY_OPTIONS,
+    stop_recovery_options,
     CONF_REFRESH_TOKEN,
     CONF_REGION,
     CONF_SCAN_INITIAL,
@@ -929,6 +931,7 @@ class OptionsFlowHandler(OptionsFlow):
                 user_input[CONF_V3_CHARGING_STOP_RETRY] = (
                     user_input.get(CONF_V3_CHARGING_STOP_RETRY) is True
                 )
+                user_input.update(stop_recovery_options(user_input))
             from .v3.parking import (
                 GEOCODING_ENDPOINT,
                 REVERSE_GEOCODING,
@@ -1185,6 +1188,17 @@ class OptionsFlowHandler(OptionsFlow):
                 vol.Required(
                     CONF_V3_CHARGING_STOP_RETRY,
                     default=values.get(CONF_V3_CHARGING_STOP_RETRY) is True,
+                )
+            ] = bool
+            recovery = stop_recovery_options(values)
+            for key, (_, minimum, maximum) in STOP_RECOVERY_OPTIONS.items():
+                schema[vol.Required(key, default=recovery[key])] = vol.All(
+                    vol.Coerce(int), vol.Range(min=minimum, max=maximum)
+                )
+            schema[
+                vol.Required(
+                    "v3_stop_final_notification",
+                    default=recovery["v3_stop_final_notification"],
                 )
             ] = bool
             schema[

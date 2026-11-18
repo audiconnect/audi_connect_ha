@@ -38,6 +38,32 @@ CONF_REGION = "region"
 CONF_FILTER_VINS = "filter_vins"
 CONF_REFRESH_AFTER_ACTION = "refresh_vehicle_data_after_action"
 CONF_V3_CHARGING_STOP_RETRY = "v3_charging_stop_retry"
+STOP_RECOVERY_OPTIONS = {
+    "v3_stop_confirmation_seconds": (300, 60, 300),
+    "v3_stop_repoll_seconds": (30, 30, 120),
+    "v3_stop_verification_seconds": (300, 30, 300),
+    "v3_stop_extra_retries": (1, 0, 1),
+}
+
+
+def stop_recovery_options(options):
+    """Normalize persisted options without expanding the safety envelope."""
+    result = {}
+    for key, (default, minimum, maximum) in STOP_RECOVERY_OPTIONS.items():
+        value = options.get(key, default)
+        result[key] = (
+            int(value)
+            if type(value) in (int, float)
+            and minimum <= value <= maximum
+            and int(value) == value
+            else default
+        )
+    result["v3_stop_final_notification"] = (
+        options.get("v3_stop_final_notification", True) is True
+    )
+    return result
+
+
 CONF_REFRESH_TOKEN = "refresh_token"
 CONF_UPDATE_SLEEP = "update_sleep"
 AUTH0_REFRESH_TOKEN_PREFIX = "auth0:"

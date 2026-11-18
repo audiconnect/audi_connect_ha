@@ -102,7 +102,12 @@
           "run_vehicle_discovery": "Vehicle setup & discovery",
           "manage_data_act": "Manage EU Data Act",
           "v3_reverse_geocoding": "Reverse geocoding",
-          "v3_geocoding_endpoint": "Reverse geocoding endpoint"
+          "v3_geocoding_endpoint": "Reverse geocoding endpoint",
+          "v3_stop_confirmation_seconds": "Confirmation timeout (seconds)",
+          "v3_stop_repoll_seconds": "Verification poll interval (seconds)",
+          "v3_stop_verification_seconds": "Verification window (seconds)",
+          "v3_stop_extra_retries": "Additional STOP attempts",
+          "v3_stop_final_notification": "Final STOP notification"
         },
         "title": "Audi Connect Options",
         "data_description": {
@@ -118,7 +123,12 @@
           "run_vehicle_discovery": "Open at any time to review automatic read discovery, run Guided or select one function, including retests. Each physical action requires explicit consent.",
           "manage_data_act": "Connect, reconnect or disconnect the optional read-only portal source. Native Audi login is unchanged.",
           "v3_reverse_geocoding": "Send approximate last parked coordinates to the configured external provider (off by default).",
-          "v3_geocoding_endpoint": "Authorized HTTPS Nominatim-compatible /reverse endpoint. The public OpenStreetMap service is not supported."
+          "v3_geocoding_endpoint": "Authorized HTTPS Nominatim-compatible /reverse endpoint. The public OpenStreetMap service is not supported.",
+          "v3_stop_confirmation_seconds": "Time allowed for backend confirmation.",
+          "v3_stop_repoll_seconds": "Delay between read-only verification polls.",
+          "v3_stop_verification_seconds": "Maximum time for fresh native evidence.",
+          "v3_stop_extra_retries": "Zero or one additional STOP after a terminal timeout and fresh contradictory evidence.",
+          "v3_stop_final_notification": "Show a Home Assistant notification for failed or unconfirmed recovery."
         },
         "description": "{data_act_status}"
       },

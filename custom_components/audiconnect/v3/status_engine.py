@@ -125,6 +125,7 @@ class StatusEngine:
         self.last_cloud_poll_attempt = None
         self.last_cloud_poll_succeeded = None
         self._poll_cycles = 0
+        self._native_poll_lock = asyncio.Lock()
         self._identity_attempt_at = None
         self._legacy_route_backoff = {}
         self._data_act_attempt_at = None
@@ -440,6 +441,10 @@ class StatusEngine:
                 profile.trip_poll_due_at = now + 10800
 
     async def poll(self) -> list[V3Vehicle]:
+        async with self._native_poll_lock:
+            return await self._poll()
+
+    async def _poll(self) -> list[V3Vehicle]:
         # A deliberately deferred native read is not a failed cloud poll.
         # Preserve the last real result and allow independent Data Act delivery.
         # The transport still authorizes every explicit command and recovery read.
@@ -804,10 +809,34 @@ class StatusEngine:
                     "job": None,
                 }
 
-    def _observe_cariad_status(self, car, profile, reply):
-        observe_read_only(car, profile, reply.data, reply.observed_at)
+    def _observe_cariad_status(self, car, profile, reply, **options):
+        observe_read_only(car, profile, reply.data, reply.observed_at, **options)
         if self._observe_native_requests is not None:
             self._observe_native_requests(car, profile, reply.data, reply.observed_at)
+
+    async def recovery_read(self, car, profile, current):
+        """One reviewed charging GET, not a full account poll or discovery."""
+        async with self._native_poll_lock:
+            ident = "cariad.status.charging"
+            if (
+                not current()
+                or self.vehicles.get(car.vin.lower()) is not car
+                or self.profiles.get(car.vin.lower()) is not profile
+                or read_excluded(profile, ident)
+                or profile.job_discovery.get("charging") == "unsupported"
+            ):
+                return
+            reply = await self.transport.request(
+                "cariad", "GET", selective_status_path(car.vin, "charging")
+            )
+            if not current():
+                return
+            self._api_record(profile, ident, "cariad", "GET", reply, car.vin)
+            if 200 <= reply.status < 300:
+                self._observe_cariad_status(
+                    car, profile, reply, operation=ident, complete_discovery=False
+                )
+                self._update_capture_projection()
 
     async def _poll_native_status(self):
         """Existing native family reads; preserve shared request deduplication."""

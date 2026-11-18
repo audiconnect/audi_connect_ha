@@ -80,7 +80,12 @@
           "run_vehicle_discovery": "Voertuigconfiguratie & discovery",
           "manage_data_act": "EU Data Act beheren",
           "v3_reverse_geocoding": "Reverse geocoding",
-          "v3_geocoding_endpoint": "Reverse-geocodingendpoint"
+          "v3_geocoding_endpoint": "Reverse-geocodingendpoint",
+          "v3_stop_confirmation_seconds": "Bevestigingstimeout (seconden)",
+          "v3_stop_repoll_seconds": "Verificatie-interval (seconden)",
+          "v3_stop_verification_seconds": "Verificatievenster (seconden)",
+          "v3_stop_extra_retries": "Extra STOP-pogingen",
+          "v3_stop_final_notification": "STOP-eindmelding"
         },
         "title": "Audi Connect-opties",
         "data_description": {
@@ -93,7 +98,12 @@
           "run_vehicle_discovery": "Open op elk moment om de automatische detectie te bekijken, begeleid te testen of één functie te selecteren, ook voor hertests. Elke fysieke actie vereist expliciete toestemming.",
           "manage_data_act": "Verbind, herstel of verbreek de optionele alleen-lezenbron. De native Audi-login blijft ongewijzigd.",
           "v3_reverse_geocoding": "Stuur de benaderde laatst bekende parkeercoördinaten naar de ingestelde externe dienst (standaard uit).",
-          "v3_geocoding_endpoint": "Geautoriseerd HTTPS-endpoint /reverse, compatibel met Nominatim. De publieke OpenStreetMap-dienst wordt niet ondersteund."
+          "v3_geocoding_endpoint": "Geautoriseerd HTTPS-endpoint /reverse, compatibel met Nominatim. De publieke OpenStreetMap-dienst wordt niet ondersteund.",
+          "v3_stop_confirmation_seconds": "Tijd voor bevestiging door Audi.",
+          "v3_stop_repoll_seconds": "Wachttijd tussen alleen-lezen controles.",
+          "v3_stop_verification_seconds": "Maximale tijd voor verse voertuiggegevens.",
+          "v3_stop_extra_retries": "Nul of één extra STOP na een definitieve timeout en verse tegenstrijdige gegevens.",
+          "v3_stop_final_notification": "Toon een Home Assistant-melding bij mislukte of onbevestigde recovery."
         },
         "description": "{data_act_status}"
       },

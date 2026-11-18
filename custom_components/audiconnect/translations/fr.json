@@ -81,7 +81,12 @@
           "run_vehicle_discovery": "Configuration & découverte du véhicule",
           "manage_data_act": "Gérer EU Data Act",
           "v3_reverse_geocoding": "Géocodage inverse",
-          "v3_geocoding_endpoint": "Point de terminaison de géocodage inverse"
+          "v3_geocoding_endpoint": "Point de terminaison de géocodage inverse",
+          "v3_stop_confirmation_seconds": "Délai de confirmation (secondes)",
+          "v3_stop_repoll_seconds": "Intervalle de vérification (secondes)",
+          "v3_stop_verification_seconds": "Fenêtre de vérification (secondes)",
+          "v3_stop_extra_retries": "Tentatives STOP supplémentaires",
+          "v3_stop_final_notification": "Notification finale STOP"
         },
         "title": "Options Audi Connect",
         "data_description": {
@@ -95,7 +100,12 @@
           "run_vehicle_discovery": "À tout moment, consulter la détection automatique, lancer les tests guidés ou retester une fonction. Chaque action physique exige un consentement explicite.",
           "manage_data_act": "Connecter, reconnecter ou déconnecter la source facultative en lecture seule. La connexion Audi native reste inchangée.",
           "v3_reverse_geocoding": "Envoyer les coordonnées approximatives du dernier stationnement au fournisseur configuré (désactivé par défaut).",
-          "v3_geocoding_endpoint": "Point de terminaison HTTPS /reverse compatible Nominatim et autorisé. Le service public OpenStreetMap n’est pas pris en charge."
+          "v3_geocoding_endpoint": "Point de terminaison HTTPS /reverse compatible Nominatim et autorisé. Le service public OpenStreetMap n’est pas pris en charge.",
+          "v3_stop_confirmation_seconds": "Temps accordé à la confirmation Audi.",
+          "v3_stop_repoll_seconds": "Délai entre les vérifications en lecture seule.",
+          "v3_stop_verification_seconds": "Durée maximale pour obtenir des données récentes.",
+          "v3_stop_extra_retries": "Zéro ou un STOP supplémentaire après expiration définitive et données récentes contradictoires.",
+          "v3_stop_final_notification": "Notification Home Assistant en cas d’échec ou de résultat non confirmé."
         },
         "description": "{data_act_status}"
       },

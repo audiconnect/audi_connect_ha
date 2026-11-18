@@ -494,3 +494,23 @@ async def test_reverse_geocoding_is_explicit_and_v3_only():
     flow._test_entry.options = result["data"]
     result = await flow.async_step_init({"runtime_version": "v2"})
     assert result["data"][REVERSE_GEOCODING] is False
+
+
+def test_stop_recovery_option_bounds_and_migration():
+    from custom_components.audiconnect.const import stop_recovery_options
+
+    defaults = stop_recovery_options({"v3_charging_stop_retry": True})
+    assert defaults["v3_stop_extra_retries"] == 1
+    assert defaults["v3_stop_confirmation_seconds"] == 300
+    assert defaults["v3_stop_repoll_seconds"] == 30
+    assert defaults["v3_stop_verification_seconds"] == 300
+    assert defaults["v3_stop_final_notification"] is True
+    selected = {
+        "v3_stop_extra_retries": 0,
+        "v3_stop_confirmation_seconds": 120,
+        "v3_stop_repoll_seconds": 60,
+        "v3_stop_verification_seconds": 90,
+        "v3_stop_final_notification": False,
+    }
+    assert stop_recovery_options(selected) == selected
+    assert stop_recovery_options({"v3_stop_extra_retries": 99}) == defaults

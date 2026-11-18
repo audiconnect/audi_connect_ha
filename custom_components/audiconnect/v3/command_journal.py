@@ -94,7 +94,6 @@ class CommandRecord:
             and self.operation == "cariad.charging.stop"
             and self.capability == "charging"
             and self.action == "stop"
-            and self.parent_command_id is None
             and self.state == "accepted_unconfirmed"
         )
         if outcome == "timeout":
@@ -110,7 +109,8 @@ class CommandRecord:
             self.state = "rejected"
             self.completed_at = max(self.started_at, now)
             if stop_timeout:
-                # Runtime evidence only; never authorize recovery after restart.
+                # Runtime evidence for either attempt. The command owner
+                # independently limits dispatch to a root intent; no replay.
                 self.stop_retry_timeout_at = self.completed_at
         elif outcome == "backend_completed":
             if self.state not in (

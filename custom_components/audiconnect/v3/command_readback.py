@@ -95,12 +95,20 @@ def _readback_value(car, attribute, now=None, *, registry=None, started_at=None)
     return row.get("value"), _valid_capture(row.get("captured"), observed or now)
 
 
-def recent_charging_state(
-    record, car, *, registry=None, now=None, max_age_seconds=60, receipt_after=None
+def recent_native_value(
+    record,
+    car,
+    attribute,
+    *,
+    registry=None,
+    now=None,
+    max_age_seconds=60,
+    receipt_after=None,
+    capture_after=None,
 ):
-    """Use a recent native capture after this command, not intent or history."""
+    """Require fresh native evidence, not a new receipt of an old capture."""
     now = now or datetime.now(UTC)
-    row = _readback_row(car, "chargingState", now, registry=registry)
+    row = _readback_row(car, attribute, now, registry=registry)
     observed = _capture_in_utc(row.get("observed"))
     captured = _valid_capture(row.get("captured"), observed or now)
     if (
@@ -111,10 +119,36 @@ def recent_charging_state(
         or (receipt_after is not None and observed.timestamp() < receipt_after)
         or captured is None
         or captured.timestamp() <= record.started_at
+        or (capture_after is not None and captured.timestamp() <= capture_after)
         or not 0 <= (now - captured).total_seconds() <= max_age_seconds
     ):
         return None
-    return charging_active(row.get("value"))
+    return row.get("value")
+
+
+def recent_charging_state(
+    record,
+    car,
+    *,
+    registry=None,
+    now=None,
+    max_age_seconds=60,
+    receipt_after=None,
+    capture_after=None,
+):
+    """Use a recent native capture after this command, not intent or history."""
+    return charging_active(
+        recent_native_value(
+            record,
+            car,
+            "chargingState",
+            registry=registry,
+            now=now,
+            max_age_seconds=max_age_seconds,
+            receipt_after=receipt_after,
+            capture_after=capture_after,
+        )
+    )
 
 
 def configure_discovery_readback(record, car, params, *, registry=None):
