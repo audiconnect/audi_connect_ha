@@ -89,52 +89,102 @@
   "options": {
     "step": {
       "init": {
+        "title": "Audi Connect-Optionen",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "general": "Allgemeine Einstellungen",
+          "discovery_vehicle": "Fahrzeugeinrichtung & Erkennung",
+          "data_sources": "Zusätzliche Datenquellen",
+          "dealer_vehicle": "Service & Wartung",
+          "advanced": "Erweitert & experimentell"
+        }
+      },
+      "general": {
+        "title": "Allgemeine Einstellungen",
         "data": {
-          "scan_initial": "Cloud-Update beim Start",
-          "scan_interval": "Abfrageintervall",
-          "refresh_vehicle_data_after_action": "Fahrzeugdaten nach einer Aktion aktualisieren",
-          "climate_quick_start": "Klimatisierung mit gespeicherten Fahrzeugeinstellungen starten",
-          "update_sleep": "Verzögerung der Cloud-Aktualisierung",
-          "filter_vins": "Ausgeschlossene VINs",
-          "edit_local_dealer": "Händler- und Servicedaten lokal bearbeiten",
-          "experimental_commands": "Experimentelle Fahrzeugsteuerungen aktivieren",
-          "v3_charging_stop_retry": "Fehlgeschlagenen Ladestopp wiederholen",
-          "v3_development_workbench": "V3-Entwicklungswerkbank aktivieren",
           "runtime_version": "Laufzeitversion",
-          "run_vehicle_discovery": "Fahrzeugeinrichtung & Erkennung",
-          "manage_data_act": "EU Data Act verwalten",
-          "v3_reverse_geocoding": "Rückwärtsgeokodierung",
-          "v3_geocoding_endpoint": "Endpunkt für Rückwärtsgeokodierung",
+          "scan_interval": "Abfrageintervall",
+          "filter_vins": "Ausgeschlossene VINs",
+          "scan_initial": "Cloud-Update beim Start",
+          "refresh_vehicle_data_after_action": "Fahrzeugdaten nach einer Aktion aktualisieren",
+          "update_sleep": "Verzögerung der Cloud-Aktualisierung"
+        },
+        "data_description": {
+          "runtime_version": "V2 bleibt als Rückfalloption verfügbar. Nach Aktivierung von V3 die Konfiguration erneut öffnen.",
+          "scan_interval": "Minuten zwischen Cloud-Abfragen.",
+          "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden.",
+          "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
+          "refresh_vehicle_data_after_action": "Sendet nach jeder Fahrzeugaktion (z. B. Klimatisieren oder Verriegeln) einen Aktualisierungsbefehl an das Fahrzeug. Normalerweise ist dies nicht erforderlich, da sich das Fahrzeug nach einer Aktion selbst bei der Cloud meldet. Jede Fahrzeugaktualisierung zählt zum API-Limit. Erhöhen Sie stattdessen die Verzögerung der Cloud-Aktualisierung.",
+          "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln."
+        }
+      },
+      "data_sources": {
+        "title": "Zusätzliche Datenquellen",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "data_act": "EU Data Act",
+          "reverse_geocoding": "Reverse Geocoding"
+        }
+      },
+      "advanced": {
+        "title": "Erweitert & experimentell",
+        "menu_options": {
+          "stop_recovery": "Wiederherstellung Ladestopp",
+          "workbench": "Entwicklungs-Workbench"
+        }
+      },
+      "reverse_geocoding": {
+        "title": "Reverse Geocoding",
+        "data": {
+          "v3_reverse_geocoding": "Rückwärtsgeokodierung"
+        },
+        "data_description": {
+          "v3_reverse_geocoding": "Ungefähre letzte Parkkoordinaten an den konfigurierten externen Anbieter senden (standardmäßig aus)."
+        }
+      },
+      "geocoding_endpoint": {
+        "title": "Reverse Geocoding",
+        "data": {
+          "v3_geocoding_endpoint": "Endpunkt für Rückwärtsgeokodierung"
+        },
+        "data_description": {
+          "v3_geocoding_endpoint": "Autorisierter HTTPS-Endpunkt /reverse, Nominatim-kompatibel. Der öffentliche OpenStreetMap-Dienst wird nicht unterstützt."
+        }
+      },
+      "stop_recovery": {
+        "title": "Wiederherstellung Ladestopp",
+        "data": {
+          "v3_charging_stop_retry": "Fehlgeschlagenen Ladestopp wiederholen"
+        },
+        "data_description": {
+          "v3_charging_stop_retry": "Experimentell, standardmäßig deaktiviert. Erlaubt einen weiteren STOP nur nach einem endgültigen Audi-Timeout und aktuellen Fahrzeugdaten, die weiterhin Laden melden. Keine Wiederholung bei unklarem oder laufendem Auftrag."
+        }
+      },
+      "stop_recovery_settings": {
+        "title": "Wiederherstellung Ladestopp",
+        "data": {
           "v3_stop_confirmation_seconds": "Bestätigungszeitlimit (Sekunden)",
           "v3_stop_repoll_seconds": "Prüfintervall (Sekunden)",
           "v3_stop_verification_seconds": "Prüfzeitfenster (Sekunden)",
           "v3_stop_extra_retries": "Zusätzliche STOP-Versuche",
           "v3_stop_final_notification": "STOP-Abschlussmeldung"
         },
-        "title": "Audi Connect-Optionen",
         "data_description": {
-          "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
-          "scan_interval": "Minuten zwischen Cloud-Abfragen.",
-          "refresh_vehicle_data_after_action": "Sendet nach jeder Fahrzeugaktion (z. B. Klimatisieren oder Verriegeln) einen Aktualisierungsbefehl an das Fahrzeug. Normalerweise ist dies nicht erforderlich, da sich das Fahrzeug nach einer Aktion selbst bei der Cloud meldet. Jede Fahrzeugaktualisierung zählt zum API-Limit. Erhöhen Sie stattdessen die Verzögerung der Cloud-Aktualisierung.",
-          "climate_quick_start": "Beim Einschalten der Klimatisierung wird eine CARIAD-Startanfrage ohne zusätzliche Parameter gesendet. Dabei verwendet das Fahrzeug seine gespeicherten Einstellungen. Die in Home Assistant angezeigte Solltemperatur wird nicht übertragen. Diese Option dient als alternative Startmethode für neuere Fahrzeuge und sollte nur bei Bedarf aktiviert werden.",
-          "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln.",
-          "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden.",
-          "edit_local_dealer": "Öffnet ein Formular zur lokalen Speicherung von Händlerdaten, Serviceterminen und Garantieinformationen in Home Assistant. Dabei werden keine Anfragen an die Audi-API gesendet.",
-          "experimental_commands": "Aktiviert zusätzliche, manuell auslösbare CARIAD-Fahrzeugaktionen für das Laden, die Scheibenheizung und das Aufwecken des Fahrzeugs. Standardmässig deaktiviert. Die tatsächliche Ausführung muss überprüft werden, da eine erfolgreiche API-Antwort nicht zwangsläufig bedeutet, dass das Fahrzeug die Aktion ausgeführt hat.",
-          "v3_charging_stop_retry": "Experimentell, standardmäßig deaktiviert. Erlaubt einen weiteren STOP nur nach einem endgültigen Audi-Timeout und aktuellen Fahrzeugdaten, die weiterhin Laden melden. Keine Wiederholung bei unklarem oder laufendem Auftrag.",
-          "v3_development_workbench": "Die API-Entwicklungswerkbank nur im V3-Modus für Administratoren anzeigen. Standardmäßig aus; gespeicherte API-Profile bleiben erhalten.",
-          "runtime_version": "V2 bleibt Standard und Rückfalloption. V3 ist experimentell und verwendet eine eigene Erkennung, Abfrage und Home-Assistant-Entitäten. Ein Wechsel zurück ist jederzeit möglich. Nach dem Speichern und Neuladen von V3 die Konfiguration erneut öffnen, um die Fahrzeugeinrichtung oder optional EU Data Act aufzurufen.",
-          "run_vehicle_discovery": "Jederzeit verfügbar: automatische Erkennung prüfen, geführte Tests oder einzelne Funktionen erneut testen. Jede Fahrzeugaktion erfordert ausdrückliche Zustimmung.",
-          "manage_data_act": "Optionale schreibgeschützte Quelle verbinden, erneut verbinden oder trennen. Die native Audi-Anmeldung bleibt unverändert.",
-          "v3_reverse_geocoding": "Ungefähre letzte Parkkoordinaten an den konfigurierten externen Anbieter senden (standardmäßig aus).",
-          "v3_geocoding_endpoint": "Autorisierter HTTPS-Endpunkt /reverse, Nominatim-kompatibel. Der öffentliche OpenStreetMap-Dienst wird nicht unterstützt.",
           "v3_stop_confirmation_seconds": "Zeit für die Bestätigung durch Audi.",
           "v3_stop_repoll_seconds": "Wartezeit zwischen lesenden Prüfungen.",
           "v3_stop_verification_seconds": "Maximale Wartezeit auf aktuelle Fahrzeugdaten.",
           "v3_stop_extra_retries": "Null oder ein weiterer STOP nach endgültigem Timeout und aktuellen widersprüchlichen Daten.",
           "v3_stop_final_notification": "Home-Assistant-Meldung bei fehlgeschlagener oder unbestätigter Wiederherstellung."
+        }
+      },
+      "workbench": {
+        "title": "Entwicklungs-Workbench",
+        "data": {
+          "v3_development_workbench": "V3-Entwicklungswerkbank aktivieren"
         },
-        "description": "{data_act_status}"
+        "data_description": {
+          "v3_development_workbench": "Die API-Entwicklungswerkbank nur im V3-Modus für Administratoren anzeigen. Standardmäßig aus; gespeicherte API-Profile bleiben erhalten."
+        }
       },
       "dealer_vehicle": {
         "title": "Fahrzeug auswählen",
@@ -170,6 +220,12 @@
           "email": "Portal-E-Mail",
           "password": "Portal-Passwort"
         }
+      },
+      "discovery_vehicle": {
+        "title": "Fahrzeug zur Erkennung auswählen",
+        "data": {
+          "vehicle": "Fahrzeug"
+        }
       }
     },
     "error": {
@@ -178,7 +234,9 @@
       "data_act_credentials_required": "Bitte E-Mail und Passwort eingeben.",
       "data_act_authorization_required": "Das Portal hat die Anmeldung abgelehnt oder erfordert eine interaktive Autorisierung. Zugangsdaten und Einwilligung prüfen.",
       "data_act_unavailable": "Das Portal ist vorübergehend nicht verfügbar. Die bestehende Verbindung bleibt erhalten.",
-      "invalid_geocoding_endpoint": "Geben Sie einen autorisierten HTTPS-Endpunkt ein, nicht den öffentlichen OpenStreetMap-Dienst."
+      "invalid_geocoding_endpoint": "Geben Sie einen autorisierten HTTPS-Endpunkt ein, nicht den öffentlichen OpenStreetMap-Dienst.",
+      "invalid_stop_recovery_settings": "Ganze Zahlen innerhalb der angezeigten Grenzen eingeben.",
+      "invalid_scan_interval": "Ein gültiges Abfrageintervall eingeben."
     },
     "abort": {
       "no_vehicle_available": "Derzeit ist kein Audi-Fahrzeug geladen."

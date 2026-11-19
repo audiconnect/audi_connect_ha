@@ -70,42 +70,102 @@
   "options": {
     "step": {
       "init": {
+        "title": "Audi Connect-opties",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "general": "Algemene instellingen",
+          "discovery_vehicle": "Voertuigconfiguratie & discovery",
+          "data_sources": "Aanvullende gegevensbronnen",
+          "dealer_vehicle": "Service & onderhoud",
+          "advanced": "Geavanceerd & experimenteel"
+        }
+      },
+      "general": {
+        "title": "Algemene instellingen",
         "data": {
-          "scan_interval": "Scaninterval",
-          "edit_local_dealer": "Dealer en onderhoudsgegevens bewerken",
           "runtime_version": "Uitvoeringsversie",
-          "v3_charging_stop_retry": "Mislukte laadstop opnieuw proberen",
-          "v3_development_workbench": "V3 Development Workbench inschakelen",
+          "scan_interval": "Scaninterval",
           "filter_vins": "Uitgesloten VIN's",
-          "run_vehicle_discovery": "Voertuigconfiguratie & discovery",
-          "manage_data_act": "EU Data Act beheren",
-          "v3_reverse_geocoding": "Reverse geocoding",
-          "v3_geocoding_endpoint": "Reverse-geocodingendpoint",
+          "scan_initial": "Cloud Update at Startup",
+          "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
+          "update_sleep": "Cloud Refresh Delay"
+        },
+        "data_description": {
+          "runtime_version": "V2 blijft beschikbaar als terugvaloptie. Open Configureren opnieuw na het inschakelen van V3.",
+          "scan_interval": "Minuten tussen cloudupdates.",
+          "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
+          "scan_initial": "Perform a cloud update immediately upon startup.",
+          "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
+          "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud."
+        }
+      },
+      "data_sources": {
+        "title": "Aanvullende gegevensbronnen",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "data_act": "EU Data Act",
+          "reverse_geocoding": "Reverse geocoding"
+        }
+      },
+      "advanced": {
+        "title": "Geavanceerd & experimenteel",
+        "menu_options": {
+          "stop_recovery": "Herstel laadstop",
+          "workbench": "Development Workbench"
+        }
+      },
+      "reverse_geocoding": {
+        "title": "Reverse geocoding",
+        "data": {
+          "v3_reverse_geocoding": "Reverse geocoding"
+        },
+        "data_description": {
+          "v3_reverse_geocoding": "Stuur de benaderde laatst bekende parkeercoördinaten naar de ingestelde externe dienst (standaard uit)."
+        }
+      },
+      "geocoding_endpoint": {
+        "title": "Reverse geocoding",
+        "data": {
+          "v3_geocoding_endpoint": "Reverse-geocodingendpoint"
+        },
+        "data_description": {
+          "v3_geocoding_endpoint": "Geautoriseerd HTTPS-endpoint /reverse, compatibel met Nominatim. De publieke OpenStreetMap-dienst wordt niet ondersteund."
+        }
+      },
+      "stop_recovery": {
+        "title": "Herstel laadstop",
+        "data": {
+          "v3_charging_stop_retry": "Mislukte laadstop opnieuw proberen"
+        },
+        "data_description": {
+          "v3_charging_stop_retry": "Experimenteel, standaard uit. Sta één extra STOP toe, uitsluitend na een definitieve Audi-timeout en actuele voertuigdata die bevestigt dat het laden doorgaat. Geen herhaling bij een onzeker of lopend verzoek."
+        }
+      },
+      "stop_recovery_settings": {
+        "title": "Herstel laadstop",
+        "data": {
           "v3_stop_confirmation_seconds": "Bevestigingstimeout (seconden)",
           "v3_stop_repoll_seconds": "Verificatie-interval (seconden)",
           "v3_stop_verification_seconds": "Verificatievenster (seconden)",
           "v3_stop_extra_retries": "Extra STOP-pogingen",
           "v3_stop_final_notification": "STOP-eindmelding"
         },
-        "title": "Audi Connect-opties",
         "data_description": {
-          "scan_interval": "Minuten tussen cloudupdates.",
-          "edit_local_dealer": "Open een extra scherm om dealer, onderhoud en garantie lokaal in te stellen. Geen Audi API-aanroepen.",
-          "runtime_version": "V2 blijft de standaard en terugvaloptie. V3 is experimenteel en gebruikt eigen detectie, polling en Home Assistant-entities. Je kunt altijd terugschakelen. Na opslaan en herladen van V3, open Configureren opnieuw voor voertuigconfiguratie & discovery of optionele EU Data Act.",
-          "v3_charging_stop_retry": "Experimenteel, standaard uit. Sta één extra STOP toe, uitsluitend na een definitieve Audi-timeout en actuele voertuigdata die bevestigt dat het laden doorgaat. Geen herhaling bij een onzeker of lopend verzoek.",
-          "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard.",
-          "filter_vins": "Kommagescheiden lijst van VIN's die niet worden ingesteld of bijgewerkt.",
-          "run_vehicle_discovery": "Open op elk moment om de automatische detectie te bekijken, begeleid te testen of één functie te selecteren, ook voor hertests. Elke fysieke actie vereist expliciete toestemming.",
-          "manage_data_act": "Verbind, herstel of verbreek de optionele alleen-lezenbron. De native Audi-login blijft ongewijzigd.",
-          "v3_reverse_geocoding": "Stuur de benaderde laatst bekende parkeercoördinaten naar de ingestelde externe dienst (standaard uit).",
-          "v3_geocoding_endpoint": "Geautoriseerd HTTPS-endpoint /reverse, compatibel met Nominatim. De publieke OpenStreetMap-dienst wordt niet ondersteund.",
           "v3_stop_confirmation_seconds": "Tijd voor bevestiging door Audi.",
           "v3_stop_repoll_seconds": "Wachttijd tussen alleen-lezen controles.",
           "v3_stop_verification_seconds": "Maximale tijd voor verse voertuiggegevens.",
           "v3_stop_extra_retries": "Nul of één extra STOP na een definitieve timeout en verse tegenstrijdige gegevens.",
           "v3_stop_final_notification": "Toon een Home Assistant-melding bij mislukte of onbevestigde recovery."
+        }
+      },
+      "workbench": {
+        "title": "Development Workbench",
+        "data": {
+          "v3_development_workbench": "V3 Development Workbench inschakelen"
         },
-        "description": "{data_act_status}"
+        "data_description": {
+          "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard."
+        }
       },
       "dealer_vehicle": {
         "title": "Kies het voertuig",
@@ -141,6 +201,12 @@
           "email": "Portal-e-mailadres",
           "password": "Portal-wachtwoord"
         }
+      },
+      "discovery_vehicle": {
+        "title": "Selecteer voertuig voor discovery",
+        "data": {
+          "vehicle": "Voertuig"
+        }
       }
     },
     "error": {
@@ -149,7 +215,9 @@
       "data_act_credentials_required": "Vul beide gegevens in.",
       "data_act_authorization_required": "Het portaal weigert de login of vereist interactieve autorisatie. Controleer de gegevens en toestemming in het portaal en probeer opnieuw.",
       "data_act_unavailable": "Het portaal is tijdelijk niet beschikbaar. De bestaande verbinding blijft behouden; probeer later opnieuw.",
-      "invalid_geocoding_endpoint": "Voer een geautoriseerd HTTPS-endpoint in, niet de publieke OpenStreetMap-dienst."
+      "invalid_geocoding_endpoint": "Voer een geautoriseerd HTTPS-endpoint in, niet de publieke OpenStreetMap-dienst.",
+      "invalid_stop_recovery_settings": "Voer gehele getallen binnen de getoonde grenzen in.",
+      "invalid_scan_interval": "Voer een geldig scaninterval in."
     },
     "abort": {
       "no_vehicle_available": "Er is nog geen Audi-voertuig geladen."

@@ -27,7 +27,7 @@ def test_v3_development_mode_has_correct_user_label_not_climate_only():
     data = json.loads((ROOT / "strings.json").read_text())
     assert (
         "V3 — Experimental"
-        in data["options"]["step"]["init"]["data_description"]["runtime_version"]
+        in data["options"]["step"]["general"]["data_description"]["runtime_version"]
     )
     assert "not description.experimental" in (ROOT / "button.py").read_text()
     assert (

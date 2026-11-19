@@ -70,44 +70,102 @@
   "options": {
     "step": {
       "init": {
+        "title": "Options Audi Connect",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "general": "Paramètres généraux",
+          "discovery_vehicle": "Configuration et découverte du véhicule",
+          "data_sources": "Sources de données supplémentaires",
+          "dealer_vehicle": "Service et entretien",
+          "advanced": "Avancé et expérimental"
+        }
+      },
+      "general": {
+        "title": "Paramètres généraux",
         "data": {
-          "scan_initial": "Mise à jour du cloud au démarrage",
-          "scan_interval": "Intervalle de mises à jour",
-          "v3_charging_stop_retry": "Réessayer un arrêt de charge échoué",
-          "v3_development_workbench": "Activer l'atelier de développement V3",
-          "filter_vins": "VIN exclus",
-          "edit_local_dealer": "Modifier les données du concessionnaire et d’entretien",
           "runtime_version": "Version d’exécution",
-          "run_vehicle_discovery": "Configuration & découverte du véhicule",
-          "manage_data_act": "Gérer EU Data Act",
-          "v3_reverse_geocoding": "Géocodage inverse",
-          "v3_geocoding_endpoint": "Point de terminaison de géocodage inverse",
+          "scan_interval": "Intervalle de mises à jour",
+          "filter_vins": "VIN exclus",
+          "scan_initial": "Mise à jour du cloud au démarrage",
+          "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
+          "update_sleep": "Cloud Refresh Delay"
+        },
+        "data_description": {
+          "runtime_version": "V2 reste disponible pour revenir en arrière. Après avoir activé V3, rouvrir Configurer.",
+          "scan_interval": "Minutes entre les mises à jour du cloud.",
+          "filter_vins": "Liste des VIN séparés par des virgules à exclure de la configuration et des mises à jour.",
+          "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
+          "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
+          "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud."
+        }
+      },
+      "data_sources": {
+        "title": "Sources de données supplémentaires",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "data_act": "EU Data Act",
+          "reverse_geocoding": "Géocodage inverse"
+        }
+      },
+      "advanced": {
+        "title": "Avancé et expérimental",
+        "menu_options": {
+          "stop_recovery": "Récupération de l’arrêt de charge",
+          "workbench": "Atelier de développement"
+        }
+      },
+      "reverse_geocoding": {
+        "title": "Géocodage inverse",
+        "data": {
+          "v3_reverse_geocoding": "Géocodage inverse"
+        },
+        "data_description": {
+          "v3_reverse_geocoding": "Envoyer les coordonnées approximatives du dernier stationnement au fournisseur configuré (désactivé par défaut)."
+        }
+      },
+      "geocoding_endpoint": {
+        "title": "Géocodage inverse",
+        "data": {
+          "v3_geocoding_endpoint": "Point de terminaison de géocodage inverse"
+        },
+        "data_description": {
+          "v3_geocoding_endpoint": "Point de terminaison HTTPS /reverse compatible Nominatim et autorisé. Le service public OpenStreetMap n’est pas pris en charge."
+        }
+      },
+      "stop_recovery": {
+        "title": "Récupération de l’arrêt de charge",
+        "data": {
+          "v3_charging_stop_retry": "Réessayer un arrêt de charge échoué"
+        },
+        "data_description": {
+          "v3_charging_stop_retry": "Expérimental, désactivé par défaut. Autorise un seul STOP supplémentaire après un délai d'attente définitif signalé par Audi et des données récentes confirmant que la charge continue. Aucun nouvel essai si la demande est incertaine ou en cours."
+        }
+      },
+      "stop_recovery_settings": {
+        "title": "Récupération de l’arrêt de charge",
+        "data": {
           "v3_stop_confirmation_seconds": "Délai de confirmation (secondes)",
           "v3_stop_repoll_seconds": "Intervalle de vérification (secondes)",
           "v3_stop_verification_seconds": "Fenêtre de vérification (secondes)",
           "v3_stop_extra_retries": "Tentatives STOP supplémentaires",
           "v3_stop_final_notification": "Notification finale STOP"
         },
-        "title": "Options Audi Connect",
         "data_description": {
-          "scan_initial": "Effectuer une mise à jour du cloud immédiatement après le démarrage.",
-          "scan_interval": "Minutes entre les mises à jour du cloud.",
-          "v3_charging_stop_retry": "Expérimental, désactivé par défaut. Autorise un seul STOP supplémentaire après un délai d'attente définitif signalé par Audi et des données récentes confirmant que la charge continue. Aucun nouvel essai si la demande est incertaine ou en cours.",
-          "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés.",
-          "filter_vins": "Liste des VIN séparés par des virgules à exclure de la configuration et des mises à jour.",
-          "edit_local_dealer": "Ouvrir le formulaire pour enregistrer localement les informations du concessionnaire, de l’entretien et de la garantie, sans appel à l’API Audi.",
-          "runtime_version": "V2 reste la version par défaut et de secours. V3 est expérimental, avec sa propre détection, ses mises à jour et ses entités Home Assistant. Le retour à V2 reste possible. Après enregistrement et rechargement de V3, rouvrir Configurer pour la découverte du véhicule ou EU Data Act facultatif.",
-          "run_vehicle_discovery": "À tout moment, consulter la détection automatique, lancer les tests guidés ou retester une fonction. Chaque action physique exige un consentement explicite.",
-          "manage_data_act": "Connecter, reconnecter ou déconnecter la source facultative en lecture seule. La connexion Audi native reste inchangée.",
-          "v3_reverse_geocoding": "Envoyer les coordonnées approximatives du dernier stationnement au fournisseur configuré (désactivé par défaut).",
-          "v3_geocoding_endpoint": "Point de terminaison HTTPS /reverse compatible Nominatim et autorisé. Le service public OpenStreetMap n’est pas pris en charge.",
           "v3_stop_confirmation_seconds": "Temps accordé à la confirmation Audi.",
           "v3_stop_repoll_seconds": "Délai entre les vérifications en lecture seule.",
           "v3_stop_verification_seconds": "Durée maximale pour obtenir des données récentes.",
           "v3_stop_extra_retries": "Zéro ou un STOP supplémentaire après expiration définitive et données récentes contradictoires.",
           "v3_stop_final_notification": "Notification Home Assistant en cas d’échec ou de résultat non confirmé."
+        }
+      },
+      "workbench": {
+        "title": "Atelier de développement",
+        "data": {
+          "v3_development_workbench": "Activer l'atelier de développement V3"
         },
-        "description": "{data_act_status}"
+        "data_description": {
+          "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés."
+        }
       },
       "data_act": {
         "title": "EU Data Act",
@@ -123,13 +181,27 @@
           "email": "E-mail du portail",
           "password": "Mot de passe du portail"
         }
+      },
+      "discovery_vehicle": {
+        "title": "Sélectionner un véhicule à découvrir",
+        "data": {
+          "vehicle": "Véhicule"
+        }
+      },
+      "dealer_vehicle": {
+        "title": "Choisir un véhicule",
+        "data": {
+          "vehicle": "Véhicule Audi"
+        }
       }
     },
     "error": {
       "data_act_credentials_required": "Saisissez l’e-mail et le mot de passe.",
       "data_act_authorization_required": "Le portail a refusé la connexion ou exige une autorisation interactive. Vérifiez les identifiants et le consentement dans le portail.",
       "data_act_unavailable": "Le portail est temporairement indisponible. La connexion existante est conservée.",
-      "invalid_geocoding_endpoint": "Saisissez un point de terminaison HTTPS autorisé, pas le service public OpenStreetMap."
+      "invalid_geocoding_endpoint": "Saisissez un point de terminaison HTTPS autorisé, pas le service public OpenStreetMap.",
+      "invalid_stop_recovery_settings": "Saisir des nombres entiers dans les limites indiquées.",
+      "invalid_scan_interval": "Saisir un intervalle valide."
     }
   },
   "selector": {
