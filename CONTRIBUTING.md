@@ -15,7 +15,7 @@ Start at the [issue templates](https://github.com/audiconnect/audi_connect_ha/is
 
 V3 is experimental and opt-in. Use a backup or a separate test installation. Follow the [V3 guide](docs/V3_REVIEW.md); ordinary users do not need Workbench.
 
-1. Enable the optional administrator-only Engineering Workbench in the integration options. Select your vehicle.
+1. Enable the optional administrator-only Engineering Workbench under **Advanced & experimental → Development Workbench**. Select your vehicle.
 2. In **Overview**, inspect consolidated coverage. Where the source selector is available, choose an API family to investigate its own discovery, mapping and observation evidence. **API Log** shows retained operation evidence.
 3. Use **Capabilities** and **Configure & test** to explore reviewed reads and propose a mapping. Use bounded read-only scans where applicable; respect quota and backoff. Discovery never runs physical commands.
 4. Validate meaning, units, enum values, capture time and actual behavior against the vehicle or myAudi. Compare sources without assuming the newest delivery contains fresh data.

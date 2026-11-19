@@ -93,7 +93,7 @@ def test_options_flow_translations_have_manual_dealer_steps():
     for name in ("strings.json", "translations/en.json", "translations/nl.json"):
         data = json.loads((root / name).read_text())
         # Manual dealer metadata moves to V3 Options, not legacy V2 runtime.
-        assert "edit_local_dealer" in data["options"]["step"]["init"]["data"]
+        assert "dealer_vehicle" in data["options"]["step"]["init"]["menu_options"]
         assert "dealer_vehicle" in data["options"]["step"]
         assert "dealer" in data["options"]["step"]
-        assert "experimental_commands" not in data["options"]["step"]["init"]["data"]
+        assert "experimental_commands" not in data["options"]["step"]["general"]["data"]

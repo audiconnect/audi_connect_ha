@@ -25,7 +25,7 @@ async def test_switch_v2_to_v3_saves_mode_and_preserves_legacy_options():
             "local_dealers": {"EXAMPLE": {"name": "Dealer"}},
         },
     )
-    result = await flow.async_step_init(
+    result = await flow.async_step_general(
         {
             "runtime_version": "v3_climate",
             "scan_interval": 15,
@@ -61,7 +61,7 @@ async def test_switch_back_to_v2_preserves_legacy_configuration():
             "scan_interval": 15,
         },
     )
-    result = await flow.async_step_init(
+    result = await flow.async_step_general(
         {
             "runtime_version": "v2",
             "scan_interval": 15,
@@ -75,7 +75,8 @@ async def test_switch_back_to_v2_preserves_legacy_configuration():
     assert saved["climate_quick_start"] is True
 
 
-def test_form_can_render_v3_workbench_option_when_mode_is_v3():
+@pytest.mark.asyncio
+async def test_native_v3_menu_and_general_fields():
     flow = OptionsFlowHandler()
     flow.handler = "test-audi-entry"
     flow.hass = SimpleNamespace(
@@ -84,40 +85,37 @@ def test_form_can_render_v3_workbench_option_when_mode_is_v3():
         )
     )
     flow._test_entry = SimpleNamespace(
-        data={"scan_interval": 15},
-        options={"runtime_version": "v2"},
+        data={"scan_interval": 15}, options={"runtime_version": "v3_climate"}
     )
-    schema = flow._options_schema(
-        {
-            "runtime_version": "v3_climate",
-            "scan_interval": 15,
-        }
-    )
-    fields = [key.schema for key in schema.schema]
-    assert "v3_development_workbench" in fields
-    assert "v3_charging_stop_retry" in fields
-    assert (
-        next(
-            key for key in schema.schema if key.schema == "v3_charging_stop_retry"
-        ).default()
-        is False
-    )
-    assert "v3_charging_stop_retry" not in [
-        key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
+    menu = await flow.async_step_init()
+    assert menu["type"] == "menu"
+    assert menu["menu_options"] == [
+        "general",
+        "discovery_vehicle",
+        "data_sources",
+        "dealer_vehicle",
+        "advanced",
     ]
-    assert "scan_initial" not in fields
-    assert "scan_initial" in [
-        key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
+    result = await flow.async_step_general()
+    assert result["step_id"] == "general"
+    assert {key.schema for key in result["data_schema"].schema} == {
+        "runtime_version",
+        "scan_interval",
+        "filter_vins",
+    }
+    assert (await flow.async_step_data_sources())["menu_options"] == [
+        "data_act",
+        "reverse_geocoding",
     ]
-    assert "climate_quick_start" not in fields
-    assert "experimental_commands" not in fields
-    assert "edit_local_dealer" in fields
-    assert (
-        next(
-            key for key in schema.schema if key.schema == "run_vehicle_discovery"
-        ).default()
-        is False
-    )
+    assert (await flow.async_step_advanced())["menu_options"] == [
+        "stop_recovery",
+        "workbench",
+    ]
+    flow._test_entry.options["runtime_version"] = "v2"
+    result = await flow.async_step_init()
+    assert result["type"] == "form"
+    assert "scan_initial" in {key.schema for key in result["data_schema"].schema}
+    assert (await flow.async_step_advanced())["step_id"] == "general"
 
 
 @pytest.mark.asyncio
@@ -213,10 +211,10 @@ async def test_data_act_credentials_change_only_after_successful_source_auth():
             async_get_known_entry=lambda _id: flow._test_entry
         )
     )
-    result = await flow.async_step_init({"scan_interval": 20})
+    result = await flow.async_step_general({"scan_interval": 20})
     assert result["data"]["v3_data_act_password"] == "synthetic-password"
     assert result["data"]["scan_interval"] == 20
-    result = await flow.async_step_init({"v3_data_act_password": "bypass"})
+    result = await flow.async_step_general({"v3_data_act_password": "bypass"})
     assert result["data"]["v3_data_act_password"] == "synthetic-password"
     result = await flow.async_step_data_act()
     assert result["step_id"] == "data_act"
@@ -244,7 +242,9 @@ async def test_data_act_credentials_change_only_after_successful_source_auth():
     assert "v3_data_act_email" not in result["data"]
 
 
-@pytest.mark.parametrize("language", ["en", "nl", "de", "fr"])
+@pytest.mark.parametrize(
+    "language", ["en", "nl", "de", "fr", "fi", "nb", "pt", "pt-BR"]
+)
 def test_v3_options_have_localized_labels_and_descriptions(language):
     import json
     from pathlib import Path
@@ -267,9 +267,21 @@ def test_v3_options_have_localized_labels_and_descriptions(language):
         / "custom_components/audiconnect/translations"
         / f"{language}.json"
     )
-    form = json.loads(path.read_text())["options"]["step"]["init"]
+    form = json.loads(path.read_text())["options"]["step"]["general"]
     assert fields <= form["data"].keys()
     assert fields <= form["data_description"].keys()
+    steps = json.loads(path.read_text())["options"]["step"]
+    for menu in ("init", "data_sources", "advanced"):
+        assert steps[menu]["menu_options"]
+        assert set(steps[menu]["menu_options"]) <= set(steps)
+    for step in (
+        "stop_recovery",
+        "stop_recovery_settings",
+        "workbench",
+        "reverse_geocoding",
+        "geocoding_endpoint",
+    ):
+        assert steps[step]["data"].keys() == steps[step]["data_description"].keys()
     translations = json.loads(path.read_text())
     action = translations["options"]["step"]["data_act"]
     assert action["description"] and action["data"]["action"]
@@ -293,7 +305,7 @@ async def test_v3_save_preserves_hidden_v2_startup_preference():
         data={"scan_interval": 15},
         options={"runtime_version": "v3_climate", "scan_initial": False},
     )
-    result = await flow.async_step_init({"scan_interval": 20})
+    result = await flow.async_step_general({"scan_interval": 20})
     assert result["data"]["scan_initial"] is False
     assert result["data"]["scan_interval"] == 20
 
@@ -344,7 +356,7 @@ async def test_discovery_is_explicit_and_does_not_dispatch_on_save():
     flow.handler = "test-audi-entry"
     flow._test_entry = SimpleNamespace(
         data={"scan_interval": 15},
-        options={"runtime_version": "v3_climate"},
+        options={"runtime_version": "v3_climate", "v3_charging_stop_retry": True},
         runtime_data=SimpleNamespace(v3=SimpleNamespace()),
     )
     flow.hass = SimpleNamespace(
@@ -353,33 +365,20 @@ async def test_discovery_is_explicit_and_does_not_dispatch_on_save():
         )
     )
     flow.async_step_discovery_vehicle = AsyncMock(return_value={"step_id": "discovery"})
-    result = await flow.async_step_init({"scan_interval": 20})
+    result = await flow.async_step_init()
+    assert result["type"] == "menu"
+    result = await flow.async_step_general(
+        {"scan_interval": 20, "run_vehicle_discovery": True, "manage_data_act": True}
+    )
     assert result["type"] == "create_entry"
     assert result["data"]["scan_interval"] == 20
+    assert result["data"]["v3_charging_stop_retry"] is True
+    assert "run_vehicle_discovery" not in result["data"]
+    assert "manage_data_act" not in result["data"]
     flow.async_step_discovery_vehicle.assert_not_awaited()
-    result = await flow.async_step_init(
-        {"scan_interval": 20, "run_vehicle_discovery": True}
-    )
+    result = await flow.async_step_discovery_vehicle()
     assert result["step_id"] == "discovery"
-    assert flow._pending_options["scan_interval"] == 20
-    assert "run_vehicle_discovery" not in flow._pending_options
-    result = await flow.async_step_init(
-        {"scan_interval": 25, "run_vehicle_discovery": False}
-    )
-    assert result["type"] == "create_entry"
-    assert result["data"]["scan_interval"] == 25
     flow.async_step_discovery_vehicle.assert_awaited_once()
-    result = await flow.async_step_init({"manage_data_act": True})
-    assert result["step_id"] == "data_act"
-    result = await flow.async_step_data_act({"action": "keep"})
-    assert result["type"] == "create_entry"
-    result = await flow.async_step_init(
-        {"manage_data_act": True, "run_vehicle_discovery": True}
-    )
-    assert result["step_id"] == "data_act"
-    result = await flow.async_step_data_act({"action": "keep"})
-    assert result["step_id"] == "discovery"
-    assert flow.async_step_discovery_vehicle.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -457,7 +456,18 @@ async def test_charging_stop_retry_requires_explicit_v3_option(enabled):
             async_get_known_entry=lambda _id: flow._test_entry
         )
     )
-    result = await flow.async_step_init({"v3_charging_stop_retry": enabled})
+    result = await flow.async_step_stop_recovery()
+    assert {key.schema for key in result["data_schema"].schema} == {
+        "v3_charging_stop_retry"
+    }
+    result = await flow.async_step_stop_recovery({"v3_charging_stop_retry": enabled})
+    if enabled:
+        assert result["step_id"] == "stop_recovery_settings"
+        assert flow._test_entry.options["v3_charging_stop_retry"] is False
+        result = await flow.async_step_stop_recovery_settings(
+            {"v3_stop_extra_retries": 0}
+        )
+        assert result["data"]["v3_stop_extra_retries"] == 0
     assert result["data"]["v3_charging_stop_retry"] is enabled
 
 
@@ -478,34 +488,66 @@ async def test_reverse_geocoding_is_explicit_and_v3_only():
     flow._test_entry = SimpleNamespace(
         data={}, options={"runtime_version": "v3_climate"}
     )
-    schema = flow._options_schema(flow._test_entry.options).schema
-    assert (
-        next(key for key in schema if key.schema == REVERSE_GEOCODING).default()
-        is False
-    )
-    assert REVERSE_GEOCODING not in {
-        key.schema for key in flow._options_schema({"runtime_version": "v2"}).schema
-    }
-    result = await flow.async_step_init(
-        {
-            REVERSE_GEOCODING: True,
-            GEOCODING_ENDPOINT: "",
-            "run_vehicle_discovery": False,
-        }
-    )
+    result = await flow.async_step_reverse_geocoding()
+    schema = result["data_schema"].schema
+    assert {key.schema for key in schema} == {REVERSE_GEOCODING}
+    assert next(iter(schema)).default() is False
+    result = await flow.async_step_reverse_geocoding({REVERSE_GEOCODING: True})
+    assert result["step_id"] == "geocoding_endpoint"
+    assert REVERSE_GEOCODING not in flow._test_entry.options
+    result = await flow.async_step_geocoding_endpoint({GEOCODING_ENDPOINT: ""})
     assert result["errors"][GEOCODING_ENDPOINT] == "invalid_geocoding_endpoint"
-    result = await flow.async_step_init(
-        {
-            REVERSE_GEOCODING: True,
-            GEOCODING_ENDPOINT: "https://geocoder.example.invalid/reverse",
-            "run_vehicle_discovery": False,
-        }
-    )
-    assert result["type"] == "create_entry"
+    endpoint = "https://geocoder.example.invalid/reverse"
+    result = await flow.async_step_geocoding_endpoint({GEOCODING_ENDPOINT: endpoint})
     assert result["data"][REVERSE_GEOCODING] is True
     flow._test_entry.options = result["data"]
-    result = await flow.async_step_init({"runtime_version": "v2"})
+    result = await flow.async_step_reverse_geocoding({REVERSE_GEOCODING: False})
     assert result["data"][REVERSE_GEOCODING] is False
+    assert result["data"][GEOCODING_ENDPOINT] == endpoint
+    result = await flow.async_step_general({"runtime_version": "v2"})
+    assert result["data"][REVERSE_GEOCODING] is False
+    flow._test_entry.options = result["data"]
+    assert (await flow.async_step_reverse_geocoding())["step_id"] == "general"
+
+
+@pytest.mark.asyncio
+async def test_advanced_forms_preserve_saved_settings_and_reject_invalid_numbers():
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    original = {
+        "runtime_version": "v3_climate",
+        "scan_interval": 25,
+        "v3_charging_stop_retry": True,
+        "v3_stop_extra_retries": 0,
+        "v3_stop_confirmation_seconds": 120,
+        "v3_stop_repoll_seconds": 60,
+        "v3_stop_verification_seconds": 90,
+        "v3_stop_final_notification": False,
+        "v3_data_act_enabled": True,
+        "local_dealers": {"EXAMPLE": {"name": "Dealer"}},
+    }
+    flow._test_entry = SimpleNamespace(data={}, options=original)
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    result = await flow.async_step_workbench({"v3_development_workbench": True})
+    assert result["data"] == {**original, "v3_development_workbench": True}
+    result = await flow.async_step_stop_recovery({"v3_charging_stop_retry": False})
+    assert result["data"] == {**original, "v3_charging_stop_retry": False}
+    flow._test_entry.options = result["data"]
+    result = await flow.async_step_stop_recovery({"v3_charging_stop_retry": True})
+    fields = {key.schema: key.default() for key in result["data_schema"].schema}
+    assert fields["v3_stop_extra_retries"] == 0
+    assert fields["v3_stop_confirmation_seconds"] == 120
+    result = await flow.async_step_stop_recovery_settings(
+        {"v3_stop_extra_retries": 0.5}
+    )
+    assert result["errors"]["base"] == "invalid_stop_recovery_settings"
+    assert flow._test_entry.options["v3_charging_stop_retry"] is False
+    result = await flow.async_step_stop_recovery_settings(fields)
+    assert result["data"] == original
 
 
 def test_stop_recovery_option_bounds_and_migration():

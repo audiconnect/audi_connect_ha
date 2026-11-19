@@ -70,16 +70,126 @@
   "options": {
     "step": {
       "init": {
-        "data": {
-          "scan_initial": "Päivitä pilwestä käynnistyksessä",
-          "scan_interval": "Aikaväli"
-        },
         "title": "Audi Connect -asetukset",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "general": "Yleiset asetukset",
+          "discovery_vehicle": "Ajoneuvon määritys ja tunnistus",
+          "data_sources": "Muut tietolähteet",
+          "dealer_vehicle": "Huolto ja ylläpito",
+          "advanced": "Lisäasetukset ja kokeelliset toiminnot"
+        }
+      },
+      "general": {
+        "title": "Yleiset asetukset",
+        "data": {
+          "runtime_version": "Runtime",
+          "scan_interval": "Aikaväli",
+          "filter_vins": "Excluded VINs",
+          "scan_initial": "Päivitä pilwestä käynnistyksessä",
+          "refresh_vehicle_data_after_action": "Refresh Vehicle Data After Action",
+          "update_sleep": "Cloud Refresh Delay"
+        },
         "data_description": {
+          "runtime_version": "V2 on edelleen käytettävissä. Kun V3 on otettu käyttöön, avaa asetukset uudelleen.",
+          "scan_interval": "Minuutit pilvikyselyjen välillä.",
+          "filter_vins": "Comma-separated VIN list to exclude from setup and updates.",
           "scan_initial": "Päivitä pilwestä heti käynnistyksen yhteydessä.",
-          "scan_interval": "Minuutit pilvikyselyjen välillä."
+          "refresh_vehicle_data_after_action": "Send a vehicle refresh command after every service action (e.g. climate, lock). This is typically not required as the vehicle will check in with the cloud on its own after a command. Each vehicle refresh counts against the API rate limit. To improve responsiveness, increase the Cloud Refresh Delay instead.",
+          "update_sleep": "Seconds to wait after a service action before refreshing cloud data. A longer delay gives the vehicle more time to report its updated state to the cloud."
+        }
+      },
+      "data_sources": {
+        "title": "Muut tietolähteet",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "data_act": "EU Data Act",
+          "reverse_geocoding": "Käänteinen geokoodaus"
+        }
+      },
+      "advanced": {
+        "title": "Lisäasetukset ja kokeelliset toiminnot",
+        "menu_options": {
+          "stop_recovery": "Latauksen pysäytyksen palautus",
+          "workbench": "Kehitystyökalut"
+        }
+      },
+      "reverse_geocoding": {
+        "title": "Käänteinen geokoodaus",
+        "data": {
+          "v3_reverse_geocoding": "Reverse geocoding"
+        },
+        "data_description": {
+          "v3_reverse_geocoding": "Send approximate last parked coordinates to the configured external provider (off by default)."
+        }
+      },
+      "geocoding_endpoint": {
+        "title": "Käänteinen geokoodaus",
+        "data": {
+          "v3_geocoding_endpoint": "Reverse geocoding endpoint"
+        },
+        "data_description": {
+          "v3_geocoding_endpoint": "Authorized HTTPS Nominatim-compatible /reverse endpoint. The public OpenStreetMap service is not supported."
+        }
+      },
+      "stop_recovery": {
+        "title": "Latauksen pysäytyksen palautus",
+        "data": {
+          "v3_charging_stop_retry": "Retry failed charging STOP"
+        },
+        "data_description": {
+          "v3_charging_stop_retry": "Experimental, off by default. Allow one additional STOP only after Audi reports a terminal timeout and fresh vehicle data still shows charging. No retry after an uncertain or pending request."
+        }
+      },
+      "stop_recovery_settings": {
+        "title": "Latauksen pysäytyksen palautus",
+        "data": {
+          "v3_stop_confirmation_seconds": "Confirmation timeout (seconds)",
+          "v3_stop_repoll_seconds": "Verification poll interval (seconds)",
+          "v3_stop_verification_seconds": "Verification window (seconds)",
+          "v3_stop_extra_retries": "Additional STOP attempts",
+          "v3_stop_final_notification": "Final STOP notification"
+        },
+        "data_description": {
+          "v3_stop_confirmation_seconds": "Time allowed for backend confirmation.",
+          "v3_stop_repoll_seconds": "Delay between read-only verification polls.",
+          "v3_stop_verification_seconds": "Maximum time for fresh native evidence.",
+          "v3_stop_extra_retries": "Zero or one additional STOP after a terminal timeout and fresh contradictory evidence.",
+          "v3_stop_final_notification": "Show a Home Assistant notification for failed or unconfirmed recovery."
+        }
+      },
+      "workbench": {
+        "title": "Kehitystyökalut",
+        "data": {
+          "v3_development_workbench": "Enable V3 Development Workbench"
+        },
+        "data_description": {
+          "v3_development_workbench": "Show the administrator-only API Development Workbench in the Home Assistant sidebar. Available in V3 only. Off by default; disabling does not delete saved API profiles."
+        }
+      },
+      "discovery_vehicle": {
+        "title": "Valitse tunnistettava ajoneuvo",
+        "data": {
+          "vehicle": "Ajoneuvo"
+        }
+      },
+      "dealer_vehicle": {
+        "title": "Valitse ajoneuvo",
+        "data": {
+          "vehicle": "Audi-ajoneuvo"
+        }
+      },
+      "data_act": {
+        "title": "EU Data Act",
+        "description": "{data_act_status}\n\nVahvista portaalin tunnukset yhdistämällä uudelleen tai poista paikalliset tunnukset ja lopeta Data Act -luku katkaisemalla yhteys. Audi-yhteys ja portaalipyyntö eivät muutu.",
+        "data": {
+          "action": "Yhteys"
         }
       }
+    },
+    "error": {
+      "invalid_stop_recovery_settings": "Anna kokonaisluvut näytetyissä rajoissa.",
+      "invalid_scan_interval": "Anna kelvollinen päivitysväli."
     }
   },
   "selector": {
@@ -96,6 +206,13 @@
         "stop_preheater": "Pysäytä lisälämmitin",
         "start_window_heating": "Käynnistä ikkunalämmitys",
         "stop_window_heating": "Pysäytä ikkunalämmitys"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Yhdistä / yhdistä uudelleen",
+        "disconnect": "Katkaise yhteys",
+        "keep": "Säilytä nykyinen yhteys"
       }
     }
   },

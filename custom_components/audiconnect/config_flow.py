@@ -506,16 +506,13 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(OptionsFlow):
-    """Configure polling and optional per-vehicle, local dealer details."""
+    """Native account settings and explicit configuration journeys."""
 
-    _pending_options: dict[str, Any] | None = None
     _dealer_vin: str | None = None
     _discovery_vin: str | None = None
     _discovery_action: str | None = None
     _discovery_candidate: dict[str, Any] | None = None
     _discovery_guided: bool = False
-    _run_discovery_after_options: bool = False
-    _edit_dealer_after_options: bool = False
     _discovery_sequence: int | None = None
     _discovery_skipped: set[str] | None = None
 
@@ -587,7 +584,7 @@ class OptionsFlowHandler(OptionsFlow):
         vin = self._dealer_vin
         if not vin:
             return await self.async_step_dealer_vehicle()
-        pending = self._pending_options or dict(self.config_entry.options)
+        pending = dict(self.config_entry.options)
         errors: dict[str, str] = {}
         if user_input is not None:
             updates = {
@@ -600,7 +597,7 @@ class OptionsFlowHandler(OptionsFlow):
             except ValueError:
                 errors["base"] = "invalid_dealer"
             else:
-                return await self._finish_options(options)
+                return self.async_create_entry(title="", data=options)
         existing = get_local_dealer(pending, vin)
         data_schema = vol.Schema(
             {
@@ -644,7 +641,7 @@ class OptionsFlowHandler(OptionsFlow):
         ]
         if not vehicles:
             return self.async_create_entry(
-                title="", data=self._pending_options or dict(self.config_entry.options)
+                title="", data=dict(self.config_entry.options)
             )
         if len(vehicles) == 1:
             self._discovery_vin = vehicles[0][0]
@@ -675,7 +672,7 @@ class OptionsFlowHandler(OptionsFlow):
             if choice == "finish":
                 return self.async_create_entry(
                     title="",
-                    data=self._pending_options or dict(self.config_entry.options),
+                    data=dict(self.config_entry.options),
                 )
             if choice == "refresh":
                 await engine.resume_read_discovery(car.vin)
@@ -751,7 +748,7 @@ class OptionsFlowHandler(OptionsFlow):
             if answer == "finish":
                 return self.async_create_entry(
                     title="",
-                    data=self._pending_options or dict(self.config_entry.options),
+                    data=dict(self.config_entry.options),
                 )
             if answer is not True and answer != "yes":
                 if self._discovery_skipped is None:
@@ -855,8 +852,7 @@ class OptionsFlowHandler(OptionsFlow):
                     if outcome == "uncertain":
                         return self.async_create_entry(
                             title="",
-                            data=self._pending_options
-                            or dict(self.config_entry.options),
+                            data=dict(self.config_entry.options),
                         )
                     return await self.async_step_discovery()
         return self.async_show_form(
@@ -890,7 +886,7 @@ class OptionsFlowHandler(OptionsFlow):
                 await engine.review_normal_command(car.vin, command.command_id)
                 return await self.async_step_discovery()
             return self.async_create_entry(
-                title="", data=self._pending_options or dict(self.config_entry.options)
+                title="", data=dict(self.config_entry.options)
             )
         return self.async_show_form(
             step_id="discovery_recover",
@@ -898,118 +894,214 @@ class OptionsFlowHandler(OptionsFlow):
             description_placeholders={"vehicle": car.name, "action": command.action},
         )
 
+    def _is_v3(self) -> bool:
+        return self.config_entry.options.get("runtime_version") == "v3_climate"
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        if user_input is not None:
-            # Keep historical V2 options while the clean V3 form only
-            # exposes integration-level runtime, interval and vehicle filter.
-            # A switch back to V2 must recover those V2 preferences.
-            submitted = user_input
-            user_input = {**self.config_entry.options, **submitted}
-            user_input.setdefault("runtime_version", "v2")
-            # Source credentials can only change through the dedicated flow.
-            for key in (
-                "v3_data_act_enabled",
-                "v3_data_act_email",
-                "v3_data_act_password",
-            ):
-                user_input.pop(key, None)
-                if (
-                    user_input["runtime_version"] == "v3_climate"
-                    and key in self.config_entry.options
-                ):
-                    user_input[key] = self.config_entry.options[key]
-            manage_data_act = bool(user_input.pop("manage_data_act", False))
-            # Workbench is opt-in and belongs only to the V3 runtime. Leave
-            # existing custom API profiles untouched when it is turned off.
-            if user_input["runtime_version"] != "v3_climate":
-                user_input["v3_development_workbench"] = False
-                user_input[CONF_V3_CHARGING_STOP_RETRY] = False
-            else:
-                user_input.setdefault("v3_development_workbench", False)
-                user_input[CONF_V3_CHARGING_STOP_RETRY] = (
-                    user_input.get(CONF_V3_CHARGING_STOP_RETRY) is True
-                )
-                user_input.update(stop_recovery_options(user_input))
-            from .v3.parking import (
-                GEOCODING_ENDPOINT,
-                REVERSE_GEOCODING,
-                valid_geocoding_endpoint,
-            )
-
-            if user_input["runtime_version"] != "v3_climate":
-                user_input[REVERSE_GEOCODING] = False
-            elif user_input.get(REVERSE_GEOCODING) is True:
-                endpoint = user_input.get(GEOCODING_ENDPOINT)
-                if not valid_geocoding_endpoint(endpoint):
-                    return self.async_show_form(
-                        step_id="init",
-                        errors={GEOCODING_ENDPOINT: "invalid_geocoding_endpoint"},
-                        data_schema=self._options_schema(user_input),
-                        description_placeholders=await self._data_act_placeholders(
-                            user_input
-                        ),
-                    )
-            edit_dealer = bool(user_input.pop("edit_local_dealer", False))
-            run_discovery = bool(user_input.pop("run_vehicle_discovery", False))
-            # On runtime switch, some HA clients submit only the changed
-            # fields. Never let an absent interval prevent saving the choice.
-            interval = user_input.get(
-                CONF_SCAN_INTERVAL,
-                self.config_entry.options.get(
-                    CONF_SCAN_INTERVAL,
-                    self.config_entry.data.get(
-                        CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
-                    ),
-                ),
-            )
-            try:
-                user_input[CONF_SCAN_INTERVAL] = max(int(interval), MIN_UPDATE_INTERVAL)
-            except (TypeError, ValueError):
-                # Re-display an actionable form error instead of a silent
-                # failure while the modal stays on the previous runtime.
-                return self.async_show_form(
-                    step_id="init",
-                    errors={"base": "invalid_scan_interval"},
-                    data_schema=self._options_schema(user_input),
-                    description_placeholders=await self._data_act_placeholders(
-                        user_input
-                    ),
-                )
-            # OptionsFlow replaces all options; preserve per-vehicle metadata.
-            if "local_dealers" in self.config_entry.options:
-                user_input["local_dealers"] = self.config_entry.options["local_dealers"]
-            is_v3 = user_input["runtime_version"] == "v3_climate"
-            self._run_discovery_after_options = (
-                is_v3 and run_discovery and self._discovery_engine() is not None
-            )
-            self._edit_dealer_after_options = edit_dealer
-            if manage_data_act and is_v3:
-                self._pending_options = user_input
-                return await self.async_step_data_act()
-            return await self._finish_options(user_input)
-
-        # V3 owns API routes and experimental actions in its development
-        # dashboard, never inside this account configuration wizard.
-        return self.async_show_form(
+        """Keep the historical V2 form and expose native navigation in V3."""
+        if not self._is_v3():
+            return await self.async_step_general(user_input)
+        return self.async_show_menu(
             step_id="init",
-            data_schema=self._options_schema(self.config_entry.options),
+            menu_options=[
+                "general",
+                "discovery_vehicle",
+                "data_sources",
+                "dealer_vehicle",
+                "advanced",
+            ],
             description_placeholders=await self._data_act_placeholders(
                 self.config_entry.options
             ),
         )
 
-    async def _finish_options(self, options):
-        """Complete selected optional steps once; never dispatch a command here."""
-        self._pending_options = options
-        if self._edit_dealer_after_options:
-            self._edit_dealer_after_options = False
-            return await self.async_step_dealer_vehicle()
-        if self._run_discovery_after_options:
-            self._run_discovery_after_options = False
-            return await self.async_step_discovery_vehicle()
-        return self.async_create_entry(title="", data=options)
+    async def async_step_general(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Save only general fields; preserve hidden settings and local metadata."""
+        values = dict(self.config_entry.options)
+        errors = {}
+        if user_input is not None:
+            # Only fields visible in this form are writable here.
+            fields = {key.schema for key in self._options_schema(values).schema}
+            values.update(
+                {key: value for key, value in user_input.items() if key in fields}
+            )
+            values.setdefault("runtime_version", "v2")
+            interval = values.get(
+                CONF_SCAN_INTERVAL,
+                self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+            )
+            try:
+                values[CONF_SCAN_INTERVAL] = max(int(interval), MIN_UPDATE_INTERVAL)
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_scan_interval"
+            else:
+                if values["runtime_version"] != "v3_climate":
+                    # Preserve the existing V2 rollback behavior. Explicit V3
+                    # permissions must not carry across a runtime switch.
+                    values["v3_development_workbench"] = False
+                    values[CONF_V3_CHARGING_STOP_RETRY] = False
+                    values["v3_reverse_geocoding"] = False
+                    for key in (
+                        "v3_data_act_enabled",
+                        "v3_data_act_email",
+                        "v3_data_act_password",
+                    ):
+                        values.pop(key, None)
+                else:
+                    values.setdefault("v3_development_workbench", False)
+                    values.setdefault(CONF_V3_CHARGING_STOP_RETRY, False)
+                return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="general",
+            data_schema=self._options_schema(values),
+            errors=errors,
+        )
+
+    async def async_step_data_sources(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        return self.async_show_menu(
+            step_id="data_sources",
+            menu_options=["data_act", "reverse_geocoding"],
+            description_placeholders=await self._data_act_placeholders(
+                self.config_entry.options
+            ),
+        )
+
+    async def async_step_advanced(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        return self.async_show_menu(
+            step_id="advanced",
+            menu_options=["stop_recovery", "workbench"],
+        )
+
+    async def async_step_reverse_geocoding(self, user_input=None) -> ConfigFlowResult:
+        from .v3.parking import REVERSE_GEOCODING
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        if user_input is not None:
+            if user_input.get(REVERSE_GEOCODING) is True:
+                return await self.async_step_geocoding_endpoint()
+            values[REVERSE_GEOCODING] = False
+            return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="reverse_geocoding",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        REVERSE_GEOCODING,
+                        default=values.get(REVERSE_GEOCODING) is True,
+                    ): bool
+                }
+            ),
+        )
+
+    async def async_step_geocoding_endpoint(self, user_input=None) -> ConfigFlowResult:
+        from .v3.parking import (
+            GEOCODING_ENDPOINT,
+            REVERSE_GEOCODING,
+            valid_geocoding_endpoint,
+        )
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        endpoint = values.get(GEOCODING_ENDPOINT, "")
+        errors = {}
+        if user_input is not None:
+            endpoint = user_input.get(GEOCODING_ENDPOINT, "")
+            if valid_geocoding_endpoint(endpoint):
+                values.update({REVERSE_GEOCODING: True, GEOCODING_ENDPOINT: endpoint})
+                return self.async_create_entry(title="", data=values)
+            errors[GEOCODING_ENDPOINT] = "invalid_geocoding_endpoint"
+        return self.async_show_form(
+            step_id="geocoding_endpoint",
+            data_schema=vol.Schema(
+                {vol.Required(GEOCODING_ENDPOINT, default=endpoint): TextSelector()}
+            ),
+            errors=errors,
+        )
+
+    async def async_step_stop_recovery(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        if user_input is not None:
+            if user_input.get(CONF_V3_CHARGING_STOP_RETRY) is True:
+                return await self.async_step_stop_recovery_settings()
+            values[CONF_V3_CHARGING_STOP_RETRY] = False
+            return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="stop_recovery",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_V3_CHARGING_STOP_RETRY,
+                        default=values.get(CONF_V3_CHARGING_STOP_RETRY) is True,
+                    ): bool
+                }
+            ),
+        )
+
+    async def async_step_stop_recovery_settings(
+        self, user_input=None
+    ) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        recovery = stop_recovery_options(values)
+        errors = {}
+        if user_input is not None:
+            proposed = {
+                **recovery,
+                **{key: value for key, value in user_input.items() if key in recovery},
+            }
+            normalized = stop_recovery_options(proposed)
+            if proposed != normalized:
+                errors["base"] = "invalid_stop_recovery_settings"
+            else:
+                values.update(normalized)
+                values[CONF_V3_CHARGING_STOP_RETRY] = True
+                return self.async_create_entry(title="", data=values)
+        schema = {
+            vol.Required(key, default=recovery[key]): NumberSelector(
+                NumberSelectorConfig(min=minimum, max=maximum, step=1, mode="box")
+            )
+            for key, (_, minimum, maximum) in STOP_RECOVERY_OPTIONS.items()
+        }
+        schema[
+            vol.Required(
+                "v3_stop_final_notification",
+                default=recovery["v3_stop_final_notification"],
+            )
+        ] = bool
+        return self.async_show_form(
+            step_id="stop_recovery_settings",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+        )
+
+    async def async_step_workbench(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        key = "v3_development_workbench"
+        if user_input is not None:
+            values[key] = user_input.get(key) is True
+            return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="workbench",
+            data_schema=vol.Schema(
+                {vol.Required(key, default=values.get(key) is True): bool}
+            ),
+        )
 
     async def _data_act_placeholders(self, values):
         """Read the existing scheduler status; opening options never calls Audi."""
@@ -1054,16 +1146,16 @@ class OptionsFlowHandler(OptionsFlow):
     async def async_step_data_act(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the optional source using a normal HA form, not an options menu."""
-        options = dict(self._pending_options or self.config_entry.options)
+        """Manage the optional source without changing native credentials."""
+        options = dict(self.config_entry.options)
         if user_input is not None:
             if user_input["action"] == "keep":
-                return await self._finish_options(options)
+                return self.async_create_entry(title="", data=options)
             if user_input["action"] == "disconnect":
                 for key in ("v3_data_act_email", "v3_data_act_password"):
                     options.pop(key, None)
                 options["v3_data_act_enabled"] = False
-                return await self._finish_options(options)
+                return self.async_create_entry(title="", data=options)
             return await self.async_step_data_act_credentials()
         configured = bool(options.get("v3_data_act_enabled"))
         return self.async_show_form(
@@ -1104,7 +1196,7 @@ class OptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         from .v3.data_act import DataActAuthorizationRequired, DataActUnavailable
 
-        options = dict(self._pending_options or self.config_entry.options)
+        options = dict(self.config_entry.options)
         email = options.get("v3_data_act_email") or self.config_entry.data.get(
             CONF_USERNAME, ""
         )
@@ -1127,7 +1219,7 @@ class OptionsFlowHandler(OptionsFlow):
                         v3_data_act_email=email,
                         v3_data_act_password=password,
                     )
-                    return await self._finish_options(options)
+                    return self.async_create_entry(title="", data=options)
         return self.async_show_form(
             step_id="data_act_credentials",
             data_schema=vol.Schema(
@@ -1150,7 +1242,7 @@ class OptionsFlowHandler(OptionsFlow):
             ): vol.In({"v2": "V2 — Stable", "v3_climate": "V3 — Experimental"}),
             vol.Required(
                 CONF_SCAN_INTERVAL,
-                default=self.config_entry.options.get(
+                default=values.get(
                     CONF_SCAN_INTERVAL,
                     self.config_entry.data.get(
                         CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
@@ -1161,74 +1253,29 @@ class OptionsFlowHandler(OptionsFlow):
             ),
             vol.Optional(
                 CONF_FILTER_VINS,
-                default=self.config_entry.options.get(
+                default=values.get(
                     CONF_FILTER_VINS,
                     self.config_entry.data.get(CONF_FILTER_VINS, ""),
                 ),
             ): TextSelector(),
         }
 
-        if values.get("runtime_version", "v2") == "v3_climate":
-            from .v3.parking import GEOCODING_ENDPOINT, REVERSE_GEOCODING
-
-            schema[
-                vol.Required(
-                    REVERSE_GEOCODING, default=values.get(REVERSE_GEOCODING, False)
-                )
-            ] = bool
-            schema[
-                vol.Optional(
-                    GEOCODING_ENDPOINT, default=values.get(GEOCODING_ENDPOINT, "")
-                )
-            ] = TextSelector()
-            schema[vol.Optional("edit_local_dealer", default=False)] = bool
-            schema[vol.Optional("manage_data_act", default=False)] = bool
-            schema[vol.Optional("run_vehicle_discovery", default=False)] = bool
-            schema[
-                vol.Required(
-                    CONF_V3_CHARGING_STOP_RETRY,
-                    default=values.get(CONF_V3_CHARGING_STOP_RETRY) is True,
-                )
-            ] = bool
-            recovery = stop_recovery_options(values)
-            for key, (_, minimum, maximum) in STOP_RECOVERY_OPTIONS.items():
-                schema[vol.Required(key, default=recovery[key])] = vol.All(
-                    vol.Coerce(int), vol.Range(min=minimum, max=maximum)
-                )
-            schema[
-                vol.Required(
-                    "v3_stop_final_notification",
-                    default=recovery["v3_stop_final_notification"],
-                )
-            ] = bool
-            schema[
-                vol.Required(
-                    "v3_development_workbench",
-                    default=self.config_entry.options.get(
-                        "v3_development_workbench", False
-                    ),
-                )
-            ] = bool
-        else:
+        if values.get("runtime_version", "v2") != "v3_climate":
             # Preserve every historical V2 option and user metadata.
             # API route editing is reserved for the opt-in V3 Workbench.
             schema.update(
                 {
                     vol.Required(
                         CONF_SCAN_INITIAL,
-                        default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
+                        default=values.get(CONF_SCAN_INITIAL, True),
                     ): bool,
                     vol.Required(
                         CONF_REFRESH_AFTER_ACTION,
-                        default=self.config_entry.options.get(
-                            CONF_REFRESH_AFTER_ACTION, False
-                        ),
+                        default=values.get(CONF_REFRESH_AFTER_ACTION, False),
                     ): bool,
                     vol.Required(
                         CONF_UPDATE_SLEEP,
-                        default=self.config_entry.options.get(
-                            CONF_UPDATE_SLEEP, UPDATE_SLEEP
-                        ),
+                        default=values.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP),
                     ): NumberSelector(NumberSelectorConfig(min=0, mode="box")),
                 }
             )
