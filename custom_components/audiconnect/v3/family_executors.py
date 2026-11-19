@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-APP_VERSION = "4.31.0"
-APP_AGENT = "Android/4.31.0 (Build 800341641.root project 'myaudi_android'.ext.buildTime) Android/13"
+from ..const import MYAUDI_APP_VERSION as APP_VERSION, MYAUDI_USER_AGENT as APP_AGENT
+
 LEGACY_BASE = "https://msg.volkswagen.de"
 LEGACY_REGION_HOSTS = frozenset(
     {
