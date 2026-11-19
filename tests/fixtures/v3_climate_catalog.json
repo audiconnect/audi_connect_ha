@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "brand": "audi",
+  "api_families": {
+    "cariad": {
+      "auth": "auth0",
+      "host_owner": "audi_auth_session",
+      "notes": "Region host resolved by existing Audi adapter; not configurable as arbitrary URL."
+    },
+    "mbb": {
+      "auth": "legacy",
+      "host_owner": "legacy_home_region",
+      "notes": "Legacy home-region and authentication retained in existing adapter."
+    }
+  },
+  "capabilities": {
+    "climate": {
+      "status": {
+        "operations": [
+          "cariad.climate.status.batch",
+          "cariad.climate.status.probe",
+          "mbb.climate.status"
+        ]
+      },
+      "control": {
+        "start": {
+          "operations": [
+            "cariad.climate.start.stored",
+            "cariad.climate.start.vehicle_settings",
+            "mbb.climate.start"
+          ]
+        },
+        "stop": {
+          "operations": ["cariad.climate.stop", "mbb.climate.stop"]
+        }
+      }
+    }
+  },
+  "operations": {
+    "cariad.climate.status.batch": {
+      "family": "cariad",
+      "method": "GET",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs={JOBS}",
+      "delivery": "existing_poll",
+      "priority": 0,
+      "response_paths": [
+        "climatisation.climatisationStatus.value.climatisationState",
+        "climatisation.auxiliaryHeatingStatus.value.climatisationState"
+      ]
+    },
+    "cariad.climate.status.probe": {
+      "family": "cariad",
+      "method": "GET",
+      "path": "/vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=climatisation",
+      "delivery": "manual",
+      "priority": 30,
+      "response_paths": [
+        "climatisation.climatisationStatus.value.climatisationState",
+        "climatisation.auxiliaryHeatingStatus.value.climatisationState"
+      ]
+    },
+    "mbb.climate.status": {
+      "family": "mbb",
+      "method": "GET",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater",
+      "delivery": "existing_poll",
+      "priority": 0,
+      "response_paths": [
+        "climater.status.climatisationStatusData.climatisationState.content"
+      ]
+    },
+    "cariad.climate.start.stored": {
+      "family": "cariad",
+      "method": "POST",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/start",
+      "delivery": "manual",
+      "priority": 0,
+      "request_mode": "bodyless",
+      "confirmation": "vehicle_readback",
+      "notes": "Q8-model scoped default using vehicle-stored climate settings. Never automatically retry with another route.",
+      "scope": {
+        "model_family": "q8"
+      }
+    },
+    "cariad.climate.start.vehicle_settings": {
+      "family": "cariad",
+      "method": "POST",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/start",
+      "delivery": "manual",
+      "priority": 10,
+      "request_mode": "verified_vehicle_target",
+      "confirmation": "vehicle_readback",
+      "notes": "Opt-in: only vehicle-reported target temp, existing safe settings read-modify-write."
+    },
+    "cariad.climate.stop": {
+      "family": "cariad",
+      "method": "POST",
+      "path": "/vehicle/v1/vehicles/{VIN}/climatisation/stop",
+      "delivery": "manual",
+      "priority": 0,
+      "request_mode": "bodyless",
+      "confirmation": "vehicle_readback"
+    },
+    "mbb.climate.start": {
+      "family": "mbb",
+      "method": "POST",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater/actions",
+      "delivery": "manual",
+      "priority": 0,
+      "request_mode": "existing_adapter",
+      "confirmation": "legacy_request_poll"
+    },
+    "mbb.climate.stop": {
+      "family": "mbb",
+      "method": "POST",
+      "path": "/fs-car/bs/climatisation/v1/{TYPE}/{COUNTRY}/vehicles/{VIN}/climater/actions",
+      "delivery": "manual",
+      "priority": 0,
+      "request_mode": "existing_adapter",
+      "confirmation": "legacy_request_poll"
+    }
+  }
+}

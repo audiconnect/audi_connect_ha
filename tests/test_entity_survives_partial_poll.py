@@ -24,6 +24,9 @@ this poll.
 
 from __future__ import annotations
 
+from inspect import signature
+from os.path import join
+
 import pytest
 from homeassistant.helpers import entity_registry as er
 
@@ -59,7 +62,14 @@ class StubHass:
 
     def __init__(self):
         self.data = {}
-        self.config = type("C", (), {"config_dir": "/tmp"})()
+        self.config = type(
+            "C",
+            (),
+            {
+                "config_dir": "/tmp",
+                "path": lambda self, *parts: join(self.config_dir, *parts),
+            },
+        )()
         self.bus = type(
             "B",
             (),
@@ -76,7 +86,14 @@ class StubHass:
 def hass():
     hass = StubHass()
     registry = er.EntityRegistry(hass)
-    registry.entities = er.EntityRegistryItems()
+    # HA 2026.11 adds the context and registry settings to the native index.
+    registry.entities = (
+        er.EntityRegistryItems(hass)
+        if "hass" in signature(er.EntityRegistryItems).parameters
+        else er.EntityRegistryItems()
+    )
+    if hasattr(er, "EntityRegistrySettings"):
+        registry.settings = er.EntityRegistrySettings()
     registry.deleted_entities = {}
     registry._entities_data = registry.entities.data
     registry.async_schedule_save = lambda: None

@@ -1,6 +1,6 @@
 # 02 — Cross-Brand API Atlas: Hosts, Endpoints, Patterns and Gaps
 
-**Legend:** **CODE** = public implementation/fixture; **REPORT** = a known example request/response; **HYPOTHESIS** = pattern-based candidate only. No entry means proven Q8 PHEV access unless explicitly stated.
+**Legend:** **CODE** = public implementation/fixture; **REPORT** = a known example request/response; **HYPOTHESIS** = pattern-based candidate only. The matrix records cross-brand source evidence at the original research stage, not current Audi support. See the current catalog and acceptance gate for implemented and vehicle-tested routes.
 
 ## 1. High-value endpoint matrix
 
@@ -8,7 +8,7 @@
 | --------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
 | Status                      | Audi/VW EU CARIAD BFF        | `GET /vehicle/v1/vehicles/{VIN}/selectivestatus?jobs=charging,measurements,...`              | CODE in Audi Connect                       | Existing core status; HTTP 207 is normal partial success              |
 | Position                    | Audi/VW EU BFF               | `GET /vehicle/v1/vehicles/{VIN}/parkingposition`                                             | CODE                                       | Position may return 204 despite parked state                          |
-| Individual/latest trips     | VW EU BFF                    | `GET /vehicle/v1/trips/{VIN}/{shortterm\|longterm\|cyclic}/last`                             | CODE + VW HTTP 200 REPORT                  | **Top Audi Auth0 GET candidate, not verified**                        |
+| Individual/latest trips     | VW EU BFF                    | `GET /vehicle/v1/trips/{VIN}/{shortterm\|longterm\|cyclic}/last`                             | CODE + VW HTTP 200 REPORT                  | **Audi current/last observed; cyclic unverified**                     |
 | Historical trip list        | VW EU BFF                    | `GET /vehicle/v1/trips/{VIN}/{shortterm\|longterm\|cyclic}?from=...&to=...`                  | CODE in ioBroker                           | Check only after proof of authorization/last-trip                     |
 | Alternative trip statistics | VW/Audi BFF                  | `GET /vehicle/v1/vehicles/{VIN}/tripstatistics?type=shortTerm`                               | CODE; multiple 404 REPORTS                 | Low priority; cooldown on 404                                         |
 | Legacy trip statistics      | Audi Connect MBB             | `GET /api/bs/tripstatistics/v1/vehicles/{VIN}/tripdata/{shortTerm\|longTerm}`                | CODE                                       | Already implemented but disabled under Auth0                          |
@@ -97,14 +97,11 @@ MyŠkoda `SingleTrips` has distinct per-trip fields including `startMileageInKm`
 
 ## 4. Audi-specific gaps and new candidates
 
-| Priority | Candidate                                                 | Classification                                             | Required proof                                                              |
-| -------- | --------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
-| P0       | CARIAD BFF `trips/{VIN}/shortterm/last`, longterm, cyclic | **Q8 UNVERIFIED**                                          | Audi Auth0 HTTP status, authorized response fields, meaningful timestamps   |
-| P0       | PHEV electric + fuel consumption                          | CODE mapping / UNVERIFIED feed                             | Separate units, trip-cycle semantics and missing values                     |
-| P1       | Central CARIAD charging statistics                        | **HYPOTHESIS for Audi**                                    | Audi identity/token audience, requested body/headers, response/permission   |
-| P1       | CARIAD media image route                                  | **HYPOTHESIS for Audi**                                    | Authorized Audi HTTP 200; image URL licensing and metadata                  |
-| P1       | Tyre pressure / 12V / health diagnostics                  | CODE job/capability universe; Q8 field delivery unverified | Redacted selectivestatus or Data Act fixture with capture timestamps        |
-| P2       | Engine start / auxiliary heaters / mobile digital keys    | Model- and market-restricted                               | Explicit Audi capabilities + user authorization + safety and physical tests |
+- **Trips:** modern current/last trip data has been observed on Audi. Validate reset/cyclic semantics, provider-specific units, retention and cross-model coverage; do not assume every cross-brand route works.
+- **Charging history:** central CARIAD host remains an Audi hypothesis; require authorized Audi identity, method/body and actual response evidence.
+- **Media:** require authorized Audi response, metadata and image usage rights.
+- **Tyre pressure, 12 V and health:** validate individual field presence, units, capture and semantic equivalence.
+- **Engine start, auxiliary heaters and mobile digital keys:** model- and market-restricted; require explicit capability, user authorization, safe physical tests and reviewed support.
 
 ## 5. Source overlap map
 

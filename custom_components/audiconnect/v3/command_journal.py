@@ -1,0 +1,573 @@
+"""Bounded persistent execution journal shared by HA and Workbench commands."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+import math
+import re
+from uuid import uuid4
+
+from .request_status import PENDING_RESULTS
+
+
+_UNRESOLVED = frozenset({"pending", "uncertain"})
+_STATES = _UNRESOLVED | {
+    "accepted_unconfirmed",
+    "backend_completed",
+    "verified",
+    "rejected",
+    "reviewed",
+    "physical_failed",
+    "readback_mismatch",
+}
+HISTORY_LIMIT = 50
+# Local anti-flood policy, not a claimed Audi server limit.
+HA_COMMAND_COOLDOWN_SECONDS = 10
+TEMPORARY_ERROR_COOLDOWN_SECONDS = 30
+ENGINEERING_COMMAND_COOLDOWN_SECONDS = 90
+_READBACKS = {
+    "climate",
+    "climatisationTargetTemperatureC",
+    "chargingState",
+    "doorLockStatus",
+    "targetstateOfCharge",
+    "preferredChargeMode",
+    "windowHeatingActive",
+    "preheater_active",
+    "climatisationWindowHeatingEnabled",
+    "climatisationAtUnlock",
+    "climatisationZoneFrontLeft",
+    "climatisationZoneFrontRight",
+    "climatisationZoneRearLeft",
+    "climatisationZoneRearRight",
+}
+
+
+@dataclass
+class CommandRecord:
+    command_id: str
+    capability: str
+    action: str
+    operation: str
+    started_at: float
+    state: str = "pending"
+    request_id: str | None = None
+    readback_attribute: str | None = None
+    readback_values: list | None = None
+    origin: str = "home_assistant"
+    engineering_sequence: int | None = None
+    operation_revision: str | None = None
+    backend_result: str | None = None
+    completed_at: float | None = None
+    readback_observed_at: float | None = None
+    readback_mismatch_at: float | None = None
+    parent_command_id: str | None = None
+    http_status: int | None = None
+    requested_charge_mode: str | None = None
+    requested_climate_variant: str | None = None
+
+    @classmethod
+    def begin(
+        cls, capability: str, action: str, operation: str, now: float, **metadata
+    ):
+        return cls(uuid4().hex, capability, action, operation, now, **metadata)
+
+    def observe_http(self, status: int | None) -> None:
+        """Record the initial transport result, not proof of physical execution."""
+        self.http_status = status
+        self.state = (
+            "accepted_unconfirmed"
+            if status is not None and 200 <= status < 300
+            else "uncertain"
+            if status is None or status >= 500
+            else "rejected"
+        )
+        self.backend_result = (
+            "transport_uncertain" if self.state == "uncertain" else self.state
+        )
+
+    def observe_backend(self, outcome: str, now: float) -> None:
+        """Apply correlated backend evidence without undoing terminal results."""
+        stop_timeout = (
+            outcome == "timeout"
+            and self.origin == "home_assistant"
+            and self.operation == "cariad.charging.stop"
+            and self.capability == "charging"
+            and self.action == "stop"
+            and self.state == "accepted_unconfirmed"
+        )
+        if outcome == "timeout":
+            outcome = "rejected"
+        if self.backend_result == "rejected" or (
+            self.backend_result == "backend_completed" and outcome != "rejected"
+        ):
+            return
+        self.backend_result = outcome
+        # Runtime receipt ordering only; never reactivate restored intent.
+        self.backend_observed_at = now
+        if outcome == "rejected":
+            self.state = "rejected"
+            self.completed_at = max(self.started_at, now)
+            if stop_timeout:
+                # Runtime evidence for either attempt. The command owner
+                # independently limits dispatch to a root intent; no replay.
+                self.stop_retry_timeout_at = self.completed_at
+        elif outcome == "backend_completed":
+            if self.state not in (
+                "verified",
+                "physical_failed",
+                "reviewed",
+                "readback_mismatch",
+            ):
+                self.state = "backend_completed"
+                self.completed_at = max(self.started_at, now)
+        elif outcome in ("unknown", "quota_limited") and self.capability not in (
+            "climate",
+            "charging",
+            "access",
+        ):
+            self.state = "uncertain"
+
+    @property
+    def stop_retry_timed_out(self) -> bool:
+        return (
+            self.state == "rejected"
+            and self.backend_result == "rejected"
+            and self.completed_at is not None
+            and getattr(self, "stop_retry_timeout_at", None) == self.completed_at
+            and not getattr(self, "restored", False)
+        )
+
+    @property
+    def unresolved(self) -> bool:
+        return self.state in _UNRESOLVED or self.requires_review
+
+    @property
+    def known_access_acceptance(self) -> bool:
+        """A durable successful mutation is distinct from an unknown transport."""
+        return (
+            self.origin == "home_assistant"
+            and self.capability == "access"
+            and self.action in ("lock", "unlock")
+            and self.http_status is not None
+            and 200 <= self.http_status < 300
+            and self.backend_result
+            in (
+                "accepted_unconfirmed",
+                "unknown",
+                "pending",
+                "queued",
+                "in_progress",
+                "accepted",
+                "not_listed",
+                "quota_limited",
+            )
+        )
+
+    @property
+    def requires_review(self) -> bool:
+        """Only explicit discovery experiments require physical review."""
+        return self.origin == "workbench" and self.state in (
+            "pending",
+            "uncertain",
+            "accepted_unconfirmed",
+        )
+
+    @property
+    def is_wake(self) -> bool:
+        """Only the reviewed CARIAD wake/refresh operations are preparatory."""
+        return (
+            self.capability == "remote"
+            and self.action in ("wake", "refresh")
+            and self.operation in ("cariad.remote.wake", "cariad.remote.refresh")
+        )
+
+    @property
+    def wake_accepted(self) -> bool:
+        return self.is_wake and self.state in (
+            "accepted_unconfirmed",
+            "backend_completed",
+            "verified",
+        )
+
+    def allows_immediate_reverse(self, capability, action):
+        """Only an explicit stop of a known accepted reversible operation."""
+        reversible = {
+            ("climate", "start"): "stop",
+            ("climate", "start_with_settings"): "stop",
+            ("climate", "window_heating_start"): "window_heating_stop",
+            ("charging", "start"): "stop",
+            ("climate", "preheater_start"): "preheater_stop",
+        }
+        return (
+            self.origin == "home_assistant"
+            and self.state in ("accepted_unconfirmed", "backend_completed", "verified")
+            and capability == self.capability
+            and action is not None
+            and reversible.get((self.capability, self.action)) == action
+        )
+
+    def check_next(
+        self,
+        now: float,
+        cooldown: float = HA_COMMAND_COOLDOWN_SECONDS,
+        *,
+        capability=None,
+        action=None,
+    ) -> None:
+        if self.capability == "access" and self.state == "accepted_unconfirmed":
+            cooldown = max(cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS)
+        if self.state in _UNRESOLVED:
+            until = (self.completed_at or self.started_at) + max(
+                cooldown, TEMPORARY_ERROR_COOLDOWN_SECONDS
+            )
+            if now < until:
+                raise RuntimeError(
+                    f"Previous command outcome uncertain; try again in {math.ceil(until - now)}s"
+                )
+            return  # No automatic retry; a new explicit request is permitted.
+        if self.wake_accepted and capability is not None and action is not None:
+            return  # Wake has its own quota/cadence guard in CommandEngine.
+        if now < self.started_at + cooldown:
+            # A user can explicitly stop a just-accepted comfort/charging
+            # operation. No bypass for repeated starts, locks, engine or
+            # unresolved commands; a subsequent start still waits.
+            if self.allows_immediate_reverse(capability, action):
+                return
+            remaining = math.ceil(self.started_at + cooldown - now)
+            raise RuntimeError(
+                f"Vehicle command cooldown active; try again in {remaining}s"
+            )
+
+    def snapshot(self) -> dict:
+        # Keep the B47 journal wire contract. Queue detail is runtime evidence;
+        # after restart the coarse backend outcome is sufficient for safety.
+        row = asdict(self)
+        row.pop("requested_climate_variant", None)
+        if self.backend_result in PENDING_RESULTS:
+            row["backend_result"] = "pending"
+        elif self.backend_result == "not_listed":
+            row["backend_result"] = "accepted_unconfirmed"
+        return row
+
+    @classmethod
+    def restore(cls, value: dict, *, recover_pending: bool = True):
+        if not isinstance(value, dict):
+            raise ValueError("Invalid stored command context")
+        try:
+            record = cls(**value)
+        except TypeError as exc:
+            raise ValueError("Invalid stored command fields") from exc
+        from .command_parameters import valid_climate_variant
+
+        if (
+            not isinstance(record.command_id, str)
+            or len(record.command_id) != 32
+            or any(c not in "0123456789abcdef" for c in record.command_id)
+            or any(
+                not isinstance(s, str) or not s or len(s) > 160
+                for s in (record.capability, record.action, record.operation)
+            )
+            or type(record.started_at) not in (int, float)
+            or not math.isfinite(record.started_at)
+            or record.started_at < 0
+            or record.state not in _STATES
+            or (
+                record.http_status is not None
+                and (
+                    type(record.http_status) is not int
+                    or not 100 <= record.http_status <= 599
+                )
+            )
+            or (
+                record.requested_charge_mode is not None
+                and (
+                    record.origin != "workbench"
+                    or record.capability != "charging"
+                    or record.action != "set_charge_mode"
+                    or record.operation != "cariad.charging.mode"
+                    or record.requested_charge_mode not in ("manual", "timer")
+                )
+            )
+            or (
+                record.requested_climate_variant is not None
+                and (
+                    record.origin != "workbench"
+                    or record.capability != "climate"
+                    or record.action not in ("set_settings", "start_with_settings")
+                    or not valid_climate_variant(
+                        record.operation, record.requested_climate_variant
+                    )
+                )
+            )
+            or record.origin not in ("home_assistant", "workbench")
+            or (
+                record.parent_command_id is not None
+                and (
+                    not isinstance(record.parent_command_id, str)
+                    or not re.fullmatch(r"[a-f0-9]{32}", record.parent_command_id)
+                    or record.parent_command_id == record.command_id
+                    or not (
+                        (record.capability, record.action) == ("remote", "refresh")
+                        or (
+                            (record.capability, record.action) == ("charging", "stop")
+                            and record.operation == "cariad.charging.stop"
+                        )
+                    )
+                    or record.origin != "home_assistant"
+                )
+            )
+            or (
+                record.engineering_sequence is not None
+                and (
+                    type(record.engineering_sequence) is not int
+                    or record.engineering_sequence < 1
+                )
+            )
+            or (record.origin == "workbench")
+            != (record.engineering_sequence is not None)
+            or (
+                record.operation_revision is not None
+                and (
+                    not isinstance(record.operation_revision, str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", record.operation_revision)
+                )
+            )
+            or (
+                record.backend_result is not None
+                and record.backend_result
+                not in (
+                    "accepted_unconfirmed",
+                    "backend_completed",
+                    "rejected",
+                    "unknown",
+                    "pending",
+                    "queued",
+                    "in_progress",
+                    "accepted",
+                    "not_listed",
+                    "quota_limited",
+                    "transport_uncertain",
+                )
+            )
+            or (
+                record.completed_at is not None
+                and (
+                    type(record.completed_at) not in (int, float)
+                    or not math.isfinite(record.completed_at)
+                    or record.completed_at < record.started_at
+                )
+            )
+            or (
+                record.readback_observed_at is not None
+                and (
+                    type(record.readback_observed_at) not in (int, float)
+                    or not math.isfinite(record.readback_observed_at)
+                    or record.readback_observed_at <= record.started_at
+                )
+            )
+            or (
+                record.readback_mismatch_at is not None
+                and (
+                    type(record.readback_mismatch_at) not in (int, float)
+                    or not math.isfinite(record.readback_mismatch_at)
+                    or record.readback_mismatch_at <= record.started_at
+                )
+            )
+            or (
+                record.request_id is not None
+                and (
+                    not isinstance(record.request_id, str)
+                    or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", record.request_id)
+                )
+            )
+            or (
+                record.readback_attribute is not None
+                and record.readback_attribute not in _READBACKS
+            )
+            or (
+                record.readback_values is not None
+                and (
+                    not isinstance(record.readback_values, list)
+                    or len(record.readback_values) > 8
+                    or any(
+                        type(v) not in (str, int, bool)
+                        and not (
+                            record.readback_attribute
+                            == "climatisationTargetTemperatureC"
+                            and type(v) is float
+                            and math.isfinite(v)
+                            and 15 <= v <= 30
+                        )
+                        or len(str(v)) > 40
+                        for v in record.readback_values
+                    )
+                )
+            )
+        ):
+            raise ValueError("Invalid stored command context")
+        # Pre-B41 normal commands used verified for a matching observation,
+        # not causal proof. Keep their backend evidence; do not invent capture.
+        if record.origin == "home_assistant" and record.state in (
+            "verified",
+            "readback_mismatch",
+        ):
+            record.state = (
+                "backend_completed"
+                if record.backend_result == "backend_completed"
+                else "rejected"
+                if record.backend_result == "rejected"
+                else "accepted_unconfirmed"
+            )
+        if record.state == "uncertain" and record.known_access_acceptance:
+            record.state = "accepted_unconfirmed"
+        if recover_pending and (
+            record.state == "pending"
+            or (
+                record.state == "accepted_unconfirmed"
+                and (
+                    record.origin == "workbench"
+                    or record.backend_result in (None, "transport_uncertain")
+                )
+                and not record.known_access_acceptance
+            )
+        ):
+            record.state = "uncertain"  # Never replay an interrupted mutation.
+        record.restored = True
+        return record
+
+
+def check_wake_budget(profile, now: float) -> None:
+    """Count durable dispatch reservations, including failed and uncertain calls."""
+    attempts = sorted(
+        row.started_at
+        for row in profile.command_journal
+        if row.is_wake and now - row.started_at < 86400
+    )
+    if len(attempts) >= 4 or (attempts and now - attempts[-1] < 1800):
+        raise RuntimeError(
+            "Audi wake budget: 30 minutes and four attempts per 24 hours"
+        )
+
+
+def unresolved_normal_commands(profile):
+    """All unresolved HA commands, not only the latest command pointer."""
+    rows = list(getattr(profile, "command_journal", ()))
+    latest = getattr(profile, "last_command", None)
+    if latest is not None and latest not in rows:
+        rows.append(latest)
+    return [row for row in rows if row.origin == "home_assistant" and row.unresolved]
+
+
+def check_command_sequence(
+    profile,
+    now: float,
+    *,
+    capability: str,
+    action: str,
+    cooldown: float = HA_COMMAND_COOLDOWN_SECONDS,
+) -> None:
+    """Bound routine dispatch cadence without turning history into an interlock."""
+    # Only the most recent action in this capability matters for a routine
+    # transient failure. Keep older outcomes as history, not an interlock.
+    rows = list(getattr(profile, "command_journal", ()))
+    latest = profile.last_command
+    if latest is not None and latest not in rows:
+        rows.append(latest)
+    previous = next(
+        (
+            row
+            for row in reversed(rows)
+            if row.origin == "home_assistant" and row.capability == capability
+        ),
+        None,
+    )
+    if previous is not None and (
+        previous.state in _UNRESOLVED
+        or (
+            previous.capability == "access" and previous.state == "accepted_unconfirmed"
+        )
+    ):
+        previous.check_next(
+            now, cooldown=cooldown, capability=capability, action=action
+        )
+    if latest is None:
+        return
+    # Optional linked refresh must not hide the original accepted START
+    # or delay its explicit STOP when the auxiliary refresh fails.
+    # Route/security/server restrictions still apply at dispatch.
+    if (
+        latest.is_wake
+        and previous is not None
+        and latest.parent_command_id == previous.command_id
+        and previous.allows_immediate_reverse(capability, action)
+    ):
+        return
+    if latest.unresolved:
+        # Its capability is already checked above. Never erase the journal.
+        if now < latest.started_at + cooldown:
+            raise RuntimeError(
+                f"Vehicle command cooldown active; try again in {math.ceil(latest.started_at + cooldown - now)}s"
+            )
+        return
+    latest.check_next(now, cooldown=cooldown, capability=capability, action=action)
+    if not latest.wake_accepted:
+        return
+    prior = next(
+        (
+            record
+            for record in reversed(profile.command_journal)
+            if record.origin == "home_assistant"
+            and not record.is_wake
+            and not record.unresolved
+        ),
+        None,
+    )
+    if prior is not None:
+        prior.check_next(now, cooldown=cooldown, capability=capability, action=action)
+
+
+def dispatch_block_reason(profile, capability, action, *, now=None):
+    """Shared, side-effect-free temporal guard for normal vehicle commands."""
+    import time
+
+    now = time.time() if now is None else now
+    if getattr(profile, "last_command", None) is not None:
+        try:
+            check_command_sequence(profile, now, capability=capability, action=action)
+        except RuntimeError as err:
+            return str(err)
+    history = getattr(profile.discovery, "history", ())
+    if history and now < history[-1].started_at + profile.discovery.cooldown_seconds:
+        return "Vehicle command cooldown active after engineering test"
+    return None
+
+
+def restore_history(rows):
+    """Validate bounded private history; restore unresolved commands per capability."""
+    if not isinstance(rows, list) or len(rows) > HISTORY_LIMIT:
+        raise ValueError("Invalid command journal length")
+    records = [CommandRecord.restore(row) for row in rows]
+    if len({record.command_id for record in records}) != len(records):
+        raise ValueError("Duplicate command journal ID")
+    normal = next(
+        (record for record in reversed(records) if record.origin == "home_assistant"),
+        None,
+    )
+    return records, normal
+
+
+def legacy_snapshot(record):
+    """Original b8 last-command shape retained for older-reader compatibility."""
+    keys = (
+        "command_id",
+        "capability",
+        "action",
+        "operation",
+        "started_at",
+        "state",
+        "request_id",
+        "readback_attribute",
+        "readback_values",
+    )
+    return {key: getattr(record, key) for key in keys}

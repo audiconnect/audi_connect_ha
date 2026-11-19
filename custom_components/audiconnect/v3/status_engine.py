@@ -1,0 +1,1422 @@
+"""Read-only status owner: scheduled polling, family reads and observation mapping."""
+
+from __future__ import annotations
+
+import asyncio
+from contextlib import suppress
+from datetime import UTC, datetime, timedelta
+import time
+from typing import Any
+
+from .development_profiles import DevelopmentProfile, render_request
+from .transport import V3Response
+from .vehicle import V3Vehicle
+from .freshness import timestamp_is_fresh, capture_field_timestamp as _captured
+from .attribute_runtime import (
+    planned_jobs,
+    observe_read_only,
+    _merge_observation,
+    _valid_capture,
+    record_invalid_observation,
+    record_observation,
+    normalize_attribute_value,
+)
+from .custom_attributes import attributes_for
+from .registry import extract_first, selective_status_path
+from .attribute_routes import get_read_variant
+from .historical_catalog import ATTRIBUTES, capture_time, read_path
+from .legacy_read_mappings import FIELDS as MBB_FIELDS
+from .read_discovery import (
+    record_jobs,
+    pending_groups,
+    reserve_group,
+    MAX_EXTRA_INITIAL_REQUESTS,
+    MAX_EXTRA_PERIODIC_REQUESTS,
+    read_excluded,
+    record_data_act_fields,
+    DATA_ACT_DATASET,
+)
+from .status_planner import status_groups
+
+
+DATA_ACT_CONNECTION_STATES = [
+    "not_configured",
+    "credentials_required",
+    "awaiting_data",
+    "connected",
+    "partial",
+    "authorization_required",
+    "vehicle_access_denied",
+    "subscription_unavailable",
+    "rate_limited",
+    "session_refresh_pending",
+    "unavailable",
+]
+
+
+def data_act_connection_state(result, deliveries):
+    """Project the existing delivery evidence without another connection cache."""
+    if result in ("dataset_received", "no_new_dataset"):
+        connected = {"dataset_received", "no_new_dataset"}
+        if connected.intersection(deliveries):
+            return "partial" if set(deliveries) - connected else "connected"
+        return "awaiting_data"
+    return "awaiting_data" if result == "initializing" else result
+
+
+def native_status_families(car):
+    if car.context.auth != "legacy":
+        return ("cariad",)
+    return ("cariad", "mbb") if car.legacy_cariad else ("mbb",)
+
+
+def identity_refresh_due(vehicles, elapsed_seconds):
+    """Bound inventory recovery independently of routine bearer renewal."""
+    present = [car for car in vehicles.values() if car.inventory_present]
+    incomplete = any(
+        car.identity_restored
+        or not car.image_url
+        or not all((car.model, car.model_family, car.model_year, car.car_type))
+        for car in present
+    )
+    return elapsed_seconds >= (3600 if incomplete else 86400)
+
+
+class StatusEngine:
+    def __init__(
+        self,
+        *,
+        hass,
+        entry,
+        auth,
+        transport,
+        storage,
+        vehicles,
+        profiles,
+        discover,
+        known_inventory,
+        operation_request,
+        api_record,
+        notify=None,
+        apply_identity=None,
+        observe_native_requests=None,
+    ):
+        self.hass = hass
+        self.entry = entry
+        self.auth = auth
+        self._transport = transport
+        self.storage = storage
+        self.vehicles = vehicles
+        self.profiles = profiles
+        self.discover = discover
+        self._inventory_ready = known_inventory
+        self._operation_request = operation_request
+        self._api_record = api_record
+        self._notify = notify
+        self._apply_identity = apply_identity
+        self._observe_native_requests = observe_native_requests
+        self._data_act_identity_attempt_at = None
+        self._data_act_task = None
+        self._parking_address_task = None
+        self._parking_address_cache = {}
+        self._parking_address_endpoint = None
+        self._parking_address_retry_at = 0.0
+        self.last_cloud_poll_success = None
+        self.last_cloud_poll_attempt = None
+        self.last_cloud_poll_succeeded = None
+        self._poll_cycles = 0
+        self._native_poll_lock = asyncio.Lock()
+        self._identity_attempt_at = None
+        self._legacy_route_backoff = {}
+        self._data_act_attempt_at = None
+        self._data_act_success_at = None
+        self._data_act_processing_failed = False
+        self._data_act_backoff_loaded = False
+
+    @property
+    def transport(self):
+        return self._transport()
+
+    @property
+    def poll_attempt_count(self) -> int:
+        """Current runtime coordinator attempts, including failed cycles."""
+        return self._poll_cycles
+
+    def data_act_poll_status(self, vehicle=None):
+        """Safe scheduler status, account-wide or scoped to one vehicle."""
+        client = getattr(self.auth, "data_act_client", None)
+        retry = client.quota.retry_at if client is not None else None
+        states = getattr(client, "delivery_states", {})
+        deliveries = {}
+        mapped = selected = 0
+        for car in self.vehicles.values():
+            if not car.inventory_present or (
+                vehicle is not None and car is not vehicle
+            ):
+                continue
+            state = states.get(car.vin.upper())
+            if state is not None:
+                deliveries[state] = deliveries.get(state, 0) + 1
+            for ident, families in car.family_readings.items():
+                sample = families.get("eu_data_act", {})
+                if (
+                    not sample.get("detail")
+                    and sample.get("value") is not None
+                    and sample.get("status") != "invalid_value"
+                ):
+                    mapped += 1
+                    selected += (
+                        car.readings.get(ident, {}).get("family") == "eu_data_act"
+                        and car.readings[ident].get("value") is not None
+                    )
+        # Account health is a projection, not a second provider state machine.
+        if client is None:
+            result = (
+                "credentials_required"
+                if getattr(self.auth, "data_act_configured", False) is True
+                else "not_configured"
+            )
+        elif client.authorization_required:
+            result = "authorization_required"
+        elif vehicle is not None and "vehicle_access_denied" in deliveries:
+            result = "vehicle_access_denied"
+        elif vehicle is not None and "subscription_unavailable" in deliveries:
+            result = "subscription_unavailable"
+        elif getattr(client.quota, "rate_limit_streak", 0):
+            result = "rate_limited"
+        elif getattr(client, "reauth_pending", False):
+            result = "session_refresh_pending"
+        elif retry and retry > datetime.now(UTC):
+            result = "rate_limited"
+        elif self._data_act_processing_failed or "unavailable" in deliveries:
+            result = "unavailable"
+        elif "dataset_received" in deliveries:
+            result = "dataset_received"
+        elif set(deliveries) == {"vehicle_access_denied"}:
+            result = "vehicle_access_denied"
+        elif "subscription_unavailable" in deliveries:
+            result = "subscription_unavailable"
+        else:
+            result = "no_new_dataset" if self._data_act_attempt_at else "initializing"
+        return {
+            "result": result,
+            "connection_state": data_act_connection_state(result, deliveries),
+            "scope": "vehicle" if vehicle is not None else "account",
+            "last_attempt": self._data_act_attempt_at.isoformat()
+            if self._data_act_attempt_at
+            else None,
+            "last_success": self._data_act_success_at.isoformat()
+            if self._data_act_success_at
+            else None,
+            "retry_at": retry.isoformat() if retry else None,
+            "next_poll_at": self._data_act_due_at(client).isoformat()
+            if client is not None
+            and not client.authorization_required
+            and (self._data_act_attempt_at or retry)
+            else None,
+            "rate_limit_streak": getattr(client.quota, "rate_limit_streak", 0)
+            if client is not None
+            else 0,
+            "delivery_states": deliveries,
+            "mapped_observations": mapped,
+            "selected_readings": selected,
+        }
+
+    def _data_act_due_at(self, client):
+        """Schedule from delivery evidence and the existing quota deadline."""
+        if getattr(client.quota, "rate_limit_streak", 0) and client.quota.retry_at:
+            return client.quota.retry_at
+        interval = next(
+            (
+                p.registry.families["eu_data_act"]["poll_interval_minutes"]
+                for p in self.profiles.values()
+            ),
+            30,
+        )
+        deliveries = set(getattr(client, "delivery_states", {}).values())
+        idle = deliveries and deliveries <= {
+            "no_new_dataset",
+            "no_nonempty_dataset",
+            "empty_dataset",
+            "subscription_unavailable",
+            "vehicle_access_denied",
+        }
+        if idle:
+            interval *= 2
+        due = (
+            self._data_act_attempt_at + timedelta(minutes=interval)
+            if self._data_act_attempt_at
+            else datetime.min.replace(tzinfo=UTC)
+        )
+        return max(due, client.quota.retry_at or due)
+
+    async def _poll_data_act(self, now=None):
+        """Fetch due optional family data; native quota is separate."""
+        from .data_act import DataActUnavailable
+
+        samples = []
+
+        client = getattr(self.auth, "data_act_client", None)
+        if client is None:
+            return samples
+        if client.authorization_required:
+            return samples
+        now = now or datetime.now(UTC)
+        if now < self._data_act_due_at(client):
+            return samples
+        profiles = [
+            (car, self.profiles[key])
+            for key, car in self.vehicles.items()
+            if car.inventory_present and key in self.profiles
+        ]
+        if not profiles:
+            return samples
+        self._data_act_attempt_at = now
+        self._data_act_processing_failed = False
+        for car, profile in profiles:
+            if car.vin.upper() in getattr(client, "denied_vins", ()):
+                continue
+            try:
+                result = await client.latest(car.vin)
+            except DataActUnavailable:
+                if client.authorization_required or client.quota.retry_at:
+                    break
+                continue
+            self._data_act_success_at = now
+            if result is not None:
+                payload, delivered, marker = result
+                samples.append(
+                    (car, profile, payload, datetime.now(UTC), delivered, marker)
+                )
+        return samples
+
+    async def _poll_legacy(self, car, profile, cache) -> bool:
+        """Normal MBB polling, one GET per resource, with no mutations."""
+        from .legacy_read_mappings import read_routes
+        from .legacy_values import observe_legacy
+        from .legacy_commands import configure_home_region
+
+        if hasattr(self.transport, "executors"):
+            await configure_home_region(self.transport, self.auth, car)
+        reachable = False
+        for kind, template in read_routes().items():
+            key = (car.vin.lower(), kind)
+            if read_excluded(profile, "mbb.discovery." + kind):
+                continue
+            if self._poll_cycles < self._legacy_route_backoff.get(key, 0):
+                continue
+            path = template.format(VIN=car.vin, COUNTRY=car.country, TYPE="Audi")
+            try:
+                response = await self.transport.request("mbb", "GET", path)
+            except (RuntimeError, ValueError, OSError, TimeoutError):
+                break
+            cache[(car.vin.lower(), "mbb", path)] = response
+            self._api_record(
+                profile, "mbb.discovery." + kind, "mbb", "GET", response, car.vin
+            )
+            if response.status in (404, 410):
+                self._legacy_route_backoff[key] = self._poll_cycles + 96
+                continue
+            if response.status in (401, 403, 429) or response.status >= 500:
+                break
+            if not 200 <= response.status < 300:
+                continue
+            reachable = True
+            observe_legacy(car, profile, kind, response)
+        return reachable
+
+    async def _poll_trips(self, car: V3Vehicle) -> None:
+        """Normal read-only trip data refresh; not a diagnostic probe service.
+
+        Only applicable Auth0 vehicles use the three reviewed routes. The
+        shared poll cadence and quota protect the car and account; no extra
+        coordinator, user action, raw response storage or invented trip data.
+        """
+        from .trips import CARIAD_TRIP_OPERATIONS, observe_cariad_trip
+        from .attribute_runtime import _capture_in_utc
+
+        now = time.time()
+        key = car.vin.lower()
+        profile = self.profiles[key]
+        due = profile.trip_poll_due_at
+        # Retry missing scopes at the ordinary poll cadence, not a 3-hour
+        # penalty after a quota/transport/partial-response failure.
+        expected = (
+            [
+                scope
+                for op, scope in CARIAD_TRIP_OPERATIONS.items()
+                if not read_excluded(profile, op)
+            ]
+            if car.context.auth != "legacy"
+            else ["shortterm_current", "longterm_current"]
+        )
+        # A future deadline beyond the maximum cadence is invalid (for
+        # example after a backward clock correction); do not defer forever.
+        if due is not None and now < due <= now + 10800:
+            return
+        # Reserve the bounded retry before I/O and persist via the existing
+        # profile snapshot at the end of the poll. A complete cycle alone
+        # extends it; cached trip scopes alone never prove success.
+        profile.trip_poll_due_at = now + 900
+        complete = True
+        if car.context.auth == "legacy":
+            from .trips import normalize_mbb_trips
+            from datetime import timedelta
+            from urllib.parse import urlencode
+
+            query = urlencode(
+                {
+                    "type": "list",
+                    "from": "1970-01-01T00:00:00Z",
+                    "to": (datetime.now(UTC) + timedelta(minutes=90)).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
+                }
+            )
+            for kind in ("shortTerm", "longTerm"):
+                if read_excluded(profile, "mbb.trip." + kind):
+                    continue
+                try:
+                    reply = await self.transport.request(
+                        "mbb",
+                        "GET",
+                        f"/api/bs/tripstatistics/v1/vehicles/{car.vin}/tripdata/{kind}?{query}",
+                    )
+                except (RuntimeError, ValueError, OSError, TimeoutError):
+                    break
+                self._api_record(
+                    profile, "mbb.trip." + kind, "mbb", "GET", reply, car.vin
+                )
+                if reply.status in (401, 403, 429) or reply.status >= 500:
+                    break
+                if not 200 <= reply.status < 300:
+                    complete = False
+                    continue
+                trips = normalize_mbb_trips(reply.data)
+                complete &= bool(trips)
+                for suffix, trip in trips.items():
+                    state_key = kind.lower() + "_" + suffix
+                    previous = _capture_in_utc(
+                        car.trips.get(state_key, {}).get("timestamp")
+                    )
+                    incoming = _capture_in_utc(trip.get("timestamp"))
+                    if incoming and (not previous or incoming >= previous):
+                        car.trips[state_key] = trip
+            else:
+                if complete and all(car.trips.get(scope) for scope in expected):
+                    profile.trip_poll_due_at = now + 10800
+            return
+        profile = self.profiles[car.vin.lower()]
+        available = (
+            profile.registry.resolve("mobility", "status", car.context)[
+                "available_operations"
+            ]
+            if "mobility" in profile.registry.capabilities
+            else ()
+        )
+        for ident in (*CARIAD_TRIP_OPERATIONS, "cariad.mobility.status.tripStatistics"):
+            if ident not in available or read_excluded(profile, ident):
+                continue
+            family, method, path, _ = self._operation_request(car, ident)
+            try:
+                reply = await self.transport.request(family, method, path)
+            except (TimeoutError, OSError, RuntimeError, ValueError):
+                self._api_record(profile, ident, family, method, None, car.vin)
+                break
+            self._api_record(profile, ident, family, method, reply, car.vin)
+            if reply.status in (401, 403, 429) or reply.status >= 500:
+                break
+            if not 200 <= reply.status < 300:
+                complete = False
+                continue
+            if ident == "cariad.mobility.status.tripStatistics":
+                observe_read_only(car, profile, reply.data, reply.observed_at)
+            elif not observe_cariad_trip(car, ident, reply.data):
+                # An unchanged/older valid snapshot is still a successful read.
+                from .trips import normalize_cariad_trip
+
+                complete &= normalize_cariad_trip(reply.data)[0] is not None
+        else:
+            if complete and all(car.trips.get(scope) for scope in expected):
+                profile.trip_poll_due_at = now + 10800
+
+    async def poll(self) -> list[V3Vehicle]:
+        async with self._native_poll_lock:
+            return await self._poll()
+
+    async def _poll(self) -> list[V3Vehicle]:
+        # A deliberately deferred native read is not a failed cloud poll.
+        # Preserve the last real result and allow independent Data Act delivery.
+        # The transport still authorizes every explicit command and recovery read.
+        quota = getattr(self.transport, "quota", None)
+        families = {
+            family
+            for car in self.vehicles.values()
+            if car.inventory_present
+            for family in native_status_families(car)
+        }
+        now_utc = datetime.now(UTC)
+        if (
+            self._inventory_ready()
+            and families
+            and quota is not None
+            and all(quota.read_deferred(now_utc, family) for family in families)
+        ):
+            self._start_data_act()
+            self._update_capture_projection()
+            return list(self.vehicles.values())
+        self.last_cloud_poll_attempt = datetime.now(UTC)
+        self.last_cloud_poll_succeeded = False
+        self._poll_cycles += 1
+        now = time.monotonic()
+        initial = not self._inventory_ready()
+        if self._identity_attempt_at is None:
+            self._identity_attempt_at = now
+        elapsed = now - self._identity_attempt_at
+        if initial:
+            self._identity_attempt_at = now
+            await self.discover()
+        # One optional family task, owned by the same status lifecycle. A slow
+        # portal read must not delay the native coordinator's publication.
+        self._start_data_act()
+        await self._poll_native_status()
+        self._start_parking_address()
+        # Inventory enrichment is secondary to primary vehicle measurements.
+        # Recheck remaining allowance after the native reads, not before them.
+        if not initial and identity_refresh_due(self.vehicles, elapsed):
+            self._identity_attempt_at = now
+            with suppress(RuntimeError, ValueError, OSError, TimeoutError):
+                await self.discover()
+        self._update_capture_projection()
+        return list(self.vehicles.values())
+
+    def _parking_address_point(self, car):
+        from .parking import geocoding_point
+
+        if (
+            self.vehicles.get(car.vin.lower()) is car
+            and car.inventory_present
+            and self.parking_read_allowed(car, address=True)
+        ):
+            return geocoding_point(car.position)
+        return None
+
+    def parking_address(self, car):
+        """Read only the address for this vehicle's current rounded parked point."""
+        from .parking import geocoding_endpoint
+
+        endpoint = geocoding_endpoint(self.entry)
+        if endpoint is None or endpoint != self._parking_address_endpoint:
+            return None
+        return self._parking_address_cache.get(self._parking_address_point(car))
+
+    def _start_parking_address(self):
+        """One optional, HA-managed lookup from the existing polling boundary."""
+        from .parking import geocoding_endpoint
+
+        endpoint = geocoding_endpoint(self.entry)
+        if endpoint != self._parking_address_endpoint:
+            self._parking_address_cache.clear()
+            self._parking_address_endpoint = endpoint
+            self._parking_address_retry_at = 0.0
+            if self._parking_address_task is not None:
+                self._parking_address_task.cancel()
+        if (
+            endpoint is None
+            or not hasattr(self.hass, "data")
+            or time.monotonic() < self._parking_address_retry_at
+            or (
+                self._parking_address_task is not None
+                and not self._parking_address_task.done()
+            )
+        ):
+            return
+        create_task = getattr(self.entry, "async_create_background_task", None)
+        if not callable(create_task):
+            return
+        for car in self.vehicles.values():
+            point = self._parking_address_point(car)
+            if point is None or point in self._parking_address_cache:
+                continue
+            self._parking_address_task = create_task(
+                self.hass,
+                self._collect_parking_address(car, endpoint, point),
+                "Audi parking address",
+            )
+            break
+
+    async def _collect_parking_address(self, car, endpoint, point):
+        """Recheck consent and the existing tracker before dispatch and publication."""
+        from .parking import geocoding_endpoint, reverse_address
+
+        if (
+            endpoint != geocoding_endpoint(self.entry)
+            or self._parking_address_point(car) != point
+        ):
+            return
+        address = await reverse_address(self.hass, endpoint, point)
+        if (
+            endpoint != geocoding_endpoint(self.entry)
+            or self._parking_address_point(car) != point
+        ):
+            return
+        if address is None:
+            self._parking_address_retry_at = time.monotonic() + 3600
+            return
+        self._parking_address_cache[point] = address
+        if len(self._parking_address_cache) > 64:
+            self._parking_address_cache.pop(next(iter(self._parking_address_cache)))
+        if self._notify is not None:
+            self._notify()
+
+    def _start_data_act(self):
+        if self._data_act_task is not None and not self._data_act_task.done():
+            return
+        client = getattr(self.auth, "data_act_client", None)
+        if client is None:
+            return
+        if self._data_act_backoff_loaded and (
+            client.authorization_required
+            or datetime.now(UTC) < self._data_act_due_at(client)
+        ):
+            return
+        create_task = getattr(self.entry, "async_create_background_task", None)
+        if create_task is not None and self.hass is not None:
+            self._data_act_task = create_task(
+                self.hass, self._collect_data_act(), "Audi Data Act read"
+            )
+        else:
+            self._data_act_task = asyncio.create_task(self._collect_data_act())
+
+    async def _collect_data_act(self):
+        from .attribute_runtime import observe_data_act
+
+        client = getattr(self.auth, "data_act_client", None)
+        before = self.data_act_poll_status()
+        changed = discovery_changed = False
+        before_backoff = {}
+        previous_attempt = self._data_act_attempt_at
+        previous_identity_attempt = self._data_act_identity_attempt_at
+        try:
+            if client is not None and not self._data_act_backoff_loaded:
+                load = getattr(self.storage, "async_load_api_backoff", None)
+                if load is not None:
+                    client.quota.restore_rate_limit(await load("data_act"))
+                self._data_act_backoff_loaded = True
+            before_backoff = client.quota.rate_limit_checkpoint() if client else {}
+            samples = await self._poll_data_act()
+            client = getattr(self.auth, "data_act_client", None)
+            changed, discovery_changed = self._withdraw_data_act(client)
+            if changed and self.storage is not None:
+                await self.storage.async_save(self.profiles)
+            denied = getattr(client, "denied_vins", ())
+            revoked = getattr(client, "authorization_required", False) is True
+            for car, profile, payload, observed, delivered, marker in samples:
+                key = car.vin.lower()
+                if (
+                    self.vehicles.get(key) is car
+                    and self.profiles.get(key) is profile
+                    and car.inventory_present
+                    and not revoked
+                    and car.vin.upper() not in denied
+                    and getattr(client, "delivery_states", {}).get(car.vin.upper())
+                    != "subscription_unavailable"
+                ):
+                    discovery_changed |= record_data_act_fields(
+                        profile, payload, observed
+                    )
+                    changed |= observe_data_act(
+                        car, profile, payload, observed, delivered
+                    )
+                    client.acknowledge(car.vin, marker)
+            if (
+                self._data_act_attempt_at != previous_attempt
+                and self._data_act_success_at == self._data_act_attempt_at
+            ):
+                changed |= await self._enrich_data_act_identity(client)
+                discovery_changed |= (
+                    self._data_act_identity_attempt_at != previous_identity_attempt
+                )
+            # The later identity call can itself discover terminal auth loss.
+            withdrawn, schema_changed = self._withdraw_data_act(client)
+            changed |= withdrawn
+            discovery_changed |= schema_changed
+            if withdrawn and self.storage is not None:
+                await self.storage.async_save(self.profiles)
+        except Exception:
+            # Optional provider errors must not invalidate native data or expose
+            # response content and credentials in logs.
+            self._data_act_processing_failed = True
+        if client is not None:
+            checkpoint = client.quota.rate_limit_checkpoint()
+            save = getattr(self.storage, "async_save_api_backoff", None)
+            if save is not None and checkpoint != before_backoff:
+                try:
+                    await save("data_act", checkpoint)
+                except (RuntimeError, ValueError, OSError):
+                    self._data_act_processing_failed = True
+        if changed:
+            self._update_capture_projection()
+        if self._notify is not None:
+            if changed:
+                self._notify()
+            elif discovery_changed or before != self.data_act_poll_status():
+                self._notify(reconcile_registry=False)
+
+    def _withdraw_data_act(self, client):
+        from .attribute_runtime import remove_family_observations
+        from .data_act import IDENTITY_OPERATION
+        from .identity_cache import withdraw_optional_identity
+
+        changed = discovery_changed = False
+        denied = getattr(client, "denied_vins", ())
+        states = getattr(client, "delivery_states", {})
+        revoked = (
+            client is None or getattr(client, "authorization_required", False) is True
+        )
+        now = datetime.now(UTC)
+        for key, car in self.vehicles.items():
+            profile = self.profiles.get(key)
+            if profile is None:
+                continue
+            lost_access = revoked or car.vin.upper() in denied
+            if lost_access or states.get(car.vin.upper()) == "subscription_unavailable":
+                discovery_changed |= bool(
+                    profile.job_schema.pop(DATA_ACT_DATASET, None)
+                )
+                changed |= remove_family_observations(car, profile, "eu_data_act", now)
+            if lost_access:
+                discovery_changed |= bool(
+                    profile.job_schema.pop(IDENTITY_OPERATION, None)
+                )
+                changed |= withdraw_optional_identity(car, profile)
+        return changed, discovery_changed
+
+    async def _enrich_data_act_identity(self, client):
+        """Bound identity enrichment to the existing optional family task."""
+        from .data_act import DataActUnavailable, IDENTITY_OPERATION
+        from .response_preview import merge_schema_evidence
+
+        if (
+            self._apply_identity is None
+            or client is None
+            or client.authorization_required
+        ):
+            return False
+        now = datetime.now(UTC)
+        if client.quota.retry_at and now < client.quota.retry_at:
+            return False
+        missing = {
+            key: car
+            for key, car in self.vehicles.items()
+            if car.inventory_present
+            and key in self.profiles
+            and (not car.model or not car.model_year)
+            and car.vin.upper() not in client.denied_vins
+        }
+        if not missing or (
+            self._data_act_identity_attempt_at
+            and now - self._data_act_identity_attempt_at < timedelta(hours=24)
+        ):
+            return False
+        self._data_act_identity_attempt_at = now
+        try:
+            rows = await client.identity_rows(car.vin for car in missing.values())
+        except DataActUnavailable:
+            rows = []
+            outcome = (
+                "authorization_required"
+                if client.authorization_required
+                else "unavailable"
+            )
+            http_status = None
+        else:
+            outcome = "no_unique_matching_vehicle"
+            http_status = 200
+        by_vin = {row["vin"].lower(): row for row in rows}
+        for key, car in missing.items():
+            if self.vehicles.get(key) is not car or key not in self.profiles:
+                continue
+            row = by_vin.get(key, {})
+            evidence = merge_schema_evidence(
+                self.profiles[key].job_schema.get(IDENTITY_OPERATION),
+                row.get("schema_fields", []),
+                row.get("schema_truncated", False),
+                status=http_status,
+                source=IDENTITY_OPERATION,
+                at=now.isoformat(),
+            )
+            evidence["outcome"] = "matched_vehicle" if row else outcome
+            self.profiles[key].job_schema[IDENTITY_OPERATION] = evidence
+        changed = False
+        for row in rows:
+            car = missing.get(row["vin"].lower())
+            if (
+                car is None
+                or self.vehicles.get(car.vin.lower()) is not car
+                or not car.inventory_present
+                or car.vin.lower() not in self.profiles
+            ):
+                continue
+            candidate = V3Vehicle.from_data_act(
+                {**row["payload"], "vin": row["vin"]},
+                car.country,
+                self.profiles[car.vin.lower()].registry,
+            )
+            changed |= self._apply_identity(
+                car,
+                self.profiles[car.vin.lower()],
+                candidate,
+                IDENTITY_OPERATION,
+                now,
+                fill_missing=True,
+            )
+        if changed and self.storage is not None:
+            await self.storage.async_save(self.profiles)
+        return changed
+
+    async def async_stop_data_act(self):
+        task = self._data_act_task
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        self._data_act_task = None
+
+    def _update_capture_projection(self):
+        from .attribute_runtime import refresh_family_observations
+        from .freshness import project_vehicle_capture
+        from .derived_values import project_charging_eta
+
+        now = datetime.now(UTC)
+        for car in self.vehicles.values():
+            if not car.inventory_present:
+                continue
+            profile = self.profiles.get(car.vin.lower())
+            if profile is not None:
+                refresh_family_observations(car, profile, now)
+                project_charging_eta(car, profile, now)
+            project_vehicle_capture(car, now)
+            if not car.model:
+                car.readings.pop("model", None)
+            else:
+                car.readings["model"] = {
+                    "value": car.model,
+                    "captured": None,
+                    "observed": car.identity_observed_at or now.isoformat(),
+                    "status": "readable_but_stale",
+                    "family": (car.identity_operation or "graphql").split(".")[0],
+                    "path": car.identity_operation or "graphql.vehicle.media",
+                    "job": None,
+                }
+
+    def _observe_cariad_status(self, car, profile, reply, **options):
+        observe_read_only(car, profile, reply.data, reply.observed_at, **options)
+        if self._observe_native_requests is not None:
+            self._observe_native_requests(car, profile, reply.data, reply.observed_at)
+
+    async def recovery_read(self, car, profile, current):
+        """One reviewed charging GET, not a full account poll or discovery."""
+        async with self._native_poll_lock:
+            ident = "cariad.status.charging"
+            if (
+                not current()
+                or self.vehicles.get(car.vin.lower()) is not car
+                or self.profiles.get(car.vin.lower()) is not profile
+                or read_excluded(profile, ident)
+                or profile.job_discovery.get("charging") == "unsupported"
+            ):
+                return
+            reply = await self.transport.request(
+                "cariad", "GET", selective_status_path(car.vin, "charging")
+            )
+            if not current():
+                return
+            self._api_record(profile, ident, "cariad", "GET", reply, car.vin)
+            if 200 <= reply.status < 300:
+                self._observe_cariad_status(
+                    car, profile, reply, operation=ident, complete_discovery=False
+                )
+                self._update_capture_projection()
+
+    async def _poll_native_status(self):
+        """Existing native family reads; preserve shared request deduplication."""
+        cloud_reachable = False
+        # Reuse identical GET responses across capabilities on the same car.
+        # API family + VIN + exact path is the request identity; a route change
+        # must never trigger a second call for a response already in this poll.
+        polled_responses: dict[tuple[str, str, str], V3Response] = {}
+        # Rotate the existing account poll order so a low shared allowance
+        # cannot consistently favor the first vehicle in inventory.
+        keys = list(self.vehicles)
+        start = (self._poll_cycles - 1) % len(keys) if keys else 0
+        for key in keys[start:] + keys[:start]:
+            vehicle = self.vehicles[key]
+            if not vehicle.inventory_present:
+                continue
+            profile = self.profiles[key]
+            if (
+                vehicle.context.auth == "legacy"
+                and len(profile.registry.capabilities) > 1
+            ):
+                if vehicle.legacy_cariad:
+                    # V2 reads selective-status even on its legacy IDK session.
+                    path = selective_status_path(
+                        vehicle.vin, ",".join(planned_jobs(vehicle, profile))
+                    )
+                    try:
+                        reply = await self.transport.request("cariad", "GET", path)
+                    except (RuntimeError, ValueError, OSError, TimeoutError):
+                        reply = None
+                    if reply and 200 <= reply.status < 300:
+                        polled_responses[(key, "cariad", path)] = reply
+                        self._observe_cariad_status(vehicle, profile, reply)
+                        record_jobs(
+                            profile,
+                            tuple(path.rsplit("jobs=", 1)[-1].split(",")),
+                            status=reply.status,
+                            payload=reply.data,
+                        )
+                        cloud_reachable = True
+                if await self._poll_legacy(vehicle, profile, polled_responses):
+                    cloud_reachable = True
+                continue
+            for capability, routes, chosen, batch in status_groups(
+                profile, vehicle.context
+            ):
+                attempted_paths: set[str] = set()
+                attempted_operations: set[str] = set()
+                # Bounded GET discovery, no auto wake and no repeated duplicate URL.
+                for ident in routes:
+                    # A custom route with user parameters has no safe background
+                    # default until its input is explicitly persisted.
+                    if profile.custom.get(ident, {}).get("variables"):
+                        continue
+                    op = profile.registry.operations[ident]
+                    if read_excluded(profile, ident):
+                        continue
+                    if (
+                        "selectivestatus?jobs=" in op["path"]
+                        and "{JOBS}" not in op["path"]
+                        and profile.job_discovery.get(op["path"].split("jobs=", 1)[1])
+                        == "unsupported"
+                    ):
+                        continue
+                    if op["method"] != "GET" or op["family"] not in ("cariad", "mbb"):
+                        continue
+                    # MBB legacy variants have distinct semantics and may cost a
+                    # request each. Never try manual-only endpoints on every poll.
+                    if (
+                        op["family"] == "mbb"
+                        and op.get("delivery") == "manual"
+                        and profile.active.get(f"{capability}.status") != ident
+                    ):
+                        continue
+                    family, method, path, _body = self._operation_request(
+                        vehicle, ident
+                    )
+                    # The default targeted climate probe repeats a job already
+                    # included in the shared batch. Do not double-poll it merely
+                    # because the URL spells the same job list differently.
+                    if (
+                        capability == "climate"
+                        and ident == "cariad.climate.status.probe"
+                        and op["path"].endswith("?jobs=climatisation")
+                        and batch in attempted_operations
+                        and vehicle.climate_state is not None
+                    ):
+                        continue
+                    if path in attempted_paths:
+                        continue
+                    attempted_paths.add(path)
+                    attempted_operations.add(ident)
+                    response = polled_responses.get((key, family, path))
+                    if response is None:
+                        try:
+                            response = await self.transport.request(
+                                family, method, path
+                            )
+                        except (TimeoutError, OSError, RuntimeError, ValueError):
+                            break  # Auth/transport failure is not proof of unsupported vehicle
+                        polled_responses[(key, family, path)] = response
+                    self._api_record(
+                        profile, ident, family, method, response, vehicle.vin
+                    )
+                    if 200 <= response.status < 300:
+                        cloud_reachable = True
+                        if ident == batch and family == "cariad":
+                            requested = tuple(path.rsplit("jobs=", 1)[-1].split(","))
+                            self._observe_cariad_status(vehicle, profile, response)
+                            record_jobs(
+                                profile,
+                                requested,
+                                status=response.status,
+                                payload=response.data,
+                            )
+                        elif ident == "mbb.climate.status":
+                            # Parse only proven V2 paths; per-attribute activation
+                            # remains explicit because MBB timestamps may be absent.
+                            for attr, (kind, _field) in MBB_FIELDS.items():
+                                if kind == "climater":
+                                    self.record_attribute_response(
+                                        vehicle,
+                                        profile,
+                                        attr,
+                                        "mbb.climater.readonly",
+                                        [_field],
+                                        response,
+                                    )
+                    value, field = profile.registry.extract(ident, response.data)
+                    captured = _captured(response.data, field)
+                    valid = 200 <= response.status < 300 and value is not None
+                    if capability == "climate" and valid:
+                        value, issue = normalize_attribute_value(
+                            ATTRIBUTES["climatisationState"], value, None
+                        )
+                        valid = isinstance(value, str) and not issue
+                        # Batch and legacy attribute extraction already own their
+                        # observations. Only a selected older capability-level
+                        # route may supply a fallback, never over an explicit attribute route.
+                        if (
+                            valid
+                            and ident not in (batch, "mbb.climate.status")
+                            and chosen == ident
+                            and "climatisationState" not in profile.attribute_disabled
+                            and profile.attribute_routes.get("climatisationState")
+                            in (None, "cariad.selectivestatus.batch")
+                        ):
+                            vehicle.set_climate(
+                                value,
+                                captured,
+                                route=ident,
+                                path=field,
+                                observed_at=response.observed_at,
+                                http_status=response.status,
+                            )
+                    elif valid:
+                        if (
+                            isinstance(value, str)
+                            and value.strip().lower()
+                            in (
+                                "",
+                                "unknown",
+                                "invalid",
+                                "unsupported",
+                                "unavailable",
+                                "error",
+                            )
+                            or isinstance(value, (dict, list))
+                            and (
+                                not value
+                                or isinstance(value, dict)
+                                and "error" in value
+                            )
+                        ):
+                            valid = False
+                        elif isinstance(value, (str, int, float, bool)):
+                            previous = vehicle.capability_readings.get(capability)
+                            vehicle.capability_readings[capability] = (
+                                _merge_observation(
+                                    previous,
+                                    {
+                                        "value": value,
+                                        "captured": captured
+                                        if _valid_capture(
+                                            captured, response.observed_at
+                                        )
+                                        else None,
+                                        "observed": response.observed_at.isoformat(),
+                                        "operation": ident,
+                                        "family": family,
+                                        "path": field,
+                                        "status": "verified"
+                                        if timestamp_is_fresh(
+                                            captured, response.observed_at
+                                        )
+                                        else "readable_but_stale",
+                                    },
+                                    response.observed_at,
+                                )
+                            )
+                    fresh = bool(
+                        valid and timestamp_is_fresh(captured, response.observed_at)
+                    )
+                    profile.record_status(
+                        capability,
+                        ident,
+                        http_status=response.status,
+                        schema_valid=valid,
+                        fresh=fresh,
+                    )
+                    if valid:
+                        if fresh:
+                            if (
+                                chosen is None
+                                or chosen == ident
+                                or chosen not in routes
+                            ):
+                                profile.choose_working(capability, "status", ident)
+                            if (
+                                ident != batch
+                                or chosen in (None, ident)
+                                or len(profile.registry.capabilities) <= 1
+                            ):
+                                break
+                        # A genuine stale capture is not a routing failure. Only
+                        # missing timestamp/mapping or an explicitly selected route
+                        # warrants further work.
+                        if captured is not None and (
+                            chosen is None or chosen == ident or chosen not in routes
+                        ):
+                            break
+                        continue
+                    if response.status in (401, 403, 429) or response.status >= 500:
+                        break
+        # Automatic initial CARIAD discovery: the existing 23-job GET handles
+        # most fields. If that response missed known mappings, probe at most
+        # four small job groups initially, two per later poll across the account.
+        # No POST, no wake, no parking coordinates, no unbounded API probing.
+        remaining_discovery = (
+            MAX_EXTRA_INITIAL_REQUESTS
+            if self._poll_cycles == 1
+            else MAX_EXTRA_PERIODIC_REQUESTS
+        )
+        # Rotate the existing account-wide discovery budget across vehicles.
+        for key in keys[start:] + keys[:start]:
+            car = self.vehicles[key]
+            if not car.inventory_present:
+                continue
+            profile = self.profiles[key]
+            if (car.context.auth != "auth0" and not car.legacy_cariad) or len(
+                profile.registry.capabilities
+            ) <= 1:
+                continue  # Pilot-only synthetic tests and legacy cars are unaffected.
+            if not profile.job_discovery:
+                continue  # No successful bulk GET yet; don't spray blind requests.
+            if remaining_discovery <= 0:
+                break
+            for jobs in pending_groups(profile, max_groups=remaining_discovery):
+                remaining_discovery -= 1
+                path = selective_status_path(car.vin, ",".join(jobs))
+                response = polled_responses.get((key, "cariad", path))
+                if response is None:
+                    try:
+                        response = await self.transport.request("cariad", "GET", path)
+                    except (TimeoutError, OSError, RuntimeError, ValueError):
+                        break
+                self._api_record(
+                    profile,
+                    "cariad.discovery." + "_".join(jobs),
+                    "cariad",
+                    "GET",
+                    response,
+                    car.vin,
+                )
+                if response.status in (401, 403, 429) or response.status >= 500:
+                    record_jobs(
+                        profile, jobs, status=response.status, payload=response.data
+                    )
+                    break
+                reserve_group(profile, jobs)
+                if 200 <= response.status < 300:
+                    cloud_reachable = True
+                    self._observe_cariad_status(car, profile, response)
+                record_jobs(
+                    profile, jobs, status=response.status, payload=response.data
+                )
+                polled_responses[(key, "cariad", path)] = response
+
+        # Explicitly selected targeted/custom GET routes are executed separately
+        # from the default shared batch, deduplicated across attributes.
+        for key, car in self.vehicles.items():
+            if not car.inventory_present:
+                continue
+            profile = self.profiles[key]
+            unique: dict[tuple[str, str], list[tuple[str, str, list[str]]]] = {}
+            for ident, route in profile.attribute_routes.items():
+                if route == "cariad.selectivestatus.batch":
+                    continue
+                family, path, mappings = self.attribute_request(
+                    car, profile, ident, route
+                )
+                if "selectivestatus?jobs=" in path:
+                    jobs = path.rsplit("jobs=", 1)[-1].split(",")
+                    if all(
+                        profile.job_discovery.get(job) == "unsupported" for job in jobs
+                    ):
+                        continue
+                unique.setdefault((family, path), []).append((ident, route, mappings))
+            # Refuse an unbounded per-attribute request explosion.
+            routes = list(unique.items())
+            start = ((self._poll_cycles - 1) * 4) % len(routes) if routes else 0
+            for (family, path), selected in (routes[start:] + routes[:start])[:4]:
+                if not (
+                    family == ("mbb" if car.context.auth == "legacy" else "cariad")
+                    or (family == "cariad" and car.legacy_cariad)
+                ):
+                    continue
+                response = polled_responses.get((key, family, path))
+                if response is None:
+                    try:
+                        response = await self.transport.request(family, "GET", path)
+                    except (TimeoutError, OSError, RuntimeError, ValueError):
+                        break
+                    polled_responses[(key, family, path)] = response
+                operations = {
+                    get_read_variant(
+                        ident, route, profile.attribute_custom, attributes_for(profile)
+                    )["evidence_operation"]
+                    for ident, route, _ in selected
+                }
+                for operation in sorted(operations):
+                    self._api_record(
+                        profile, operation, family, "GET", response, car.vin
+                    )
+                for ident, route, mappings in selected:
+                    self.record_attribute_response(
+                        car, profile, ident, route, mappings, response
+                    )
+                if 200 <= response.status < 300:
+                    cloud_reachable = True
+        # Retain the V2 GPS tracker contract without adding a new cloud poller.
+        # First recovery attempt may be skipped by quota or a context change.
+        # Retry missing positions every 4 cycles, while normal reads stay sparse.
+        if (
+            self._poll_cycles == 1
+            or self._poll_cycles % 12 == 0
+            or (
+                self._poll_cycles % 4 == 0
+                and any(
+                    car.inventory_present and car.position is None
+                    for car in self.vehicles.values()
+                )
+            )
+        ):
+            await self._poll_parked_positions()
+        self.last_cloud_poll_succeeded = cloud_reachable
+        if cloud_reachable:
+            self.last_cloud_poll_success = datetime.now(UTC)
+            # Existing historical trip entities or explicitly reported trip
+            # capabilities opt into this normal data read, not route scanning.
+            # Avoid extra requests for vehicles without applicable evidence.
+            if hasattr(self.hass, "data"):
+                from homeassistant.helpers import entity_registry as er
+
+                registered = {
+                    entity.unique_id
+                    for entity in er.async_entries_for_config_entry(
+                        er.async_get(self.hass), self.entry.entry_id
+                    )
+                    if entity.domain == "sensor" and entity.disabled_by is None
+                }
+                for car in self.vehicles.values():
+                    if not car.inventory_present:
+                        continue
+                    profile = self.profiles[car.vin.lower()]
+                    prefix = f"{car.vin.lower()}_sensor_"
+                    known_trip = any(
+                        prefix + key in registered
+                        for key in (
+                            "shortterm_current",
+                            "longterm_current",
+                            "last_trip",
+                            "shortterm_reset",
+                            "longterm_reset",
+                        )
+                    )
+                    capability = bool(
+                        {"tripStatistics", "tripData"}
+                        & (car.advertised_capabilities - car.impaired_capabilities)
+                    )
+                    # Trip discovery is a reviewed read-only capability. Fresh
+                    # installations need not already have a historical trip entity.
+                    if len(profile.registry.capabilities) > 1 and (
+                        known_trip
+                        or capability
+                        or car.context.auth in ("auth0", "legacy")
+                    ):
+                        await self._poll_trips(car)
+
+    def parking_read_allowed(self, car, *, address=False):
+        """Respect the tracker choice and optionally the address sensor choice."""
+        if not hasattr(self.hass, "data"):
+            return None  # Unknown in a synthetic/no-registry context.
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        vin = car.vin.lower()
+        targets = {("device_tracker", f"{vin}_device_tracker_position")}
+        if address:
+            targets.add(("sensor", f"{vin}_sensor_parking_address"))
+        return not any(
+            (entity.domain, entity.unique_id) in targets
+            and entity.disabled_by is not None
+            for entity in er.async_entries_for_config_entry(
+                registry, self.entry.entry_id
+            )
+        )
+
+    async def _poll_parked_positions(self) -> None:
+        """Infrequent GET for the user's existing Audi parked GPS tracker.
+
+        No coordinates in API evidence, diagnostics or profile storage.
+        """
+        if not hasattr(self.hass, "data"):
+            return  # synthetic test engines without the HA registry
+        from .parking import observe_parking
+
+        for car in self.vehicles.values():
+            if not car.inventory_present:
+                continue
+            if (
+                car.context.auth != "auth0" and not car.legacy_cariad
+            ) or not self.parking_read_allowed(car):
+                continue
+            ident = "cariad.mobility.status.parkingPosition"
+            profile = self.profiles[car.vin.lower()]
+            if ident not in profile.registry.operations or read_excluded(
+                profile, ident
+            ):
+                continue
+            family, method, path, _ = self._operation_request(car, ident)
+            try:
+                reply = await self.transport.request(family, method, path)
+            except (TimeoutError, OSError, RuntimeError, ValueError):
+                self._api_record(profile, ident, family, method, None, car.vin)
+                return
+            self._api_record(profile, ident, family, method, reply, car.vin)
+            if reply.status in (401, 403, 429) or reply.status >= 500:
+                return
+            observe_parking(car, profile, reply, ident)
+
+    async def test_attribute_route(self, car, attribute, route) -> dict[str, Any]:
+        """Isolated engineering GET; never publish a test reading to HA."""
+        profile = self.profiles[car.vin.lower()]
+        family, path, mappings = self.attribute_request(car, profile, attribute, route)
+        if family != ("mbb" if car.context.auth == "legacy" else "cariad") and not (
+            family == "cariad" and car.legacy_cariad
+        ):
+            raise ValueError("Read route is not applicable to this vehicle API family")
+        response = await self.transport.request(family, "GET", path)
+        variant = get_read_variant(
+            attribute, route, profile.attribute_custom, attributes_for(profile)
+        )
+        self._api_record(
+            profile, variant["evidence_operation"], family, "GET", response, car.vin
+        )
+        result = self.record_attribute_response(
+            car, profile, attribute, route, mappings, response, publish=False
+        )
+        await self.storage.async_save(self.profiles)
+        return result
+
+    def attribute_request(
+        self,
+        car: V3Vehicle,
+        profile: DevelopmentProfile,
+        attribute: str,
+        operation: str,
+    ) -> tuple[str, str, list[str]]:
+        route = get_read_variant(
+            attribute, operation, profile.attribute_custom, attributes_for(profile)
+        )
+        jobs = planned_jobs(car, profile)
+        request = render_request(
+            route,
+            vehicle_values={
+                "VIN": car.vin,
+                "TYPE": "Audi",
+                "COUNTRY": car.country,
+                "JOBS": ",".join(jobs),
+            },
+            experimental=route.get("kind") == "custom",
+        )
+        return request["family"], request["relative_path"], route["response_paths"]
+
+    def record_attribute_response(
+        self,
+        car: V3Vehicle,
+        profile: DevelopmentProfile,
+        attribute: str,
+        operation: str,
+        mappings: list[str],
+        response: V3Response,
+        *,
+        publish: bool = True,
+    ) -> dict[str, Any]:
+        publish = (
+            publish
+            and attribute not in profile.attribute_disabled
+            and profile.attribute_routes.get(attribute) in (None, operation)
+        )
+        raw, matched_path = extract_first(response.data, mappings)
+        field = matched_path or mappings[0]
+        variant = get_read_variant(
+            attribute, operation, profile.attribute_custom, attributes_for(profile)
+        )
+        family = variant["family"]
+        definition = attributes_for(profile)[attribute]
+        value, issue = normalize_attribute_value(
+            definition, raw, variant.get("conversion")
+        )
+        captured = (
+            (
+                read_path(response.data, variant["capture_path"])
+                if variant.get("capture_path")
+                else capture_time(response.data, field)
+            )
+            if matched_path is not None
+            else None
+        )
+        if not isinstance(captured, str):
+            captured = None
+        if publish and issue and 200 <= response.status < 300:
+            active = profile.attribute_routes.get(attribute)
+            if active == operation or active is None:
+                record_invalid_observation(
+                    car,
+                    attribute,
+                    captured,
+                    response.observed_at,
+                    field,
+                    definition["job"],
+                    issue,
+                    family,
+                    profile=profile,
+                )
+            value = None
+        fresh = timestamp_is_fresh(captured, response.observed_at)
+        if not 200 <= response.status < 300:
+            outcome = "api_error"
+        elif value is None:
+            outcome = "mapping_missing"
+        else:
+            outcome = "verified" if fresh else "readable_but_stale"
+        profile.attribute_route_evidence.setdefault(attribute, {})[operation] = {
+            "outcome": outcome,
+            "path": field,
+            "http_status": response.status,
+        }
+        if publish and 200 <= response.status < 300 and value is not None:
+            record_observation(
+                car,
+                profile,
+                attribute,
+                value,
+                captured,
+                response.observed_at,
+                field,
+                definition["job"],
+                family,
+                fresh=fresh,
+                operation=variant["evidence_operation"],
+            )
+        return {
+            "attribute": attribute,
+            "route": operation,
+            "operation": variant["evidence_operation"],
+            "result": outcome,
+            "http_status": response.status,
+            "mapping": field,
+            "captured": captured,
+            "value": value if isinstance(value, (str, int, float, bool)) else None,
+        }

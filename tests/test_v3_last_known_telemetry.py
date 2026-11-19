@@ -1,0 +1,339 @@
+"""Sleeping-car display cache stays separate from current command evidence."""
+
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace as NS
+
+import pytest
+
+from custom_components.audiconnect.v3.attribute_runtime import observe_read_only
+from custom_components.audiconnect.v3.entities import (
+    V3ReadOnlyBinarySensor,
+    V3ReadOnlySensor,
+    V3StatusSensor,
+    _reading_available,
+)
+from custom_components.audiconnect.v3.freshness import newest_vehicle_capture
+from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+
+def car():
+    return V3Vehicle("WAUZZZ4M0MD123456", "Audi", "Q8", "q8", "DE")
+
+
+def reading(value, stamp):
+    return {
+        "value": value,
+        "captured": stamp.isoformat(),
+        "observed": datetime.now(UTC).isoformat(),
+        "status": "readable_but_stale",
+        "family": "cariad",
+    }
+
+
+@pytest.mark.parametrize(
+    "ident,value,expected",
+    [
+        ("left_front_door_open", False, False),
+        ("right_rear_window_open", True, True),
+        ("plugState", "connected", True),
+        ("plugLockState", "locked", False),
+    ],
+)
+def test_sleeping_binary_display_retains_actual_last_known(ident, value, expected):
+    vehicle = car()
+    row = reading(value, datetime.now(UTC) - timedelta(hours=7))
+    vehicle.readings[ident] = row
+    entity = V3ReadOnlyBinarySensor(
+        NS(async_add_listener=lambda cb: None), vehicle, ATTRIBUTES[ident]
+    )
+    assert entity.available
+    assert entity.is_on is expected
+    assert entity.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
+    assert not _reading_available(row)
+    row["status"] = "invalid_value"
+    assert not entity.available
+
+
+@pytest.mark.parametrize(
+    "ident,value,available",
+    [
+        ("chargingState", "charging", True),
+        ("chargingPower", 7.2, False),
+        ("remainingChargingTime", 30, False),
+        ("stateOfCharge", 80, True),
+    ],
+)
+def test_charging_display_policy_is_not_command_policy(ident, value, available):
+    vehicle = car()
+    row = reading(value, datetime.now(UTC) - timedelta(hours=7))
+    vehicle.readings[ident] = row
+    entity = V3ReadOnlySensor(
+        NS(async_add_listener=lambda cb: None), vehicle, ATTRIBUTES[ident]
+    )
+    assert entity.available is available
+    assert not _reading_available(row)
+
+
+def test_partial_access_does_not_discard_omitted_component_or_claim_safe():
+    vehicle = car()
+    profile = NS(attribute_routes={}, attribute_evidence={})
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=7)
+    vehicle.readings["left_front_door_open"] = reading(False, old)
+
+    def observe(doors):
+        observe_read_only(
+            vehicle,
+            profile,
+            {
+                "access": {
+                    "accessStatus": {
+                        "value": {
+                            "carCapturedTimestamp": now.isoformat(),
+                            "doors": doors,
+                        }
+                    }
+                }
+            },
+            now,
+        )
+
+    observe([{"name": "frontRight", "status": ["closed", "locked"]}])
+    assert vehicle.readings["left_front_door_open"]["captured"] == old.isoformat()
+    assert vehicle.readings["left_front_door_open"]["value"] is False
+    assert vehicle.readings["any_door_open"]["value"] is None
+    observe([{"name": "frontLeft", "status": ["unknown"]}])
+    assert vehicle.readings["left_front_door_open"]["status"] == "invalid_value"
+
+
+def test_data_age_uses_capture_not_cloud_observation_or_invalid_future():
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=7, seconds=10)
+    vehicle.readings["stateOfCharge"] = reading(80, old)
+    vehicle.readings["chargingPower"] = reading(1, now + timedelta(hours=1))
+    assert newest_vehicle_capture(vehicle, now) == old
+    sensor = V3StatusSensor(NS(async_add_listener=lambda cb: None), vehicle, "age")
+    assert sensor.native_value >= 420
+    vehicle.readings["chargingState"] = reading("off", now)
+    assert sensor.native_value == 0
+
+
+def test_identity_refinement_retains_same_vehicle_measurements():
+    from custom_components.audiconnect.v3.engine import V3Engine
+
+    vehicle = car()
+    vehicle.model_family = ""
+    old_context = vehicle.context
+    stamp = datetime.now(UTC) - timedelta(hours=7)
+    vehicle.readings["stateOfCharge"] = reading(80, stamp)
+    vehicle.model_family = "q8"
+    seen = []
+    profile = NS(rebind_context=seen.append)
+    engine = NS()
+    V3Engine._rebind_identity_context(engine, vehicle, profile, old_context)
+    assert seen == [vehicle.context]
+    assert vehicle.readings["stateOfCharge"]["captured"] == stamp.isoformat()
+    old_context = vehicle.context
+    vehicle.country = "GB"
+    V3Engine._rebind_identity_context(engine, vehicle, profile, old_context)
+    assert not vehicle.readings
+
+
+@pytest.mark.parametrize("initial", ["off", "heating"])
+def test_climate_last_known_survives_sentinel_and_profile_reboot(initial):
+    from pathlib import Path
+
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.entities import V3ClimateEntity
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+
+    vehicle = car()
+    catalog = CapabilityRegistry.from_json_file(
+        Path(__file__).resolve().parents[1]
+        / "custom_components/audiconnect/v3/full_catalog.json"
+    )
+    profile = DevelopmentProfile(catalog, vehicle.context)
+    from custom_components.audiconnect.v3.attribute_runtime import bind_status
+
+    bind_status(vehicle, profile)
+    now = datetime.now(UTC)
+
+    def observe(state, captured):
+        observe_read_only(
+            vehicle,
+            profile,
+            {
+                "climatisation": {
+                    "climatisationStatus": {
+                        "value": {
+                            "carCapturedTimestamp": captured.isoformat(),
+                            "climatisationState": state,
+                        }
+                    }
+                }
+            },
+            now,
+        )
+
+    observe(initial, now - timedelta(hours=2))
+    observe("unknown", now)
+    saved = profile.snapshot()
+    restored = restore_profile(catalog, vehicle.context, saved)
+    rebooted = car()
+    bind_status(rebooted, restored)
+    coordinator = NS(
+        engine=NS(
+            profiles={rebooted.vin.lower(): restored},
+            control_enabled=lambda *args: True,
+        ),
+        last_update_success=True,
+    )
+    entity = V3ClimateEntity(coordinator, rebooted)
+    assert entity.hvac_mode is None
+    assert entity.hvac_action is None
+    assert entity.available  # Explicit controls are still usable.
+    assert entity.extra_state_attributes["last_known_climate_state"] == initial
+    assert (
+        entity.extra_state_attributes["last_known_climate_source"]
+        == "last_known_vehicle"
+    )
+    assert entity.extra_state_attributes["state_source"] == "unknown"
+    assert entity.extra_state_attributes["vehicle_freshness"] == "unknown"
+    assert not entity.extra_state_attributes["state_is_current"]
+    assert rebooted.readings["climatisationState"]["value"] is None
+    assert rebooted.readings["climatisationState"]["reason"] == "restored_history"
+    assert restored.status_readings is rebooted.readings
+    assert not restored.command_journal
+
+    # A newer real observation supersedes the restored display.
+    rebooted.set_climate(
+        "off", now.isoformat(), route="test", observed_at=now, http_status=200
+    )
+    assert entity.hvac_mode.value == "off"
+    assert entity.hvac_action.value == "off"
+    assert entity.extra_state_attributes["state_is_current"]
+
+
+def test_accepted_command_is_not_restored_as_verified_climate_state():
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import configure_readback
+    from custom_components.audiconnect.v3.product_contract import control_projection
+
+    command = CommandRecord.begin(
+        "climate",
+        "start",
+        "route",
+        (datetime.now(UTC) - timedelta(hours=2)).timestamp(),
+    )
+    configure_readback(command, {})
+    command.observe_http(200)
+    profile = NS(command_journal=[command])
+    assert control_projection(profile, "climate", {}) == (None, "unknown")
+    command.state = "verified"
+    command.completed_at = command.started_at + 30
+    assert control_projection(profile, "climate", {}) == (None, "unknown")
+
+
+@pytest.mark.parametrize(
+    "ident,value",
+    [
+        ("doorLockStatus", "locked"),
+        ("chargingState", "charging"),
+        ("preferredChargeMode", "manual"),
+        ("targetstateOfCharge", 80),
+        ("climatisationTargetTemperatureC", 20),
+        ("windowHeatingActive", False),
+        ("stateOfCharge", 55),
+    ],
+)
+def test_canonical_status_restart_retains_only_historical_evidence(ident, value):
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        last_known_observation,
+        restore_status,
+        status_snapshot,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=3)
+    row = reading(value, old)
+    vehicle.readings.update(restore_status(status_snapshot({ident: row})))
+    restored = vehicle.readings[ident]
+    assert restored["value"] is None
+    assert last_known_observation(restored)["value"] == value
+    assert not _reading_available(restored)
+    assert _reading_available(restored, allow_last_known=True)
+    commit_observation(
+        vehicle, ident, reading(value, old - timedelta(hours=1)), None, now
+    )
+    assert vehicle.readings[ident]["reason"] == "restored_history"
+    commit_observation(vehicle, ident, reading(value, old), None, now)
+    assert vehicle.readings[ident]["value"] == value
+    assert vehicle.readings[ident].get("reason") != "restored_history"
+
+
+@pytest.mark.parametrize(
+    "ident,first,second",
+    [
+        ("stateOfCharge", 77, 81),
+        ("batteryElectricRange", 31, 32),
+        ("charging_timers_detail", {"items": [1]}, {"items": [2]}),
+    ],
+)
+@pytest.mark.parametrize("dated", [True, False])
+def test_native_conflict_survives_restart_until_newer_capture(
+    ident, first, second, dated
+):
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        restore_status,
+        status_snapshot,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=1)
+    a, b = reading(first, old), reading(second, old)
+    if not dated:
+        a["captured"] = b["captured"] = None
+    commit_observation(vehicle, ident, a, None, now)
+    commit_observation(vehicle, ident, b, None, now)
+    assert vehicle.readings[ident]["reason"] == "conflicting_source_values"
+    saved = status_snapshot(vehicle.readings, now=now)
+    assert saved[ident]["value"] is None
+    assert saved[ident]["reason"] == "conflicting_source_values"
+    assert "last_known" not in saved[ident]
+    rebooted = car()
+    rebooted.readings.update(restore_status(saved))
+    commit_observation(rebooted, ident, dict(a), None, now)
+    assert rebooted.readings[ident]["reason"] == "conflicting_source_values"
+    commit_observation(rebooted, ident, reading(second, now), None, now)
+    assert rebooted.readings[ident]["value"] == second
+
+
+def test_conflict_snapshot_retains_only_older_safe_scalar_and_no_location():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        commit_observation,
+        last_known_observation,
+        restore_status,
+        status_snapshot,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    old = now - timedelta(hours=1)
+    ident = "stateOfCharge"
+    commit_observation(vehicle, ident, reading(70, old), None, now)
+    commit_observation(vehicle, ident, reading(77, now), None, now)
+    commit_observation(vehicle, ident, reading(81, now), None, now)
+    marker = vehicle.readings[ident]
+    saved = status_snapshot({ident: marker, "position_last_updated": marker}, now=now)
+    assert set(saved) == {ident}
+    restored = restore_status(saved)[ident]
+    assert restored["reason"] == "conflicting_source_values"
+    assert restored["value"] is None
+    assert last_known_observation(restored)["value"] == 70

@@ -30,7 +30,7 @@
 
 - [Audi Connect #903](https://github.com/audiconnect/audi_connect_ha/issues/903): Audi authentication migration to Auth0/PKCE.
 - [Audi Connect #914](https://github.com/audiconnect/audi_connect_ha/issues/914): Auth0 climate controls using BFF on an older Audi.
-- [Audi Connect PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915): concurrent upstream work for commands, recovery and diagnostics.
+- [Audi Connect PR #915](https://github.com/audiconnect/audi_connect_ha/pull/915): earlier upstream work for commands, recovery and diagnostics; historical source evidence.
 - [VW CarNet #1060](https://github.com/robinostlund/homeassistant-volkswagencarnet/issues/1060): HTTP 200 `/vehicle/v1/trips/.../shortterm/last` payload; trip entities can still be broken by mapping.
 - [VAG Connect #392](https://github.com/its-me-prash/vwgroup-connect-ha/issues/392): CUPRA Formentor PHEV missing trip data; corrected OLA `driving-data` route in client.
 - [VAG Connect #1310](https://github.com/its-me-prash/vwgroup-connect-ha/issues/1310): Škoda individual trip telemetry available in MyŠkoda, not CARIAD BFF.
@@ -46,16 +46,13 @@
 - [MyŠkoda Public API](https://public.api.connect.skoda-auto.cz/docs) — public brand API reference (not an Audi API).
 - [Audi Connect privacy disclosure](https://www.audi.de/de/rechtliches/datenschutz/audi-connect-datenschutz/) — Remote Trip Statistic as an Audi connected service, not a third-party permission grant.
 
-## 4. Unresolved issues: explicit proof required
+## 4. Research questions requiring explicit proof
 
-1. Does Audi Q8 PHEV Auth0 allow `GET /vehicle/v1/trips/{VIN}/shortterm/last`? Record exact 200/204/403/404, no speculative fallback.
-2. If yes, does it provide original trip events and `longterm/cyclic`? Are they semantically comparable to four existing trip entities?
-3. What is the actual Q8 trip sampling/retention policy, and what are the units of electric/fuel consumption?
-4. Does the Audi bearer authorize `prod.emea.mobile.charging.cariad.digital`? Which method, request body and audience are supported?
-5. Does Audi Auth0 authorize CARIAD media `/media/v2/vehicle-images/{VIN}`? No proof to date.
-6. Which `selectivestatus` jobs on Q8 actually return tyre pressure, 12V, HV temp, warnings, plug lock and charge power?
-7. Can Q8 EU Data Act continuously deliver non-empty, individually timestamped trip fields? Different Audi platforms have confirmed no-content portal failures.
-8. Are current cloud timestamps stale by vehicle sleep, provider delay, or a separate Data Act portal pipeline failure? Distinguish each clock.
+- Which additional trip cycles, reset semantics and retention are supported across Audi generations?
+- Which Audi authorizations legitimately expose charging history and media?
+- Which fields in the status and Data Act sources provide valid tyre pressure, 12 V, HV temperature, warnings or charge power?
+- What is the measured native quota scope and recovery behavior across sessions, and what causes delayed or empty Data Act deliveries?
+- What is required for authorized official public/business API access?
 
 ## 5. Traceability / review checklist
 
@@ -65,10 +62,10 @@ Avoid "all Volkswagen Group endpoints should work on Audi" narratives. The real 
 
 ## 6. Strategic architecture evidence versus inference
 
-**Verified current implementation:** The fork's [OptionsFlow on `main`](https://github.com/npinguin/audi_connect_ha/blob/main/custom_components/audiconnect/config_flow.py) exposes `experimental_commands`; [`button.py`](https://github.com/npinguin/audi_connect_ha/blob/main/custom_components/audiconnect/button.py) gates experimental charging, window-heating and vehicle-wakeup controls with that setting and observed capabilities. The [2.5.3b11 community release notes](https://github.com/npinguin/audi_connect_ha/blob/main/docs/COMMUNITY_TEST_RELEASE_2.5.3b11.md) confirm experimental controls are opt-in. The existing Audi account/service code has an Auth0-vs-legacy trip gate. These are **source facts**.
+**Implementation evidence:** consult the [current product architecture](../../V3_ARCHITECTURE_CLOSURE.md), [user guide](../../V3_REVIEW.md) The research source ledger records historical comparisons; it does not define today's implementation.
 
 **Strategic hypothesis, NOT vendor commitment:** VW Group may increasingly standardize API models, shared identity infrastructure, services and costs across brands. Shared CARIAD BFF conventions and a Škoda/CUPRA charging-statistics host are supporting clues; parallel proprietary OLA/MyŠkoda/Porsche/Audi identity and API systems are counterevidence to any claim of complete uniformity. No date, sequence or guarantee of unification is asserted.
 
-**Target design proposals, NOT current features:** independently authorized authentication registry; allowlisted API detection; vehicle-generation discovery; automatically derived per-feature capabilities; multi-provider coexistence; provenance/freshness contracts; opt-in `experimental_features` read-only umbrella while retaining separate `experimental_commands` behavior; accelerated community test release gates and the NFR matrix. See [08 — Target Architecture and Experimental Delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md).
+**Target design proposals:** see [08 — Target Architecture and Experimental Delivery](08-TARGET-ARCHITECTURE-AND-EXPERIMENTAL-DELIVERY.md). The current architecture and capability catalog take precedence over proposed contracts or feature flags.
 
-**Validation still needed:** whether multiple independently authorized Audi sessions can coexist for an account and which historical services remain legitimately usable; which Audi Q8 APIs actually expose trips/charging/media; whether any proposed additional experimental controls satisfy physical command confirmation and cross-market regression gates.
+**Validation still needed:** see the research questions above and the current acceptance gate. Cross-brand source evidence is not universal Audi support.

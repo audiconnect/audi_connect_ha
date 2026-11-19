@@ -36,7 +36,7 @@ Record at least:
 
 ## Portal workflow (documented in community implementations)
 
-1. Sign in at [VW Group EU Data Act portal](https://eu-data-act.drivesomethinggreater.com/) with the brand identity; complete eligibility, vehicle relation and consent.
+1. Sign in at [VW Group EU Data Act portal](https://eu-data-act.vwgroup-datahub.com/) with the brand identity; complete eligibility, vehicle relation and consent.
 2. Under vehicle/data clusters, create an authorized **continuous/customized data request**, selecting appropriate clusters (usually All Data) and the available frequency, commonly 15 minutes.
 3. Inspect whether the portal actually lists **non-empty datasets**. Empty `*_no_content_found.zip` is a first-class state, not a parsing exception.
 4. Use the authorized list/download flow to retrieve only available datasets. Decode ZIP JSON preserving **source field names and timestamps**.
@@ -47,7 +47,7 @@ Record at least:
 From [ioBroker `lib/euDataAct.js`](https://github.com/TA2k/ioBroker.vw-connect/blob/master/lib/euDataAct.js):
 
 ```text
-BASE: https://eu-data-act.drivesomethinggreater.com
+BASE: https://eu-data-act.vwgroup-datahub.com
 IDENTITY: https://identity.vwgroup.io/oidc/v1/authorize
 
 /proxy_api/consent/me/vehicles
@@ -93,7 +93,7 @@ The dictionary is a **possible field universe**, not evidence that the user's Au
 
 ## Integration design
 
-Introduce an optional **read-only** provider that maps known Data Act fields into a normalized observation model. It should never overwrite newer BFF observations for the same semantic field. The provider's scope is supplemental **historical/aggregate information**, fallback where explicitly valid, and debugging of missing coverage—not a replacement for myAudi command or live charging status.
+Introduce an optional **read-only** provider that maps known Data Act fields into a normalized observation model. It should never overwrite newer BFF observations for the same semantic field. The provider's scope is supplemental **historical/aggregate information**, independently selected read observations, explicit manufacturer metadata when available, and debugging of missing coverage—not a replacement for myAudi command or live charging status.
 
 Suggested source selection per measurement:
 
@@ -109,7 +109,7 @@ Avoid blindly preferring BFF if its measurement timestamp is older than the Data
 
 ## Sources
 
-- [VW Group EU Data Act portal](https://eu-data-act.drivesomethinggreater.com/)
+- [VW Group EU Data Act portal](https://eu-data-act.vwgroup-datahub.com/)
 - [VW Group Vehicle2MQTT](https://github.com/StephanHenke/vwgroup-vehicle2mqtt)
 - [VW Group EU Data Act Home Assistant integration](https://github.com/TommiG1/HA_VAG-EU-Data-Act)
 - [Audi continuous ZIP failure: issue #1403](https://github.com/its-me-prash/vwgroup-connect-ha/issues/1403)
@@ -119,3 +119,11 @@ Avoid blindly preferring BFF if its measurement timestamp is older than the Data
 - [One-off versus continuous trip reconstruction](https://github.com/jmap42591/raval-trips)
 
 Continue with [04 — Freshness and availability](04-FRESHNESS-AND-AVAILABILITY.md).
+
+## Implementation boundary and research paths
+
+See the [V3 guide](../../V3_REVIEW.md#optional-eu-data-act) and [polling ownership](../../V3_ARCHITECTURE_CLOSURE.md#family-polling-ownership) for the implemented consumer portal contract. The optional reader is independently authorized, read-only and does not create consent or subscriptions. Sparse exact UUID/name mappings and the shared Status writer own consolidation; inspect the current catalog and mappings rather than maintaining a second list here.
+
+Research priorities are field semantics, freshness and delivery delays, consented vehicle identity enrichment, session renewal, restart cadence and measured rate-limit behavior. A nickname is not manufacturer metadata; exact vehicle matching and explicit validated identity fields are required. Do not retain raw datasets or use portal readings as command evidence.
+
+The official public/business API is a separate research path. Investigate registration, eligibility, consent, licensing, published contracts, authentication, quotas and coverage before implementation. Access must not be assumed.
