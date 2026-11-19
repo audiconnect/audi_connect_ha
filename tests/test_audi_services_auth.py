@@ -12,6 +12,11 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+from aiohttp import ClientResponseError
+
+from custom_components.audiconnect.audi_api import AudiAPI
+from custom_components.audiconnect.const import MYAUDI_APP_VERSION, MYAUDI_USER_AGENT
+from custom_components.audiconnect.v3.family_executors import APP_VERSION, APP_AGENT
 
 from custom_components.audiconnect.audi_services import (
     AudiAuthError,
@@ -68,6 +73,8 @@ class FakeAudiAPI:
         self.auth0_token_endpoint_response: dict[str, Any] = AUTH0_TOKEN_OK
         self.vehicle_information_response: dict[str, Any] | None = None
         self.mbb_auth_includes_refresh = True
+        self.market_config_status = 200
+        self.market_config_response: dict[str, Any] | None = None
 
     def use_token(self, token) -> None:
         self.token = token
@@ -100,6 +107,12 @@ class FakeAudiAPI:
                 }
             }
         if "/configurations/market/DE/de" in url:
+            if self.market_config_status != 200 and url.endswith(
+                f"?v={MYAUDI_APP_VERSION}"
+            ):
+                raise ClientResponseError(None, (), status=self.market_config_status)
+            if self.market_config_response is not None:
+                return self.market_config_response
             return {
                 "idkClientIDAndroidLive": CLIENT_ID,
                 "authorizationServerBaseURLLive": AZS_BASE,
@@ -164,6 +177,55 @@ async def test_request_device_code_discovers_and_returns_code(service, api):
     # The device-authorization request carried the RFC 8628 scope.
     _method, _url, body = api.calls[-1]
     assert "scope=" + DEVICE_CODE_SCOPE.replace(" ", "%20") in body
+
+
+def test_shared_app_identity():
+    assert AudiAPI.HDR_XAPP_VERSION == APP_VERSION == MYAUDI_APP_VERSION
+    assert AudiAPI.HDR_USER_AGENT == APP_AGENT == MYAUDI_USER_AGENT
+    assert f"Android/{MYAUDI_APP_VERSION} " in MYAUDI_USER_AGENT
+
+
+async def test_market_discovery_uses_shared_version(service, api):
+    await service.request_device_code()
+    urls = [url for _, url, _ in api.calls if "/configurations/market/DE/de" in url]
+    assert urls == [
+        "https://content.app.my.audi.com/service/mobileapp/configurations/"
+        f"market/DE/de?v={MYAUDI_APP_VERSION}"
+    ]
+
+
+@pytest.mark.parametrize("status", [404, 410])
+async def test_missing_market_version_uses_legacy_read(service, api, status):
+    api.market_config_status = status
+    await service.request_device_code()
+    urls = [url for _, url, _ in api.calls if "/configurations/market/DE/de" in url]
+    assert [url.rsplit("=", 1)[-1] for url in urls] == [MYAUDI_APP_VERSION, "4.23.1"]
+
+
+@pytest.mark.parametrize("status", [401, 403, 429, 500])
+async def test_market_refusal_is_not_retried(service, api, status):
+    api.market_config_status = status
+    with pytest.raises(ClientResponseError) as error:
+        await service.request_device_code()
+    assert error.value.status == status
+    assert (
+        len([url for _, url, _ in api.calls if "/configurations/market/DE/de" in url])
+        == 1
+    )
+
+
+async def test_market_migration_hint_does_not_switch_provider(service, api):
+    api.market_config_response = {
+        "idkClientIDAndroidLive": CLIENT_ID,
+        "myAudiAuthorizationServerProxyServiceURLProduction": AZS_BASE,
+        "idkLoginServiceConfigurationURLProduction": "https://identity.vwgroup.io/.well-known/openid-configuration",
+        "marketSupportsAuth0": True,
+        "marketSupportsAndroidClientValidation": True,
+    }
+    await service.request_device_code()
+    assert service._authorizationServerBaseURLLive == AZS_BASE
+    assert service.uses_auth0 is False
+    assert api.calls[-1][1] == DEVICE_AUTH_ENDPOINT
 
 
 async def test_poll_device_token_pending_and_slow_down(service, api):

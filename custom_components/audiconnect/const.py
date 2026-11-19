@@ -7,6 +7,12 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 
 DOMAIN = "audiconnect"
 
+# Shared public myAudi client identity for OAuth and native API requests.
+MYAUDI_APP_VERSION = "5.10.1"
+MYAUDI_USER_AGENT = (
+    f"Android/{MYAUDI_APP_VERSION} (Build 800345183.2611170047) Android/13"
+)
+
 CONF_VIN = "vin"
 CONF_DEVICE_ID = "device_id"
 CONF_CARNAME = "carname"

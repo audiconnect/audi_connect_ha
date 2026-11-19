@@ -2052,11 +2052,31 @@ class AudiService:
         ]["defaultLanguage"]
 
         # Dynamic configuration URLs
-        marketcfg_url = f"https://content.app.my.audi.com/service/mobileapp/configurations/market/{self._country}/{self._language}?v=4.23.1"
+        marketcfg_url = (
+            "https://content.app.my.audi.com/service/mobileapp/configurations/"
+            f"market/{self._country}/{self._language}?v={AudiAPI.HDR_XAPP_VERSION}"
+        )
         openidcfg_url = self.__get_cariad_url("/auth/v1/idk/oidc/openid-configuration")
 
         # get market config
-        marketcfg_json = await self._api.request("GET", marketcfg_url, None)
+        try:
+            marketcfg_json = await self._api.request("GET", marketcfg_url, None)
+        except ClientResponseError as exc:
+            # Only an explicitly missing versioned document permits the known
+            # legacy read. Never retry an auth refusal or rate limit here.
+            if exc.status not in (404, 410):
+                raise
+            marketcfg_json = await self._api.request(
+                "GET", marketcfg_url.split("?")[0] + "?v=4.23.1", None
+            )
+        if not isinstance(marketcfg_json, dict):
+            raise AudiAuthError("Audi market configuration is invalid")
+        # Observe migration metadata without changing the established login
+        # provider, stored tokens or consent. Never log the document itself.
+        if marketcfg_json.get("marketSupportsAuth0") is True:
+            _LOGGER.debug("Audi market advertises Auth0 sign-in")
+        if marketcfg_json.get("marketSupportsAndroidClientValidation") is True:
+            _LOGGER.debug("Audi market advertises Android client validation")
 
         # use dynamic config from marketcfg
         self._client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
@@ -2065,10 +2085,11 @@ class AudiService:
 
         self._authorizationServerBaseURLLive = self.__get_cariad_url("/login/v1/audi")
 
-        if "authorizationServerBaseURLLive" in marketcfg_json:
-            self._authorizationServerBaseURLLive = marketcfg_json[
-                "myAudiAuthorizationServerProxyServiceURLProduction"
-            ]
+        proxy_url = marketcfg_json.get(
+            "myAudiAuthorizationServerProxyServiceURLProduction"
+        )
+        if isinstance(proxy_url, str) and proxy_url:
+            self._authorizationServerBaseURLLive = proxy_url
         self.mbbOAuthBaseURL = "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth"
         if "mbbOAuthBaseURLLive" in marketcfg_json:
             self.mbbOAuthBaseURL = marketcfg_json["mbbOAuthBaseURLLive"]

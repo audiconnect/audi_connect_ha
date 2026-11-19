@@ -12,6 +12,7 @@ from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
 import builtins
 
+from .const import MYAUDI_APP_VERSION, MYAUDI_USER_AGENT
 from .diagnostic_events import build_http_event
 
 # ===========================================
@@ -26,8 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AudiAPI:
-    HDR_XAPP_VERSION = "4.31.0"
-    HDR_USER_AGENT = "Android/4.31.0 (Build 800341641.root project 'myaudi_android'.ext.buildTime) Android/13"
+    HDR_XAPP_VERSION = MYAUDI_APP_VERSION
+    HDR_USER_AGENT = MYAUDI_USER_AGENT
 
     def __init__(self, session: ClientSession, proxy: str | None = None) -> None:
         self.__token: dict[str, Any] | None = None
