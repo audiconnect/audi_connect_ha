@@ -2193,9 +2193,10 @@ class AudiConnectVehicle:
 
     @property
     def active_charging_profile_max_charging_current_supported(self):
-        return self._vehicle.state.get(
-            "activeChargingProfileMaxChargingCurrent"
-        ) in ("max", "reduced")
+        return self._vehicle.state.get("activeChargingProfileMaxChargingCurrent") in (
+            "max",
+            "reduced",
+        )
 
     @property
     def active_charging_profile_name(self):
