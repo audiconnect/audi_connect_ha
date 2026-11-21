@@ -457,6 +457,7 @@ class VehicleDataResponse:
                 "targetSOC_pct": p.get("targetSOC_pct"),
                 "minSOC_pct": p.get("minSOC_pct"),
                 "minSOC_enabled": p.get("minSOC_enabled"),
+                "maxChargingCurrent": p.get("maxChargingCurrent"),
                 "preferredChargingTimes": p.get("preferredChargingTimes"),
             }
             for p in profiles
@@ -475,6 +476,11 @@ class VehicleDataResponse:
             "activeChargingProfileTargetSoc", active.get("targetSOC_pct"), ts
         )
         self._appendState("activeChargingProfileMinSoc", active.get("minSOC_pct"), ts)
+        self._appendState(
+            "activeChargingProfileMaxChargingCurrent",
+            active.get("maxChargingCurrent"),
+            ts,
+        )
 
         # The preferred charging window is the per-location time band; this is the
         # field a smart-tariff scheduler writes when it moves a charge.

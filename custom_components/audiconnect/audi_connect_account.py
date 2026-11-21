@@ -400,6 +400,33 @@ class AudiConnectAccount:
             )
             return False
 
+    async def set_location_max_charging_current(
+        self, vin: str, profile_id, max_charging_current: str
+    ) -> bool:
+        """Set a location charging profile's AC charging current
+        ("max" or "reduced")."""
+        if not self._loggedin:
+            await self.login()
+        if not self._loggedin:
+            return False
+        try:
+            _LOGGER.debug(
+                "Setting location AC charging current to %s (profile %s) for %s",
+                max_charging_current,
+                profile_id,
+                vin,
+            )
+            await self._audi_service.set_location_max_charging_current(
+                vin, profile_id, max_charging_current
+            )
+            return True
+        except Exception as exception:
+            log_exception(
+                exception,
+                f"Unable to set location AC charging current for vehicle {vin}",
+            )
+            return False
+
     async def set_charge_mode(self, vin: str, mode: str):
         """Set the preferred charge mode (manual or timer)."""
         if not self._loggedin:
@@ -2156,6 +2183,19 @@ class AudiConnectVehicle:
             parse_int(self._vehicle.state.get("activeChargingProfileTargetSoc"))
             is not None
         )
+
+    @property
+    def active_charging_profile_max_charging_current(self):
+        """Return the AC charging current of the location profile the car is
+        parked in: "max" or "reduced"."""
+        if self.active_charging_profile_max_charging_current_supported:
+            return self._vehicle.state.get("activeChargingProfileMaxChargingCurrent")
+
+    @property
+    def active_charging_profile_max_charging_current_supported(self):
+        return self._vehicle.state.get(
+            "activeChargingProfileMaxChargingCurrent"
+        ) in ("max", "reduced")
 
     @property
     def active_charging_profile_name(self):

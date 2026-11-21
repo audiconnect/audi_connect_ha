@@ -15,6 +15,8 @@ from .audi_entity import AudiEntity, entity_unique_id, should_create_entity
 from .coordinator import AudiDataUpdateCoordinator
 
 _ATTR_KEY = "preferred_charge_mode"
+_CURRENT_ATTR_KEY = "active_charging_profile_max_charging_current"
+_CURRENT_OPTIONS = ["max", "reduced"]
 
 # What set_charge_mode accepts. The car also reports availableChargeModes, but
 # it comes back empty on at least one vehicle, so this is the fallback rather
@@ -55,13 +57,20 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     runtime_data: AudiRuntimeData = config_entry.runtime_data
-    async_add_entities(
-        AudiChargeModeSelect(runtime_data.coordinator, config_vehicle.vehicle)
-        for config_vehicle in runtime_data.account.config_vehicles
+    vehicles = [cv.vehicle for cv in runtime_data.account.config_vehicles]
+    entities: list[SelectEntity] = [
+        AudiChargeModeSelect(runtime_data.coordinator, vehicle)
+        for vehicle in vehicles
+        if should_create_entity(hass, "select", "charge_mode", vehicle, _ATTR_KEY)
+    ]
+    entities.extend(
+        AudiLocationChargingCurrentSelect(runtime_data.coordinator, vehicle)
+        for vehicle in vehicles
         if should_create_entity(
-            hass, "select", "charge_mode", config_vehicle.vehicle, _ATTR_KEY
+            hass, "select", "location_charging_current", vehicle, _CURRENT_ATTR_KEY
         )
     )
+    async_add_entities(entities)
 
 
 class AudiChargeModeSelect(AudiEntity, SelectEntity):
@@ -102,4 +111,49 @@ class AudiChargeModeSelect(AudiEntity, SelectEntity):
         await self.coordinator.async_request_refresh()
 
 
-__all__ = ["AudiChargeModeSelect", "async_setup_entry"]
+class AudiLocationChargingCurrentSelect(AudiEntity, SelectEntity):
+    """AC charging current of the charging location the car is parked at.
+
+    The myAudi app's "Reduce AC charging current" switch under the location's
+    advanced settings: "reduced" goes easy on the battery, "max" lets the car
+    draw the most the charger offers. These are the values the app writes.
+    """
+
+    _backing_attr = _CURRENT_ATTR_KEY
+
+    _attr_name = "Location AC charging current"
+    _attr_icon = "mdi:current-ac"
+    _attr_options = _CURRENT_OPTIONS
+
+    def __init__(
+        self,
+        coordinator: AudiDataUpdateCoordinator,
+        vehicle: Any,
+    ) -> None:
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = entity_unique_id(
+            vehicle, "select", "location_charging_current"
+        )
+
+    @property
+    def current_option(self) -> str | None:
+        value = getattr(self._vehicle, _CURRENT_ATTR_KEY, None)
+        return value if value in _CURRENT_OPTIONS else None
+
+    async def async_select_option(self, option: str) -> None:
+        connection = self.coordinator.account.connection
+        if not await connection.set_location_max_charging_current(
+            self._vehicle.vin, None, option
+        ):
+            raise HomeAssistantError(
+                f"Failed to set the location AC charging current to {option}; "
+                "see the log for details"
+            )
+        await self.coordinator.async_request_refresh()
+
+
+__all__ = [
+    "AudiChargeModeSelect",
+    "AudiLocationChargingCurrentSelect",
+    "async_setup_entry",
+]
