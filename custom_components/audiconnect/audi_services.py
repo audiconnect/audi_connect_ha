@@ -120,6 +120,40 @@ def build_profile_update(value: dict, profile_id, target_soc: int) -> tuple[int,
     return profile_id, {"profile": updated}
 
 
+# The values the myAudi app writes: "max" with the switch off, "reduced" on.
+MAX_CHARGING_CURRENT_OPTIONS = ("max", "reduced")
+
+
+def build_profile_current_update(
+    value: dict, profile_id, max_charging_current: str
+) -> tuple[int, dict]:
+    """Same read-modify-write as build_profile_update, for the profile's AC
+    charging current: maxChargingCurrent "max" or "reduced". This is the
+    myAudi app's "Reduce AC charging current" switch under a charging location's
+    advanced settings. On cars that use location profiles the global
+    charging/settings maxChargeCurrentAC reads "invalid"; the profile value is
+    the one that governs.
+    """
+    if max_charging_current not in MAX_CHARGING_CURRENT_OPTIONS:
+        raise ValueError(
+            f"maxChargingCurrent must be one of {MAX_CHARGING_CURRENT_OPTIONS}"
+        )
+
+    profiles = (value or {}).get("profiles") or []
+    if profile_id is None:
+        profile_id = (value or {}).get("vehiclePositionedInProfileID")
+    profile = next((p for p in profiles if p.get("id") == profile_id), None)
+    if profile is None:
+        present = [p.get("id") for p in profiles]
+        raise ValueError(
+            f"No charging profile with id {profile_id} (present: {present})"
+        )
+
+    updated = dict(profile)
+    updated["maxChargingCurrent"] = max_charging_current
+    return profile_id, {"profile": updated}
+
+
 # Fields the start body carries straight over from the car's stored settings.
 # Only those the car actually reports are sent: a vehicle with no rear zones
 # never receives zoneRear* keys, which is also the shape the myAudi app sends.
@@ -972,6 +1006,52 @@ class AudiService:
             return
         await self._confirm_charging_command(
             vin, f"profile {profile_id} target {target_soc}%", request_id
+        )
+
+    async def set_location_max_charging_current(
+        self, vin: str, profile_id: int | None, max_charging_current: str
+    ) -> None:
+        """Set a location charging profile's AC charging current.
+
+        Same endpoint and whole-profile PUT as set_location_charge_target:
+            PUT charging/profiles   body {"profile": {<whole profile>}}
+        with only maxChargingCurrent changed. profile_id None targets the
+        profile the car is currently parked in.
+        """
+        raw = await self.get_charging_profiles_raw(vin)
+        value = get_attr(raw, "chargingProfiles.chargingProfilesStatus.value")
+        profile_id, put_body = build_profile_current_update(
+            value, profile_id, max_charging_current
+        )
+
+        headers = {
+            "Authorization": "Bearer " + self._bearer_token_json["access_token"],
+            "Content-Type": "application/json",
+        }
+        try:
+            res = await self._api.request(
+                "PUT",
+                self.__get_cariad_url_for_vin(vin, "charging/profiles"),
+                headers=headers,
+                data=json.dumps(put_body),
+            )
+        except ClientResponseError as err:
+            if err.status == 204:
+                res = None
+            else:
+                raise
+
+        request_id = get_attr(res, "data.requestID") if isinstance(res, dict) else None
+        if request_id is None:
+            _LOGGER.debug(
+                "Location AC charging current for %s accepted with no request id to confirm",
+                vin,
+            )
+            return
+        await self._confirm_charging_command(
+            vin,
+            f"profile {profile_id} AC charging current {max_charging_current}",
+            request_id,
         )
 
     async def flash_lights(
