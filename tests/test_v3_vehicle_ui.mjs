@@ -376,7 +376,7 @@ test("stale UI rows cannot execute after native control permission changes", asy
   assert.equal(calls.length, 0);
 });
 
-test("registry change immediately drops the previous vehicle's archive and reloads native scope", async () => {
+test("registry change conceals prior data until native scope is checked and clears denied data", async () => {
   const { panel, calls } = fixture();
   panel.archive = { total: 1, trips: [{ mileage: 12 }] };
   panel.serviceDraft = { dealer_name: "Private" };
@@ -389,15 +389,17 @@ test("registry change immediately drops the previous vehicle's archive and reloa
     });
   };
   panel.hass = { ...panel._hass, entities: {} };
-  assert.equal(panel.archive, null);
-  assert.equal(panel.serviceDraft, null);
-  assert.equal(panel.drafts.size, 0);
   assert.equal(panel.current(), undefined);
+  assert.doesNotMatch(panel.shadowRoot.innerHTML, /Private/);
   await panel.run(lock, "unlock");
   assert.equal(calls.length, 1);
   complete({ vehicles: [], labels: panelLabels });
-  await Promise.resolve();
+  // The panel executes in a separate VM realm; wait for its actual promise continuation.
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(panel.vehicles.length, 0);
+  assert.equal(panel.archive, null);
+  assert.equal(panel.serviceDraft, null);
+  assert.equal(panel.drafts.size, 0);
 });
 
 test("specialized charging preserves independent native direction and actual command journal status", () => {
@@ -486,4 +488,370 @@ test("trip chart shows independent recorded consumption values and omits missing
     panel.tripChart([{ timestamp: "2026-11-27T10:00:00Z", mileage: 12 }]),
     /kWh/,
   );
+});
+
+test("unrelated registry update preserves authorized drafts and archive after revalidation", async () => {
+  const { panel, calls } = fixture();
+  panel.drafts.set(target.entity_id, "90");
+  const archive = { total: 1, trips: [{ mileage: 12 }] };
+  panel.archive = archive;
+  panel.hass = { ...panel._hass, entities: {} };
+  assert.equal(panel.current(), undefined);
+  await panel.run(lock, "unlock");
+  await Promise.resolve();
+  assert.equal(calls.length, 1);
+  assert.equal(panel.drafts.get(target.entity_id), "90");
+  assert.equal(panel.archive, archive);
+  assert.equal(panel.current().device_id, "device");
+});
+
+test("reported timer variants from native alternate entities are visible without writes", () => {
+  const { panel, calls } = fixture();
+  panel.current().entities.push({
+    key: "sensor.charging_state",
+    entity_id: "sensor.charge",
+    name: "Charging",
+    control: false,
+  });
+  panel._hass.states["sensor.charge"] = {
+    state: "ready",
+    attributes: {
+      charging_timers: {
+        data: {
+          items: [
+            {
+              enabled: true,
+              departure_time_local: "08:00",
+              repetition_days: ["monday", "friday"],
+              climatisation: true,
+              preferred_charging_times: {
+                items: [
+                  {
+                    start_time_local: "01:00",
+                    end_time_local: "05:00",
+                    enabled: false,
+                  },
+                ],
+                received_count: 2,
+                normalized_count: 1,
+                truncated: false,
+                all_items_recognized: false,
+              },
+            },
+          ],
+          received_count: 1,
+        },
+        vehicle_freshness: "stale_last_known",
+      },
+    },
+  };
+  panel.tab = "Charging";
+  const html = panel.timersHTML();
+  for (const value of [
+    "08:00",
+    "Monday, Friday",
+    "Climate on departure",
+    "Preferred charging window",
+    "01:00",
+    "05:00",
+    "Disabled",
+    "Last known",
+    "Some schedule details could not be interpreted.",
+  ])
+    assert.ok(html.includes(value), value);
+  assert.equal(calls.length, 0);
+  panel.current().entities.push({
+    key: "sensor.climatisation_timer_enabled_count",
+    entity_id: "sensor.climate_timers",
+    name: "Timers",
+    control: false,
+  });
+  panel._hass.states["sensor.climate_timers"] = {
+    state: "1",
+    attributes: {
+      climate_timers: {
+        data: { items: [{ target_time_local: "06:30", enabled: true }] },
+      },
+    },
+  };
+  panel.tab = "Climate";
+  assert.match(panel.timersHTML(), /06:30/);
+});
+
+test("cached identity and individual measurement capture appear in overview", () => {
+  const { panel } = fixture();
+  panel._hass.states["sensor.model"].attributes.presentation_source =
+    "ha_registry_last_known";
+  panel._hass.states["sensor.model"].attributes.identity_restored = true;
+  panel._hass.states["lock.audi"].attributes.vehicle_captured =
+    "2026-11-27T08:00:00Z";
+  panel.render();
+  assert.match(panel.shadowRoot.innerHTML, /Last known registry identity/);
+  assert.match(panel.shadowRoot.innerHTML, /Newest vehicle measurement/);
+  assert.ok(
+    panel.observationLabel(panel._hass.states["lock.audi"]).includes("2026"),
+  );
+});
+
+test("maintenance and native integration health expose actual reported quality", () => {
+  const { panel } = fixture();
+  panel.current().entities.push(
+    {
+      key: "sensor.service_overview",
+      entity_id: "sensor.service",
+      name: "Service",
+      control: false,
+    },
+    {
+      key: "binary_sensor.integration_problem",
+      entity_id: "binary_sensor.problem",
+      name: "Integration problem",
+      control: false,
+    },
+  );
+  panel._hass.states["sensor.service"] = {
+    state: "due_soon",
+    attributes: { vehicle_freshness: "stale_last_known" },
+  };
+  panel._hass.states["binary_sensor.problem"] = { state: "on", attributes: {} };
+  assert.match(panel.statusRows(), /Last known/);
+  assert.match(panel.statusRows(), /Integration status/);
+});
+
+test("registry reconciliation keeps other authorized edits but discards revoked control", async () => {
+  const { panel } = fixture();
+  panel.drafts.set(target.entity_id, "90");
+  panel.drafts.set(lock.entity_id, "locked");
+  const changed = {
+    ...panel.current(),
+    entities: [{ ...lock, control: false }, target, model],
+  };
+  panel._hass.callWS = async () => ({
+    vehicles: [changed],
+    labels: panelLabels,
+  });
+  panel.hass = { ...panel._hass, entities: {} };
+  assert.equal(panel.current(), undefined);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(panel.current().device_id, "device");
+  assert.equal(panel.drafts.get(target.entity_id), "90");
+  assert.equal(panel.drafts.has(lock.entity_id), false);
+});
+
+test("access groups native door and window status without duplicate generic cards", () => {
+  const { panel } = fixture();
+  for (const [key, id, name, state] of [
+    [
+      "binary_sensor.left_front_door_open",
+      "binary_sensor.door",
+      "Left front door",
+      "on",
+    ],
+    [
+      "binary_sensor.right_rear_window_open",
+      "binary_sensor.window",
+      "Right rear window",
+      "unknown",
+    ],
+    ["binary_sensor.trunk_open", "binary_sensor.trunk", "Trunk", "off"],
+  ]) {
+    panel.current().entities.push({ key, entity_id: id, name, control: false });
+    panel._hass.states[id] = {
+      state,
+      attributes: { vehicle_freshness: "stale_last_known" },
+    };
+  }
+  panel.tab = "Access & Security";
+  panel.render();
+  const html = panel.shadowRoot.innerHTML;
+  assert.match(html, /Left front door/);
+  assert.match(html, /Right rear window/);
+  assert.match(html, /Other openings and security/);
+  assert.equal(
+    (html.match(/data-entity="binary_sensor.door"/g) || []).length,
+    1,
+  );
+  assert.match(html, /Last known/);
+});
+
+test("period query scopes archive and exports preserve zero, missing and fixed CSV columns", async () => {
+  const { panel, calls } = fixture();
+  panel.current().entities.push({
+    key: "sensor.trip_history",
+    entity_id: "sensor.archive",
+    name: "Archive",
+    control: false,
+  });
+  panel._hass.callWS = async (msg) => {
+    calls.push(msg);
+    return {
+      total: 2,
+      offset: msg.offset,
+      trips: [],
+      start_date: msg.start_date,
+      end_date: msg.end_date,
+      metrics: {
+        mileage: { sum: 42, reported_count: 2 },
+        totalFuelConsumption: { sum: 0, reported_count: 1 },
+      },
+    };
+  };
+  panel.tripPeriod = { start_date: "2026-11-01", end_date: "2026-12-01" };
+  await panel.trips();
+  assert.equal(calls[0].start_date, "2026-11-01");
+  assert.equal(calls[0].end_date, "2026-12-01");
+  assert.match(panel.archiveHTML(), /1 \/ 2 reported/);
+  assert.match(panel.archiveHTML(), /0 L/);
+  assert.match(panel.archiveHTML(), /Export CSV/);
+  assert.match(
+    panel.tripCSV([
+      {
+        timestamp: "2026-11-01T00:00:00Z",
+        mileage: 0,
+        totalFuelConsumption: 1.2,
+      },
+    ]),
+    /2026-11-01T00:00:00Z,0,,1.2,,,/,
+  );
+  assert.doesNotMatch(
+    panel.tripCSV([{ timestamp: "=malicious()", mileage: 1 }]),
+    /malicious/,
+  );
+  panel.tripPeriod = { start_date: "2026-12-01", end_date: "2026-11-01" };
+  await panel.trips();
+  assert.equal(calls.length, 1);
+});
+
+test("offline scope immediately hides state and rejects command and restores only after revalidation", async () => {
+  const { panel, calls } = fixture();
+  panel.hass = { ...panel._hass, connected: false };
+  assert.equal(panel.current(), undefined);
+  assert.match(panel.shadowRoot.innerHTML, /Connection lost/);
+  await panel.run(lock, "unlock");
+  assert.equal(calls.length, 0);
+  panel.hass = { ...panel._hass, connected: true };
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(panel.current());
+  assert.equal(calls.length, 1);
+});
+
+test("refresh actions are distinct from view refresh and remain native", async () => {
+  const { panel, calls } = fixture();
+  for (const [key, id] of [
+    ["button.v3_refresh_cloud", "button.cloud"],
+    ["button.refresh_vehicle_data", "button.vehicle"],
+    ["button.wake_vehicle_modern", "button.wake"],
+  ]) {
+    panel
+      .current()
+      .entities.push({ key, entity_id: id, name: key, control: true });
+    panel._hass.states[id] = { state: "unknown", attributes: {} };
+  }
+  panel.render();
+  assert.match(
+    panel.shadowRoot.innerHTML,
+    /Refreshing this view does not contact Audi/,
+  );
+  for (const key of ["button.cloud", "button.vehicle", "button.wake"])
+    assert.ok(panel.shadowRoot.innerHTML.includes('data-entity="' + key + '"'));
+  assert.equal(calls.length, 0);
+  await panel.run(panel.row("button.refresh_vehicle_data"), "press");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][2].entity_id, "button.vehicle");
+});
+
+test("service settings save only changed fields, retaining native concurrent changes", async () => {
+  const { panel, calls } = fixture();
+  panel._hass.user.is_admin = true;
+  panel.current().entities.push({
+    key: "sensor.local_dealer",
+    entity_id: "sensor.dealer",
+    name: "Dealer",
+    control: false,
+  });
+  panel._hass.callWS = async (msg) => {
+    calls.push(msg);
+    return {
+      settings: {
+        dealer_name: msg.updates?.dealer_name || "Old",
+        dealer_city: "Updated elsewhere",
+      },
+    };
+  };
+  await panel.serviceDetails();
+  panel.serviceDraft.dealer_name = "New";
+  await panel.serviceDetails(true);
+  assert.deepEqual(Object.keys(calls[1].updates), ["dealer_name"]);
+  assert.equal(panel.serviceDraft.dealer_city, "Updated elsewhere");
+});
+
+test("climate alias fills only missing native direction", () => {
+  const { panel } = fixture();
+  const climate = {
+    key: "climate.climatisation",
+    entity_id: "climate.cabin",
+    name: "Cabin",
+    control: true,
+  };
+  const alias = {
+    key: "switch.climate_quick_control",
+    entity_id: "switch.quick",
+    name: "Climate power",
+    control: true,
+  };
+  panel.current().entities.push(climate, alias);
+  panel._hass.states[climate.entity_id] = {
+    state: "off",
+    attributes: { start_enabled: true, stop_enabled: false },
+  };
+  panel._hass.states[alias.entity_id] = {
+    state: "off",
+    attributes: { control_actions: { start: true, stop: true } },
+  };
+  const choices = panel.climateActions(climate);
+  assert.equal(choices.length, 2);
+  assert.equal(choices[0].row.entity_id, climate.entity_id);
+  assert.equal(choices[1].row.entity_id, alias.entity_id);
+});
+
+test("offline user switch cannot restore another user's private drafts", async () => {
+  const { panel } = fixture();
+  panel.drafts.set(target.entity_id, "95");
+  panel.tripPeriod = { start_date: "2026-11-01" };
+  panel.hass = { ...panel._hass, connected: false };
+  panel.hass = { ...panel._hass, user: { id: "different", is_admin: false } };
+  assert.equal(panel.drafts.size, 0);
+  assert.equal(Object.keys(panel.tripPeriod).length, 0);
+  assert.equal(panel.vehicles.length, 0);
+});
+
+test("archive pagination back to first page uses applied period not pending edits", async () => {
+  const { panel, calls } = fixture();
+  panel.current().entities.push({
+    key: "sensor.trip_history",
+    entity_id: "sensor.archive",
+    name: "Archive",
+    control: false,
+  });
+  panel.archive = {
+    total: 60,
+    offset: 25,
+    start_date: "2026-11-01",
+    end_date: "2026-12-01",
+    trips: [],
+  };
+  panel.tripPeriod = { start_date: "2026-10-01" };
+  panel._hass.callWS = async (msg) => {
+    calls.push(msg);
+    return {
+      total: 60,
+      offset: msg.offset,
+      start_date: msg.start_date,
+      end_date: msg.end_date,
+      trips: [],
+    };
+  };
+  await panel.trips(0, false, false, true);
+  assert.equal(calls[0].start_date, "2026-11-01");
+  assert.equal(calls[0].end_date, "2026-12-01");
 });

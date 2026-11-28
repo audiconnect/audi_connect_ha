@@ -106,6 +106,7 @@ const OVERVIEW = [
   "sensor.parked_in",
   "sensor.mileage",
   "sensor.service_overview",
+  "binary_sensor.integration_problem",
 ];
 const GROUPS = {
   Charging:
@@ -121,7 +122,7 @@ const GROUPS = {
   "Service & Health":
     /^(sensor\.(service_|oil_|local_dealer|mileage)|binary_sensor\.(oil_level|braking_status))/,
   "Vehicle & Documents":
-    /^sensor\.(model|car_type|primary_engine_type|secondary_engine_type|vehicle_reported_|vehicle_data_|last_update_time|mileage|cloud_last_successful_poll|integration_status|data_act_status|last_error)/,
+    /^(sensor\.(model|car_type|primary_engine_type|secondary_engine_type|vehicle_reported_|vehicle_data_|last_update_time|mileage|cloud_last_successful_poll|integration_status|data_act_status|last_error)|binary_sensor\.integration_problem)/,
 };
 const QUICK = [
   "switch.charging",
@@ -224,6 +225,56 @@ function actionsFor(row, state) {
     ].filter(Boolean);
   return [];
 }
+const PANEL_STYLE = `
+:host{display:block;color:var(--primary-text-color);background:var(--primary-background-color);min-height:100%;font-family:var(--paper-font-body1_-_font-family,inherit)}
+*{box-sizing:border-box}
+main{max-width:1240px;margin:auto;padding:clamp(12px,3vw,32px)}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+header strong{font-size:1.35rem}
+button,select,a,input{font:inherit;min-height:42px;border:1px solid var(--divider-color);border-radius:10px;padding:9px 13px;color:var(--primary-text-color);background:var(--card-background-color)}
+button,select,a{cursor:pointer}a{display:inline-flex;align-items:center;text-decoration:none}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--primary-color);outline-offset:1px}
+button:disabled{opacity:.5;cursor:default}
+section{margin:12px 0 24px;min-width:0}h2{font-size:1.15rem;margin:0 0 12px}
+.muted,small,.label{color:var(--secondary-text-color)}.label{font-size:.86rem}
+.hero{display:grid;gap:12px;padding:18px;border:1px solid var(--divider-color);border-radius:20px;background:var(--card-background-color)}
+.hero-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0}
+.hero-head>div{min-width:0}.hero-head h1{font-size:clamp(1.4rem,3vw,2rem);margin:4px 0;overflow-wrap:anywhere}
+.hero-head p{margin:5px 0;color:var(--secondary-text-color)}.hero-head select{max-width:45%;min-width:0}.hero-status{font-size:.9rem}
+.hero-footer{display:flex;align-items:center;justify-content:space-between;font-size:.85rem;color:var(--secondary-text-color);gap:8px}.hero-footer button{border:0;padding:5px;min-height:36px}
+.vehicle-picture{border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--secondary-background-color);height:clamp(180px,34vw,300px)}
+.vehicle-picture img{width:100%;height:100%;object-fit:contain}
+nav{display:flex;gap:8px;overflow:auto;padding:0 0 14px;scrollbar-width:thin}
+nav button{white-space:nowrap;flex:0 0 auto;font-weight:600;border:0;border-radius:24px;background:transparent}
+nav button[aria-pressed=true]{background:var(--primary-text-color);color:var(--primary-background-color)}
+.settings-button{border:0;background:transparent}
+.overview-layout{display:grid;gap:18px}.overview-layout>div{min-width:0}
+.energy-grid,.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
+.energy-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
+.energy,.status-card,.tile{background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:16px;padding:16px;min-width:0;overflow-wrap:anywhere}
+.energy,.tile{display:flex;flex-direction:column;gap:9px}.energy strong{font-size:1.8rem}.energy ha-icon{--mdc-icon-size:18px}
+.tile{min-height:110px}.tile strong{font-size:1.35rem}.glance .tile{min-height:96px}.tile button{font-size:.85rem}
+.status-row{display:flex;align-items:center;gap:10px;width:100%;border:0;border-bottom:1px solid var(--divider-color);border-radius:0;text-align:left;padding:11px 0;background:transparent}
+.status-row:last-child{border:0}.status-value{margin-left:auto;text-align:right;overflow-wrap:anywhere;min-width:0}.status-value small{display:block}
+.total-range{color:var(--secondary-text-color);font-size:.9rem}
+.shortcuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+.shortcuts button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:14px 8px;border:1px solid var(--divider-color);background:var(--card-background-color);overflow-wrap:anywhere}
+.shortcuts ha-icon{--mdc-icon-size:26px}
+.disclosure{width:100%;text-align:left}.action{background:var(--primary-color);color:var(--text-primary-color,#fff);border-color:var(--primary-color)}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}.editor{display:flex;gap:6px;align-items:center}.editor input,.editor select{min-width:0;width:100%}
+.meter{height:7px;background:var(--divider-color);border-radius:7px;overflow:hidden}.meter span{display:block;height:100%;background:var(--primary-color);border-radius:7px}
+.electric .meter span{background:#64c99b}.fuel .meter span{background:#7da7d9}
+.message{padding:12px;border-left:3px solid var(--primary-color);background:var(--card-background-color)}
+.table{overflow:auto}table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid var(--divider-color);text-align:left}
+.service-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}.service-form label{display:flex;flex-direction:column;gap:6px}.service-form input{width:100%;min-width:0}
+.trip-chart{display:grid;gap:9px;margin:20px 0}.trip-chart>div{display:grid;grid-template-columns:90px minmax(0,1fr) 70px;align-items:center;gap:8px}.trip-chart>div>span{text-align:right}.trip-chart h3{margin:4px 0;font-size:.95rem}
+#parking-map{margin:12px 0}.command-feedback{margin:10px 0}
+.climate-panel{text-align:center}.climate-panel svg{display:block;width:min(100%,260px);margin:0 auto}.climate-panel .actions,.climate-panel .editor{justify-content:center;margin:12px auto;max-width:360px}
+.charge-level{display:grid;gap:8px;margin:14px 0}.charge-level strong{font-size:2.4rem}.charge-panel .actions{margin-top:16px}
+.attention{font-weight:600;color:var(--warning-color,var(--primary-text-color))}
+@media(min-width:900px){.overview-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.hero:has(.vehicle-picture){grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);align-items:center}.hero:has(.vehicle-picture) .hero-head{flex-direction:column}.hero:has(.vehicle-picture) .hero-head select{max-width:100%}.hero-footer{grid-column:1/-1}}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{padding:12px}.tile strong{font-size:1.12rem}.status-row .action{max-width:100%}.editor{flex-wrap:wrap}.editor button{width:100%}}
+`;
 class AudiVehiclePanel extends HTMLElement {
   constructor() {
     super();
@@ -235,14 +286,17 @@ class AudiVehiclePanel extends HTMLElement {
     this.loading = false;
     this.loaded = false;
     this.reloadPending = false;
+    this.revalidating = false;
     this.scopeVersion = 0;
     this.busy = new Set();
     this.drafts = new Map();
     this.message = "";
     this.archive = null;
+    this.tripPeriod = {};
     this.archiveLoading = false;
     this.expanded = new Set();
     this.serviceDraft = null;
+    this.serviceOriginal = null;
     this.serviceBusy = false;
     this.mapCard = null;
     this.mapKey = "";
@@ -254,11 +308,15 @@ class AudiVehiclePanel extends HTMLElement {
           event.target.value;
       if (event.target.dataset.editEntity)
         this.drafts.set(event.target.dataset.editEntity, event.target.value);
+      if (event.target.dataset.tripDate)
+        this.tripPeriod[event.target.dataset.tripDate] = event.target.value;
     });
     this.shadowRoot.addEventListener("change", (event) => {
       if (event.target.dataset.editEntity) {
         this.drafts.set(event.target.dataset.editEntity, event.target.value);
       }
+      if (event.target.dataset.tripDate)
+        this.tripPeriod[event.target.dataset.tripDate] = event.target.value;
       if (event.target.id === "vehicle-select") {
         this.selected = event.target.value;
         this.resetVehicleView();
@@ -275,8 +333,10 @@ class AudiVehiclePanel extends HTMLElement {
     this.scopeVersion++;
     this.drafts.clear();
     this.archive = null;
+    this.tripPeriod = {};
     this.expanded.clear();
     this.serviceDraft = null;
+    this.serviceOriginal = null;
     this.mapCard = null;
     this.mapKey = "";
     this.message = "";
@@ -288,11 +348,28 @@ class AudiVehiclePanel extends HTMLElement {
     this.loaded = false;
     this.resetVehicleView();
     this.vehicles = [];
+    this.revalidating = false;
     if (this.loading) this.reloadPending = true;
   }
   set hass(hass) {
     const before = this._hass;
     this._hass = hass;
+    const userChanged =
+      before &&
+      (before.user?.id !== hass.user?.id ||
+        before.user?.is_admin !== hass.user?.is_admin);
+    if (hass.connected === false) {
+      if (before?.connected !== false || userChanged) {
+        if (userChanged) {
+          this.resetVehicleView();
+          this.vehicles = [];
+        } else this.scopeVersion++;
+        this.revalidating = true;
+        this.reloadPending = this.loading;
+        this.render();
+      }
+      return;
+    }
     if (
       hass.language !== before?.language &&
       typeof hass.loadBackendTranslation === "function"
@@ -307,21 +384,26 @@ class AudiVehiclePanel extends HTMLElement {
       return;
     }
     const rows = this.current()?.entities || [];
-    if (
+    const registryChanged =
       before &&
-      (before.user?.id !== hass.user?.id ||
-        before.user?.is_admin !== hass.user?.is_admin ||
-        before.entities !== hass.entities ||
+      (before.entities !== hass.entities ||
         before.devices !== hass.devices ||
         (before.connected === false && hass.connected === true) ||
         rows.some(
           (row) =>
             Boolean(before.states[row.entity_id]) !==
             Boolean(hass.states[row.entity_id]),
-        ))
-    ) {
-      this.resetVehicleView();
-      this.vehicles = [];
+        ));
+    if (userChanged || registryChanged) {
+      if (userChanged) {
+        this.resetVehicleView();
+        this.vehicles = [];
+      } else {
+        // Suspend display and dispatch while checking the native scope.
+        // Keep drafts private until the same scope has been authorized again.
+        this.scopeVersion++;
+      }
+      this.revalidating = true;
       if (this.loading) this.reloadPending = true;
       else void this.load();
       this.render();
@@ -332,8 +414,7 @@ class AudiVehiclePanel extends HTMLElement {
       before.language !== hass.language ||
       rows.some((r) => before.states[r.entity_id] !== hass.states[r.entity_id])
     ) {
-      const active = this.shadowRoot.activeElement?.dataset;
-      if (!active?.editEntity && !active?.serviceField) this.render();
+      this.render();
     }
   }
   tr(label) {
@@ -345,6 +426,29 @@ class AudiVehiclePanel extends HTMLElement {
   }
   qualityLabel(state) {
     return this.tr(quality(state));
+  }
+  observationLabel(state) {
+    const q = this.qualityLabel(state);
+    const stamp = Date.parse(state?.attributes?.vehicle_captured);
+    return [
+      q,
+      Number.isFinite(stamp)
+        ? new Date(stamp).toLocaleString(this._hass?.language)
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  identityLabel(state) {
+    const a = state?.attributes || {};
+    if (!available(state)) return this.tr("Identity not confirmed");
+    return this.tr(
+      a.presentation_source === "ha_registry_last_known"
+        ? "Last known registry identity"
+        : a.identity_restored
+          ? "Last known manufacturer identity"
+          : "Manufacturer information when reported",
+    );
   }
   display(state) {
     if (!available(state)) return this.tr(valueText(state));
@@ -371,7 +475,9 @@ class AudiVehiclePanel extends HTMLElement {
     );
   }
   current() {
-    return this.vehicles.find((v) => v.device_id === this.selected);
+    return this.revalidating
+      ? undefined
+      : this.vehicles.find((v) => v.device_id === this.selected);
   }
   state(row) {
     return this._hass?.states?.[row.entity_id];
@@ -380,23 +486,56 @@ class AudiVehiclePanel extends HTMLElement {
     return this.current()?.entities.find((r) => r.key === key);
   }
   async load() {
-    if (!this._hass || this.loading) return;
+    if (!this._hass || this._hass.connected === false || this.loading) return;
     this.loading = true;
     this.render();
     try {
       const result = await this._hass.callWS({
         type: "audiconnect/vehicle/list",
       });
-      if (this.reloadPending) return;
-      const previous = this.current();
+      if (this.reloadPending || this._hass.connected === false) return;
+      const previous = this.vehicles.find((v) => v.device_id === this.selected);
       this.vehicles = result.vehicles || [];
-      this.labels = result.labels || {};
+      this.labels = result.labels || this.labels;
+      this.revalidating = false;
       if (!this.current()) this.selected = this.vehicles[0]?.device_id || "";
+      const current = this.current();
       if (
-        JSON.stringify(previous?.entities) !==
-        JSON.stringify(this.current()?.entities)
+        previous?.device_id !== current?.device_id ||
+        previous?.configuration_entry !== current?.configuration_entry
       )
         this.resetVehicleView();
+      else if (
+        JSON.stringify(previous?.entities) !== JSON.stringify(current?.entities)
+      ) {
+        // Keep only edits and views belonging to unchanged, authorized native entities.
+        this.scopeVersion++;
+        const same = (id, control = false) => {
+          const old = previous?.entities.find((row) => row.entity_id === id);
+          return (
+            old &&
+            current?.entities.some(
+              (row) =>
+                row.entity_id === id &&
+                row.key === old.key &&
+                (!control || row.control),
+            )
+          );
+        };
+        for (const id of this.drafts.keys())
+          if (!same(id, true)) this.drafts.delete(id);
+        const archive = previous?.entities.find(
+          (row) => row.key === "sensor.trip_history",
+        );
+        if (!archive || !same(archive.entity_id)) this.archive = null;
+        const dealer = previous?.entities.find(
+          (row) => row.key === "sensor.local_dealer",
+        );
+        if (!dealer || !same(dealer.entity_id) || !this._hass?.user?.is_admin)
+          this.serviceDraft = this.serviceOriginal = null;
+        this.mapCard = null;
+        this.mapKey = "";
+      }
       this.message = "";
     } catch {
       this.vehicles = [];
@@ -406,10 +545,13 @@ class AudiVehiclePanel extends HTMLElement {
     } finally {
       this.loaded = true;
       this.loading = false;
+      if (!this.reloadPending && this._hass?.connected !== false)
+        this.revalidating = false;
       this.render();
       if (this.reloadPending) {
         this.reloadPending = false;
-        if (this.isConnected !== false) void this.load();
+        if (this.isConnected !== false && this._hass?.connected !== false)
+          void this.load();
         else this.loaded = false;
       } else if (
         this.tab === "Trips & Consumption" &&
@@ -423,6 +565,7 @@ class AudiVehiclePanel extends HTMLElement {
     return (
       row.control &&
       !this.loading &&
+      this._hass?.connected !== false &&
       this.current()?.entities.some(
         (current) =>
           current.entity_id === row.entity_id &&
@@ -443,7 +586,12 @@ class AudiVehiclePanel extends HTMLElement {
       (candidate) => candidate.service === service,
     );
     const confirmation = this.tr("Send {action} to {vehicle} ({control})?")
-      .replace("{action}", this.tr(action?.label || title(service)))
+      .replace(
+        "{action}",
+        action?.label === row.name
+          ? this.entityLabel(row)
+          : this.tr(action?.label || title(service)),
+      )
       .replace("{vehicle}", this.current().name)
       .replace("{control}", this.entityLabel(row));
     if (!window.confirm(confirmation)) return;
@@ -547,10 +695,49 @@ class AudiVehiclePanel extends HTMLElement {
       this.render();
     }
   }
-  async trips(offset = 0, exportAll = false) {
+  tripCSV(trips) {
+    const columns = [
+      ["timestamp", "timestamp_utc"],
+      ["mileage", "distance_km"],
+      ["totalElectricConsumption", "electric_kwh"],
+      ["totalFuelConsumption", "fuel_l"],
+      ["traveltime", "duration_min"],
+      ["averageElectricEngineConsumption", "electric_kwh_per_100km"],
+      ["averageFuelConsumption", "fuel_l_per_100km"],
+    ];
+    return [
+      columns.map(([, label]) => label).join(","),
+      ...trips.map((trip) =>
+        columns
+          .map(([key]) => {
+            const value = trip[key];
+            if (key === "timestamp")
+              return typeof value === "string" &&
+                /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(value)
+                ? value
+                : "";
+            return typeof value === "number" && Number.isFinite(value)
+              ? String(value)
+              : "";
+          })
+          .join(","),
+      ),
+    ].join("\r\n");
+  }
+  async trips(offset = 0, exportAll = false, csv = false, paginate = false) {
     const row = this.row("sensor.trip_history");
     if (!row || this.loading || this.archiveLoading) return;
     const selected = this.scopeVersion;
+    // Pagination always belongs to the applied period, not unsaved date edits.
+    const period =
+      (paginate || exportAll) && this.archive ? this.archive : this.tripPeriod;
+    const start = period.start_date || "";
+    const end = period.end_date || "";
+    if (start && end && start >= end) {
+      this.message = "Start date must precede end date.";
+      this.render();
+      return;
+    }
     this.archiveLoading = true;
     this.render();
     try {
@@ -560,17 +747,28 @@ class AudiVehiclePanel extends HTMLElement {
         offset,
         limit: 25,
         export: exportAll,
+        ...(start ? { start_date: start } : {}),
+        ...(end ? { end_date: end } : {}),
       });
       if (this.scopeVersion !== selected) return;
       if (exportAll) {
         const url = URL.createObjectURL(
-          new Blob([JSON.stringify(result, null, 2)], {
-            type: "application/json",
-          }),
+          new Blob(
+            [
+              csv
+                ? this.tripCSV(result.trips || [])
+                : JSON.stringify(result, null, 2),
+            ],
+            {
+              type: csv ? "text/csv;charset=utf-8" : "application/json",
+            },
+          ),
         );
         const link = document.createElement("a");
         link.href = url;
-        link.download = "audi-trip-history.json";
+        link.download = csv
+          ? "audi-trip-history.csv"
+          : "audi-trip-history.json";
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       } else this.archive = result;
@@ -619,7 +817,7 @@ class AudiVehiclePanel extends HTMLElement {
       return;
     }
     if (data.serviceCancel !== undefined) {
-      this.serviceDraft = null;
+      this.serviceDraft = this.serviceOriginal = null;
       this.render();
       return;
     }
@@ -628,11 +826,21 @@ class AudiVehiclePanel extends HTMLElement {
       return;
     }
     if (data.trips !== undefined) {
-      void this.trips(Number(data.trips));
+      void this.trips(
+        Number(data.trips),
+        false,
+        false,
+        data.page !== undefined,
+      );
+      return;
+    }
+    if (data.tripClear !== undefined) {
+      this.tripPeriod = {};
+      void this.trips();
       return;
     }
     if (data.export !== undefined) {
-      void this.trips(0, true);
+      void this.trips(0, true, data.export === "csv");
       return;
     }
     const row = this.current()?.entities.find(
@@ -745,13 +953,13 @@ class AudiVehiclePanel extends HTMLElement {
               esc(this.display(range)) +
               " " +
               esc(this.tr(role + " range")) +
-              (this.qualityLabel(range)
-                ? " · " + esc(this.qualityLabel(range))
+              (this.observationLabel(range)
+                ? " · " + esc(this.observationLabel(range))
                 : "") +
               "</small>"
             : "") +
-          (this.qualityLabel(state)
-            ? "<small>" + esc(this.qualityLabel(state)) + "</small>"
+          (this.observationLabel(state)
+            ? "<small>" + esc(this.observationLabel(state)) + "</small>"
             : "") +
           "</article>"
         );
@@ -765,11 +973,30 @@ class AudiVehiclePanel extends HTMLElement {
           esc(this.tr("Total range")) +
           " · " +
           esc(this.display(range)) +
-          (this.qualityLabel(range)
-            ? " · " + esc(this.qualityLabel(range))
+          (this.observationLabel(range)
+            ? " · " + esc(this.observationLabel(range))
             : "") +
           "</p>"
         : "")
+    );
+  }
+  actionHTML(row, action, icon = "") {
+    if (!row || !action) return "";
+    return (
+      '<button class="action" data-entity="' +
+      esc(row.entity_id) +
+      '" data-service="' +
+      esc(action.service) +
+      '" ' +
+      (this.loading || this.busy.has(row.entity_id) ? "disabled" : "") +
+      ">" +
+      (icon ? '<ha-icon icon="' + esc(icon) + '"></ha-icon>' : "") +
+      esc(
+        action.label === row.name
+          ? this.entityLabel(row)
+          : this.tr(action.label),
+      ) +
+      "</button>"
     );
   }
   homeActions() {
@@ -784,19 +1011,7 @@ class AudiVehiclePanel extends HTMLElement {
           "</button>"
         : "";
     const button = (row, action, icon, label) =>
-      row && action
-        ? '<button data-entity="' +
-          esc(row.entity_id) +
-          '" data-service="' +
-          esc(action.service) +
-          '" ' +
-          (this.busy.has(row.entity_id) ? "disabled" : "") +
-          '><ha-icon icon="' +
-          icon +
-          '"></ha-icon>' +
-          esc(this.tr(label)) +
-          "</button>"
-        : "";
+      row && action ? this.actionHTML(row, { ...action, label }, icon) : "";
     const lock = this.row("lock.lock");
     const state = lock && this.state(lock);
     const lockAction =
@@ -835,6 +1050,46 @@ class AudiVehiclePanel extends HTMLElement {
           "</div></section>"
       : "";
   }
+  refreshPanel() {
+    const rows = [
+      "button.v3_refresh_cloud",
+      "button.refresh_vehicle_data",
+      "button.wake_vehicle_modern",
+    ]
+      .map((key) => this.row(key))
+      .filter(Boolean);
+    if (!rows.length) return "";
+    const descriptions = {
+      "button.v3_refresh_cloud":
+        "Refresh account data without waking the vehicle.",
+      "button.refresh_vehicle_data":
+        "Request newer vehicle data, if supported.",
+      "button.wake_vehicle_modern": "Wake the vehicle only when needed.",
+    };
+    return (
+      '<section class="status-card"><h2>' +
+      esc(this.tr("Update vehicle data")) +
+      '</h2><p class="muted">' +
+      esc(this.tr("Refreshing this view does not contact Audi.")) +
+      "</p>" +
+      rows
+        .map((row) => {
+          const actions = actionsFor(row, this.state(row));
+          return (
+            '<div class="status-row"><span>' +
+            esc(this.tr(descriptions[row.key])) +
+            '</span><span class="status-value">' +
+            (actions.length
+              ? this.actionHTML(row, actions[0])
+              : esc(this.tr("Unavailable"))) +
+            this.commandFeedback([row]) +
+            "</span></div>"
+          );
+        })
+        .join("") +
+      "</section>"
+    );
+  }
   statusRows() {
     const entries = [
       ["sensor.door_status", "Doors", "mdi:car-door", "Access & Security"],
@@ -844,6 +1099,12 @@ class AudiVehiclePanel extends HTMLElement {
       ["sensor.climatisation_state", "Climate", "mdi:fan", "Climate"],
       ["sensor.parked_in", "Location", "mdi:map-marker-outline", "Location"],
       ["sensor.mileage", "Odometer", "mdi:gauge", "Vehicle & Documents"],
+      [
+        "binary_sensor.integration_problem",
+        "Integration status",
+        "mdi:cloud-alert",
+        "Vehicle & Documents",
+      ],
     ];
     const rows = entries
       .filter(([key]) => this.row(key))
@@ -858,8 +1119,8 @@ class AudiVehiclePanel extends HTMLElement {
           esc(this.tr(label)) +
           '</span><span class="status-value">' +
           esc(this.display(state)) +
-          (this.qualityLabel(state)
-            ? "<small>" + esc(this.qualityLabel(state)) + "</small>"
+          (this.observationLabel(state)
+            ? "<small>" + esc(this.observationLabel(state)) + "</small>"
             : "") +
           '</span><ha-icon icon="mdi:chevron-right"></ha-icon></button>'
         );
@@ -873,6 +1134,9 @@ class AudiVehiclePanel extends HTMLElement {
         esc(this.tr("Maintenance")) +
         '</span><span class="status-value">' +
         esc(this.display(service)) +
+        (this.observationLabel(service)
+          ? "<small>" + esc(this.observationLabel(service)) + "</small>"
+          : "") +
         '</span><ha-icon icon="mdi:chevron-right"></ha-icon></button></section>'
       : "";
     return (
@@ -884,6 +1148,53 @@ class AudiVehiclePanel extends HTMLElement {
           "</section>"
         : "") + serviceHtml
     );
+  }
+  accessStatus(rows) {
+    const groups = [
+      [
+        "Doors",
+        /^(sensor\.door|binary_sensor\.(any_door|(?:left|right)_(?:front|rear)_door))/,
+      ],
+      [
+        "Windows",
+        /^(sensor\.window|binary_sensor\.(any_window|(?:left|right)_(?:front|rear)_window))/,
+      ],
+      [
+        "Other openings and security",
+        /^binary_sensor\.(trunk|hood|sun_roof|roof_cover|safelock|parking_light)/,
+      ],
+    ];
+    const used = new Set();
+    const html = groups
+      .map(([label, pattern]) => {
+        const members = rows.filter((row) => pattern.test(row.key));
+        if (!members.length) return "";
+        for (const row of members) used.add(row.entity_id);
+        return (
+          '<section class="status-card"><h2>' +
+          esc(this.tr(label)) +
+          "</h2>" +
+          members
+            .map((row) => {
+              const s = this.state(row);
+              const evidence = this.observationLabel(s);
+              return (
+                '<button class="status-row" data-entity="' +
+                esc(row.entity_id) +
+                '" data-details><span>' +
+                esc(this.entityLabel(row)) +
+                '</span><span class="status-value">' +
+                esc(this.display(s)) +
+                (evidence ? "<small>" + esc(evidence) + "</small>" : "") +
+                '</span><ha-icon icon="mdi:chevron-right"></ha-icon></button>'
+              );
+            })
+            .join("") +
+          "</section>"
+        );
+      })
+      .join("");
+    return { html, used };
   }
   editor(row, s) {
     if (
@@ -964,7 +1275,10 @@ class AudiVehiclePanel extends HTMLElement {
               '" ' +
               (o === value ? "selected" : "") +
               ">" +
-              esc(this.tr(title(o))) +
+              esc(
+                this._hass?.formatEntityState?.({ ...s, state: o }) ||
+                  this.tr(title(o)),
+              ) +
               "</option>",
           )
           .join("") +
@@ -1019,31 +1333,13 @@ class AudiVehiclePanel extends HTMLElement {
   tile(row, compact = false) {
     const s = this.state(row);
     const a = s?.attributes || {};
-    const q = this.qualityLabel(s);
     const actions = actionsFor(row, s);
     const control =
       row.control && /^(number|select|climate|switch|lock)\./.test(row.key);
     const button = row.key.startsWith("button.");
-    const busy = this.busy.has(row.entity_id);
-    let detail = q;
-    if (a.vehicle_captured) {
-      const stamp = new Date(a.vehicle_captured);
-      if (!Number.isNaN(stamp.getTime()))
-        detail += (detail ? " · " : "") + stamp.toLocaleString();
-    }
+    const detail = this.observationLabel(s);
     const controls = actions
-      .map(
-        (x) =>
-          '<button class="action" data-entity="' +
-          esc(row.entity_id) +
-          '" data-service="' +
-          esc(x.service) +
-          '" ' +
-          (busy ? "disabled" : "") +
-          ">" +
-          esc(this.tr(x.label)) +
-          "</button>",
-      )
+      .map((action) => this.actionHTML(row, action))
       .join("");
     return (
       '<article class="tile"><span class="label">' +
@@ -1070,7 +1366,18 @@ class AudiVehiclePanel extends HTMLElement {
         ? ["next_appointment_local", "warranty_expiry_local"]
             .filter((k) => a[k])
             .map(
-              (k) => "<small>" + esc(title(k)) + ": " + esc(a[k]) + "</small>",
+              (k) =>
+                "<small>" +
+                esc(
+                  this.tr(
+                    k === "next_appointment_local"
+                      ? "Next appointment"
+                      : "Warranty expiry",
+                  ),
+                ) +
+                ": " +
+                esc(a[k]) +
+                "</small>",
             )
             .join("")
         : "") +
@@ -1105,10 +1412,20 @@ class AudiVehiclePanel extends HTMLElement {
       const result = await this._hass.callWS({
         type: "audiconnect/vehicle/service_details",
         entity_id: row.entity_id,
-        ...(save ? { updates: { ...this.serviceDraft } } : {}),
+        ...(save
+          ? {
+              updates: Object.fromEntries(
+                Object.entries(this.serviceDraft).filter(
+                  ([key, value]) =>
+                    value !== (this.serviceOriginal?.[key] || ""),
+                ),
+              ),
+            }
+          : {}),
       });
       if (this.scopeVersion !== selected) return;
       this.serviceDraft = { ...result.settings };
+      this.serviceOriginal = { ...result.settings };
       if (save) this.message = "Service details saved in Home Assistant.";
     } catch {
       if (this.scopeVersion === selected)
@@ -1217,6 +1534,19 @@ class AudiVehiclePanel extends HTMLElement {
       "</section>"
     );
   }
+  climateActions(row) {
+    const alias = this.row("switch.climate_quick_control");
+    const rows = [row, alias].filter(Boolean);
+    return ["turn_on", "turn_off"].flatMap((service) => {
+      for (const candidate of rows) {
+        const action = actionsFor(candidate, this.state(candidate)).find(
+          (a) => a.service === service,
+        );
+        if (action) return [{ row: candidate, action }];
+      }
+      return [];
+    });
+  }
   climatePanel(row) {
     const state = this.state(row);
     const a = state?.attributes || {};
@@ -1238,10 +1568,9 @@ class AudiVehiclePanel extends HTMLElement {
             : "";
     const source = a.state_is_optimistic
       ? "Requested · awaiting vehicle"
-      : this.qualityLabel(state);
-    const actions = actionsFor(row, state);
+      : this.observationLabel(state);
+    const actions = this.climateActions(row);
     const id = esc(row.entity_id);
-    const busy = this.busy.has(row.entity_id) ? "disabled" : "";
     const dial =
       temp !== null &&
       Number.isFinite(a.min_temp) &&
@@ -1278,23 +1607,12 @@ class AudiVehiclePanel extends HTMLElement {
       (source ? " · " + esc(this.tr(source)) : "") +
       "</p>" +
       '<div class="actions">' +
-      actions
-        .map(
-          (action) =>
-            '<button class="action" data-entity="' +
-            id +
-            '" data-service="' +
-            esc(action.service) +
-            '" ' +
-            busy +
-            ">" +
-            esc(this.tr(action.label)) +
-            "</button>",
-        )
-        .join("") +
+      actions.map(({ row, action }) => this.actionHTML(row, action)).join("") +
       "</div>" +
       this.editor(row, state) +
-      this.commandFeedback([row]) +
+      this.commandFeedback(
+        [row, this.row("switch.climate_quick_control")].filter(Boolean),
+      ) +
       '<button data-entity="' +
       id +
       ('" data-details>' +
@@ -1328,17 +1646,8 @@ class AudiVehiclePanel extends HTMLElement {
         : [];
     });
     const actions = choices
-      .map(
-        ({ row, service, label }) =>
-          '<button class="action" data-entity="' +
-          esc(row.entity_id) +
-          '" data-service="' +
-          esc(service) +
-          '" ' +
-          (this.busy.has(row.entity_id) ? "disabled" : "") +
-          ">" +
-          esc(this.tr(label)) +
-          "</button>",
+      .map(({ row, service, label }) =>
+        this.actionHTML(row, { service, label }),
       )
       .join("");
     const n = Number(battery?.state);
@@ -1363,8 +1672,8 @@ class AudiVehiclePanel extends HTMLElement {
         ? '<div class="charge-level"><strong>' +
           esc(this.display(battery)) +
           "</strong>" +
-          (this.qualityLabel(battery)
-            ? "<small>" + esc(this.qualityLabel(battery)) + "</small>"
+          (this.observationLabel(battery)
+            ? "<small>" + esc(this.observationLabel(battery)) + "</small>"
             : "") +
           (pct
             ? '<div class="meter"><span style="width:' + n + '%"></span></div>'
@@ -1378,8 +1687,8 @@ class AudiVehiclePanel extends HTMLElement {
             esc(this.tr(label)) +
             '</span><span class="status-value">' +
             esc(this.display(s)) +
-            (this.qualityLabel(s)
-              ? "<small>" + esc(this.qualityLabel(s)) + "</small>"
+            (this.observationLabel(s)
+              ? "<small>" + esc(this.observationLabel(s)) + "</small>"
               : "") +
             "</span></div>",
         )
@@ -1411,7 +1720,7 @@ class AudiVehiclePanel extends HTMLElement {
       " · " +
       "" +
       esc(
-        this.qualityLabel({ state: "reported", attributes: envelope }) ||
+        this.observationLabel({ state: "reported", attributes: envelope }) ||
           this.tr("Capture time unknown"),
       ) +
       "</p>" +
@@ -1489,36 +1798,57 @@ class AudiVehiclePanel extends HTMLElement {
       this.tab === "Charging"
         ? [
             [
-              "sensor.charging_timer_enabled_count",
+              [
+                "sensor.charging_timer_enabled_count",
+                "sensor.charging_state",
+                "sensor.charging_mode",
+              ],
               "charging_timers",
               "Charging schedules",
             ],
             [
-              "sensor.charging_state",
+              [
+                "sensor.charging_state",
+                "sensor.charging_timer_enabled_count",
+                "sensor.charging_mode",
+              ],
               "departure_charging_timers",
               "Departure schedules",
             ],
           ]
         : [
-            ["climate.climatisation", "climate_timers", "Climate schedules"],
             [
-              "climate.climatisation",
+              [
+                "climate.climatisation",
+                "sensor.climatisation_timer_enabled_count",
+              ],
+              "climate_timers",
+              "Climate schedules",
+            ],
+            [
+              ["climate.climatisation"],
               "departure_climate_timers",
               "Departure schedules",
             ],
             [
-              "climate.climatisation",
+              [
+                "climate.climatisation",
+                "sensor.climatisation_timer_enabled_count",
+              ],
               "ventilation_timers",
               "Ventilation schedules",
             ],
           ];
+    const enabled = (v) =>
+      this.tr(v === true ? "Enabled" : v === false ? "Disabled" : "Unknown");
     return groups
-      .map(([key, detail, label]) => {
-        const state = this.reading(key);
-        const envelope = state?.attributes?.[detail];
-        const list = envelope?.data?.items;
-        if (!Array.isArray(list)) return "";
-        const content = list
+      .map(([keys, detail, label]) => {
+        // These native entities project the same canonical detail, not separate sources.
+        const envelope = keys
+          .map((key) => this.reading(key)?.attributes?.[detail])
+          .find((value) => Array.isArray(value?.data?.items));
+        if (!envelope) return "";
+        const content = envelope.data.items
           .map((timer) => {
             const time =
               timer.departure_datetime_local ||
@@ -1534,22 +1864,76 @@ class AudiVehiclePanel extends HTMLElement {
               Object.keys(timer.recurring_on).filter(
                 (day) => timer.recurring_on[day] === true,
               );
+            const recurrence = days?.length
+              ? days
+              : Array.isArray(timer.repetition_days)
+                ? timer.repetition_days
+                : [];
+            const windowEnvelope = timer.preferred_charging_times;
+            const windows = Array.isArray(windowEnvelope?.items)
+              ? windowEnvelope.items
+              : [];
             return (
               '<div class="status-row"><span>' +
               esc(time || this.tr("Time not reported")) +
-              (days?.length
-                ? "<small>" + esc(days.join(", ")) + "</small>"
+              (recurrence.length
+                ? "<small>" +
+                  esc(this.tr("Reported recurrence")) +
+                  ": " +
+                  esc(
+                    recurrence
+                      .map((day) => {
+                        const token = String(day);
+                        const weekday = token.toLowerCase().replace(/s$/, "");
+                        const label = [
+                          "monday",
+                          "tuesday",
+                          "wednesday",
+                          "thursday",
+                          "friday",
+                          "saturday",
+                          "sunday",
+                        ].includes(weekday)
+                          ? weekday[0].toUpperCase() + weekday.slice(1)
+                          : token;
+                        return this.tr(label);
+                      })
+                      .join(", "),
+                  ) +
+                  "</small>"
+                : "") +
+              (typeof timer.climatisation === "boolean"
+                ? "<small>" +
+                  esc(this.tr("Climate on departure")) +
+                  ": " +
+                  esc(enabled(timer.climatisation)) +
+                  "</small>"
+                : "") +
+              windows
+                .map(
+                  (window) =>
+                    "<small>" +
+                    esc(this.tr("Preferred charging window")) +
+                    ": " +
+                    esc(
+                      window.start_time_local || this.tr("Time not reported"),
+                    ) +
+                    " – " +
+                    esc(window.end_time_local || this.tr("Time not reported")) +
+                    " · " +
+                    esc(enabled(window.enabled)) +
+                    "</small>",
+                )
+                .join("") +
+              (windowEnvelope?.all_items_recognized === false
+                ? "<small>" +
+                  esc(
+                    this.tr("Some schedule details could not be interpreted."),
+                  ) +
+                  "</small>"
                 : "") +
               '</span><span class="status-value">' +
-              esc(
-                this.tr(
-                  timer.enabled === true
-                    ? "Enabled"
-                    : timer.enabled === false
-                      ? "Disabled"
-                      : "Unknown",
-                ),
-              ) +
+              esc(enabled(timer.enabled)) +
               "</span></div>"
             );
           })
@@ -1559,24 +1943,29 @@ class AudiVehiclePanel extends HTMLElement {
           esc(this.tr(label)) +
           '</h2><p class="muted">' +
           esc(
-            this.qualityLabel({ state: "reported", attributes: envelope }) ||
-              "Reported schedule",
+            this.observationLabel({
+              state: "reported",
+              attributes: envelope,
+            }) || this.tr("Reported schedule"),
           ) +
           " · " +
           esc(this.tr("Read-only vehicle schedule")) +
           "</p>" +
           (content ||
-            (envelope.data.received_count > 0
-              ? "<p>" +
-                esc(
-                  this.tr(
-                    "Schedules were returned but could not be interpreted.",
-                  ),
-                ) +
-                "</p>"
-              : "<p>" +
-                esc(this.tr("No schedules reported in this response.")) +
-                "</p>")) +
+            "<p>" +
+              esc(
+                this.tr(
+                  envelope.data.received_count > 0
+                    ? "Schedules were returned but could not be interpreted."
+                    : "No schedules reported in this response.",
+                ),
+              ) +
+              "</p>") +
+          (content && envelope.data.all_items_recognized === false
+            ? '<p class="muted">' +
+              esc(this.tr("Some schedule details could not be interpreted.")) +
+              "</p>"
+            : "") +
           "</section>"
         );
       })
@@ -1602,7 +1991,7 @@ class AudiVehiclePanel extends HTMLElement {
       '<p class="muted">' +
       esc(this.tr("Not live driving GPS.")) +
       " " +
-      esc(this.qualityLabel(state)) +
+      esc(this.observationLabel(state)) +
       "</p>" +
       (valid
         ? '<div id="parking-map"></div><button data-entity="' +
@@ -1623,6 +2012,7 @@ class AudiVehiclePanel extends HTMLElement {
     )
       return;
     const key = row.entity_id;
+    const scope = this.scopeVersion;
     if (this.mapCard && this.mapKey === key) {
       this.mapCard.hass = this._hass;
       host.append(this.mapCard);
@@ -1633,6 +2023,7 @@ class AudiVehiclePanel extends HTMLElement {
     try {
       const helpers = await window.loadCardHelpers();
       if (
+        this.scopeVersion !== scope ||
         this.tab !== "Location" ||
         this.row("device_tracker.position")?.entity_id !== key
       )
@@ -1651,6 +2042,12 @@ class AudiVehiclePanel extends HTMLElement {
       // Native more-info remains available; do not send coordinates to another provider.
     } finally {
       this.mapLoading = false;
+      if (
+        this.scopeVersion !== scope &&
+        this.tab === "Location" &&
+        this.current()
+      )
+        void this.mountMap();
     }
   }
   tripChart(trips) {
@@ -1703,6 +2100,48 @@ class AudiVehiclePanel extends HTMLElement {
       })
       .join("");
   }
+  archiveTotals(data) {
+    if (!data.metrics || !data.total) return "";
+    const rows = [
+      ["mileage", "Distance", "km"],
+      ["totalElectricConsumption", "Electric", "kWh"],
+      ["totalFuelConsumption", "Fuel", "L"],
+      ["traveltime", "Duration", "min"],
+    ];
+    return (
+      '<section class="status-card"><h2>' +
+      esc(this.tr("Observed period totals")) +
+      "</h2>" +
+      rows
+        .map(([key, label, unit]) => {
+          const metric = data.metrics[key];
+          if (!metric || metric.sum == null) return "";
+          return (
+            '<div class="status-row"><span>' +
+            esc(this.tr(label)) +
+            '</span><span class="status-value">' +
+            esc(
+              Number(metric.sum).toLocaleString(this._hass?.language, {
+                maximumFractionDigits: 2,
+              }),
+            ) +
+            " " +
+            unit +
+            "<small>" +
+            esc(
+              metric.reported_count +
+                " / " +
+                data.total +
+                " " +
+                this.tr("reported"),
+            ) +
+            "</small></span></div>"
+          );
+        })
+        .join("") +
+      "</section>"
+    );
+  }
   archiveHTML() {
     const row = this.row("sensor.trip_history");
     if (!row) return "";
@@ -1712,19 +2151,60 @@ class AudiVehiclePanel extends HTMLElement {
       esc(this.tr("Observed trip archive")) +
       '</h2><p class="muted">' +
       esc(this.tr("Recorded trips only; not a complete lifetime history.")) +
-      '</p><div class="actions">' +
+      '</p><div class="service-form">' +
+      [
+        ["start_date", "From date (UTC)"],
+        ["end_date", "Before date (UTC)"],
+      ]
+        .map(
+          ([key, label]) =>
+            "<label>" +
+            esc(this.tr(label)) +
+            '<input type="date" data-trip-date="' +
+            key +
+            '" value="' +
+            esc(this.tripPeriod[key] || "") +
+            '"' +
+            (this.archiveLoading ? " disabled" : "") +
+            "></label>",
+        )
+        .join("") +
+      '</div><div class="actions">' +
       '<button data-trips="0" ' +
       (this.archiveLoading ? "disabled" : "") +
-      (">" + esc(this.tr("Load latest")) + "</button>") +
+      (">" + esc(this.tr("Apply period")) + "</button>") +
+      "<button data-trip-clear " +
+      (this.archiveLoading ? "disabled" : "") +
+      ">" +
+      esc(this.tr("Clear period")) +
+      "</button>" +
       "<button data-export " +
       (this.archiveLoading ? "disabled" : "") +
-      (">" + esc(this.tr("Export JSON")) + "</button></div>");
+      (">" + esc(this.tr("Export JSON")) + "</button>") +
+      '<button data-export="csv" ' +
+      (this.archiveLoading ? "disabled" : "") +
+      ">" +
+      esc(this.tr("Export CSV")) +
+      "</button></div>";
     if (data) {
       html +=
         "<p>" +
         esc(data.total) +
         " " +
         esc(this.tr("archived records")) +
+        "</p>" +
+        (data.start_date || data.end_date
+          ? '<p class="muted">' +
+            esc(this.tr("Applied period (UTC)")) +
+            ": " +
+            esc(data.start_date || "—") +
+            " / " +
+            esc(data.end_date || "—") +
+            "</p>"
+          : "") +
+        this.archiveTotals(data) +
+        '<p class="muted">' +
+        esc(this.tr("Recent trips on this page")) +
         "</p>" +
         this.tripChart(data.trips || []) +
         ('<div class="table"><table><thead><tr><th>' +
@@ -1739,7 +2219,7 @@ class AudiVehiclePanel extends HTMLElement {
       for (const trip of data.trips || [])
         html +=
           "<tr><td>" +
-          esc(new Date(trip.timestamp).toLocaleString()) +
+          esc(new Date(trip.timestamp).toLocaleString(this._hass?.language)) +
           "</td><td>" +
           esc(trip.mileage == null ? "—" : trip.mileage + " km") +
           "</td><td>" +
@@ -1758,12 +2238,12 @@ class AudiVehiclePanel extends HTMLElement {
       html +=
         '</tbody></table></div><div class="actions">' +
         (data.offset > 0
-          ? '<button data-trips="' +
+          ? '<button data-page data-trips="' +
             Math.max(0, data.offset - 25) +
             ('">' + esc(this.tr("Previous")) + "</button>")
           : "") +
         (data.offset + 25 < data.total
-          ? '<button data-trips="' +
+          ? '<button data-page data-trips="' +
             (data.offset + 25) +
             ('">' + esc(this.tr("Next")) + "</button>")
           : "") +
@@ -1843,12 +2323,14 @@ class AudiVehiclePanel extends HTMLElement {
             .filter(Boolean)
             .join(" · "),
         ) +
+        '</p><p class="muted">' +
+        esc(this.identityLabel(modelState)) +
         "</p>" +
         (status
           ? '<p class="hero-status">' +
             esc(status) +
-            (lockLabel && this.qualityLabel(lockState)
-              ? " · " + esc(this.qualityLabel(lockState))
+            (lockLabel && this.observationLabel(lockState)
+              ? " · " + esc(this.observationLabel(lockState))
               : "") +
             "</p>"
           : "") +
@@ -1856,12 +2338,14 @@ class AudiVehiclePanel extends HTMLElement {
         selector +
         "</div>" +
         (this.tab === "Overview" && image
-          ? '<div class="vehicle-picture"><img referrerpolicy="no-referrer" alt="Manufacturer vehicle image" src="' +
+          ? '<div class="vehicle-picture"><img referrerpolicy="no-referrer" alt="' +
+            esc(this.tr("Manufacturer vehicle image")) +
+            '" src="' +
             esc(image) +
             '"></div>'
           : "") +
         '<div class="hero-footer"><span>' +
-        esc(this.tr("Vehicle data")) +
+        esc(this.tr("Newest vehicle measurement")) +
         " · " +
         esc(
           freshness
@@ -1884,7 +2368,14 @@ class AudiVehiclePanel extends HTMLElement {
       const primary = this.ordered(rows, PRIMARY[this.tab] || []);
       const used = new Set(primary.map((row) => row.entity_id));
       if (this.tab === "Overview") {
-        body += this.energyCards() + this.homeActions() + this.statusRows();
+        body +=
+          '<div class="overview-layout"><div>' +
+          this.energyCards() +
+          this.homeActions() +
+          "</div><div>" +
+          this.statusRows() +
+          this.refreshPanel() +
+          "</div></div>";
         used.clear();
         for (const row of rows)
           if (
@@ -1901,6 +2392,10 @@ class AudiVehiclePanel extends HTMLElement {
               "sensor.service_overview",
               "sensor.vehicle_data_freshness",
               "sensor.vehicle_data_age",
+              "binary_sensor.integration_problem",
+              "button.v3_refresh_cloud",
+              "button.refresh_vehicle_data",
+              "button.wake_vehicle_modern",
             ].includes(row.key)
           )
             used.add(row.entity_id);
@@ -1927,7 +2422,18 @@ class AudiVehiclePanel extends HTMLElement {
           const climate = this.row("climate.climatisation");
           body += this.climatePanel(climate);
           used.add(climate.entity_id);
+          const alias = this.row("switch.climate_quick_control");
+          if (alias) used.add(alias.entity_id);
         }
+        const access =
+          this.tab === "Access & Security" ? this.accessStatus(rows) : null;
+        const specialized = new Set(
+          this.tab === "Location"
+            ? ["device_tracker.position"]
+            : this.tab === "Service & Health" && this.dealerHTML()
+              ? ["sensor.local_dealer"]
+              : [],
+        );
         const featured = primary.filter(
           (row) =>
             !(
@@ -1941,13 +2447,19 @@ class AudiVehiclePanel extends HTMLElement {
                 "sensor.charging_complete_time",
               ].includes(row.key)
             ) &&
-            !(this.tab === "Climate" && row.key === "climate.climatisation"),
+            !(this.tab === "Climate" && row.key === "climate.climatisation") &&
+            !access?.used.has(row.entity_id) &&
+            !specialized.has(row.key),
         );
         body += this.section(
           this.tab === "Trips & Consumption" ? "Last trip" : "Current status",
           featured,
           "grid glance",
         );
+        if (access) {
+          body += access.html;
+          for (const id of access.used) used.add(id);
+        }
         if (this.tab === "Trips & Consumption") {
           for (const [prefix, label] of [
             ["shortterm_", "Short-term statistics"],
@@ -2009,13 +2521,7 @@ class AudiVehiclePanel extends HTMLElement {
               : this.tr("Powertrain unknown"),
           ) +
           '</p><p class="muted">' +
-          esc(
-            attrs.identity_restored
-              ? "Last known manufacturer identity"
-              : attrs.presentation_source === "ha_registry_last_known"
-                ? "Last known registry identity"
-                : "Manufacturer information when reported",
-          ) +
+          esc(this.identityLabel(modelState)) +
           "</p></section>";
       if (this.tab === "Vehicle & Documents")
         body +=
@@ -2048,7 +2554,29 @@ class AudiVehiclePanel extends HTMLElement {
               ),
             ) +
             "</p></section>");
-      if (this.tab === "Settings")
+      if (this.tab === "Settings") {
+        const shortcuts = [
+          ["Charging", "Charging"],
+          ["Climate", "Climate"],
+          ["Access & Security", "Access"],
+          ["Service & Health", "Service"],
+        ].filter(([tab]) => this.hasTab(tab));
+        body +=
+          '<section class="status-card"><h2>' +
+          esc(this.tr("Vehicle preferences")) +
+          '</h2><div class="actions">' +
+          shortcuts
+            .map(
+              ([tab, label]) =>
+                '<button data-tab="' +
+                esc(tab) +
+                '">' +
+                esc(this.tr(label)) +
+                "</button>",
+            )
+            .join("") +
+          "</div></section>";
+        body += this.refreshPanel();
         body +=
           "<section><h2>" +
           esc(this.tr("Configuration")) +
@@ -2075,12 +2603,17 @@ class AudiVehiclePanel extends HTMLElement {
               ) +
               "</p>") +
           "</section>";
+      }
     } else
       body =
         "<section><h2>" +
         esc(
           this.tr(
-            this.loading ? "Loading vehicles…" : "No accessible Audi vehicles",
+            this._hass?.connected === false
+              ? "Connection lost"
+              : this.loading
+                ? "Loading vehicles…"
+                : "No accessible Audi vehicles",
           ),
         ) +
         ("</h2><p>" +
@@ -2090,14 +2623,9 @@ class AudiVehiclePanel extends HTMLElement {
             ),
           ) +
           "</p></section>");
-    this.shadowRoot.innerHTML =
+    const html =
       "<style>" +
-      ":host{display:block;color:var(--primary-text-color);background:var(--primary-background-color);min-height:100%;font-family:var(--paper-font-body1_-_font-family,inherit)}" +
-      "*{box-sizing:border-box}main{max-width:1240px;margin:auto;padding:clamp(12px,3vw,32px)}header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}header strong{font-size:1.35rem;margin-right:auto}select,button,a,input{font:inherit}button,select,a,input{min-height:42px;border:1px solid var(--divider-color);border-radius:10px;padding:9px 13px;color:var(--primary-text-color);background:var(--card-background-color);cursor:pointer}a{display:inline-flex;align-items:center;text-decoration:none}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--primary-color)}button:disabled{opacity:.5;cursor:default}" +
-      ".hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:150px;border-radius:22px;padding:clamp(18px,4vw,36px);background:var(--card-background-color);border:1px solid var(--divider-color);overflow:hidden}.hero img{width:min(48%,500px);max-height:220px;object-fit:contain}.hero h1{margin:6px 0;font-size:clamp(1.6rem,4vw,2.8rem)}.eyebrow{letter-spacing:.15em;font-size:.75rem;color:var(--secondary-text-color)}.muted,small,.label{color:var(--secondary-text-color)}" +
-      "nav{display:flex;gap:8px;overflow:auto;padding:16px 0}nav button{white-space:nowrap;flex:1;font-weight:600}.subnav{padding:0 0 8px}.subnav button{flex:0 0 auto;font-weight:400}.shortcuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}.shortcuts button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:14px 8px}.shortcuts ha-icon{--mdc-icon-size:26px}.disclosure{width:100%;text-align:left}.glance .tile{min-height:110px}.quickbar{display:flex;gap:8px;flex-wrap:wrap}.quickbar button{flex:1 0 auto;min-width:110px}.glance .tile:not(:has(.action)):not(:has(.editor)){min-height:96px}.quick .tile{min-height:125px}nav button[aria-pressed=true],.action{background:var(--primary-color);color:var(--text-primary-color,#fff);border-color:var(--primary-color)}section{margin:12px 0 24px}h2{font-size:1.15rem;margin:10px 0 12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px}.tile{display:flex;flex-direction:column;gap:9px;min-height:140px;border:1px solid var(--divider-color);background:var(--card-background-color);border-radius:16px;padding:16px;overflow-wrap:anywhere}.tile strong{font-size:1.4rem;text-transform:none}.label{font-size:.86rem}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}.tile button{font-size:.85rem}.editor{display:flex;gap:6px;align-items:center}.editor input,.editor select{min-width:0;width:100%}.meter{height:7px;background:var(--divider-color);border-radius:7px;overflow:hidden}.meter span{display:block;height:100%;background:var(--primary-color);border-radius:7px}.message{padding:12px;border-left:3px solid var(--primary-color);background:var(--card-background-color)}.table{overflow:auto}table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid var(--divider-color);text-align:left}" +
-      "@media(max-width:600px){.hero{flex-direction:column;align-items:flex-start;gap:4px}.hero img{width:100%;max-height:145px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{padding:12px}.tile strong{font-size:1.12rem}}" +
-      ".hero{display:block;padding:18px;border-radius:20px;min-height:0}.hero-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.hero-head h1{font-size:1.4rem}.hero-head p{margin:5px 0;color:var(--secondary-text-color)}.hero-head select{max-width:45%}.hero-status{font-size:.9rem}.hero-footer{display:flex;align-items:center;justify-content:space-between;font-size:.85rem;color:var(--secondary-text-color);margin-top:10px;gap:8px}.hero-footer button{border:0;padding:5px;min-height:32px}.vehicle-picture{margin-top:12px;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--secondary-background-color);height:clamp(180px,36vw,360px)}.vehicle-picture img{width:100%;height:100%;max-height:none;object-fit:contain}.energy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px}.energy{background:var(--card-background-color);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}.energy strong{font-size:1.8rem}.energy ha-icon{--mdc-icon-size:18px}.electric .meter span{background:#64c99b}.fuel .meter span{background:#7da7d9}.status-card{background:var(--card-background-color);border-radius:16px;padding:16px}.status-row{display:flex;align-items:center;gap:10px;width:100%;border:0;border-bottom:1px solid var(--divider-color);border-radius:0;text-align:left;padding:11px 0;background:transparent}.status-row:last-child{border:0}.status-value{margin-left:auto;text-align:right}.status-value small{display:block}.total-range{color:var(--secondary-text-color);font-size:.9rem}.shortcuts button{background:var(--card-background-color);border:0}.shortcuts{grid-template-columns:repeat(auto-fit,minmax(70px,1fr))}nav button{flex:0 0 auto;border:0;border-radius:24px;background:transparent}nav button[aria-pressed=true]{background:var(--primary-text-color);color:var(--primary-background-color)}.settings-button{border:0;background:transparent}.hero-head h1{overflow-wrap:anywhere}.service-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.service-form label{display:flex;flex-direction:column;gap:6px}.service-form input{width:100%}.trip-chart{display:grid;gap:9px;margin:16px 0}.trip-chart>div{display:grid;grid-template-columns:90px 1fr 70px;align-items:center;gap:8px}.trip-chart>div>span{text-align:right}#parking-map{margin:12px 0}.trip-chart h3{margin:4px 0;font-size:.95rem}.trip-chart{margin:20px 0}.command-feedback{margin:10px 0}.status-value{overflow-wrap:anywhere;min-width:0}.climate-panel{text-align:center}.climate-panel svg{display:block;width:min(100%,260px);margin:0 auto}.climate-panel .actions,.climate-panel .editor{justify-content:center;margin:12px auto;max-width:360px}.charge-level{display:grid;gap:8px;margin:14px 0}.charge-level strong{font-size:2.4rem}.charge-panel .actions{margin-top:16px}.attention{font-weight:600;color:var(--warning-color,var(--primary-text-color))}" +
+      PANEL_STYLE +
       ('</style><main><header><div style="flex:1"><strong>Audi Connect</strong><div class="muted">' +
         esc(this.tr("My garage")) +
         "</div></div>") +
@@ -2118,6 +2646,48 @@ class AudiVehiclePanel extends HTMLElement {
         : "") +
       body +
       "</main>";
+    this.updateView(html);
+  }
+  updateView(html) {
+    // Avoid replacing unchanged markup and preserve focus through actual state updates.
+    const root = this.shadowRoot;
+    if (html !== this._renderedHTML) {
+      const active = root.activeElement;
+      const key =
+        active && this.current()
+          ? [active.tagName, active.id, JSON.stringify(active.dataset)]
+          : null;
+      const selection =
+        active?.selectionStart == null
+          ? null
+          : [active.selectionStart, active.selectionEnd];
+      const navScroll = root.querySelector?.("nav")?.scrollLeft || 0;
+      root.innerHTML = html;
+      this._renderedHTML = html;
+      const nav = root.querySelector?.("nav");
+      if (nav) nav.scrollLeft = navScroll;
+      if (key) {
+        const next = [
+          ...(root.querySelectorAll?.("button,input,select,a") || []),
+        ].find(
+          (el) =>
+            el.tagName === key[0] &&
+            el.id === key[1] &&
+            JSON.stringify(el.dataset) === key[2] &&
+            !el.disabled,
+        );
+        if (next && (key[1] || key[2] !== "{}")) {
+          next.focus({ preventScroll: true });
+          if (selection && next.setSelectionRange) {
+            try {
+              next.setSelectionRange(...selection);
+            } catch {
+              /* unsupported input type */
+            }
+          }
+        }
+      }
+    }
     if (this.tab === "Location") void this.mountMap();
   }
 }

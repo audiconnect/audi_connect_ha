@@ -97,3 +97,37 @@ def test_options_flow_translations_have_manual_dealer_steps():
         assert "dealer_vehicle" in data["options"]["step"]
         assert "dealer" in data["options"]["step"]
         assert "experimental_commands" not in data["options"]["step"]["general"]["data"]
+
+
+def test_v3_service_summary_uses_retained_maintenance_and_conservative_quality():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.entities import V3LocalServiceSensor
+
+    now = datetime.now(UTC)
+    car = NS(
+        vin="test",
+        readings={
+            "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION": {
+                "value": None,
+                "status": "invalid_value",
+                "last_known": {
+                    "value": 14,
+                    "status": "verified",
+                    "captured": (now - timedelta(hours=3)).isoformat(),
+                },
+            },
+            "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE": {
+                "value": 90,
+                "status": "verified",
+                "captured": now.isoformat(),
+            },
+        },
+    )
+    coordinator = NS(engine=NS(entry=NS(options={})))
+    summary = V3LocalServiceSensor(coordinator, car, "service_overview")
+    assert summary.native_value == "due_soon"
+    assert summary.extra_state_attributes["inspection_due_days"] == 14
+    assert summary.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
+    assert "vehicle_captured" not in summary.extra_state_attributes
+    car.readings["MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE"].pop("captured")
+    assert summary.extra_state_attributes["vehicle_freshness"] == "unknown"

@@ -191,3 +191,43 @@ def test_scoped_trip_snapshots_survive_restart_and_never_replace_longterm_with_h
         assert restored.trips["last_trip"]["totalFuelConsumption"] == 0.5
 
     asyncio.run(scenario())
+
+
+def test_period_archive_filters_before_pagination_and_reports_missing_coverage():
+    import pytest
+    from custom_components.audiconnect.v3.trip_archive import trip_history_payload
+
+    rows = normalize_cariad_history(
+        {
+            "data": [
+                _row("2026-11-01T00:00:00Z", totalElectricConsumption_kwh=0),
+                _row("2026-11-02T00:00:00Z", totalFuelConsumption_L=2),
+                _row("2026-11-03T00:00:00Z", totalElectricConsumption_kwh=8),
+            ]
+        }
+    )
+    query = {"start_date": "2026-11-01", "end_date": "2026-11-03"}
+    page = trip_history_payload(rows, limit=1, **query)
+    assert page["total"] == 2
+    assert len(page["trips"]) == 1
+    assert page["metrics"]["totalElectricConsumption"] == {
+        "sum": 0,
+        "reported_count": 1,
+    }
+    assert page["metrics"]["totalFuelConsumption"] == {"sum": 2, "reported_count": 1}
+    assert page["metrics"]["traveltime"] == {"sum": None, "reported_count": 0}
+    exported = trip_history_payload(rows, export=True, **query)
+    assert len(exported["trips"]) == exported["total"] == 2
+    assert exported["metrics"] == page["metrics"]
+    assert (
+        trip_history_payload(rows, offset=1, limit=1, **query)["trips"] != page["trips"]
+    )
+    assert trip_history_payload(rows, start_date="2027-01-01")["total"] == 0
+    for start, end in [
+        ("2026-11-03", "2026-11-03"),
+        ("2026-11-04", "2026-11-03"),
+        ("2026-02-30", None),
+        ("not-a-date", None),
+    ]:
+        with pytest.raises(ValueError):
+            trip_history_payload(rows, start_date=start, end_date=end)

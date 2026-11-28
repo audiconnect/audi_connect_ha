@@ -55,9 +55,10 @@ class RateLimit:
     ) -> None:
         probe_reserved = self._probe_reserved
         self._probe_reserved = False
-        if 200 <= status < (400 if allow_redirect else 300) or (
-            accepted_empty and status == 404
-        ):
+        if (
+            200 <= status < (400 if allow_redirect else 300)
+            or (accepted_empty and status == 404)
+        ) and (self.retry_at is None or probe_reserved):
             self.retry_at = None
             if self.clear_streak_on_success:
                 self.rate_limit_streak = 0

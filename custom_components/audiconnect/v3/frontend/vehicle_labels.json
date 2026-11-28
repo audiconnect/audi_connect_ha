@@ -547,5 +547,130 @@
     "Statistieken lange termijn",
     "Statistiques à long terme",
     "Langzeitstatistik"
+  ],
+  "Identity not confirmed": [
+    "Identiteit niet bevestigd",
+    "Identité non confirmée",
+    "Identität nicht bestätigt"
+  ],
+  "Newest vehicle measurement": [
+    "Nieuwste voertuigmeting",
+    "Mesure véhicule la plus récente",
+    "Neueste Fahrzeugmessung"
+  ],
+  "Reported recurrence": [
+    "Gemelde herhaling",
+    "Récurrence signalée",
+    "Gemeldete Wiederholung"
+  ],
+  "Climate on departure": [
+    "Klimaat bij vertrek",
+    "Climatisation au départ",
+    "Klimatisierung bei Abfahrt"
+  ],
+  "Preferred charging window": [
+    "Voorkeurslaadperiode",
+    "Plage de recharge préférée",
+    "Bevorzugtes Ladefenster"
+  ],
+  "Integration status": [
+    "Integratiestatus",
+    "État de l’intégration",
+    "Integrationsstatus"
+  ],
+  "Monday": ["maandag", "lundi", "Montag"],
+  "Tuesday": ["dinsdag", "mardi", "Dienstag"],
+  "Wednesday": ["woensdag", "mercredi", "Mittwoch"],
+  "Thursday": ["donderdag", "jeudi", "Donnerstag"],
+  "Friday": ["vrijdag", "vendredi", "Freitag"],
+  "Saturday": ["zaterdag", "samedi", "Samstag"],
+  "Sunday": ["zondag", "dimanche", "Sonntag"],
+  "Other openings and security": [
+    "Overige openingen en beveiliging",
+    "Autres ouvertures et sécurité",
+    "Weitere Öffnungen und Sicherheit"
+  ],
+  "From date (UTC)": [
+    "Vanaf datum (UTC)",
+    "À partir du (UTC)",
+    "Ab Datum (UTC)"
+  ],
+  "Before date (UTC)": [
+    "Vóór datum (UTC)",
+    "Avant le (UTC)",
+    "Vor Datum (UTC)"
+  ],
+  "Apply period": [
+    "Periode toepassen",
+    "Appliquer la période",
+    "Zeitraum anwenden"
+  ],
+  "Clear period": [
+    "Periode wissen",
+    "Effacer la période",
+    "Zeitraum zurücksetzen"
+  ],
+  "Export CSV": ["CSV exporteren", "Exporter CSV", "CSV exportieren"],
+  "Observed period totals": [
+    "Gemeten periodetotalen",
+    "Totaux observés sur la période",
+    "Beobachtete Summen im Zeitraum"
+  ],
+  "Applied period (UTC)": [
+    "Toegepaste periode (UTC)",
+    "Période appliquée (UTC)",
+    "Angewandter Zeitraum (UTC)"
+  ],
+  "reported": ["gerapporteerd", "rapportés", "gemeldet"],
+  "Duration": ["Duur", "Durée", "Dauer"],
+  "Start date must precede end date.": [
+    "Startdatum moet vóór einddatum liggen.",
+    "La date de début doit précéder la date de fin.",
+    "Das Startdatum muss vor dem Enddatum liegen."
+  ],
+  "Connection lost": [
+    "Verbinding verbroken",
+    "Connexion perdue",
+    "Verbindung unterbrochen"
+  ],
+  "Recent trips on this page": [
+    "Recente ritten op deze pagina",
+    "Trajets récents de cette page",
+    "Letzte Fahrten auf dieser Seite"
+  ],
+  "Update vehicle data": [
+    "Voertuiggegevens vernieuwen",
+    "Actualiser les données du véhicule",
+    "Fahrzeugdaten aktualisieren"
+  ],
+  "Refresh account data without waking the vehicle.": [
+    "Accountgegevens vernieuwen zonder het voertuig te wekken.",
+    "Actualiser les données du compte sans réveiller le véhicule.",
+    "Kontodaten aktualisieren, ohne das Fahrzeug zu wecken."
+  ],
+  "Request newer vehicle data, if supported.": [
+    "Recentere voertuiggegevens opvragen, indien ondersteund.",
+    "Demander des données véhicule plus récentes, si pris en charge.",
+    "Neuere Fahrzeugdaten anfordern, sofern unterstützt."
+  ],
+  "Wake the vehicle only when needed.": [
+    "Wek het voertuig alleen wanneer nodig.",
+    "Réveiller le véhicule uniquement si nécessaire.",
+    "Fahrzeug nur bei Bedarf wecken."
+  ],
+  "Refreshing this view does not contact Audi.": [
+    "Deze weergave vernieuwen maakt geen verbinding met Audi.",
+    "Actualiser cette vue ne contacte pas Audi.",
+    "Das Aktualisieren dieser Ansicht kontaktiert Audi nicht."
+  ],
+  "Vehicle preferences": [
+    "Voertuigvoorkeuren",
+    "Préférences du véhicule",
+    "Fahrzeugeinstellungen"
+  ],
+  "Some schedule details could not be interpreted.": [
+    "Sommige planningsgegevens konden niet worden geïnterpreteerd.",
+    "Certains détails de planification n’ont pas pu être interprétés.",
+    "Einige Zeitplandetails konnten nicht interpretiert werden."
   ]
 }

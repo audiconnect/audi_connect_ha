@@ -486,3 +486,17 @@ def test_native_observation_and_restrictions_are_not_a_shared_read_counter():
     restored.authorize(later, family="cariad", read_only=False)
     restored.observe(200, {}, later, family="cariad", read_only=False)
     assert restored.rate_limit_checkpoint() == {}
+
+
+def test_unreserved_success_cannot_clear_observed_cooldown():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    limit = RateLimit()
+    limit.observe(429, {"Retry-After": "60"}, now)
+    due = limit.retry_at
+    limit.observe(200, {}, now + timedelta(seconds=1))
+    assert limit.retry_at == due
+    assert limit.rate_limit_streak == 1
+    limit.authorize(due)
+    limit.observe(200, {}, due)
+    assert limit.retry_at is None
+    assert limit.rate_limit_streak == 0

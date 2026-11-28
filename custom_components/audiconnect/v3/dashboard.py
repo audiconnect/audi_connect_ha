@@ -834,9 +834,6 @@ async def _async_setup_panel_resources(hass) -> None:
     # HA websocket commands and static paths live for the HA process.
     # Removing and re-adding the optional sidebar must not register duplicates.
     if not hass.data.get(_HANDLERS_KEY):
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig("/audiconnect_v3", str(frontend_dir), False)]
-        )
         for handler in (
             ws_list,
             ws_status,
@@ -868,6 +865,9 @@ async def _async_setup_panel_resources(hass) -> None:
             ws_service_details,
         ):
             websocket_api.async_register_command(hass, handler)
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig("/audiconnect_v3", str(frontend_dir), False)]
+        )
         hass.data[_HANDLERS_KEY] = True
 
 

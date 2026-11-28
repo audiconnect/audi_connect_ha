@@ -248,3 +248,248 @@ def test_profile_names_keep_native_instance_identity(native):
     rows = panel.vehicle_list(native.hass, user({profile.entity_id}))
     assert rows[0]["entities"][0]["translation_key"] is None
     assert rows[0]["entities"][0]["name"] == profile.original_name
+
+
+async def test_consumer_websocket_dispatch_with_native_ha_registry_and_permissions(
+    tmp_path,
+):
+    """Real HA dispatcher, schema, registry and user; no OEM or HTTP socket."""
+    import json
+    from types import MappingProxyType
+
+    from homeassistant.components import websocket_api
+    from homeassistant.components.websocket_api.connection import ActiveConnection
+    from custom_components.audiconnect import AudiRuntimeData, _async_update_listener
+    from homeassistant.config_entries import ConfigEntries, ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+    hass = HomeAssistant(str(tmp_path))
+    hass.config_entries = ConfigEntries(hass, {})
+    await hass.config_entries.async_initialize()
+    dr.async_setup(hass)
+    await dr.async_load(hass, load_empty=True)
+    await er.async_load(hass, load_empty=True)
+    entry = ConfigEntry(
+        domain="audiconnect",
+        title="Audi",
+        data={},
+        options={"runtime_version": "v3_climate"},
+        source="user",
+        version=1,
+        minor_version=1,
+        unique_id="test-account",
+        discovery_keys=MappingProxyType({}),
+        pref_disable_new_entities=False,
+        pref_disable_polling=False,
+        subentries_data=None,
+        state=ConfigEntryState.LOADED,
+    )
+    # Seed an already loaded fixture account without calling the Audi network.
+    hass.config_entries._entries[entry.entry_id] = entry
+    vin = "testvin0000000001"
+    engine = Mock(spec=V3Engine)
+    engine.vehicles = {vin: NS(vin=vin, inventory_present=True, trip_history=[])}
+    coordinator = NS(async_update_listeners=Mock())
+    entry.runtime_data = AudiRuntimeData(
+        account=None,
+        coordinator=coordinator,
+        v3=engine,
+        options_snapshot=dict(entry.options),
+        data_snapshot=dict(entry.data),
+    )
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={("audiconnect", vin)},
+        name="Audi fixture",
+    )
+    registry = er.async_get(hass)
+    model = registry.async_get_or_create(
+        "sensor",
+        "audiconnect",
+        vin + "_sensor_model",
+        config_entry=entry,
+        device_id=device.id,
+        suggested_object_id="audi_model",
+    )
+    trips = registry.async_get_or_create(
+        "sensor",
+        "audiconnect",
+        vin + "_sensor_trip_history",
+        config_entry=entry,
+        device_id=device.id,
+        suggested_object_id="audi_trips",
+    )
+    dealer = registry.async_get_or_create(
+        "sensor",
+        "audiconnect",
+        vin + "_sensor_local_dealer",
+        config_entry=entry,
+        device_id=device.id,
+        suggested_object_id="audi_dealer",
+    )
+    other = ConfigEntry(
+        domain="audiconnect",
+        title="Other Audi",
+        data={},
+        options={"runtime_version": "v3_climate"},
+        source="user",
+        version=1,
+        minor_version=1,
+        unique_id="other-account",
+        discovery_keys=MappingProxyType({}),
+        pref_disable_new_entities=False,
+        pref_disable_polling=False,
+        subentries_data=None,
+        state=ConfigEntryState.LOADED,
+    )
+    hass.config_entries._entries[other.entry_id] = other
+    other_vin = "testvin0000000002"
+    other_engine = Mock(spec=V3Engine)
+    other_engine.vehicles = {
+        other_vin: NS(vin=other_vin, inventory_present=True, trip_history=[])
+    }
+    other.runtime_data = NS(v3=other_engine)
+    other_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=other.entry_id,
+        identifiers={("audiconnect", other_vin)},
+        name="Other fixture",
+    )
+    other_dealer = registry.async_get_or_create(
+        "sensor",
+        "audiconnect",
+        other_vin + "_sensor_local_dealer",
+        config_entry=other,
+        device_id=other_device.id,
+        suggested_object_id="other_dealer",
+    )
+    lookup = PermissionLookup(
+        entity_registry=registry, device_registry=dr.async_get(hass)
+    )
+    user = User(
+        name="Resident",
+        perm_lookup=lookup,
+        is_active=True,
+        groups=[
+            Group(
+                name="Read model only",
+                policy={"entities": {"entity_ids": {model.entity_id: {"read": True}}}},
+            )
+        ],
+    )
+    assert len(vin) == 17
+    assert user.permissions.check_entity(model.entity_id, "read")
+    assert panel._scoped_vehicle(hass, model) is not None
+    for handler in (
+        panel.ws_vehicle_list,
+        panel.ws_vehicle_trips,
+        panel.ws_service_details,
+    ):
+        websocket_api.async_register_command(hass, handler)
+    messages = []
+    connection = ActiveConnection(Mock(), hass, messages.append, user, None, None)
+
+    async def request(msg):
+        connection.async_handle(msg)
+        await hass.async_block_till_done(wait_background_tasks=True)
+        result = messages.pop(0)
+        return json.loads(result) if isinstance(result, (bytes, str)) else result
+
+    try:
+        response = await request({"id": 1, "type": "audiconnect/vehicle/list"})
+        assert response["success"]
+        assert [
+            item["entity_id"] for item in response["result"]["vehicles"][0]["entities"]
+        ] == [model.entity_id]
+        assert "configuration_entry" not in response["result"]["vehicles"][0]
+        assert vin not in str(response)
+        denied = await request(
+            {"id": 2, "type": "audiconnect/vehicle/trips", "entity_id": trips.entity_id}
+        )
+        assert not denied["success"] and denied["error"]["code"] == "unauthorized"
+        denied = await request(
+            {
+                "id": 3,
+                "type": "audiconnect/vehicle/service_details",
+                "entity_id": dealer.entity_id,
+                "updates": {"dealer_name": "Not allowed"},
+            }
+        )
+        assert not denied["success"] and denied["error"]["code"] == "unauthorized"
+        assert "local_dealers" not in entry.options
+        malformed = await request(
+            {
+                "id": 4,
+                "type": "audiconnect/vehicle/trips",
+                "entity_id": trips.entity_id,
+                "limit": 10001,
+            }
+        )
+        assert (
+            not malformed["success"] and malformed["error"]["code"] == "invalid_format"
+        )
+        # The real dispatcher now receives the administrator's authenticated user
+        # context. Both accounts exist, but the write is scoped by native entity ID.
+        connection.user = User(
+            name="Owner", perm_lookup=lookup, is_active=True, is_owner=True
+        )
+        saved = await request(
+            {
+                "id": 5,
+                "type": "audiconnect/vehicle/service_details",
+                "entity_id": dealer.entity_id,
+                "updates": {"dealer_name": "New dealer"},
+            }
+        )
+        assert saved["success"]
+        assert entry.options["local_dealers"][vin]["dealer_name"] == "New dealer"
+        assert "local_dealers" not in other.options
+        coordinator.async_update_listeners.assert_called_once_with()
+        readback = await request(
+            {
+                "id": 6,
+                "type": "audiconnect/vehicle/service_details",
+                "entity_id": dealer.entity_id,
+            }
+        )
+        assert readback["result"]["settings"] == {"dealer_name": "New dealer"}
+        second = await request(
+            {
+                "id": 7,
+                "type": "audiconnect/vehicle/service_details",
+                "entity_id": other_dealer.entity_id,
+            }
+        )
+        assert second["result"]["settings"] == {}
+        archive = await request(
+            {
+                "id": 8,
+                "type": "audiconnect/vehicle/trips",
+                "entity_id": trips.entity_id,
+                "start_date": "2026-11-01",
+                "end_date": "2026-12-01",
+            }
+        )
+        assert archive["success"] and archive["result"]["total"] == 0
+    finally:
+        connection.async_handle_close()
+        await hass.async_block_till_done(wait_background_tasks=True)
+        hass.import_executor.shutdown(wait=True)
+
+
+def test_trip_period_uses_existing_native_permissions(native):
+    allowed = user({native.trips.entity_id})
+    result = panel.vehicle_trips(
+        native.hass,
+        allowed,
+        native.trips.entity_id,
+        start_date="2026-11-01",
+        end_date="2026-12-01",
+    )
+    assert result["start_date"] == "2026-11-01"
+    assert result["total"] == 0
+    with pytest.raises(PermissionError):
+        panel.vehicle_trips(
+            native.hass, user(set()), native.trips.entity_id, start_date="2026-11-01"
+        )

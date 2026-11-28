@@ -140,17 +140,30 @@ function browserJourney() {
     panel.hass = hass;
     await tick();
     const root = panel.shadowRoot;
-    const tab = (key) =>
-      root.querySelector("nav button[data-tab='" + key + "']").click();
     const overflow = () =>
       root.querySelector("main").scrollWidth <=
       root.querySelector("main").clientWidth + 1;
+    const tab = (key) => {
+      root.querySelector("nav button[data-tab='" + key + "']").click();
+      assert(overflow(), key + " overflow");
+    };
     assert(root.querySelector(".hero"), "Vehicle hero");
     assert(
       root.querySelectorAll(".energy-grid .energy").length === 2,
       "Battery and fuel",
     );
     assert(root.querySelector(".shortcuts"), "Quick actions");
+    const layout = root.querySelector(".overview-layout");
+    assert(
+      layout && getComputedStyle(layout).display === "grid",
+      "Responsive overview grid",
+    );
+    const columns =
+      getComputedStyle(layout).gridTemplateColumns.split(" ").length;
+    assert(
+      columns === (window.innerWidth >= 900 ? 2 : 1),
+      "Responsive overview columns",
+    );
     assert(root.querySelector("button[data-tab='Settings']"), "Settings gear");
     assert(overflow(), "Overview overflow");
     assert(
@@ -163,8 +176,28 @@ function browserJourney() {
     assert(calls.length === start, "Navigation must not dispatch");
     const input = root.querySelector("input[data-edit-entity='number.target']");
     assert(input, "Charge limit editor");
+    input.focus();
     input.value = "90";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    panel.hass = {
+      ...hass,
+      states: {
+        ...hass.states,
+        "sensor.charge_state": read("charging", { vehicle_freshness: "fresh" }),
+      },
+    };
+    assert(
+      root.activeElement?.dataset.editEntity === "number.target",
+      "Focus survives relevant HA update",
+    );
+    assert(
+      root.activeElement.value === "90",
+      "Draft survives relevant HA update",
+    );
+    assert(
+      root.textContent.includes("charging"),
+      "New status visible while editing",
+    );
     root
       .querySelector("button[data-entity='number.target'][data-save]")
       .click();
@@ -211,6 +244,19 @@ function browserJourney() {
       "Distance, electric and fuel charts",
     );
     assert(root.textContent.includes("0 kWh"), "Recorded zero preserved");
+    const from = root.querySelector("input[data-trip-date='start_date']");
+    from.value = "2026-11-01";
+    from.dispatchEvent(new Event("input", { bubbles: true }));
+    root.querySelector("button[data-trips='0']").click();
+    await tick();
+    assert(
+      calls.at(-1).start_date === "2026-11-01",
+      "Trip filter uses scoped archive",
+    );
+    assert(
+      root.querySelector("button[data-export='csv']"),
+      "CSV export available",
+    );
     tab("Service & Health");
     assert(root.textContent.includes("Test city"), "Local service contact");
     root.querySelector("button[data-service-edit]").click();
@@ -277,16 +323,17 @@ function browserJourney() {
 
 const browserScript = "(" + browserJourney.toString() + ")();";
 
-function fixture(width) {
+function fixture(width, theme) {
   return (
     '<!doctype html><html><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     "<style>html,body{margin:0;font:16px sans-serif}body{width:" +
     width +
-    "px;max-width:100vw;--primary-text-color:#f4f4f4;--secondary-text-color:#b9c2cc;" +
-    "--primary-background-color:#13171b;--secondary-background-color:#20262c;" +
-    "--card-background-color:#20262c;--divider-color:#3d4650;--primary-color:#729fcf;" +
-    "--text-primary-color:#10161c;background:#13171b}</style></head>" +
+    "px;max-width:100vw;" +
+    (theme === "light"
+      ? "--primary-text-color:#13171b;--secondary-text-color:#4b5563;--primary-background-color:#f5f6f7;--secondary-background-color:#ffffff;--card-background-color:#ffffff;--divider-color:#d4d8de;--primary-color:#285b89;--text-primary-color:#ffffff;background:#f5f6f7"
+      : "--primary-text-color:#f4f4f4;--secondary-text-color:#b9c2cc;--primary-background-color:#13171b;--secondary-background-color:#20262c;--card-background-color:#20262c;--divider-color:#3d4650;--primary-color:#729fcf;--text-primary-color:#10161c;background:#13171b") +
+    "}</style></head>" +
     '<body data-result="PENDING"><audiconnect-vehicle-panel></audiconnect-vehicle-panel>' +
     '<script src="' +
     panelScript +
@@ -296,38 +343,44 @@ function fixture(width) {
   );
 }
 
-for (const width of [390, 768, 1280]) {
-  test("consumer panel in Chromium at " + width + "px", () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "audi-browser-"));
-    try {
-      const file = path.join(directory, "fixture.html");
-      fs.writeFileSync(file, fixture(width));
-      const result = spawnSync(
-        process.env.AUDICONNECT_BROWSER || "google-chrome",
-        [
-          "--headless",
-          "--no-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-background-networking",
-          "--no-first-run",
-          "--window-size=" + width + ",900",
-          "--virtual-time-budget=3000",
-          "--dump-dom",
-          pathToFileURL(file).href,
-        ],
-        { encoding: "utf8", timeout: 30000 },
-      );
-      assert.ifError(result.error);
-      assert.equal(result.status, 0, result.stderr);
-      const body = result.stdout.match(/<body[^>]*data-result="([^"]+)"/);
-      assert.equal(
-        body?.[1],
-        "PASS",
-        result.stdout.match(/<pre>[\s\S]*?<\/pre>/)?.[0] ||
-          "Browser result unavailable",
-      );
-    } finally {
-      fs.rmSync(directory, { recursive: true, force: true });
-    }
-  });
-}
+for (const width of [390, 768, 1280])
+  for (const theme of ["dark", "light"]) {
+    test(
+      "consumer panel in Chromium at " + width + "px (" + theme + ")",
+      () => {
+        const directory = fs.mkdtempSync(
+          path.join(os.tmpdir(), "audi-browser-"),
+        );
+        try {
+          const file = path.join(directory, "fixture.html");
+          fs.writeFileSync(file, fixture(width, theme));
+          const result = spawnSync(
+            process.env.AUDICONNECT_BROWSER || "google-chrome",
+            [
+              "--headless",
+              "--no-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-background-networking",
+              "--no-first-run",
+              "--window-size=" + width + ",900",
+              "--virtual-time-budget=3000",
+              "--dump-dom",
+              pathToFileURL(file).href,
+            ],
+            { encoding: "utf8", timeout: 30000 },
+          );
+          assert.ifError(result.error);
+          assert.equal(result.status, 0, result.stderr);
+          const body = result.stdout.match(/<body[^>]*data-result="([^"]+)"/);
+          assert.equal(
+            body?.[1],
+            "PASS",
+            result.stdout.match(/<pre>[\s\S]*?<\/pre>/)?.[0] ||
+              "Browser result unavailable",
+          );
+        } finally {
+          fs.rmSync(directory, { recursive: true, force: true });
+        }
+      },
+    );
+  }

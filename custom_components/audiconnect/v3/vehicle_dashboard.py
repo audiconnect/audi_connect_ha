@@ -12,6 +12,7 @@ from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
+from .. import _device_entry_ids
 from ..const import DOMAIN
 from ..local_extensions import get_local_dealer, update_local_dealer_options
 from .engine import V3Engine
@@ -59,14 +60,13 @@ def _scoped_vehicle(hass, registered):
     if vehicle is None or not vehicle.inventory_present:
         return None
     device = dr.async_get(hass).async_get(registered.device_id)
-    if (
-        device is None
-        or (DOMAIN, vin) not in device.identifiers
-        or entry.entry_id not in device.config_entries
-    ):
+    if device is None or (DOMAIN, vin) not in device.identifiers:
         return None
-    # A shared device must not resolve through two loaded Audi accounts.
-    for other_id in device.config_entries - {entry.entry_id}:
+    owners = _device_entry_ids(device)
+    if entry.entry_id not in owners:
+        return None
+    # A legacy shared device must not resolve through two loaded Audi accounts.
+    for other_id in owners - {entry.entry_id}:
         other = _loaded_engine(hass.config_entries.async_get_entry(other_id))
         if (
             other is not None
@@ -167,7 +167,17 @@ async def ws_vehicle_list(hass, connection, msg):
     )
 
 
-def vehicle_trips(hass, user, entity_id, *, offset=0, limit=100, export=False):
+def vehicle_trips(
+    hass,
+    user,
+    entity_id,
+    *,
+    offset=0,
+    limit=100,
+    export=False,
+    start_date=None,
+    end_date=None,
+):
     """Read the existing archive only through a permitted native history entity."""
     if not user.permissions.check_entity(entity_id, POLICY_READ):
         raise PermissionError("Trip history unavailable")
@@ -175,7 +185,12 @@ def vehicle_trips(hass, user, entity_id, *, offset=0, limit=100, export=False):
     if scoped is None or scoped[3] != "sensor.trip_history":
         raise ValueError("Trip history unavailable")
     return trip_history_payload(
-        scoped[1].trip_history, offset=offset, limit=limit, export=export
+        scoped[1].trip_history,
+        offset=offset,
+        limit=limit,
+        export=export,
+        start_date=start_date,
+        end_date=end_date,
     )
 
 
@@ -186,6 +201,8 @@ def vehicle_trips(hass, user, entity_id, *, offset=0, limit=100, export=False):
         vol.Optional("offset", default=0): vol.All(int, vol.Range(min=0, max=10000)),
         vol.Optional("limit", default=100): vol.All(int, vol.Range(min=1, max=250)),
         vol.Optional("export", default=False): bool,
+        vol.Optional("start_date"): vol.All(str, vol.Length(min=10, max=10)),
+        vol.Optional("end_date"): vol.All(str, vol.Length(min=10, max=10)),
     }
 )
 @websocket_api.async_response
@@ -201,6 +218,8 @@ async def ws_vehicle_trips(hass, connection, msg):
                 offset=msg["offset"],
                 limit=msg["limit"],
                 export=msg["export"],
+                start_date=msg.get("start_date"),
+                end_date=msg.get("end_date"),
             ),
         )
     except PermissionError:

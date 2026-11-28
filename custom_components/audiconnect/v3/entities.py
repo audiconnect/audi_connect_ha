@@ -837,7 +837,9 @@ class V3LocalServiceSensor(V3BaseEntity, SensorEntity):
     def _value(self, ident):
         row = self.vehicle.readings.get(ident)
         return (
-            row.get("value") if _reading_available(row, allow_last_known=True) else None
+            last_known_observation(row).get("value")
+            if _reading_available(row, allow_last_known=True)
+            else None
         )
 
     @property
@@ -876,7 +878,29 @@ class V3LocalServiceSensor(V3BaseEntity, SensorEntity):
             }
         from .structured_details import details_for
 
+        # The summary combines inspection/oil countdowns. Never label the
+        # composite fresh when a contributing measurement is retained/undated.
+        qualities = [
+            reading_freshness_attributes(
+                self.vehicle.readings.get(ident), allow_last_known=True
+            )["vehicle_freshness"]
+            for ident in (
+                "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION",
+                "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE",
+            )
+            if type(self._value(ident)) in (int, float)
+        ]
+        freshness = (
+            "unknown"
+            if "unknown" in qualities
+            else "stale_last_known"
+            if any(q.startswith("stale") for q in qualities)
+            else "fresh"
+            if qualities
+            else None
+        )
         return {
+            **({"vehicle_freshness": freshness} if freshness else {}),
             **details_for(
                 self.vehicle,
                 "health_warning_evidence_detail",
