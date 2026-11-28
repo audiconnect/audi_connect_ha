@@ -21,7 +21,13 @@ from .product_contract import (
     entity_key,
     product_inventory,
 )
-from .runtime import V3_DEFAULT, V3_ENABLED, V3_RUNTIME_OPTION
+from .runtime import (
+    V3_DEFAULT,
+    V3_ENABLED,
+    V3_RUNTIME_OPTION,
+    dashboard_enabled,
+    workbench_enabled,
+)
 from .trip_archive import trip_history_payload
 
 
@@ -50,7 +56,7 @@ def _scoped_vehicle(hass, registered):
         return None
     entry = hass.config_entries.async_get_entry(registered.config_entry_id)
     engine = _loaded_engine(entry)
-    if engine is None:
+    if engine is None or not dashboard_enabled(entry.options):
         return None
     key = entity_key(registered.unique_id, entry.entry_id)
     if key not in product_inventory()["entities"]:
@@ -89,7 +95,7 @@ def vehicle_list(hass, user):
     vehicles = {}
     conflicts = set()
     for entry in hass.config_entries.async_entries(DOMAIN):
-        if _loaded_engine(entry) is None:
+        if _loaded_engine(entry) is None or not dashboard_enabled(entry.options):
             continue
         for registered in er.async_entries_for_config_entry(registry, entry.entry_id):
             if not user.permissions.check_entity(registered.entity_id, POLICY_READ):
@@ -108,6 +114,17 @@ def vehicle_list(hass, user):
                         device.name_by_user or device.name, vin, "Audi"
                     ),
                     "entities": [],
+                    **(
+                        {
+                            "engineering_context": {
+                                "entry_id": owner.entry_id,
+                                "vin": car.vin,
+                            }
+                        }
+                        if getattr(user, "is_admin", False)
+                        and workbench_enabled(owner.options)
+                        else {}
+                    ),
                 },
             )
             if row["entry_id"] != owner.entry_id:

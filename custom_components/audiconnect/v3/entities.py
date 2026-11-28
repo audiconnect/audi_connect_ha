@@ -1682,6 +1682,7 @@ class V3ModelSensor(V3BaseEntity, SensorEntity):
             "identity_observed_at": self.vehicle.identity_observed_at,
             "identity_operation": self.vehicle.identity_operation,
             "year_operation": self.vehicle.year_operation,
+            "year_observed_at": self.vehicle.year_observed_at,
             "presentation_source": "manufacturer"
             if self.vehicle.model
             else "ha_registry_last_known"

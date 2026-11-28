@@ -1653,3 +1653,81 @@ async def test_enrollment_refusal_defers_only_affected_vehicle_and_survives_relo
     await engine.poll()
     assert transport.request_count == 4
     assert engine.vehicles[VIN.lower()].climate_state == "off"
+
+
+@pytest.mark.asyncio
+async def test_partial_fresh_inventory_after_restart_retains_known_model_year():
+    from custom_components.audiconnect.v3.transport import INVENTORY_OPERATION
+
+    engine, transport, store = engine_for()
+    original = transport.discover_vehicles
+
+    async def complete():
+        rows = await original()
+        rows[0]["vehicle"]["core"] = {"modelYear": 2022}
+        return rows
+
+    transport.discover_vehicles = complete
+    await engine.discover()
+    assert engine.require_vehicle(VIN).model_year == "2022"
+    year_stamp = engine.require_vehicle(VIN).year_observed_at
+    assert year_stamp
+
+    async def load_identity(key, country):
+        return store.records[key]["manufacturer_identity"]
+
+    store.async_identity = load_identity
+    transport.discover_vehicles = original
+    restarted = V3Engine(
+        SimpleNamespace(),
+        SimpleNamespace(entry_id="example"),
+        engine.registry,
+        auth=engine.auth,
+        transport=transport,
+        storage=store,
+    )
+    await restarted.discover()
+    car = restarted.require_vehicle(VIN)
+    assert car.model == "Audi Q8 TFSI e"
+    assert car.model_year == "2022"
+    assert car.year_operation == INVENTORY_OPERATION
+    assert car.year_observed_at == year_stamp
+    assert not car.identity_restored
+    assert store.records[VIN.lower()]["manufacturer_identity"]["year"] == "2022"
+    assert (
+        store.records[VIN.lower()]["manufacturer_identity"]["year_observed_at"]
+        == year_stamp
+    )
+    assert transport.calls == [("inventory",), ("inventory",)]
+
+
+@pytest.mark.asyncio
+async def test_new_year_on_retained_model_preserves_independent_evidence():
+    from custom_components.audiconnect.v3.data_act import IDENTITY_OPERATION
+
+    engine, transport, store = engine_for()
+    await engine.discover()
+    car = engine.require_vehicle(VIN)
+    original_stamp = car.identity_observed_at
+    assert original_stamp and not car.model_year
+
+    async def incomplete():
+        transport.calls.append(("inventory",))
+        return [{"vin": VIN, "vehicle": {"media": None, "core": None}}]
+
+    transport.discover_vehicles = incomplete
+    await engine.discover()
+    assert car.identity_restored
+    candidate = V3Vehicle(VIN, "Audi vehicle", "", "", "DE", model_year="2022")
+    now = datetime.now(UTC)
+    profile = engine.profiles[VIN.lower()]
+    assert engine._apply_identity_candidate(
+        car, profile, candidate, IDENTITY_OPERATION, now, fill_missing=True
+    )
+    assert car.identity_restored
+    assert car.identity_observed_at == original_stamp
+    assert car.year_observed_at == now.isoformat()
+    assert profile.manufacturer_identity["observed_at"] == original_stamp
+    assert profile.manufacturer_identity["year_observed_at"] == now.isoformat()
+    assert profile.manufacturer_identity["year_operation"] == IDENTITY_OPERATION
+    assert transport.calls == [("inventory",), ("inventory",)]

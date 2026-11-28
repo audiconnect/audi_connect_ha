@@ -8,6 +8,12 @@
   "Service": ["Onderhoud", "Entretien", "Service"],
   "Vehicle": ["Voertuig", "Véhicule", "Fahrzeug"],
   "Settings": ["Instellingen", "Paramètres", "Einstellungen"],
+  "Engineering": ["Engineering", "Ingénierie", "Engineering"],
+  "Engineering workspace unavailable": [
+    "Engineeringwerkruimte niet beschikbaar",
+    "Espace d’ingénierie indisponible",
+    "Engineering-Arbeitsbereich nicht verfügbar"
+  ],
   "My garage": ["Mijn garage", "Mon garage", "Meine Garage"],
   "Quick actions": ["Snelle acties", "Actions rapides", "Schnellaktionen"],
   "Vehicle status": ["Voertuigstatus", "État du véhicule", "Fahrzeugstatus"],
@@ -691,5 +697,36 @@
   ],
   "Inspection": ["Inspectie", "Inspection", "Inspektion"],
   "Oil change": ["Olieverversing", "Vidange", "Ölwechsel"],
-  "Powertrain": ["Aandrijflijn", "Motorisation", "Antrieb"]
+  "Powertrain": ["Aandrijflijn", "Motorisation", "Antrieb"],
+  "Manufacturer identity": [
+    "Fabrikantidentiteit",
+    "Identité constructeur",
+    "Herstelleridentität"
+  ],
+  "Model year": ["Modeljaar", "Année modèle", "Modelljahr"],
+  "Next appointment (local)": [
+    "Volgende afspraak (lokaal)",
+    "Prochain rendez-vous (local)",
+    "Nächster Termin (lokal)"
+  ],
+  "Warranty expiry (local)": [
+    "Garantie vervalt (lokaal)",
+    "Fin de garantie (locale)",
+    "Garantieablauf (lokal)"
+  ],
+  "Manufacturer maintenance information": [
+    "Onderhoudsinformatie van de fabrikant",
+    "Informations d’entretien du constructeur",
+    "Wartungsinformationen des Herstellers"
+  ],
+  "Use the official manual for maintenance instructions and myAudi for available service records. These are external services, not synchronized maintenance history.": [
+    "Gebruik het officiële instructieboekje voor onderhoudsinstructies en myAudi voor beschikbare serviceregistraties. Dit zijn externe diensten, geen gesynchroniseerde onderhoudshistoriek.",
+    "Consultez le manuel officiel pour les consignes d’entretien et myAudi pour les relevés disponibles. Ces services externes ne constituent pas un historique synchronisé.",
+    "Nutzen Sie die offizielle Betriebsanleitung für Wartungshinweise und myAudi für verfügbare Servicenachweise. Dies sind externe Dienste, keine synchronisierte Wartungshistorie."
+  ],
+  "Open the official Audi services. Select your vehicle in the external service; availability depends on your market and account.": [
+    "Open de officiële Audi-diensten. Selecteer je voertuig in de externe dienst; beschikbaarheid hangt af van je markt en account.",
+    "Ouvrez les services Audi officiels. Sélectionnez votre véhicule dans le service externe ; la disponibilité dépend de votre marché et de votre compte.",
+    "Öffnen Sie die offiziellen Audi-Dienste. Wählen Sie Ihr Fahrzeug im externen Dienst aus; die Verfügbarkeit hängt von Markt und Konto ab."
+  ]
 }

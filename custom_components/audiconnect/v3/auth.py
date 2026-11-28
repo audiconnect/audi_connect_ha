@@ -196,6 +196,9 @@ class V3Auth:
             "same_as_cariad": bool(access and access == primary),
             "present": bool(access),
             "audience": "unknown",
+            "issuer": "unknown",
+            "configured_client_match": None,
+            "expiry": "unknown",
             "scopes": [],
             "age_minutes": None,
             "claims_verified": False,
@@ -210,12 +213,52 @@ class V3Auth:
             if not isinstance(claims, dict):
                 return result
             audience = claims.get("aud")
-            result["audience"] = (
-                "cariad"
-                if audience == "https://api.cariad.com"
-                or (isinstance(audience, list) and "https://api.cariad.com" in audience)
-                else "other"
-            )
+            if (
+                isinstance(audience, str)
+                and audience
+                or (
+                    isinstance(audience, list)
+                    and audience
+                    and all(isinstance(value, str) and value for value in audience)
+                )
+            ):
+                result["audience"] = (
+                    "cariad"
+                    if audience == "https://api.cariad.com"
+                    or (
+                        isinstance(audience, list)
+                        and "https://api.cariad.com" in audience
+                    )
+                    else "other"
+                )
+            issuer = claims.get("iss")
+            if isinstance(issuer, str) and issuer:
+                result["issuer"] = {
+                    "https://group.identity.vwgroup.io/": "group_identity",
+                    "https://group.identity.vwgroup.io": "group_identity",
+                    "https://identity.vwgroup.io/": "legacy_identity",
+                    "https://identity.vwgroup.io": "legacy_identity",
+                }.get(issuer, "other")
+            configured_client = getattr(self.service, "_client_id", None)
+            client_claims = [
+                claims[key] for key in ("azp", "client_id") if key in claims
+            ]
+            if (
+                isinstance(configured_client, str)
+                and configured_client
+                and client_claims
+                and all(
+                    isinstance(value, str) and value and value == client_claims[0]
+                    for value in client_claims
+                )
+            ):
+                result["configured_client_match"] = (
+                    client_claims[0] == configured_client
+                )
+            now = time.time()
+            expiry = claims.get("exp")
+            if type(expiry) in (int, float) and 0 < expiry <= 253402300799:
+                result["expiry"] = "expired" if expiry <= now else "not_expired"
             scope = claims.get("scope")
             allowed = {
                 "openid",
@@ -231,8 +274,8 @@ class V3Auth:
                 sorted(set(scope.split()) & allowed) if isinstance(scope, str) else []
             )
             iat = claims.get("iat")
-            if type(iat) in (int, float) and 0 <= time.time() - iat <= 86400 * 365:
-                result["age_minutes"] = int((time.time() - iat) / 60)
+            if type(iat) in (int, float) and 0 <= now - iat <= 86400 * 365:
+                result["age_minutes"] = int((now - iat) / 60)
         except (ValueError, TypeError, IndexError, OverflowError, UnicodeError):
             pass
         return result

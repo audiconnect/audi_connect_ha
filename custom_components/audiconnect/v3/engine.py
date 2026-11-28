@@ -195,8 +195,11 @@ class V3Engine:
             if not previous[0] and car.model:
                 car.identity_restored = False
                 car.identity_observed_at = observed_at.isoformat()
+            year_added = not previous[1] and bool(car.model_year)
+            if year_added:
+                car.year_observed_at = observed_at.isoformat()
             self._rebind_identity_context(car, profile, old_context)
-            identity = capture_identity(car)
+            identity = capture_identity(car, retain_model=year_added)
             if identity:
                 profile.manufacturer_identity = identity
             self.health.observe_inventory(self, car)
@@ -216,6 +219,7 @@ class V3Engine:
         if candidate.model_year:
             car.model_year = candidate.model_year
             car.year_operation = operation
+            car.year_observed_at = observed_at.isoformat()
         if candidate.car_type:
             car.car_type = candidate.car_type
         if car.name == "Audi vehicle":
@@ -256,6 +260,8 @@ class V3Engine:
                 continue
             if parsed.vin.lower() in excluded:
                 continue
+            if parsed.model_year:
+                parsed.year_observed_at = datetime.now(UTC).isoformat()
             from .identity_cache import apply_cached_identity
 
             if parsed.vin.lower() not in self.vehicles:
@@ -287,6 +293,7 @@ class V3Engine:
                 vehicle.car_type = parsed.car_type
             if parsed.model_year:
                 vehicle.model_year = parsed.model_year
+                vehicle.year_observed_at = parsed.year_observed_at
                 vehicle.year_operation = (
                     parsed.year_operation
                     or parsed.identity_operation
@@ -314,6 +321,11 @@ class V3Engine:
             profile = self.profiles.get(parsed.vin.lower())
             self._rebind_identity_context(vehicle, profile, old_context)
             known[parsed.vin.lower()] = vehicle
+            if not garage:
+                from .vehicle import graphql_vehicle_metadata
+
+                if graphql_vehicle_metadata(item.get("vehicle"), parsed.vin) is None:
+                    item = {**item, "vehicle": None}
             inventory_items[parsed.vin.lower()] = item
         # An empty or malformed inventory cannot revoke a vehicle. Require two
         # complete nonempty snapshots, or an explicit local VIN exclusion.
@@ -707,6 +719,14 @@ class V3Engine:
             and isinstance(row.get("vin"), str)
             and row["vin"].lower() == car.vin.lower()
         ]
+        from .vehicle import graphql_vehicle_metadata
+
+        rows = [
+            {**row, "vehicle": None}
+            if graphql_vehicle_metadata(row.get("vehicle"), car.vin) is None
+            else row
+            for row in rows
+        ]
         spin, known = redaction_context(self.entry, self.auth)
         # Unknown field names/types only. Never return raw unknown account values.
         fields, truncated = safe_schema_inventory(
@@ -833,14 +853,24 @@ class V3Engine:
 
             routes = list(IDENTITY_QUERIES) if full else [INVENTORY_OPERATION]
             results = []
+            stopped = None
             for operation in routes:
-                results.append(await self.test_identity_operation(vin, operation))
-                if results[-1]["http_status"] in (401, 403, 429):
+                result = await self.test_identity_operation(vin, operation)
+                results.append(result)
+                if result["http_status"] in (401, 403, 429):
+                    stopped = f"http_{result['http_status']}"
+                    break
+                if any(
+                    error.get("reason") == "token_exchange_denied"
+                    for error in result.get("errors", [])
+                ):
+                    stopped = "token_exchange_denied"
                     break
             return {
                 "family": family,
                 "results": results,
                 "request_count": len(results),
+                "stopped": stopped,
                 "note": "Reviewed read-only GraphQL queries; no automatic activation.",
             }
         expected = "mbb" if vehicle.context.auth == "legacy" else "cariad"

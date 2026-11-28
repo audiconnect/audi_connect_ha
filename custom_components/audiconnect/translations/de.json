@@ -96,7 +96,8 @@
           "discovery_vehicle": "Fahrzeugeinrichtung & Erkennung",
           "data_sources": "Zusätzliche Datenquellen",
           "dealer_vehicle": "Service & Wartung",
-          "advanced": "Erweitert & experimentell"
+          "advanced": "Erweitert & experimentell",
+          "workbench": "Audi Connect-Anwendung"
         }
       },
       "general": {
@@ -129,8 +130,7 @@
       "advanced": {
         "title": "Erweitert & experimentell",
         "menu_options": {
-          "stop_recovery": "Wiederherstellung Ladestopp",
-          "workbench": "Entwicklungs-Workbench"
+          "stop_recovery": "Wiederherstellung Ladestopp"
         }
       },
       "reverse_geocoding": {
@@ -178,12 +178,14 @@
         }
       },
       "workbench": {
-        "title": "Entwicklungs-Workbench",
+        "title": "Audi Connect-Anwendung",
         "data": {
-          "v3_development_workbench": "V3-Entwicklungswerkbank aktivieren"
+          "v3_vehicle_dashboard": "Audi Connect-Dashboard aktivieren",
+          "v3_development_workbench": "Engineering-Arbeitsbereich aktivieren"
         },
         "data_description": {
-          "v3_development_workbench": "Die API-Entwicklungswerkbank nur im V3-Modus für Administratoren anzeigen. Standardmäßig aus; gespeicherte API-Profile bleiben erhalten."
+          "v3_vehicle_dashboard": "Optionale Audi Connect-Anwendung anzeigen. Native Entitäten und Automatisierungen bleiben verfügbar.",
+          "v3_development_workbench": "Nur für Administratoren innerhalb Audi Connect. Gespeicherte Profile bleiben erhalten."
         }
       },
       "dealer_vehicle": {

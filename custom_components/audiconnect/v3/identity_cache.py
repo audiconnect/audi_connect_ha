@@ -2,7 +2,11 @@
 
 import re
 from datetime import datetime
-from .vehicle import model_family_from_name, select_vehicle_image
+from .vehicle import (
+    manufacturer_model_label,
+    model_family_from_name,
+    select_vehicle_image,
+)
 
 
 def validated_image(url, vin=None):
@@ -15,7 +19,8 @@ def validated_image(url, vin=None):
 def validate_identity(row, region, vin=None):
     if not isinstance(row, dict) or row.get("region") != region:
         return {}
-    model, source, year = row.get("model"), row.get("source"), row.get("year", "")
+    model = manufacturer_model_label(row.get("model"), vin)
+    source, year = row.get("source"), row.get("year", "")
     stamp = row.get("observed_at")
     from .data_act import IDENTITY_OPERATION
 
@@ -25,10 +30,8 @@ def validate_identity(row, region, vin=None):
         and bool(re.fullmatch(r"eu_data_act_[A-Za-z0-9_./~-]{1,220}", source))
     )
     if (
-        not isinstance(model, str)
-        or not 0 < len(model) <= 120
-        or model.strip().lower()
-        in ("", "unknown", "invalid", "unavailable", "unsupported", "error", "vehicle")
+        not model
+        or not isinstance(source, str)
         or (
             not optional
             and source
@@ -58,13 +61,29 @@ def validate_identity(row, region, vin=None):
     operation = row.get("operation", INVENTORY_OPERATION)
     if optional or source == "eu_data_act_modelName":
         operation = IDENTITY_OPERATION
-    elif operation not in IDENTITY_OPERATIONS or operation.endswith(".images"):
+    elif (
+        not isinstance(operation, str)
+        or operation not in IDENTITY_OPERATIONS
+        or operation.endswith(".images")
+    ):
         operation = (
             GARAGE_OPERATION if source.startswith("cariad_") else INVENTORY_OPERATION
         )
     year_operation = row.get("year_operation")
-    if year_operation not in operations or year_operation.endswith(".images"):
-        year_operation = operation if year else None
+    if not year:
+        year_operation = None
+    elif (
+        not isinstance(year_operation, str)
+        or year_operation not in operations
+        or year_operation.endswith(".images")
+    ):
+        year_operation = operation
+    year_stamp = row.get("year_observed_at")
+    try:
+        if not year or datetime.fromisoformat(year_stamp).tzinfo is None:
+            year_stamp = None
+    except (TypeError, ValueError):
+        year_stamp = None
     return {
         "model": model,
         "source": source,
@@ -74,6 +93,7 @@ def validate_identity(row, region, vin=None):
         "family": model_family_from_name(model),
         "observed_at": stamp,
         "year_operation": year_operation,
+        **({"year_observed_at": year_stamp} if year_stamp else {}),
         **(
             {"image_url": image}
             if (image := validated_image(row.get("image_url"), vin))
@@ -92,7 +112,11 @@ def without_optional_identity(row):
     ):
         return {}
     if row.get("year_operation") == IDENTITY_OPERATION:
-        return {**row, "year": "", "year_operation": None}
+        return {
+            key: value
+            for key, value in {**row, "year": "", "year_operation": None}.items()
+            if key != "year_observed_at"
+        }
     return row
 
 
@@ -118,6 +142,7 @@ def withdraw_optional_identity(car, profile):
     if car.year_operation == IDENTITY_OPERATION:
         car.model_year = ""
         car.year_operation = None
+        car.year_observed_at = None
         changed = True
     saved = profile.manufacturer_identity
     retained = without_optional_identity(saved)
@@ -133,19 +158,20 @@ def withdraw_optional_identity(car, profile):
 
 def apply_cached_identity(car, row):
     identity = validate_identity(row, car.country, car.vin)
-    if (
-        identity
-        and (not car.model or car.model == identity["model"])
-        and identity.get("image_url")
-    ):
+    if not identity or (car.model and car.model != identity["model"]):
+        return
+    # Identity fields are independent. A partial fresh inventory can confirm the
+    # model while omitting the previously observed model year.
+    if not car.image_url and identity.get("image_url"):
         car.image_url = identity["image_url"]
         car.image_status = "observed"
-    if not car.model and identity:
+    if not car.model_year and identity["year"]:
+        car.model_year = identity["year"]
+        car.year_operation = identity["year_operation"]
+        car.year_observed_at = identity.get("year_observed_at")
+    if not car.model:
         car.model = identity["model"]
         car.model_family = identity["family"]
-        if not car.model_year:
-            car.model_year = identity["year"]
-            car.year_operation = identity["year_operation"]
         car.model_source = identity["source"]
         car.identity_restored = True
         car.identity_observed_at = identity["observed_at"]
@@ -154,8 +180,13 @@ def apply_cached_identity(car, row):
             car.name = car.model
 
 
-def capture_identity(car):
-    if car.identity_restored or not car.model or not car.identity_observed_at:
+def capture_identity(car, *, retain_model=False):
+    """Keep original model provenance when a separately observed year is added."""
+    if (
+        (car.identity_restored and not retain_model)
+        or not car.model
+        or not car.identity_observed_at
+    ):
         return {}
     return validate_identity(
         {
@@ -166,6 +197,7 @@ def capture_identity(car):
             "observed_at": car.identity_observed_at,
             "operation": car.identity_operation,
             "year_operation": car.year_operation,
+            "year_observed_at": car.year_observed_at,
             "image_url": car.image_url,
         },
         car.country,

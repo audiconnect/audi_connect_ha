@@ -91,6 +91,7 @@ async def test_native_v3_menu_and_general_fields():
     assert menu["type"] == "menu"
     assert menu["menu_options"] == [
         "general",
+        "workbench",
         "discovery_vehicle",
         "data_sources",
         "dealer_vehicle",
@@ -107,10 +108,7 @@ async def test_native_v3_menu_and_general_fields():
         "data_act",
         "reverse_geocoding",
     ]
-    assert (await flow.async_step_advanced())["menu_options"] == [
-        "stop_recovery",
-        "workbench",
-    ]
+    assert (await flow.async_step_advanced())["menu_options"] == ["stop_recovery"]
     flow._test_entry.options["runtime_version"] = "v2"
     result = await flow.async_step_init()
     assert result["type"] == "form"
@@ -532,8 +530,14 @@ async def test_advanced_forms_preserve_saved_settings_and_reject_invalid_numbers
             async_get_known_entry=lambda _id: flow._test_entry
         )
     )
-    result = await flow.async_step_workbench({"v3_development_workbench": True})
-    assert result["data"] == {**original, "v3_development_workbench": True}
+    result = await flow.async_step_workbench(
+        {"v3_vehicle_dashboard": True, "v3_development_workbench": True}
+    )
+    assert result["data"] == {
+        **original,
+        "v3_vehicle_dashboard": True,
+        "v3_development_workbench": True,
+    }
     result = await flow.async_step_stop_recovery({"v3_charging_stop_retry": False})
     assert result["data"] == {**original, "v3_charging_stop_retry": False}
     flow._test_entry.options = result["data"]
@@ -568,3 +572,38 @@ def test_stop_recovery_option_bounds_and_migration():
     }
     assert stop_recovery_options(selected) == selected
     assert stop_recovery_options({"v3_stop_extra_retries": 99}) == defaults
+
+
+@pytest.mark.asyncio
+async def test_application_options_hide_engineering_without_losing_preferences():
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    original = {
+        "runtime_version": "v3_climate",
+        "v3_development_workbench": True,
+        "v3_data_act_enabled": True,
+        "scan_interval": 25,
+    }
+    flow._test_entry = SimpleNamespace(data={}, options=original)
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    form = await flow.async_step_workbench()
+    defaults = {key.schema: key.default() for key in form["data_schema"].schema}
+    assert defaults == {
+        "v3_vehicle_dashboard": True,
+        "v3_development_workbench": True,
+    }
+    result = await flow.async_step_workbench({"v3_vehicle_dashboard": False})
+    assert result["data"] == {**original, "v3_vehicle_dashboard": False}
+    flow._test_entry.options = result["data"]
+    form = await flow.async_step_workbench()
+    assert {key.schema for key in form["data_schema"].schema} == {
+        "v3_vehicle_dashboard"
+    }
+    result = await flow.async_step_workbench(
+        {"v3_vehicle_dashboard": True, "v3_development_workbench": False}
+    )
+    assert result["data"] == {**original, "v3_vehicle_dashboard": True}

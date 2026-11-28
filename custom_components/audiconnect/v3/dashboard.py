@@ -18,10 +18,8 @@ from homeassistant.config_entries import ConfigEntryState
 
 from ..const import DOMAIN
 from .engine import V3Engine
-from .runtime import V3_DEFAULT, V3_ENABLED, V3_RUNTIME_OPTION
+from .runtime import dashboard_enabled, workbench_enabled
 
-_PANEL = "audiconnect-v3"
-_READY_KEY = "audiconnect_v3_dashboard_registered"
 _VEHICLE_PANEL = "audiconnect-vehicles"
 _VEHICLE_READY_KEY = "audiconnect_v3_vehicle_panel_registered"
 _PANEL_LOCK_KEY = "audiconnect_v3_panel_lock"
@@ -32,9 +30,7 @@ def _workbench_engine(entry: Any) -> V3Engine:
     """Only a loaded, opted-in integration can expose engineering operations."""
     if entry is None or entry.domain != DOMAIN:
         raise ValueError("Unknown Audi integration")
-    if entry.options.get(
-        V3_RUNTIME_OPTION, V3_DEFAULT
-    ) != V3_ENABLED or not entry.options.get("v3_development_workbench", False):
+    if not workbench_enabled(entry.options):
         raise ValueError("V3 Development Workbench is not enabled")
     runtime = getattr(entry, "runtime_data", None)
     engine = getattr(runtime, "v3", None)
@@ -871,33 +867,8 @@ async def _async_setup_panel_resources(hass) -> None:
         hass.data[_HANDLERS_KEY] = True
 
 
-async def async_setup_dashboard(hass) -> None:
-    async with hass.data.setdefault(_PANEL_LOCK_KEY, asyncio.Lock()):
-        if hass.data.get(_READY_KEY):
-            return
-        await _async_setup_panel_resources(hass)
-        frontend_dir = Path(__file__).parent / "frontend"
-        module_url = await hass.async_add_executor_job(_panel_module_url, frontend_dir)
-        await panel_custom.async_register_panel(
-            hass,
-            webcomponent_name="audiconnect-v3-panel",
-            frontend_url_path=_PANEL,
-            module_url=module_url,
-            sidebar_title="Engineering Workbench",
-            sidebar_icon="mdi:car-cog",
-            require_admin=True,
-            embed_iframe=False,
-        )
-        hass.data[_READY_KEY] = True
-
-
-def async_remove_dashboard(hass) -> None:
-    if hass.data.pop(_READY_KEY, False):
-        frontend.async_remove_panel(hass, _PANEL, warn_if_unknown=False)
-
-
 async def async_setup_vehicle_dashboard(hass) -> None:
-    """Normal V3 users do not need the optional engineering panel."""
+    """Register the single application; engineering is an internal workspace."""
     async with hass.data.setdefault(_PANEL_LOCK_KEY, asyncio.Lock()):
         if hass.data.get(_VEHICLE_READY_KEY):
             return
@@ -906,8 +877,12 @@ async def async_setup_vehicle_dashboard(hass) -> None:
         module_url = await hass.async_add_executor_job(
             _panel_module_url, frontend_dir, "vehicle.js"
         )
+        workbench_url = await hass.async_add_executor_job(
+            _panel_module_url, frontend_dir, "panel.js"
+        )
         await panel_custom.async_register_panel(
             hass,
+            config={"workbench_module_url": workbench_url},
             webcomponent_name="audiconnect-vehicle-panel",
             frontend_url_path=_VEHICLE_PANEL,
             module_url=module_url,
@@ -919,6 +894,19 @@ async def async_setup_vehicle_dashboard(hass) -> None:
         hass.data[_VEHICLE_READY_KEY] = True
 
 
-def async_remove_vehicle_dashboard(hass) -> None:
-    if hass.data.pop(_VEHICLE_READY_KEY, False):
-        frontend.async_remove_panel(hass, _VEHICLE_PANEL, warn_if_unknown=False)
+async def async_remove_vehicle_dashboard(hass, entry_id) -> None:
+    """Retain the application while another enabled V3 account is loaded."""
+    async with hass.data.setdefault(_PANEL_LOCK_KEY, asyncio.Lock()):
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            if (
+                entry.entry_id != entry_id
+                and entry.state is ConfigEntryState.LOADED
+                and dashboard_enabled(entry.options)
+                and isinstance(
+                    getattr(getattr(entry, "runtime_data", None), "v3", None),
+                    V3Engine,
+                )
+            ):
+                return
+        if hass.data.pop(_VEHICLE_READY_KEY, False):
+            frontend.async_remove_panel(hass, _VEHICLE_PANEL, warn_if_unknown=False)

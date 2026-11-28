@@ -146,3 +146,75 @@ async def test_full_scan_resumes_and_covers_unmapped_jobs_without_mutations():
         "/vehicle/v1/trips/" + car.vin + "/" + suffix
         for suffix in ("shortterm", "longterm", "shortterm/last")
     }
+
+
+@pytest.mark.parametrize(
+    ("status", "error_message", "expected_stop"),
+    [
+        (
+            200,
+            "Client does not have access to the IdP for token exchange",
+            "token_exchange_denied",
+        ),
+        (401, None, "http_401"),
+        (403, None, "http_403"),
+        (429, None, "http_429"),
+        (200, "Optional field unavailable", None),
+        (200, None, None),
+    ],
+)
+async def test_graphql_scan_respects_selected_vehicle_exchange_refusal(
+    status, error_message, expected_stop
+):
+    from custom_components.audiconnect.v3.transport import IDENTITY_QUERIES
+
+    model = CapabilityRegistry.from_json_file(catalog_path())
+    car = V3Vehicle("WAUZZZ4M0MD123456", "Audi", "", "", "DE")
+    calls = []
+
+    class Transport:
+        async def test_identity_query(self, operation):
+            calls.append(operation)
+            return V3Response(
+                status,
+                {
+                    "data": {"userVehicles": [{"vin": car.vin, "vehicle": {}}]},
+                    "errors": [
+                        {
+                            "message": error_message,
+                            "path": ["userVehicles", 0, "vehicle"],
+                        }
+                    ]
+                    if error_message
+                    else [],
+                },
+                datetime.now(UTC),
+            )
+
+    class Storage:
+        async def async_save(self, profiles):
+            pass
+
+    engine = V3Engine(
+        None,
+        SimpleNamespace(entry_id="id", options={}, data={}),
+        model,
+        auth=SimpleNamespace(uses_auth0=True, country="DE"),
+        transport=Transport(),
+        storage=Storage(),
+    )
+    engine.vehicles[car.vin.lower()] = car
+    engine.profiles[car.vin.lower()] = DevelopmentProfile(model, car.context)
+    result = await engine.test_family_reads(car.vin, "graphql", full=True)
+    assert result["stopped"] == expected_stop
+    assert (
+        result["request_count"]
+        == len(calls)
+        == (1 if expected_stop else len(IDENTITY_QUERIES))
+    )
+    assert not car.model
+    assert not any(row["activated"] for row in result["results"])
+    # A refusal stops only this scan. A later explicit authorized retry is
+    # still allowed, without changing native account or vehicle availability.
+    await engine.test_identity_operation(car.vin, calls[0])
+    assert len(calls) == result["request_count"] + 1

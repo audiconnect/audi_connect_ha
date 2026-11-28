@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import json
 from typing import Any
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -17,6 +18,7 @@ from aiohttp import ClientResponseError
 from custom_components.audiconnect.audi_api import AudiAPI
 from custom_components.audiconnect.const import MYAUDI_APP_VERSION, MYAUDI_USER_AGENT
 from custom_components.audiconnect.v3.family_executors import APP_VERSION, APP_AGENT
+from custom_components.audiconnect.v3.auth import V3Auth
 
 from custom_components.audiconnect.audi_services import (
     AudiAuthError,
@@ -447,3 +449,88 @@ async def test_refresh_if_necessary_rejected_raises_auth_error(service, api):
 
     with pytest.raises(AudiAuthError):
         await service.refresh_token_if_necessary(3400)
+
+
+def test_identity_auth_evidence_compares_family_context_without_exporting_claims(
+    monkeypatch,
+):
+    monkeypatch.setattr("custom_components.audiconnect.v3.auth.time.time", lambda: 1000)
+    native = _make_id_token(
+        {
+            "iss": "https://group.identity.vwgroup.io/",
+            "aud": ["https://api.cariad.com"],
+            "azp": CLIENT_ID,
+            "iat": 700,
+            "exp": 1300,
+            "scope": "openid vin private-scope",
+            "sub": "private-subject",
+        }
+    )
+    auth = object.__new__(V3Auth)
+    auth.service = SimpleNamespace(
+        uses_auth0=True,
+        _client_id=CLIENT_ID,
+        _bearer_token_json={"access_token": native},
+        audiToken={"access_token": native},
+    )
+    evidence = auth.identity_auth_evidence()
+    assert evidence["same_as_cariad"] is True
+    assert evidence["issuer"] == "group_identity"
+    assert evidence["audience"] == "cariad"
+    assert evidence["configured_client_match"] is True
+    assert evidence["expiry"] == "not_expired"
+    assert evidence["age_minutes"] == 5
+    assert evidence["claims_verified"] is False
+    assert evidence["scopes"] == ["openid", "vin"]
+
+    other = _make_id_token(
+        {
+            "iss": "https://private.example/",
+            "aud": "private-resource",
+            "client_id": "private-client",
+            "exp": 999,
+            "sub": "private-subject",
+        }
+    )
+    auth.service.audiToken = {"access_token": other}
+    evidence = auth.identity_auth_evidence()
+    assert evidence["same_as_cariad"] is False
+    assert evidence["issuer"] == "other"
+    assert evidence["audience"] == "other"
+    assert evidence["configured_client_match"] is False
+    assert evidence["expiry"] == "expired"
+    assert evidence["claims_verified"] is False
+    assert "private" not in json.dumps(evidence)
+    assert native not in json.dumps(evidence)
+    assert other not in json.dumps(evidence)
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "",
+        "opaque-token",
+        _make_id_token(
+            {
+                "iss": [],
+                "aud": [None],
+                "exp": True,
+                "azp": CLIENT_ID,
+                "client_id": "conflicting-client",
+            }
+        ),
+    ],
+)
+def test_identity_auth_evidence_missing_or_malformed_claims_remain_unknown(token):
+    auth = object.__new__(V3Auth)
+    auth.service = SimpleNamespace(
+        uses_auth0=False,
+        _client_id=CLIENT_ID,
+        audiToken={"access_token": token},
+    )
+    evidence = auth.identity_auth_evidence()
+    assert evidence["audience"] == "unknown"
+    assert evidence["issuer"] == "unknown"
+    assert evidence["configured_client_match"] is None
+    assert evidence["expiry"] == "unknown"
+    assert evidence["claims_verified"] is False

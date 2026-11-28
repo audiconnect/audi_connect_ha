@@ -77,7 +77,8 @@
           "discovery_vehicle": "Kjøretøyoppsett og oppdagelse",
           "data_sources": "Ekstra datakilder",
           "dealer_vehicle": "Service og vedlikehold",
-          "advanced": "Avansert og eksperimentelt"
+          "advanced": "Avansert og eksperimentelt",
+          "workbench": "Audi Connect-applikasjon"
         }
       },
       "general": {
@@ -110,8 +111,7 @@
       "advanced": {
         "title": "Avansert og eksperimentelt",
         "menu_options": {
-          "stop_recovery": "Gjenoppretting av ladestopp",
-          "workbench": "Utviklingsverktøy"
+          "stop_recovery": "Gjenoppretting av ladestopp"
         }
       },
       "reverse_geocoding": {
@@ -159,12 +159,14 @@
         }
       },
       "workbench": {
-        "title": "Utviklingsverktøy",
+        "title": "Audi Connect-applikasjon",
         "data": {
-          "v3_development_workbench": "Enable V3 Development Workbench"
+          "v3_vehicle_dashboard": "Aktiver Audi Connect-panelet",
+          "v3_development_workbench": "Aktiver teknisk arbeidsområde"
         },
         "data_description": {
-          "v3_development_workbench": "Show the administrator-only API Development Workbench in the Home Assistant sidebar. Available in V3 only. Off by default; disabling does not delete saved API profiles."
+          "v3_vehicle_dashboard": "Valgfri Audi Connect-applikasjon. Entiteter og automatiseringer forblir tilgjengelige.",
+          "v3_development_workbench": "Kun administratorer. Lagrede profiler beholdes."
         }
       },
       "discovery_vehicle": {

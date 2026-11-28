@@ -221,3 +221,39 @@ async def test_panel_resource_registration_can_retry_without_duplicate_static_pa
     await dashboard._async_setup_panel_resources(hass)
     assert register.call_count == calls
     hass.http.async_register_static_paths.assert_awaited_once()
+
+
+async def test_single_application_registration_and_multi_account_unload(monkeypatch):
+    from homeassistant.config_entries import ConfigEntryState
+
+    from custom_components.audiconnect.v3 import dashboard
+
+    engine = Mock(spec=dashboard.V3Engine)
+    entries = [
+        SimpleNamespace(
+            entry_id=ident,
+            state=ConfigEntryState.LOADED,
+            options={"runtime_version": "v3_climate"},
+            runtime_data=SimpleNamespace(v3=engine),
+        )
+        for ident in ("first", "second")
+    ]
+    hass = SimpleNamespace(
+        data={},
+        config_entries=SimpleNamespace(async_entries=lambda domain: entries),
+        async_add_executor_job=AsyncMock(return_value="/audiconnect_v3/script.js"),
+    )
+    monkeypatch.setattr(dashboard, "_async_setup_panel_resources", AsyncMock())
+    register = AsyncMock()
+    remove = Mock()
+    monkeypatch.setattr(dashboard.panel_custom, "async_register_panel", register)
+    monkeypatch.setattr(dashboard.frontend, "async_remove_panel", remove)
+    await dashboard.async_setup_vehicle_dashboard(hass)
+    await dashboard.async_setup_vehicle_dashboard(hass)
+    register.assert_awaited_once()
+    assert register.call_args.kwargs["sidebar_title"] == "Audi Connect"
+    await dashboard.async_remove_vehicle_dashboard(hass, "first")
+    remove.assert_not_called()
+    entries[0].options["v3_vehicle_dashboard"] = False
+    await dashboard.async_remove_vehicle_dashboard(hass, "second")
+    remove.assert_called_once_with(hass, "audiconnect-vehicles", warn_if_unknown=False)

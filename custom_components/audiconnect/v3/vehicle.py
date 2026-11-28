@@ -81,6 +81,20 @@ def window_heating_active(rows):
     return None
 
 
+def manufacturer_model_label(value, vin=None):
+    """Validate OEM model labels consistently for live and retained identity."""
+    if not isinstance(value, str):
+        return ""
+    label = value.strip()
+    if (
+        not 0 < len(label) <= 120
+        or label.lower() in _INVALID_MODEL
+        or (vin and vin.lower() in label.lower())
+    ):
+        return ""
+    return label
+
+
 def model_family_from_name(value):
     """Only manufacturer model labels, never nickname or VIN inference."""
     if not isinstance(value, str):
@@ -154,13 +168,29 @@ def powertrain_identity(vehicle):
     return {"value": value, "sources": sources, "conflict": conflict}
 
 
+def graphql_vehicle_metadata(vehicle, vin):
+    """Accept OEM metadata only when an explicit nested VIN agrees with the row.
+
+    Older native queries omit core.vin; missing identity is not a conflict.
+    Keep account membership independent from rejected manufacturer metadata.
+    """
+    if not isinstance(vehicle, dict):
+        return None
+    core = vehicle.get("core")
+    nested = core.get("vin") if isinstance(core, dict) else None
+    if nested is not None and (
+        not isinstance(nested, str) or nested.lower() != vin.lower()
+    ):
+        return None
+    return vehicle
+
+
 def select_vehicle_image(vehicle, vin):
     """Pick one trusted, public Audi render; never use arbitrary CDN URLs."""
     from urllib.parse import urlsplit, parse_qsl, unquote
 
-    if not isinstance(vehicle, dict) or not isinstance(
-        vehicle.get("renderPictures"), list
-    ):
+    vehicle = graphql_vehicle_metadata(vehicle, vin)
+    if vehicle is None or not isinstance(vehicle.get("renderPictures"), list):
         return None
     candidates = []
     for picture in vehicle["renderPictures"][:32]:
@@ -246,29 +276,18 @@ class V3Vehicle:
     identity_operation: str | None = None
     registry_model: str | None = None
     year_operation: str | None = None
+    year_observed_at: str | None = None
 
     @classmethod
     def from_graphql(cls, item: dict[str, Any], country: str) -> V3Vehicle:
         vin = item.get("vin")
         if not isinstance(vin, str) or len(vin) != 17 or not vin.isalnum():
             raise ValueError("Invalid Audi vehicle identifier")
-        vehicle = item.get("vehicle") if isinstance(item.get("vehicle"), dict) else {}
+        vehicle = graphql_vehicle_metadata(item.get("vehicle"), vin) or {}
         media = vehicle.get("media") if isinstance(vehicle.get("media"), dict) else {}
 
-        def label(key):
-            value = media.get(key)
-            return (
-                value.strip()
-                if (
-                    isinstance(value, str)
-                    and 0 < len(value.strip()) <= 120
-                    and value.strip().lower() not in _INVALID_MODEL
-                    and vin.lower() not in value.lower()
-                )
-                else ""
-            )
-
-        long_name, short_name = label("longName"), label("shortName")
+        long_name = manufacturer_model_label(media.get("longName"), vin)
+        short_name = manufacturer_model_label(media.get("shortName"), vin)
         model = long_name or short_name
         source = (
             "audi_long_name" if long_name else "audi_short_name" if short_name else ""
@@ -313,9 +332,9 @@ class V3Vehicle:
             raise ValueError("Invalid Audi vehicle identifier")
         fields = registry.identity_fields("eu_data_act", IDENTITY_OPERATION, item)
         model, model_path = fields.get("model", (None, ""))
-        model = model.strip() if isinstance(model, str) else ""
+        model = manufacturer_model_label(model, vin)
         family = model_family_from_name(model)
-        if not family or len(model) > 120 or vin.lower() in model.lower():
+        if not family:
             model, family = "", ""
         year = str(fields.get("model_year", (None, ""))[0] or "")
         year = (
@@ -345,14 +364,9 @@ class V3Vehicle:
             raise ValueError("Invalid Audi vehicle identifier")
         model, source = "", ""
         for key in ("model", "carModel"):
-            value = item.get(key)
-            if (
-                isinstance(value, str)
-                and 0 < len(value.strip()) <= 120
-                and value.strip().lower() not in _INVALID_MODEL
-                and vin.lower() not in value.lower()
-            ):
-                model, source = value.strip(), "cariad_" + key
+            value = manufacturer_model_label(item.get(key), vin)
+            if value:
+                model, source = value, "cariad_" + key
                 break
         year = str(item.get("modelYear") or item.get("model_year") or "")
         year = (

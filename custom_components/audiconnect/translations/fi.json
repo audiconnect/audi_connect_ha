@@ -77,7 +77,8 @@
           "discovery_vehicle": "Ajoneuvon määritys ja tunnistus",
           "data_sources": "Muut tietolähteet",
           "dealer_vehicle": "Huolto ja ylläpito",
-          "advanced": "Lisäasetukset ja kokeelliset toiminnot"
+          "advanced": "Lisäasetukset ja kokeelliset toiminnot",
+          "workbench": "Audi Connect -sovellus"
         }
       },
       "general": {
@@ -110,8 +111,7 @@
       "advanced": {
         "title": "Lisäasetukset ja kokeelliset toiminnot",
         "menu_options": {
-          "stop_recovery": "Latauksen pysäytyksen palautus",
-          "workbench": "Kehitystyökalut"
+          "stop_recovery": "Latauksen pysäytyksen palautus"
         }
       },
       "reverse_geocoding": {
@@ -159,12 +159,14 @@
         }
       },
       "workbench": {
-        "title": "Kehitystyökalut",
+        "title": "Audi Connect -sovellus",
         "data": {
-          "v3_development_workbench": "Enable V3 Development Workbench"
+          "v3_vehicle_dashboard": "Ota Audi Connect -näkymä käyttöön",
+          "v3_development_workbench": "Ota tekninen työtila käyttöön"
         },
         "data_description": {
-          "v3_development_workbench": "Show the administrator-only API Development Workbench in the Home Assistant sidebar. Available in V3 only. Off by default; disabling does not delete saved API profiles."
+          "v3_vehicle_dashboard": "Valinnainen Audi Connect -sovellus. Entiteetit ja automaatiot toimivat myös ilman sitä.",
+          "v3_development_workbench": "Vain ylläpitäjille. Tallennetut profiilit säilyvät."
         }
       },
       "discovery_vehicle": {
