@@ -117,7 +117,25 @@ class DataActClient:
         self._request_lock = asyncio.Lock()
         self._identifiers = {}
         self._last_file = {}
+        self._empty_after = {}
         self.delivery_states = {}
+
+    @property
+    def delivery_diagnostics(self):
+        """Safe metadata for acknowledged deliveries; never vehicle capture."""
+        if self.authorization_required:
+            return {}
+        return {
+            vin: {
+                "portal_file_created": marker[0].isoformat(),
+                "newer_empty_portal_files": (
+                    self._empty_after[vin][1]
+                    if vin in self._empty_after and self._empty_after[vin][0] == marker
+                    else None
+                ),
+            }
+            for vin, marker in self._last_file.items()
+        }
 
     @property
     def reauth_pending(self):
@@ -199,8 +217,10 @@ class DataActClient:
             self.delivery_states[vin] = "vehicle_access_denied"
             self._identifiers.pop(vin, None)
             self._last_file.pop(vin, None)
+            self._empty_after.pop(vin, None)
             raise
         except DataActUnavailable:
+            self._empty_after.pop(vin, None)
             if self.quota.rate_limit_streak:
                 if self.quota.retry_at is None:
                     self.quota.retry_at = datetime.now(UTC) + self.quota.recovery_delay
@@ -284,12 +304,14 @@ class DataActClient:
             # A replaced or removed subscription can recover on the next due poll.
             self._identifiers.pop(vin, None)
             self._last_file.pop(vin, None)
+            self._empty_after.pop(vin, None)
             self.delivery_states[vin] = "subscription_unavailable"
             return None
         files = result.get("files") if isinstance(result, dict) else result
         if not isinstance(files, list) or len(files) > 2000:
             raise DataActUnavailable("Invalid Data Act listing")
         content = []
+        empty = set()
         now = datetime.now(UTC)
         for item in files:
             if not isinstance(item, dict):
@@ -299,16 +321,30 @@ class DataActClient:
             if (
                 isinstance(name, str)
                 and _FILENAME.fullmatch(name)
-                and not name.lower().endswith("_no_content_found.zip")
                 and delivered is not None
                 and delivered <= now + timedelta(minutes=5)
             ):
-                content.append((delivered, name))
-        if not content:
+                if name.lower().endswith("_no_content_found.zip"):
+                    empty.add((delivered, name))
+                else:
+                    content.append((delivered, name))
+        previous = self._last_file.get(vin)
+        newest = max(content, default=None)
+        reference = max(
+            (marker for marker in (previous, newest) if marker is not None),
+            default=None,
+        )
+        if reference is not None:
+            self._empty_after[vin] = (
+                reference,
+                sum(stamp > reference[0] for stamp, _ in empty),
+            )
+        else:
+            self._empty_after.pop(vin, None)
+        if newest is None:
             self.delivery_states[vin] = "no_nonempty_dataset"
             return None
-        delivered, name = max(content)
-        previous = self._last_file.get(vin)
+        delivered, name = newest
         if previous is not None and (delivered, name) <= previous:
             self.delivery_states[vin] = "no_new_dataset"
             return None

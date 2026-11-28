@@ -9,7 +9,10 @@ from custom_components.audiconnect.v3.historical_catalog import (
 
 
 def test_raw_references_and_user_facing_logical_entities_are_distinct():
-    assert len(INVENTORY["attributes"]) == len(ATTRIBUTES)
+    historical = {row["id"] for row in INVENTORY["attributes"]}
+    extensions = {row["id"] for row in INVENTORY["extensions"]}
+    assert historical.isdisjoint(extensions)
+    assert historical | extensions == set(ATTRIBUTES)
     assert len(ALIAS_OF) == 9
     assert len(CANONICAL_ATTRIBUTES) == len(ATTRIBUTES) - len(ALIAS_OF)
     assert "any_door_unlocked" in CANONICAL_ATTRIBUTES

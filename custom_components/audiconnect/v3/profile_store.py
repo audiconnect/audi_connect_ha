@@ -75,6 +75,17 @@ def restore_profile(
     # malformed profiles. The status owner also bounds the future delay.
     if type(due) in (int, float) and 0 < due < 253402300800:
         profile.trip_poll_due_at = due
+    from .legacy_read_mappings import read_routes
+
+    retries = saved.get("native_read_retry_at", {})
+    if isinstance(retries, dict):
+        profile.native_read_retry_at = {
+            kind: deadline
+            for kind, deadline in retries.items()
+            if (kind in read_routes() or kind == "cariad_enrollment")
+            and type(deadline) in (int, float)
+            and 0 < deadline < 253402300800
+        }
     profile.manufacturer_identity = validate_identity(
         saved.get("manufacturer_identity"), context.region
     )

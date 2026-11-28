@@ -72,6 +72,8 @@ def build_http_event(method: str, url: str, status: int) -> dict[str, object] | 
         "outcome": (
             "http_rejected"
             if status >= 400
+            else "http_redirect"
+            if 300 <= status < 400
             else "authentication_http_success"
             if route == "authentication"
             else "http_accepted_not_vehicle_confirmed"

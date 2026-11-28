@@ -35,6 +35,8 @@ from .read_discovery import (
     read_excluded,
     record_data_act_fields,
     DATA_ACT_DATASET,
+    enrollment_deferred,
+    observe_enrollment_refusal,
 )
 from .status_planner import status_groups
 
@@ -127,7 +129,6 @@ class StatusEngine:
         self._poll_cycles = 0
         self._native_poll_lock = asyncio.Lock()
         self._identity_attempt_at = None
-        self._legacy_route_backoff = {}
         self._data_act_attempt_at = None
         self._data_act_success_at = None
         self._data_act_processing_failed = False
@@ -148,12 +149,17 @@ class StatusEngine:
         retry = client.quota.retry_at if client is not None else None
         states = getattr(client, "delivery_states", {})
         deliveries = {}
+        delivery_metadata = []
+        diagnostics = getattr(client, "delivery_diagnostics", {})
         mapped = selected = 0
         for car in self.vehicles.values():
             if not car.inventory_present or (
                 vehicle is not None and car is not vehicle
             ):
                 continue
+            metadata = diagnostics.get(car.vin.upper())
+            if metadata is not None:
+                delivery_metadata.append(metadata)
             state = states.get(car.vin.upper())
             if state is not None:
                 deliveries[state] = deliveries.get(state, 0) + 1
@@ -198,9 +204,21 @@ class StatusEngine:
             result = "subscription_unavailable"
         else:
             result = "no_new_dataset" if self._data_act_attempt_at else "initializing"
+        created = [row["portal_file_created"] for row in delivery_metadata]
+        empty_counts = [
+            row["newer_empty_portal_files"]
+            for row in delivery_metadata
+            if row["newer_empty_portal_files"] is not None
+        ]
         return {
             "result": result,
             "connection_state": data_act_connection_state(result, deliveries),
+            "portal_file_created": max(created, default=None),
+            "newer_empty_portal_files": (
+                sum(empty_counts)
+                if empty_counts and len(empty_counts) == len(delivery_metadata)
+                else None
+            ),
             "scope": "vehicle" if vehicle is not None else "account",
             "last_attempt": self._data_act_attempt_at.isoformat()
             if self._data_act_attempt_at
@@ -298,13 +316,26 @@ class StatusEngine:
 
         if hasattr(self.transport, "executors"):
             await configure_home_region(self.transport, self.auth, car)
+        # Preserve the existing 96 scheduled-cycle delay across restart,
+        # using the profile store instead of a second runtime-only cache.
+        from ..const import CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
+
+        interval = self.entry.options.get(
+            CONF_SCAN_INTERVAL,
+            self.entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+        )
+        if type(interval) not in (int, float) or not 0 < interval <= 1440:
+            interval = DEFAULT_UPDATE_INTERVAL
+        delay = 96 * interval * 60
         reachable = False
         for kind, template in read_routes().items():
-            key = (car.vin.lower(), kind)
             if read_excluded(profile, "mbb.discovery." + kind):
                 continue
-            if self._poll_cycles < self._legacy_route_backoff.get(key, 0):
+            now = time.time()
+            due = profile.native_read_retry_at.get(kind, 0)
+            if now < due <= now + delay:
                 continue
+            profile.native_read_retry_at.pop(kind, None)
             path = template.format(VIN=car.vin, COUNTRY=car.country, TYPE="Audi")
             try:
                 response = await self.transport.request("mbb", "GET", path)
@@ -315,7 +346,7 @@ class StatusEngine:
                 profile, "mbb.discovery." + kind, "mbb", "GET", response, car.vin
             )
             if response.status in (404, 410):
-                self._legacy_route_backoff[key] = self._poll_cycles + 96
+                profile.native_read_retry_at[kind] = time.time() + delay
                 continue
             if response.status in (401, 403, 429) or response.status >= 500:
                 break
@@ -338,6 +369,8 @@ class StatusEngine:
         now = time.time()
         key = car.vin.lower()
         profile = self.profiles[key]
+        if car.context.auth != "legacy" and enrollment_deferred(profile):
+            return
         due = profile.trip_poll_due_at
         # Retry missing scopes at the ordinary poll cadence, not a 3-hour
         # penalty after a quota/transport/partial-response failure.
@@ -823,6 +856,7 @@ class StatusEngine:
                 or self.vehicles.get(car.vin.lower()) is not car
                 or self.profiles.get(car.vin.lower()) is not profile
                 or read_excluded(profile, ident)
+                or enrollment_deferred(profile)
                 or profile.job_discovery.get("charging") == "unsupported"
             ):
                 return
@@ -832,6 +866,8 @@ class StatusEngine:
             if not current():
                 return
             self._api_record(profile, ident, "cariad", "GET", reply, car.vin)
+            if observe_enrollment_refusal(profile, reply):
+                return
             if 200 <= reply.status < 300:
                 self._observe_cariad_status(
                     car, profile, reply, operation=ident, complete_discovery=False
@@ -858,7 +894,7 @@ class StatusEngine:
                 vehicle.context.auth == "legacy"
                 and len(profile.registry.capabilities) > 1
             ):
-                if vehicle.legacy_cariad:
+                if vehicle.legacy_cariad and not enrollment_deferred(profile):
                     # V2 reads selective-status even on its legacy IDK session.
                     path = selective_status_path(
                         vehicle.vin, ",".join(planned_jobs(vehicle, profile))
@@ -867,6 +903,8 @@ class StatusEngine:
                         reply = await self.transport.request("cariad", "GET", path)
                     except (RuntimeError, ValueError, OSError, TimeoutError):
                         reply = None
+                    if reply:
+                        observe_enrollment_refusal(profile, reply)
                     if reply and 200 <= reply.status < 300:
                         polled_responses[(key, "cariad", path)] = reply
                         self._observe_cariad_status(vehicle, profile, reply)
@@ -892,7 +930,9 @@ class StatusEngine:
                     if profile.custom.get(ident, {}).get("variables"):
                         continue
                     op = profile.registry.operations[ident]
-                    if read_excluded(profile, ident):
+                    if read_excluded(profile, ident) or (
+                        op["family"] == "cariad" and enrollment_deferred(profile)
+                    ):
                         continue
                     if (
                         "selectivestatus?jobs=" in op["path"]
@@ -941,6 +981,10 @@ class StatusEngine:
                     self._api_record(
                         profile, ident, family, method, response, vehicle.vin
                     )
+                    if family == "cariad" and observe_enrollment_refusal(
+                        profile, response
+                    ):
+                        break
                     if 200 <= response.status < 300:
                         cloud_reachable = True
                         if ident == batch and family == "cariad":
@@ -1090,6 +1134,8 @@ class StatusEngine:
                 profile.registry.capabilities
             ) <= 1:
                 continue  # Pilot-only synthetic tests and legacy cars are unaffected.
+            if enrollment_deferred(profile):
+                continue
             if not profile.job_discovery:
                 continue  # No successful bulk GET yet; don't spray blind requests.
             if remaining_discovery <= 0:
@@ -1115,6 +1161,8 @@ class StatusEngine:
                     record_jobs(
                         profile, jobs, status=response.status, payload=response.data
                     )
+                    break
+                if observe_enrollment_refusal(profile, response):
                     break
                 reserve_group(profile, jobs)
                 if 200 <= response.status < 300:
@@ -1154,6 +1202,8 @@ class StatusEngine:
                     or (family == "cariad" and car.legacy_cariad)
                 ):
                     continue
+                if family == "cariad" and enrollment_deferred(profile):
+                    continue
                 response = polled_responses.get((key, family, path))
                 if response is None:
                     try:
@@ -1171,6 +1221,8 @@ class StatusEngine:
                     self._api_record(
                         profile, operation, family, "GET", response, car.vin
                     )
+                if family == "cariad" and observe_enrollment_refusal(profile, response):
+                    continue
                 for ident, route, mappings in selected:
                     self.record_attribute_response(
                         car, profile, ident, route, mappings, response
@@ -1273,8 +1325,10 @@ class StatusEngine:
                 continue
             ident = "cariad.mobility.status.parkingPosition"
             profile = self.profiles[car.vin.lower()]
-            if ident not in profile.registry.operations or read_excluded(
-                profile, ident
+            if (
+                ident not in profile.registry.operations
+                or read_excluded(profile, ident)
+                or enrollment_deferred(profile)
             ):
                 continue
             family, method, path, _ = self._operation_request(car, ident)

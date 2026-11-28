@@ -53,10 +53,21 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ..const import DOMAIN
 from .auth import configured_spin
-from .freshness import movement_capture_valid, reading_freshness_attributes
+from .freshness import (
+    movement_capture_valid,
+    reading_freshness_attributes,
+    timestamp_is_fresh,
+)
 from .attribute_runtime import last_known_observation
 from .coordinator_clean import V3CleanCoordinator
-from .vehicle import V3Vehicle, CLIMATE_ON_STATES, CLIMATE_OFF_STATES
+from .vehicle import (
+    V3Vehicle,
+    CLIMATE_ON_STATES,
+    CLIMATE_OFF_STATES,
+    PROFILE_CURRENT_OPTIONS,
+    active_profile_current,
+    unique_charging_profile,
+)
 from .command_readback import (
     command_attributes,
     latest_projection_command,
@@ -587,7 +598,10 @@ class V3HealthSensor(V3BaseEntity, SensorEntity):
                     "retry_at",
                     "next_poll_at",
                     "rate_limit_streak",
+                    "portal_file_created",
+                    "newer_empty_portal_files",
                 )
+                if key in data
             }
         data = self._health()
         attrs = {
@@ -1219,8 +1233,6 @@ class V3ReadOnlySensor(V3BaseEntity, SensorEntity):
             "v3_capability": self.attribute["capability"],
             "v2_attribute": self.attribute["id"],
             "observed_source": source,
-            "api_family": reading.get("family", "cariad"),
-            "response_mapping": reading.get("path"),
             **reading_freshness_attributes(
                 reading, allow_last_known=self._display_history(reading)
             ),
@@ -1426,8 +1438,6 @@ class V3ReadOnlyBinarySensor(V3BaseEntity, BinarySensorEntity):
         reading = _sensor_projection(self)[1] or {}
         return {
             "v3_capability": self.attribute["capability"],
-            "api_family": reading.get("family"),
-            "response_mapping": reading.get("path"),
             **reading_freshness_attributes(
                 reading, allow_last_known=self._allow_last_known
             ),
@@ -2026,9 +2036,7 @@ class V3LocationChargeTargetNumber(V3ChargeTargetNumber):
             if self.profile_id is None
             else self.profile_id
         )
-        profile = next(
-            (x for x in self.vehicle.charging_profiles if x["id"] == profile_id), None
-        )
+        profile = unique_charging_profile(self.vehicle.charging_profiles, profile_id)
         value = profile.get("targetSOC_pct") if profile else None
         return float(value) if type(value) in (int, float) else None
 
@@ -2258,3 +2266,61 @@ class V3ChargeModeSelect(V3BaseEntity, SelectEntity):
             self.vehicle.vin, "set_charge_mode", option
         )
         self.async_write_ha_state()
+
+
+class V3LocationChargingCurrentSelect(V3BaseEntity, SelectEntity):
+    """Observed active-profile AC current, separately verified for writes."""
+
+    entity_description = _product_description("select.location_charging_current")
+    _attr_icon = "mdi:current-ac"
+    _attr_options = list(PROFILE_CURRENT_OPTIONS)
+
+    def __init__(self, coordinator, vehicle):
+        super().__init__(coordinator, vehicle)
+        self._attr_unique_id = f"{vehicle.vin.lower()}_select_location_charging_current"
+
+    @property
+    def current_option(self):
+        return active_profile_current(self.vehicle)
+
+    @property
+    def available(self):
+        return (
+            getattr(self.vehicle, "inventory_present", True)
+            and self.current_option is not None
+            and self.coordinator.engine.control_enabled(
+                self.vehicle.vin, "set_location_charge_current", "charging"
+            )
+        )
+
+    @property
+    def extra_state_attributes(self):
+        row = self.vehicle.readings.get("charging_profile_context_detail", {})
+        return self._control_attributes(
+            "charging",
+            ("set_location_charge_current",),
+            attribute="locationChargingCurrent",
+            reading={**row, "value": self.current_option},
+            source=(
+                "vehicle"
+                if self.current_option is not None
+                and timestamp_is_fresh(row.get("captured"), datetime.now(UTC))
+                else "last_known_vehicle"
+                if self.current_option is not None
+                else "unknown"
+            ),
+            allow_last_known=True,
+        )
+
+    async def async_select_option(self, option):
+        if not self.available or option not in self.options:
+            raise HomeAssistantError("Audi location AC current not verified")
+        await self.coordinator.engine.send_control(
+            self.vehicle.vin,
+            "set_location_charge_current",
+            "charging",
+            params={
+                "value": option,
+                "profile_id": self.vehicle.active_charging_profile_id,
+            },
+        )

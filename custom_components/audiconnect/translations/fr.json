@@ -299,6 +299,9 @@
   },
   "entity": {
     "sensor": {
+      "v3_charge_power_limitation_reason": {
+        "name": "Raison de la limitation de puissance de charge"
+      },
       "v3_last_update_time": {
         "name": "Dernière mesure du véhicule"
       },
@@ -611,6 +614,9 @@
       }
     },
     "binary_sensor": {
+      "v3_safelock_active": {
+        "name": "Safelock actif"
+      },
       "v3_plug_state": {
         "name": "Prise de recharge"
       },
@@ -760,6 +766,9 @@
       }
     },
     "select": {
+      "v3_location_charging_current": {
+        "name": "Courant de charge CA du lieu"
+      },
       "v3_charge_mode": {
         "name": "Mode de recharge préféré"
       }

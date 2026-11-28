@@ -237,7 +237,7 @@
     "audi_connect_account": "d71287a6f1a5f28ec052219d0a3e159e63f50fd3",
     "audi_account": "b7516b1e50d414a7936d3055848ebc76f8d45dcf",
     "audi_models": "c02252e54504e5c4fde3ed08e832eb5d3f7608cb",
-    "audi_api": "b1063bd0f840d8b26a59a96e8d7b52f791fd2ea6",
+    "audi_api": "8b4c394f50493bf79f75a4d0f2b3fa4536b10ff2",
     "coordinator": "4ffe0233b1c868202c14608c45e131c0b6ffd601",
     "audi_entity": "8a2b30d7d265958dce57c3649b63149e18c97e05",
     "vehicle_controls": "5349b374beeffcbcc769ea8d6aab318849f50ddd",
@@ -278,5 +278,10 @@
       "audi_api": "2e535cb6b9617307afb3883302727325c50fa0d3"
     },
     "description": "Owner-authorized shared authentication maintenance: one app identity and version-aware market discovery; no changes to V2 vehicle polling, command semantics or credential lifecycle."
+  },
+  "shared_vehicle_redirect_guard": {
+    "base": "49fc2ab338b0c91df1b6fbbbc6a938870a01f485",
+    "previous_blob": "b1063bd0f840d8b26a59a96e8d7b52f791fd2ea6",
+    "description": "Owner-approved B55 shared transport correction: prevent redirect and aiohttp disconnect replay of vehicle writes; leave authentication redirects and existing command routing unchanged. Pinned hash renewed after targeted regression tests; physical qualification remains required."
   }
 }

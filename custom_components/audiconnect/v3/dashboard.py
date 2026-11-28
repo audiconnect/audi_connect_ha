@@ -792,27 +792,24 @@ async def ws_save_identity_draft(hass, connection, msg):
         vol.Required("vin"): str,
         vol.Optional("offset", default=0): vol.All(int, vol.Range(min=0, max=10000)),
         vol.Optional("limit", default=100): vol.All(int, vol.Range(min=1, max=250)),
+        vol.Optional("export", default=False): bool,
     }
 )
 @websocket_api.async_response
 async def ws_trip_history(hass, connection, msg):
-    """Paginated local archive; no cloud request or raw trip identifiers."""
+    """Paginated local archive or bounded full export; no cloud request."""
+    from .trip_archive import trip_history_payload
+
     try:
         car = _engine(hass, msg["entry_id"]).require_vehicle(msg["vin"])
-        offset, limit = msg["offset"], msg["limit"]
-        rows = car.trip_history
         connection.send_result(
             msg["id"],
-            {
-                "total": len(rows),
-                "offset": offset,
-                "limit": limit,
-                "coverage": "observed_records",
-                "trips": [
-                    {k: v for k, v in row.items() if k != "tripID" and v is not None}
-                    for row in rows[offset : offset + limit]
-                ],
-            },
+            trip_history_payload(
+                car.trip_history,
+                offset=msg["offset"],
+                limit=msg["limit"],
+                export=msg.get("export", False),
+            ),
         )
     except (ValueError, KeyError, RuntimeError):
         connection.send_error(

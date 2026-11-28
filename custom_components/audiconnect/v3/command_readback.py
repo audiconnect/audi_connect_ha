@@ -20,6 +20,8 @@ from .vehicle import (
     CHARGING_ON_STATES,
     CHARGING_OFF_STATES,
     charging_active,
+    unique_charging_profile,
+    PROFILE_CURRENT_OPTIONS,
 )
 
 
@@ -43,6 +45,13 @@ def configure_readback(record, params):
         value = values.get("value")
         if type(value) is int and value in range(20, 101, 5):
             match = ("targetstateOfCharge", [value])
+    if (record.capability, record.action) == (
+        "charging",
+        "set_location_charge_current",
+    ):
+        ident, value = values.get("profile_id"), values.get("value")
+        if type(ident) is int and value in PROFILE_CURRENT_OPTIONS:
+            match = ("locationChargingCurrent", [f"{ident}:{value}"])
     if (record.capability, record.action) == ("charging", "set_charge_mode"):
         value = values.get("value")
         if value in ("manual", "timer"):
@@ -78,9 +87,21 @@ def configure_readback(record, params):
 def _readback_row(car, attribute, now=None, *, registry=None):
     """Use native evidence, independently of the selected display observation."""
     key = "climatisationState" if attribute == "climate" else attribute
+    if attribute == "locationChargingCurrent":
+        key = "charging_profile_context_detail"
     _, row = select_reading(
         car, (key,), key, now=now, registry=registry, families=("cariad", "mbb", "")
     )
+    if attribute == "locationChargingCurrent" and row:
+        context = row.get("value")
+        if not isinstance(context, dict):
+            return {}
+        ident = context.get("active_profile_id")
+        profile = unique_charging_profile(context.get("profiles"), ident)
+        option = (profile or {}).get("maxChargingCurrent")
+        if option not in PROFILE_CURRENT_OPTIONS:
+            return {}
+        return {**row, "value": f"{ident}:{option}"}
     return row or {}
 
 
@@ -349,7 +370,7 @@ def optimistic_expiry(record):
         or record.http_status is None
         or not 200 <= record.http_status < 300
         or not projection_attributes(record)
-        or record.readback_attribute == "chargingState"
+        or record.readback_attribute in ("chargingState", "locationChargingCurrent")
         or record.backend_result in ("rejected", "transport_uncertain")
         or record.state not in _ACCEPTED
     ):

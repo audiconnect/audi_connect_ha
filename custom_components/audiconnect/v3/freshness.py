@@ -80,6 +80,11 @@ def reading_freshness_attributes(row, *, allow_last_known=False, now=None):
         if type(known.get("value")) in (str, int, float, bool)
         else None,
         "last_known_captured": known.get("captured"),
+        "last_known_source_family": known.get("family"),
+        "displayed_last_known": historical_display
+        or (allow_last_known and valid and age is not None and age > 60),
+        "api_family": displayed.get("family"),
+        "response_mapping": displayed.get("path"),
         "vehicle_captured": displayed.get("captured"),
         "age_minutes": age,
         # An older retained sample's receipt is diagnostics provenance,

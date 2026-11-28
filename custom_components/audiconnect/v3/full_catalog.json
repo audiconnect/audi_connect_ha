@@ -934,6 +934,15 @@
         },
         "set_location_charge_target": {
           "operations": ["cariad.charging.profiles"]
+        },
+        "set_location_charge_current": {
+          "operations": ["cariad.charging.profiles.current"],
+          "discovery": {
+            "label": "Verify location AC charging current",
+            "instructions": "While parked in a known charging location, choose the other reported current option. Check the same profile in myAudi and independently measure charging power before confirming. Restore the desired setting after the test.",
+            "order": 86,
+            "parameters": ["value"]
+          }
         }
       }
     },
@@ -1602,6 +1611,16 @@
       "delivery": "manual",
       "priority": 0,
       "request_mode": "charging_profile_update",
+      "confirmation": "vehicle_readback",
+      "legacy_compatible": true
+    },
+    "cariad.charging.profiles.current": {
+      "family": "cariad",
+      "method": "PUT",
+      "path": "/vehicle/v1/vehicles/{VIN}/charging/profiles",
+      "delivery": "manual",
+      "priority": 0,
+      "request_mode": "charging_profile_current_update",
       "confirmation": "vehicle_readback",
       "legacy_compatible": true
     },

@@ -225,6 +225,9 @@
   },
   "entity": {
     "sensor": {
+      "v3_charge_power_limitation_reason": {
+        "name": "Reden beperking laadvermogen"
+      },
       "v3_last_update_time": {
         "name": "Laatste voertuigmeting"
       },
@@ -537,6 +540,9 @@
       }
     },
     "binary_sensor": {
+      "v3_safelock_active": {
+        "name": "Safelock actief"
+      },
       "v3_plug_state": {
         "name": "Laadstekker"
       },
@@ -686,6 +692,9 @@
       }
     },
     "select": {
+      "v3_location_charging_current": {
+        "name": "AC-laadstroom op locatie"
+      },
       "v3_charge_mode": {
         "name": "Gewenste laadmodus"
       }

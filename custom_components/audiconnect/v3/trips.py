@@ -29,6 +29,10 @@ _TRIP_FIELDS = frozenset(
         "averageElectricConsumption",
         "totalElectricConsumption_kwh",
         "totalFuelConsumption_L",
+        "totalFuelConsumption_l",
+        "averageFuelConsumptionUnit",
+        "averageElectricConsumptionUnit",
+        "averageElectricEngineConsumptionUnit",
         "zeroEmissionDistance_km",
         "zeroEmissionDistance",
         "mileage",
@@ -61,6 +65,10 @@ _SAFE_SCHEMA_KEYS = frozenset(
         "averageElectricConsumption",
         "totalElectricConsumption_kwh",
         "totalFuelConsumption_L",
+        "totalFuelConsumption_l",
+        "averageFuelConsumptionUnit",
+        "averageElectricConsumptionUnit",
+        "averageElectricEngineConsumptionUnit",
         "zeroEmissionDistance_km",
     )
 )
@@ -157,7 +165,9 @@ def describe_cariad_trip_schema(payload: Any) -> dict[str, Any]:
     }
 
 
-def normalize_cariad_trip(payload: Any) -> tuple[dict[str, Any] | None, str]:
+def normalize_cariad_trip(
+    payload: Any, *, final_units: bool = False
+) -> tuple[dict[str, Any] | None, str]:
     """Return legacy-compatible values only when timestamp and units are valid.
 
     This parser intentionally does not convert legacy scaled fields like
@@ -175,40 +185,75 @@ def normalize_cariad_trip(payload: Any) -> tuple[dict[str, Any] | None, str]:
     if not valid:
         return None, "no_supported_timestamp_or_trip_schema"
     stamp, item = max(valid, key=lambda x: x[0])
-    return _normalize_record(stamp, item)
+    return _normalize_record(stamp, item, final_units=final_units)
 
 
-def _normalize_record(stamp, item):
+def _normalize_record(stamp, item, *, final_units=False):
     distance = _number(item, ("mileage_km",), 0, 2000000)
     overall = _number(item, ("overallMileage_km",), 0, 2000000)
     starting = _number(item, ("startMileage_km",), 0, 2000000)
     speed = _number(item, ("averageSpeed_kmph",), 0, 350)
     duration = _number(item, ("travelTime_min", "travelTime"), 0, 100000)
-    fuel = _number(item, ("averageFuelConsumption_L_per_100km",), 0, 100)
-    if fuel is None:
-        # The unsuffixed modern field is already L/100 km (not legacy tenths).
-        # Values >40 are ambiguous: could be a legacy x10 number such as 81.
-        # Refuse to publish 81 L/100 km or silently invent 8.1 L/100 km.
-        fuel = _number(item, ("averageFuelConsumption",), 0, 40)
-    electric = _number(
-        item, ("averageElectricEngineConsumption_kWh_per_100km",), 0, 150
-    )
-    # Modern Q8 responses include display-unit averageElectricConsumption
-    # and an explicitly unit-suffixed total. Check the relationship rather
-    # than importing V2's tenths scaling or trusting an ambiguous raw field.
     total_electric = _number(item, ("totalElectricConsumption_kwh",), 0, 3000000)
-    total_fuel = _number(item, ("totalFuelConsumption_L",), 0, 1000000)
+    total_fuel = _number(
+        item, ("totalFuelConsumption_L", "totalFuelConsumption_l"), 0, 1000000
+    )
+
+    def average(explicit, names, units, maximum, total):
+        # An explicit per-100 unit or unit-bearing field is authoritative.
+        # Never convert MPG or legacy tenths on the modern app route.
+        value = _number(item, (explicit,), 0, maximum)
+        if value is not None:
+            return value
+        for name in names:
+            if name not in item:
+                continue
+            unit = item.get(name + "Unit")
+            if unit is not None and unit not in units:
+                return None
+            value = _number(item, (name,), 0, maximum)
+            if value is None:
+                return None
+            if unit is not None:
+                return value
+            if distance is not None and distance > 0 and total is not None:
+                return (
+                    value
+                    if math.isclose(
+                        value * distance / 100, total, rel_tol=0.02, abs_tol=0.02
+                    )
+                    else None
+                )
+            return value if final_units else None
+        return None
+
+    fuel = average(
+        "averageFuelConsumption_L_per_100km",
+        ("averageFuelConsumption",),
+        ("l_per_100km", "L_per_100km"),
+        100,
+        total_fuel,
+    )
+    # Keep the established conservative unsuffixed fuel fallback for older
+    # modern responses without any unit or total (not the tenths API).
     if (
-        electric is None
-        and distance is not None
-        and distance > 0
-        and total_electric is not None
+        fuel is None
+        and not final_units
+        and item.get("averageFuelConsumptionUnit") is None
+        and total_fuel is None
     ):
-        candidate = _number(item, ("averageElectricConsumption",), 0, 150)
-        if candidate is not None and math.isclose(
-            candidate * distance / 100, total_electric, rel_tol=0.02, abs_tol=0.02
-        ):
-            electric = candidate
+        fuel = _number(item, ("averageFuelConsumption",), 0, 40)
+    electric = average(
+        "averageElectricEngineConsumption_kWh_per_100km",
+        (
+            ("averageElectricEngineConsumption", "averageElectricConsumption")
+            if final_units
+            else ("averageElectricConsumption",)
+        ),
+        ("kWh_per_100km",),
+        150,
+        total_electric,
+    )
     zero_emission = _number(item, ("zeroEmissionDistance_km",), 0, 2000000)
     readings = [
         distance,
@@ -327,7 +372,7 @@ CARIAD_TRIP_OPERATIONS = {
 }
 
 
-def normalize_cariad_history(payload):
+def normalize_cariad_history(payload, *, final_units=False):
     """Normalize distinct completed trips; never combine cumulative long-term rows."""
     rows = []
     for record in _records(payload):
@@ -338,7 +383,7 @@ def normalize_cariad_history(payload):
             continue
         if record.get("tripType") not in (None, "shortTerm", "shortterm"):
             continue
-        trip, _ = _normalize_record(stamp, record)
+        trip, _ = _normalize_record(stamp, record, final_units=final_units)
         if trip is None:
             continue
         rows.append(trip)
@@ -353,7 +398,10 @@ def observe_cariad_trip(vehicle, operation, payload):
     """Single normalizer for ordinary polling and explicit engineering scans."""
     if operation not in CARIAD_TRIP_OPERATIONS:
         return False
-    trip, _ = normalize_cariad_trip(payload)
+    # The app /shortterm/last route has confirmed final display units. Other
+    # routes still need explicit units or consistent same-record totals.
+    final_units = operation == "cariad.mobility.status.lastTrip"
+    trip, _ = normalize_cariad_trip(payload, final_units=final_units)
     if trip is None:
         return False
     key = CARIAD_TRIP_OPERATIONS[operation]
@@ -363,7 +411,8 @@ def observe_cariad_trip(vehicle, operation, payload):
         from .trip_archive import merge_history
 
         vehicle.trip_history = merge_history(
-            getattr(vehicle, "trip_history", []), normalize_cariad_history(payload)
+            getattr(vehicle, "trip_history", []),
+            normalize_cariad_history(payload, final_units=final_units),
         )
     previous = _timestamp(vehicle.trips.get(key, {}).get("timestamp"))
     incoming = _timestamp(trip.get("timestamp"))

@@ -7,6 +7,7 @@ from .auth import configured_spin
 from .registry import read_json_path, selective_status_path
 from .command_parameters import (
     SOC,
+    PROFILE_CURRENT,
     DURATION,
     TEMPERATURE,
     CLIMATE_INPUTS,
@@ -121,8 +122,19 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
     vin, transport = car.vin, engine.transport
     if mode in _SETTINGS_PATCHES:
         return await patch_settings(transport, vin, mode, params)
-    if mode == "charging_profile_update":
-        validate_inputs(params, {"value": SOC, "profile_id": {"type": "integer"}})
+    if mode in ("charging_profile_update", "charging_profile_current_update"):
+        from .vehicle import PROFILE_CURRENT_OPTIONS, unique_charging_profile
+
+        current_mode = mode == "charging_profile_current_update"
+        # None is the existing native active-location number's optional ID.
+        params = {k: v for k, v in params.items() if k != "profile_id" or v is not None}
+        validate_inputs(
+            params,
+            {
+                "value": PROFILE_CURRENT if current_mode else SOC,
+                "profile_id": {"type": "integer"},
+            },
+        )
         value = params["value"]
         current = await settings(
             transport,
@@ -130,18 +142,21 @@ async def build(engine: Any, car: Any, mode: str, params: dict) -> Any:
             "chargingProfiles",
             "chargingProfiles.chargingProfilesStatus.value",
         )
-        ident = params.get("profile_id")
-        if ident is None:
-            ident = current.get("vehiclePositionedInProfileID")
-        profiles = current.get("profiles")
-        if type(ident) is not int or not isinstance(profiles, list):
-            raise ValueError("No confirmed Audi charging profile")
-        profile = next(
-            (p for p in profiles if isinstance(p, dict) and p.get("id") == ident), None
-        )
+        active_id = current.get("vehiclePositionedInProfileID")
+        ident = params.get("profile_id", active_id)
+        if current_mode and (
+            type(active_id) is not int
+            or active_id != ident
+            or active_id != car.active_charging_profile_id
+        ):
+            raise ValueError("Audi charging location changed; no mutation sent")
+        profile = unique_charging_profile(current.get("profiles"), ident)
         if profile is None:
-            raise ValueError("Audi charging profile not found")
-        return {"profile": {**profile, "targetSOC_pct": value}}
+            raise ValueError("Audi charging profile not found or ambiguous")
+        field = "maxChargingCurrent" if current_mode else "targetSOC_pct"
+        if current_mode and profile.get(field) not in PROFILE_CURRENT_OPTIONS:
+            raise ValueError("Location AC current is not reported by this vehicle")
+        return {"profile": {**profile, field: value}}
     if mode == "climate_start_settings":
         validate_inputs(params, CLIMATE_INPUTS)
         current = await settings(

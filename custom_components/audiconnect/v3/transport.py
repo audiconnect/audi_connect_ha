@@ -16,6 +16,7 @@ from typing import Any
 
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from ..audi_api import single_vehicle_attempt
 from .auth import FamilyAuthUnavailable, V3Auth
 from .family_executors import build_family_executors
 from .quota import NativeQuota
@@ -601,6 +602,11 @@ class V3Transport:
                     headers=plan.headers,
                     json=plan.body if plan.body is not None else None,
                     allow_redirects=False,
+                    **(
+                        {"middlewares": (single_vehicle_attempt,)}
+                        if not read_only
+                        else {}
+                    ),
                 ) as response:
                     reported_remaining = self.quota.observe(
                         response.status,

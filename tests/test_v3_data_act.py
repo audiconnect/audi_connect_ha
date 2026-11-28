@@ -156,6 +156,79 @@ async def test_portal_reader_is_bounded_and_never_refetches_old_delivery():
 
 
 @pytest.mark.asyncio
+async def test_portal_empty_notices_preserve_acknowledged_delivery_provenance():
+    from unittest.mock import AsyncMock
+
+    from custom_components.audiconnect.v3.data_act import DataActClient
+
+    now = datetime.now(UTC)
+    created = now - timedelta(days=2)
+    real = {"name": "real.zip", "createdOn": created.isoformat()}
+    empty = {"name": "new_no_content_found.zip", "createdOn": now.isoformat()}
+    old = {
+        "name": "old_no_content_found.zip",
+        "createdOn": (created - timedelta(days=1)).isoformat(),
+    }
+    equal = {"name": "equal_no_content_found.zip", "createdOn": created.isoformat()}
+    future = {
+        "name": "future_no_content_found.zip",
+        "createdOn": (now + timedelta(days=1)).isoformat(),
+    }
+    invalid = {"name": "../invalid_no_content_found.zip", "createdOn": now.isoformat()}
+    client = DataActClient(None)
+    client._json = AsyncMock(
+        side_effect=[
+            {"Identifier": "existing"},
+            [real, empty, empty, old, equal, future, invalid],
+            [empty, old],
+            None,
+        ]
+    )
+    client._get = AsyncMock(return_value=archive({"vin": VIN, "Data": [sample("52")]}))
+    result = await client.latest(VIN)
+    assert client.delivery_diagnostics == {}
+    client.acknowledge(VIN, result[2])
+    expected = {
+        "portal_file_created": created.isoformat(),
+        "newer_empty_portal_files": 1,
+    }
+    assert client.delivery_diagnostics[VIN] == expected
+    assert await client.latest(VIN) is None
+    assert client.delivery_diagnostics[VIN] == expected
+    from types import SimpleNamespace
+
+    from custom_components.audiconnect.v3.status_engine import StatusEngine
+
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
+    other = V3Vehicle("WAUZZZ4M0MD123457", "Audi", "Q5", "q5", "DE")
+    status = StatusEngine(
+        hass=None,
+        entry=None,
+        auth=SimpleNamespace(data_act_client=client),
+        transport=None,
+        storage=None,
+        vehicles={VIN.lower(): car, other.vin.lower(): other},
+        profiles={},
+        discover=None,
+        known_inventory=None,
+        operation_request=None,
+        api_record=None,
+    )
+    report = status.data_act_poll_status(car)
+    assert {key: report[key] for key in expected} == expected
+    report = status.data_act_poll_status(other)
+    assert report["portal_file_created"] is None
+    assert report["newer_empty_portal_files"] is None
+    client.authorization_required = True
+    assert status.data_act_poll_status(car)["portal_file_created"] is None
+    client.authorization_required = False
+    client._get.assert_awaited_once()
+    assert await client.latest(VIN) is None
+    assert client.delivery_diagnostics == {}
+    assert client.delivery_states[VIN] == "subscription_unavailable"
+
+
+@pytest.mark.asyncio
 async def test_empty_or_unauthorized_subscription_does_not_download():
     from unittest.mock import AsyncMock
 
@@ -1704,7 +1777,8 @@ def test_portal_migration_does_not_widen_host_allowlist(url):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("legacy_hop", [False, True])
-async def test_portal_migration_login_callback_and_credentials(legacy_hop):
+@pytest.mark.parametrize("marketing", ["none", "skip", "repeat", "missing", "foreign"])
+async def test_portal_migration_login_callback_and_credentials(legacy_hop, marketing):
     from types import SimpleNamespace
     from unittest.mock import MagicMock
     from urllib.parse import parse_qs, urlsplit
@@ -1746,11 +1820,29 @@ async def test_portal_migration_login_callback_and_credentials(legacy_hop):
             "</form>"
         )
 
+    marketing_page = IDENTITY + "/v2/login/ui/marketing-consent"
+    marketing_url = marketing_page + "?relayState=example&state=opaque"
+    marketing_skip = marketing_page + "/skip"
+    initial_landing = legacy if legacy_hop else landing
+    if marketing in ("skip", "repeat"):
+        initial_landing = marketing_url
+    elif marketing == "missing":
+        initial_landing = marketing_page + "?relayState=example"
+    elif marketing == "foreign":
+        initial_landing = marketing_url.replace("identity.vwgroup.io", "evil.invalid")
     responses = [
         reply(200, html=form(identifier)),
         reply(200, html=form(authenticate)),
-        reply(302, location=legacy if legacy_hop else landing),
+        reply(302, location=initial_landing),
     ]
+    if marketing in ("skip", "repeat", "missing"):
+        responses.append(reply(200, html="<form>Not now</form>"))
+    if marketing == "skip":
+        responses.append(reply(302, location=legacy if legacy_hop else landing))
+    elif marketing == "repeat":
+        responses.extend(
+            [reply(302, location=marketing_url), reply(200, html="Not now")]
+        )
     if legacy_hop:
         responses.append(reply(301, location=landing))
     responses.extend(
@@ -1760,6 +1852,15 @@ async def test_portal_migration_login_callback_and_credentials(legacy_hop):
         ]
     )
     session.request.side_effect = responses
+    if marketing in ("repeat", "missing", "foreign"):
+        with pytest.raises(DataActUnavailable):
+            await login.authenticate(MagicMock())
+        posts = [
+            call for call in session.request.call_args_list if call.args[0] == "POST"
+        ]
+        assert len(posts) == (3 if marketing == "repeat" else 2)
+        assert all("evil.invalid" not in call.args[1] for call in posts)
+        return
     await login.authenticate(MagicMock())
     calls = session.request.call_args_list
     assert parse_qs(urlsplit(calls[0].args[1]).query)["redirect_uri"] == [
@@ -1769,9 +1870,22 @@ async def test_portal_migration_login_callback_and_credentials(legacy_hop):
     assert all(call.kwargs["allow_redirects"] is False for call in calls)
     for call in calls:
         if call.args[0] == "POST":
-            assert call.args[1] in (identifier, authenticate)
+            assert call.args[1] in (identifier, authenticate, marketing_skip)
+            if call.args[1] == marketing_skip:
+                assert call.kwargs["data"] == {
+                    "relayState": "example",
+                    "state": "opaque",
+                }
+                assert call.kwargs["headers"] == {
+                    "Origin": IDENTITY,
+                    "Referer": marketing_url,
+                }
         else:
             assert call.kwargs["data"] is None
+            assert "Origin" not in (call.kwargs["headers"] or {})
+    assert sum(call.args[1] == marketing_skip for call in calls) == (
+        1 if marketing == "skip" else 0
+    )
 
 
 @pytest.mark.asyncio
@@ -1793,3 +1907,40 @@ async def test_portal_migration_data_reads_use_new_host_and_refuse_redirect():
         headers=None,
         allow_redirects=False,
     )
+
+
+def test_portal_soc_is_not_latched_or_released_by_other_fields():
+    now = datetime.now(UTC)
+    car = V3Vehicle(VIN, "Audi", "Q8", "q8", "BE")
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), car.context
+    )
+    earlier = (now - timedelta(hours=1)).isoformat()
+    primary = {
+        "key": "ae0294b4-1286-3e98-a818-1485b8d88430",
+        "dataFieldName": "state_of_charge",
+        "value": "55",
+        "timestampUtc": earlier,
+    }
+    observe_data_act(
+        car, profile, {"vin": VIN, "Data": [primary]}, now, now.isoformat()
+    )
+    assert car.readings["stateOfCharge"]["value"] == 55
+    rejected_mileage = {
+        "key": "41c0805c-43e5-313e-9dfb-356cb8d20f7c",
+        "dataFieldName": "mileage",
+        "value": "-1",
+        "timestampUtc": now.isoformat(),
+    }
+    observe_data_act(
+        car, profile, {"vin": VIN, "Data": [rejected_mileage]}, now, now.isoformat()
+    )
+    assert car.readings["stateOfCharge"]["captured"] == earlier
+    payload = {
+        "vin": VIN,
+        "Data": [sample("74", now.isoformat()), primary, rejected_mileage],
+    }
+    assert observe_data_act(car, profile, payload, now, now.isoformat())
+    row = car.readings["stateOfCharge"]
+    assert row["value"] == 74 and row["captured"] == now.isoformat()
+    assert row["path"] == SOC

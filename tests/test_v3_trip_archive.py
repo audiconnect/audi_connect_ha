@@ -39,6 +39,41 @@ def test_archive_merge_preserves_fields_and_does_not_store_ids_or_raw_payload():
     assert merge_history(merged, merged) == merged
 
 
+def test_full_archive_export_uses_existing_projection_without_pagination_loss():
+    from datetime import UTC, datetime, timedelta
+
+    import pytest
+
+    from custom_components.audiconnect.v3.trip_archive import trip_history_payload
+
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    rows = normalize_cariad_history(
+        {
+            "data": [
+                _row(
+                    (start + timedelta(minutes=i)).isoformat(),
+                    totalElectricConsumption_kwh=0,
+                )
+                for i in range(300)
+            ]
+        }
+    )
+    # Even a malformed extra field must never enter a private export.
+    rows[0]["private_raw"] = "must not export"
+    page = trip_history_payload(rows)
+    assert page["total"] == 300
+    assert len(page["trips"]) == 100
+    result = trip_history_payload(rows, export=True)
+    assert result["total"] == len(result["trips"]) == 300
+    assert result["trips"][0]["totalElectricConsumption"] == 0
+    assert "private_raw" not in result["trips"][0]
+    assert "tripID" not in result["trips"][0]
+    assert result["coverage"] == "observed_records"
+    assert trip_history_payload([], export=True)["trips"] == []
+    with pytest.raises(ValueError, match="offset zero"):
+        trip_history_payload(rows, offset=1, export=True)
+
+
 def test_archive_roundtrip_restores_without_network_and_preserves_other_vehicles():
     async def scenario():
         car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")

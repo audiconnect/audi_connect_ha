@@ -159,6 +159,31 @@ def merge_snapshots(*groups):
     return result
 
 
+def trip_history_payload(rows, *, offset=0, limit=100, export=False):
+    """Read-only projection of the existing bounded, normalized archive."""
+    if export:
+        if offset:
+            raise ValueError("Full trip export must start at offset zero")
+        limit = MAX_TRIP_HISTORY
+    total = min(len(rows), MAX_TRIP_HISTORY)
+    trips = [
+        {
+            key: value
+            for key, value in row.items()
+            if key != "tripID" and value is not None
+        }
+        for raw in rows[offset : min(offset + limit, total)]
+        if (row := clean_trip(raw)) is not None
+    ]
+    return {
+        "total": len(trips) if export else total,
+        "offset": offset,
+        "limit": limit,
+        "coverage": "observed_records",
+        "trips": trips,
+    }
+
+
 class V3TripArchive:
     """Private HA storage, separate from evidence and configuration."""
 

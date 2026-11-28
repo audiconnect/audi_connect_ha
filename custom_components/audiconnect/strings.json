@@ -456,6 +456,9 @@
   },
   "entity": {
     "sensor": {
+      "v3_charge_power_limitation_reason": {
+        "name": "Charge power limitation reason"
+      },
       "v3_last_update_time": {
         "name": "Last vehicle capture"
       },
@@ -768,6 +771,9 @@
       }
     },
     "binary_sensor": {
+      "v3_safelock_active": {
+        "name": "Safelock active"
+      },
       "v3_plug_state": {
         "name": "Charging plug"
       },
@@ -917,6 +923,9 @@
       }
     },
     "select": {
+      "v3_location_charging_current": {
+        "name": "Location AC charging current"
+      },
       "v3_charge_mode": {
         "name": "Preferred charge mode"
       }

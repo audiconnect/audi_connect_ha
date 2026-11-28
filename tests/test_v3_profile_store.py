@@ -291,3 +291,18 @@ def test_trip_poll_deadline_is_invalidated_on_context_change():
     assert (
         restore_profile(catalog, changed, profile.snapshot()).trip_poll_due_at is None
     )
+
+
+def test_legacy_route_backoff_survives_restart_and_clears_on_context_change():
+    catalog, context, profile = fresh()
+    profile.native_read_retry_at["charger"] = 1800000000.0
+    saved = profile.snapshot()
+    saved["native_read_retry_at"].update(
+        climater=True, timer=float("inf"), unknown_route=1800000000.0
+    )
+    restored = restore_profile(catalog, context, saved)
+    assert restored.native_read_retry_at == {"charger": 1800000000.0}
+    changed = VehicleContext(auth="legacy", region="DE", model_family="q5")
+    assert restore_profile(catalog, changed, saved).native_read_retry_at == {}
+    saved.pop("native_read_retry_at")
+    assert restore_profile(catalog, context, saved).native_read_retry_at == {}

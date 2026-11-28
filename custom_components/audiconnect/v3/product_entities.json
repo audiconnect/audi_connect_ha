@@ -2,6 +2,24 @@
   "schema_version": 1,
   "source": "V2_V3_PARITY_BASELINE plus explicit product extensions; b10 reversible compatibility visibility, vehicle-first categories",
   "entities": {
+    "binary_sensor.safelock_active": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": ["safelockActive"],
+      "metadata_contract": null,
+      "freshness": "fresh",
+      "name": "Safelock active",
+      "category": "diagnostic"
+    },
+    "sensor.charge_power_limitation_reason": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": ["chargePowerLimitationReason"],
+      "metadata_contract": null,
+      "freshness": "fresh",
+      "name": "Charge power limitation reason",
+      "category": "diagnostic"
+    },
     "sensor.last_update_time": {
       "origin": "v2",
       "scope": "vehicle",
@@ -872,6 +890,15 @@
       "freshness": "native_entity_contract",
       "category": "config",
       "name": "Profile {profile_id} charge target"
+    },
+    "select.location_charging_current": {
+      "origin": "v3_product_extension",
+      "scope": "vehicle",
+      "source_attributes": [],
+      "metadata_contract": null,
+      "freshness": "native_entity_contract",
+      "category": "config",
+      "name": "Location AC charging current"
     },
     "select.charge_mode": {
       "origin": "v2",

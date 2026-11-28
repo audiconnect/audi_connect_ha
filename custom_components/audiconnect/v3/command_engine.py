@@ -12,6 +12,8 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+from aiohttp import ClientError
+
 from .quota import optional_budget_available
 from .action_discovery import approval_group
 from .auth import configured_spin
@@ -110,6 +112,7 @@ class CommandEngine:
         elif mode in {
             "charging_settings_update",
             "charging_profile_update",
+            "charging_profile_current_update",
             "climate_settings_update",
             "climate_start_settings",
             "flash",
@@ -186,7 +189,7 @@ class CommandEngine:
                     car, record.operation, params
                 )
             response = await self.dispatch_command(car, family, method, path, body)
-        except (TimeoutError, OSError, RuntimeError, ValueError):
+        except (TimeoutError, OSError, RuntimeError, ValueError, ClientError):
             observe(None)
             self._api_record(profile, record.operation, family, method, None, car.vin)
             raise
@@ -498,7 +501,7 @@ class CommandEngine:
                     expert=expert,
                     approval=approval,
                 )
-            except (ValueError, RuntimeError, OSError, TimeoutError):
+            except (ValueError, RuntimeError, OSError, TimeoutError, ClientError):
                 if profile.discovery.active_attempt is not None:
                     raise  # The alternate may have been dispatched; preserve pending uncertainty.
                 return {**result, "alternative": "paused_check_status"}
@@ -618,7 +621,7 @@ class CommandEngine:
             family, _, response = await self._execute_prepared(
                 vehicle, profile, record, prepared, params
             )
-        except (TimeoutError, OSError, RuntimeError, ValueError):
+        except (TimeoutError, OSError, RuntimeError, ValueError, ClientError):
             response = None
         from .read_discovery import explicitly_unsupported
 
@@ -952,7 +955,7 @@ class CommandEngine:
             return await self.send_control(
                 vin, record.action, record.capability, _retry_of=record
             )
-        except (RuntimeError, ValueError, OSError, TimeoutError):
+        except (RuntimeError, ValueError, OSError, TimeoutError, ClientError):
             record.recovery_result = "dispatch_or_verification_failed"
             _LOGGER.info("Audi charging STOP recovery: %s", record.recovery_result)
             return None
@@ -1031,6 +1034,10 @@ class CommandEngine:
                 raise ValueError(
                     "Climate parameter combination requires vehicle discovery"
                 )
+            if aspect == "set_location_charge_current" and capability == "charging":
+                params = dict(params or {})
+                if params.get("profile_id") is None:
+                    params["profile_id"] = car.active_charging_profile_id
             prepared = await self._prepare_command(car, ident, params)
             self._reserve_wake(vin, ident)
             record = CommandRecord.begin(
@@ -1101,7 +1108,13 @@ class CommandEngine:
                     record.observe_http(None)
                     car.last_command_result = "transport_uncertain"
                 raise
-            except (TimeoutError, OSError, RuntimeError, ValueError) as err:
+            except (
+                TimeoutError,
+                OSError,
+                RuntimeError,
+                ValueError,
+                ClientError,
+            ) as err:
                 if record.http_status is None:
                     record.observe_http(None)
                     car.last_command_result = "transport_uncertain"

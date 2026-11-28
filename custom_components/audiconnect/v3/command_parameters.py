@@ -8,11 +8,18 @@ from __future__ import annotations
 
 import math
 
+from .vehicle import PROFILE_CURRENT_OPTIONS
+
 
 # Shared input contracts for built-in command preparation and Workbench fields.
 # Settings updates with heterogeneous OEM field types retain their reviewed handler.
 SOC = {"type": "integer", "minimum": 20, "maximum": 100, "step": 5, "required": True}
 DURATION = {"type": "integer", "minimum": 10, "maximum": 60, "step": 10, "default": 30}
+PROFILE_CURRENT = {
+    "type": "string",
+    "enum": list(PROFILE_CURRENT_OPTIONS),
+    "required": True,
+}
 TEMPERATURE = {
     "temp_c": {
         "type": "number",
@@ -299,6 +306,10 @@ def parameter_schema(operation, route, *, discovery_parameters=None):
     return {
         "charging_settings_update": {"value": SOC},
         "charging_profile_update": {"value": SOC, "profile_id": {"type": "integer"}},
+        "charging_profile_current_update": {
+            "value": PROFILE_CURRENT,
+            "profile_id": {"type": "integer"},
+        },
         "auxiliary_start": {"duration": DURATION},
         "climate_start_settings": CLIMATE_INPUTS,
         "mbb_climate_start": LEGACY_CLIMATE_INPUTS,

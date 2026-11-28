@@ -4,6 +4,9 @@ import fs from "node:fs";
 import vm from "node:vm";
 let Panel;
 let clipboard = [];
+let downloaded = [];
+let archiveBlob;
+let revokedUrls = [];
 class FakeElement {
   attachShadow() {
     this.shadowRoot = {
@@ -20,6 +23,31 @@ vm.runInNewContext(
   fs.readFileSync("custom_components/audiconnect/v3/frontend/panel.js", "utf8"),
   {
     HTMLElement: FakeElement,
+    Blob,
+    URL: {
+      createObjectURL(blob) {
+        archiveBlob = blob;
+        return "blob:test-archive";
+      },
+      revokeObjectURL(url) {
+        revokedUrls.push(url);
+      },
+    },
+    setTimeout(callback) {
+      callback();
+    },
+    document: {
+      createElement(tag) {
+        assert.equal(tag, "a");
+        return {
+          click() {
+            downloaded.push({ href: this.href, filename: this.download });
+          },
+          remove() {},
+        };
+      },
+      body: { appendChild() {} },
+    },
     navigator: {
       clipboard: {
         writeText: async (value) => {
@@ -2052,4 +2080,42 @@ test("Guided and selective climate discovery use the same typed parameters", asy
     assert.equal(sent[0][1].expert, expert);
     assert.equal(sent[0][1].end_user, true);
   }
+});
+
+test("Trip archive download uses one scoped read and never triggers polling", async () => {
+  const panel = new Panel();
+  panel.selected = "entry";
+  panel.vin = "TESTVIN";
+  panel.entries = [
+    { entry_id: "entry", vehicles: [{ vin: "TESTVIN", name: "Audi" }] },
+  ];
+  const result = {
+    total: 1,
+    offset: 0,
+    limit: 10000,
+    coverage: "observed_records",
+    trips: [{ timestamp: "2026-01-01T00:00:00Z", mileage: 16 }],
+  };
+  const calls = [];
+  panel.api = async (name, data) => {
+    calls.push([name, data.entry_id, data.vin, data.export]);
+    return result;
+  };
+  downloaded = [];
+  revokedUrls = [];
+  panel.render();
+  assert.match(panel.shadowRoot.innerHTML, /Download trip archive/);
+  await panel._click({
+    target: {
+      closest: () => ({ dataset: { action: "download-trip-archive" } }),
+    },
+  });
+  assert.deepEqual(calls, [["trip_history", "entry", "TESTVIN", true]]);
+  assert.deepEqual(downloaded, [
+    { href: "blob:test-archive", filename: "audi-trip-history.json" },
+  ]);
+  assert.deepEqual(JSON.parse(await archiveBlob.text()), result);
+  assert.deepEqual(revokedUrls, ["blob:test-archive"]);
+  assert.equal(panel.loading, false);
+  assert.equal(panel.error, "");
 });

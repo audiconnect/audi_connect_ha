@@ -58,6 +58,9 @@ def test_product_contract_covers_v2_plus_only_deliberate_extensions():
         "sensor.data_act_status",
         "sensor.last_error",
         "binary_sensor.integration_problem",
+        "binary_sensor.safelock_active",
+        "sensor.charge_power_limitation_reason",
+        "select.location_charging_current",
         "sensor.door_status",
         "sensor.window_status",
         "sensor.parked_in",
@@ -183,6 +186,8 @@ def test_product_diagnostic_allowlist_is_explicit_and_vehicle_properties_are_not
         "sensor.data_act_status",
         "sensor.last_error",
         "binary_sensor.integration_problem",
+        "binary_sensor.safelock_active",
+        "sensor.charge_power_limitation_reason",
     }
     assert canonical_entity_category("device_tracker.position") is None
     assert canonical_entity_category("button.refresh_vehicle_data") is None
@@ -488,3 +493,26 @@ def test_timer_sensor_retains_history_but_never_displays_invalid_current_count()
     assert attrs["last_known_captured"] == known["captured"]
     assert attrs["vehicle_captured"] == now.isoformat()
     assert attrs["vehicle_freshness"] == "unknown"
+
+
+def test_combustion_range_uses_newer_explicit_fuel_range_not_hybrid_range():
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=1)).isoformat()
+    car = NS(
+        car_type="combustion",
+        readings={
+            "primary_engine_type": {"value": "gasoline", "status": "verified"},
+            "TOTAL_RANGE": {"value": 0, "captured": old},
+            "measuredFuelRange": {"value": 610, "captured": now.isoformat()},
+        },
+    )
+    descriptor = ATTRIBUTES["TOTAL_RANGE"]
+    assert projection_reading(car, descriptor, now=now)[0] == "measuredFuelRange"
+    assert projection_reading(car, descriptor, now=now)[1]["value"] == 610
+    car.car_type = "phev"
+    assert projection_reading(car, descriptor, now=now)[0] == "TOTAL_RANGE"
+    car.car_type = "combustion"
+    car.readings["secondary_engine_type"] = {"value": "lpg", "status": "verified"}
+    assert projection_reading(car, descriptor, now=now)[0] == "TOTAL_RANGE"
