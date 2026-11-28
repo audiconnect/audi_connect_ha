@@ -55,7 +55,13 @@ def redaction_context(entry, auth):
     ]
     options = getattr(entry, "options", {})
     known.extend(
-        options.get(key) for key in ("v3_data_act_email", "v3_data_act_password")
+        options.get(key)
+        for key in (
+            "v3_data_act_email",
+            "v3_data_act_password",
+            "v3_myaudi_email",
+            "v3_myaudi_password",
+        )
     )
     service = getattr(auth, "service", None)
     for family in _TOKEN_SLOTS:
@@ -135,6 +141,30 @@ class V3Auth:
                 self.data_act_client = DataActClient(
                     self._data_act_owned_session, login=login.authenticate
                 )
+
+        self.myaudi_client = None
+        self._myaudi_session = None
+        options = getattr(entry, "options", {})
+        if (
+            options.get("v3_myaudi_enabled")
+            and options.get("v3_myaudi_email")
+            and options.get("v3_myaudi_password")
+        ):
+            from aiohttp import ClientSession, CookieJar
+            from .myaudi import MyAudiPortal
+
+            self._myaudi_session = ClientSession(cookie_jar=CookieJar())
+            self.myaudi_client = MyAudiPortal(
+                self._myaudi_session,
+                options["v3_myaudi_email"],
+                options["v3_myaudi_password"],
+            )
+
+    async def async_close_myaudi(self):
+        self.myaudi_client = None
+        if self._myaudi_session is not None:
+            await self._myaudi_session.close()
+            self._myaudi_session = None
 
     async def async_close_data_act(self):
         if self._data_act_owned_session is not None:

@@ -601,6 +601,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         if selected_v3:
             await engine.status.async_stop_data_act()
             await engine.auth.async_close_data_act()
+            await engine.auth.async_close_myaudi()
         raise
     return True
 
@@ -620,6 +621,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 
         await runtime.v3.status.async_stop_data_act()
         await runtime.v3.auth.async_close_data_act()
+        await runtime.v3.auth.async_close_myaudi()
         await async_remove_vehicle_dashboard(hass, config_entry.entry_id)
 
     if not any(

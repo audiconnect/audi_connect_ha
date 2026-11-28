@@ -1130,6 +1130,26 @@ class V3Engine:
             raise ValueError("Vehicle is not present in the current account inventory")
         return vehicle
 
+    async def refresh_myaudi(self, vin):
+        """Read OEM metadata independently; never change native command authority."""
+        from .myaudi import MyAudiUnavailable
+        from .vehicle import normalize_myaudi_dossier
+
+        vehicle = self.require_vehicle(vin)
+        client = getattr(self.auth, "myaudi_client", None)
+        if client is None or not self.entry.options.get("v3_myaudi_enabled"):
+            raise MyAudiUnavailable("myAudi not configured")
+        raw = await client.dossier(vehicle.vin)
+        if client is not self.auth.myaudi_client or not self.entry.options.get(
+            "v3_myaudi_enabled"
+        ):
+            raise MyAudiUnavailable("myAudi disconnected")
+        self.require_vehicle(vin)
+        vehicle.myaudi_dossier = normalize_myaudi_dossier(
+            raw, vehicle.vin, vehicle.country, datetime.now(UTC).isoformat()
+        )
+        return vehicle.myaudi_dossier
+
     def control_routes_for(
         self, vin: str, capability: str, action: str
     ) -> dict[str, Any]:

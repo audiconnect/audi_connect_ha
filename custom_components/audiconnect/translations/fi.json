@@ -105,7 +105,8 @@
         "description": "{data_act_status}",
         "menu_options": {
           "data_act": "EU Data Act",
-          "reverse_geocoding": "Käänteinen geokoodaus"
+          "reverse_geocoding": "Käänteinen geokoodaus",
+          "myaudi": "myAudi (Belgia, kokeellinen)"
         }
       },
       "advanced": {
@@ -187,11 +188,27 @@
         "data": {
           "action": "Yhteys"
         }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nYhdistä tai katkaise valinnainen belgialainen myAudi-verkkoyhteys.",
+        "data": {
+          "action": "Yhteys"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "Yhdistä myAudi",
+        "description": "Vahvista Audi ID -kirjautuminen ja vastaava ajoneuvo. Belgian hollanninkielinen portaali. Tunnistetiedot tallennetaan Home Assistantiin.",
+        "data": {
+          "email": "Audi ID -sähköposti",
+          "password": "Salasana"
+        }
       }
     },
     "error": {
       "invalid_stop_recovery_settings": "Anna kokonaisluvut näytetyissä rajoissa.",
-      "invalid_scan_interval": "Anna kelvollinen päivitysväli."
+      "invalid_scan_interval": "Anna kelvollinen päivitysväli.",
+      "myaudi_unavailable": "myAudi-kirjautuminen tai ajoneuvon tarkistus epäonnistui."
     }
   },
   "selector": {

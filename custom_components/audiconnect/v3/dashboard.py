@@ -824,7 +824,12 @@ def _panel_module_url(frontend_dir: Path, filename: str = "panel.js") -> str:
 
 
 async def _async_setup_panel_resources(hass) -> None:
-    from .vehicle_dashboard import ws_service_details, ws_vehicle_list, ws_vehicle_trips
+    from .vehicle_dashboard import (
+        ws_myaudi,
+        ws_service_details,
+        ws_vehicle_list,
+        ws_vehicle_trips,
+    )
 
     frontend_dir = Path(__file__).parent / "frontend"
     # HA websocket commands and static paths live for the HA process.
@@ -859,6 +864,7 @@ async def _async_setup_panel_resources(hass) -> None:
             ws_vehicle_list,
             ws_vehicle_trips,
             ws_service_details,
+            ws_myaudi,
         ):
             websocket_api.async_register_command(hass, handler)
         await hass.http.async_register_static_paths(

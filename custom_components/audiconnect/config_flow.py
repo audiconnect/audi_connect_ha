@@ -950,6 +950,9 @@ class OptionsFlowHandler(OptionsFlow):
                         "v3_data_act_enabled",
                         "v3_data_act_email",
                         "v3_data_act_password",
+                        "v3_myaudi_enabled",
+                        "v3_myaudi_email",
+                        "v3_myaudi_password",
                     ):
                         values.pop(key, None)
                 else:
@@ -967,7 +970,7 @@ class OptionsFlowHandler(OptionsFlow):
             return await self.async_step_init()
         return self.async_show_menu(
             step_id="data_sources",
-            menu_options=["data_act", "reverse_geocoding"],
+            menu_options=["data_act", "myaudi", "reverse_geocoding"],
             description_placeholders=await self._data_act_placeholders(
                 self.config_entry.options
             ),
@@ -1237,6 +1240,100 @@ class OptionsFlowHandler(OptionsFlow):
                     return self.async_create_entry(title="", data=options)
         return self.async_show_form(
             step_id="data_act_credentials",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("email", default=email): TextSelector(),
+                    vol.Required("password"): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_myaudi(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        options = dict(self.config_entry.options)
+        configured = bool(options.get("v3_myaudi_enabled"))
+        if user_input is not None:
+            if user_input["action"] == "keep":
+                return self.async_create_entry(title="", data=options)
+            if user_input["action"] == "disconnect":
+                for key in (
+                    "v3_myaudi_enabled",
+                    "v3_myaudi_email",
+                    "v3_myaudi_password",
+                ):
+                    options.pop(key, None)
+                return self.async_create_entry(title="", data=options)
+            return await self.async_step_myaudi_credentials()
+        return self.async_show_form(
+            step_id="myaudi",
+            description_placeholders={
+                "status": "Configured" if configured else "Not configured"
+            },
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "action", default="keep" if configured else "connect"
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=["keep", "connect", "disconnect"]
+                            if configured
+                            else ["connect"],
+                            translation_key="data_act_action",
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def _validate_myaudi_credentials(self, email, password):
+        from aiohttp import ClientSession, CookieJar
+        from .v3.myaudi import MyAudiPortal, MyAudiUnavailable
+
+        engine = self._discovery_engine()
+        vins = (
+            [car.vin for car in engine.vehicles.values() if car.inventory_present]
+            if engine
+            else []
+        )
+        if not vins:
+            raise MyAudiUnavailable("No native vehicle available")
+        async with ClientSession(cookie_jar=CookieJar()) as session:
+            await MyAudiPortal(session, email, password).connect(vins)
+
+    async def async_step_myaudi_credentials(self, user_input=None) -> ConfigFlowResult:
+        from .v3.myaudi import MyAudiUnavailable
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        options = dict(self.config_entry.options)
+        email = options.get("v3_myaudi_email") or self.config_entry.data.get(
+            CONF_USERNAME, ""
+        )
+        errors = {}
+        if user_input is not None:
+            email = user_input.get("email", "").strip()
+            password = user_input.get("password", "")
+            if not email or not password:
+                errors["base"] = "data_act_credentials_required"
+            else:
+                try:
+                    await self._validate_myaudi_credentials(email, password)
+                except MyAudiUnavailable:
+                    errors["base"] = "myaudi_unavailable"
+                else:
+                    options.update(
+                        v3_myaudi_enabled=True,
+                        v3_myaudi_email=email,
+                        v3_myaudi_password=password,
+                    )
+                    return self.async_create_entry(title="", data=options)
+        return self.async_show_form(
+            step_id="myaudi_credentials",
             data_schema=vol.Schema(
                 {
                     vol.Required("email", default=email): TextSelector(),

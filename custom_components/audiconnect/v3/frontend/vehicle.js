@@ -298,6 +298,7 @@ class AudiVehiclePanel extends HTMLElement {
     this.serviceDraft = null;
     this.serviceOriginal = null;
     this.serviceBusy = false;
+    this.myaudiBusy = false;
     this.mapCard = null;
     this.mapKey = "";
     this.mapLoading = false;
@@ -862,6 +863,10 @@ class AudiVehiclePanel extends HTMLElement {
         this.row("sensor.trip_history")
       )
         void this.trips();
+      return;
+    }
+    if (data.myaudiRefresh !== undefined) {
+      void this.refreshMyAudi();
       return;
     }
     if (data.serviceEdit !== undefined) {
@@ -1486,6 +1491,123 @@ class AudiVehiclePanel extends HTMLElement {
         ? " · " + esc(new Date(time).toLocaleString(this._hass?.language))
         : "") +
       "</small></div>"
+    );
+  }
+  async refreshMyAudi() {
+    const current = this.current();
+    const row = current?.entities[0];
+    if (
+      !row ||
+      !current.myaudi_configured ||
+      !this._hass?.user?.is_admin ||
+      this.myaudiBusy
+    )
+      return;
+    const scope = this.scopeVersion;
+    this.myaudiBusy = true;
+    this.render();
+    try {
+      const result = await this._hass.callWS({
+        type: "audiconnect/vehicle/myaudi",
+        entity_id: row.entity_id,
+      });
+      if (this.scopeVersion === scope && this.current() === current)
+        current.myaudi_dossier = result;
+    } catch {
+      if (this.scopeVersion === scope)
+        this.message =
+          "myAudi unavailable. Check the connection in Additional data sources.";
+    } finally {
+      this.myaudiBusy = false;
+      this.render();
+    }
+  }
+  myaudiHTML() {
+    const car = this.current();
+    if (!this._hass?.user?.is_admin || !car?.myaudi_configured) return "";
+    const d = car.myaudi_dossier;
+    const line = (name, value) =>
+      value == null || value === ""
+        ? ""
+        : "<div><small>" +
+          esc(this.tr(name)) +
+          "</small> · " +
+          esc(String(value)) +
+          "</div>";
+    const list = (name, rows, render) =>
+      "<h3>" +
+      esc(this.tr(name)) +
+      "</h3>" +
+      (Array.isArray(rows)
+        ? rows.length
+          ? rows.map(render).join("")
+          : "<small>" + esc(this.tr("No entries returned")) + "</small>"
+        : "<small>" + esc(this.tr("Unavailable")) + "</small>");
+    let detail = "";
+    if (d) {
+      if (this.tab === "Vehicle & Documents") {
+        const identity = d.identity || {};
+        detail +=
+          line("Model", identity.model) +
+          line("Model year", identity.model_year) +
+          line("Model coding", identity.model_coding) +
+          line("Powertrain", identity.powertrain) +
+          line("Exterior", identity.exteriorColor) +
+          line("Interior", identity.interiorColor);
+        if (d.image)
+          detail +=
+            '<img alt="Audi vehicle" style="max-width:100%" src="' +
+            esc(d.image) +
+            '">';
+        detail +=
+          "<details><summary>" +
+          esc(this.tr("Connected services")) +
+          "</summary>" +
+          list("Connected services", d.services, (r) =>
+            line(
+              r.id || "Service",
+              [r.status, r.expirationDate].filter(Boolean).join(" · "),
+            ),
+          ) +
+          "</details>";
+      } else {
+        detail += list("Digital service record", d.service, (r) =>
+          line(r.serviceDate || "Service", r.serviceDescription),
+        );
+        detail +=
+          "<h3>" +
+          esc(this.tr("Warranty")) +
+          "</h3>" +
+          (d.warranty
+            ? line("Start", d.warranty.startDate) +
+              line("Expiry", d.warranty.expirationDate) +
+              line(
+                "Odometer limit",
+                [d.warranty.odometerLimit, d.warranty.odometerUnit]
+                  .filter((v) => v != null)
+                  .join(" "),
+              )
+            : "<small>" + esc(this.tr("Unavailable")) + "</small>");
+        detail += list("Oil specification", d.oil?.norms, (r) =>
+          line(
+            r.oilNorm || "Oil",
+            [r.amount, d.oil.unit].filter((v) => v != null).join(" "),
+          ),
+        );
+      }
+      detail += line(
+        "Retrieved from myAudi",
+        new Date(d.observed_at).toLocaleString(),
+      );
+    } else detail = "<p>" + esc(this.tr("No dossier retrieved yet.")) + "</p>";
+    return (
+      '<section class="status-card"><h2>myAudi</h2><button data-myaudi-refresh ' +
+      (this.myaudiBusy ? "disabled" : "") +
+      ">" +
+      esc(this.tr("Refresh myAudi dossier")) +
+      "</button>" +
+      detail +
+      "</section>"
     );
   }
   async serviceDetails(save = false) {
@@ -2739,7 +2861,10 @@ class AudiVehiclePanel extends HTMLElement {
         body += this.timersHTML();
       if (this.tab === "Service & Health")
         body +=
-          this.healthHTML() + this.serviceHTML() + this.officialDocuments(true);
+          this.healthHTML() +
+          this.serviceHTML() +
+          this.myaudiHTML() +
+          this.officialDocuments(true);
       if (this.tab === "Vehicle & Documents") body += this.ownershipHTML();
       const remaining = rows.filter((row) => !used.has(row.entity_id));
       let additional = "";
@@ -2756,7 +2881,8 @@ class AudiVehiclePanel extends HTMLElement {
             : "") +
           "</section>";
       }
-      if (this.tab === "Vehicle & Documents") body += this.officialDocuments();
+      if (this.tab === "Vehicle & Documents")
+        body += this.myaudiHTML() + this.officialDocuments();
       if (this.tab === "Settings") {
         const shortcuts = [
           ["Charging", "Charging"],

@@ -105,7 +105,8 @@
         "description": "{data_act_status}",
         "menu_options": {
           "data_act": "EU Data Act",
-          "reverse_geocoding": "Géocodage inverse"
+          "reverse_geocoding": "Géocodage inverse",
+          "myaudi": "myAudi (Belgique, expérimental)"
         }
       },
       "advanced": {
@@ -195,6 +196,21 @@
         "data": {
           "vehicle": "Véhicule Audi"
         }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nSession web myAudi belge. Connectez ou déconnectez la source facultative.",
+        "data": {
+          "action": "Connexion"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "Connecter myAudi",
+        "description": "Vérifiez la connexion Audi ID et un véhicule correspondant. Portail belge néerlandophone. Les identifiants facultatifs sont enregistrés dans Home Assistant.",
+        "data": {
+          "email": "E-mail Audi ID",
+          "password": "Mot de passe"
+        }
       }
     },
     "error": {
@@ -203,7 +219,8 @@
       "data_act_unavailable": "Le portail est temporairement indisponible. La connexion existante est conservée.",
       "invalid_geocoding_endpoint": "Saisissez un point de terminaison HTTPS autorisé, pas le service public OpenStreetMap.",
       "invalid_stop_recovery_settings": "Saisir des nombres entiers dans les limites indiquées.",
-      "invalid_scan_interval": "Saisir un intervalle valide."
+      "invalid_scan_interval": "Saisir un intervalle valide.",
+      "myaudi_unavailable": "Connexion myAudi ou vérification du véhicule non aboutie."
     }
   },
   "selector": {

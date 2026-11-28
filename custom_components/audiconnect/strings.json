@@ -124,7 +124,8 @@
         "description": "{data_act_status}",
         "menu_options": {
           "data_act": "EU Data Act",
-          "reverse_geocoding": "Reverse geocoding"
+          "reverse_geocoding": "Reverse geocoding",
+          "myaudi": "myAudi (Belgium, experimental)"
         }
       },
       "advanced": {
@@ -258,6 +259,21 @@
           "email": "Portal email",
           "password": "Portal password"
         }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nExperimental Belgian myAudi website session. Connect or disconnect the optional source.",
+        "data": {
+          "action": "Connection"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "Connect myAudi",
+        "description": "Verify normal Audi ID website sign-in and a matching native vehicle. Belgian Dutch portal. Optional credentials are stored in Home Assistant.",
+        "data": {
+          "email": "Audi ID email",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -269,7 +285,8 @@
       "data_act_unavailable": "The portal is temporarily unavailable. Keep the existing connection and try again later.",
       "invalid_geocoding_endpoint": "Enter an authorized HTTPS reverse endpoint, not the public OpenStreetMap service.",
       "invalid_stop_recovery_settings": "Enter whole numbers within the displayed limits.",
-      "invalid_scan_interval": "Enter a valid polling interval."
+      "invalid_scan_interval": "Enter a valid polling interval.",
+      "myaudi_unavailable": "myAudi login or matching vehicle check failed. Check credentials and interactive requirements."
     },
     "abort": {
       "no_vehicle_available": "No Audi vehicle is currently loaded."
