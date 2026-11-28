@@ -109,6 +109,7 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
     portal = SimpleNamespace(
         data_act_client=object() if portal_enabled else None,
         async_close_data_act=AsyncMock(),
+        async_close_myaudi=AsyncMock(),
     )
     engine = SimpleNamespace(
         auth=portal,
@@ -163,8 +164,10 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
         setup_panel.assert_not_awaited()
         engine.status.async_stop_data_act.assert_awaited_once()
         portal.async_close_data_act.assert_awaited_once()
+        portal.async_close_myaudi.assert_awaited_once()
     else:
         portal.async_close_data_act.assert_not_awaited()
+        portal.async_close_myaudi.assert_not_awaited()
 
 
 @pytest.mark.parametrize("other_change", [None, "options", "data", "v2"])

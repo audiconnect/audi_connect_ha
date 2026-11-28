@@ -105,7 +105,8 @@
         "description": "{data_act_status}",
         "menu_options": {
           "data_act": "EU Data Act",
-          "reverse_geocoding": "Reverse geocoding"
+          "reverse_geocoding": "Reverse geocoding",
+          "myaudi": "myAudi (België, experimenteel)"
         }
       },
       "advanced": {
@@ -209,6 +210,21 @@
         "data": {
           "vehicle": "Voertuig"
         }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nBelgische myAudi-websessie. Verbind of verbreek de optionele bron.",
+        "data": {
+          "action": "Verbinding"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "myAudi verbinden",
+        "description": "Verifieer de normale Audi ID-login en een overeenkomend voertuig. Belgisch Nederlandstalig portaal. De optionele gegevens worden lokaal in Home Assistant bewaard.",
+        "data": {
+          "email": "Audi ID e-mailadres",
+          "password": "Wachtwoord"
+        }
       }
     },
     "error": {
@@ -219,7 +235,8 @@
       "data_act_unavailable": "Het portaal is tijdelijk niet beschikbaar. De bestaande verbinding blijft behouden; probeer later opnieuw.",
       "invalid_geocoding_endpoint": "Voer een geautoriseerd HTTPS-endpoint in, niet de publieke OpenStreetMap-dienst.",
       "invalid_stop_recovery_settings": "Voer gehele getallen binnen de getoonde grenzen in.",
-      "invalid_scan_interval": "Voer een geldig scaninterval in."
+      "invalid_scan_interval": "Voer een geldig scaninterval in.",
+      "myaudi_unavailable": "myAudi-login of voertuigcontrole niet geslaagd. Controleer de gegevens en interactieve vereisten."
     },
     "abort": {
       "no_vehicle_available": "Er is nog geen Audi-voertuig geladen."

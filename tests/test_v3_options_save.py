@@ -106,6 +106,7 @@ async def test_native_v3_menu_and_general_fields():
     }
     assert (await flow.async_step_data_sources())["menu_options"] == [
         "data_act",
+        "myaudi",
         "reverse_geocoding",
     ]
     assert (await flow.async_step_advanced())["menu_options"] == ["stop_recovery"]
@@ -607,3 +608,42 @@ async def test_application_options_hide_engineering_without_losing_preferences()
         {"v3_vehicle_dashboard": True, "v3_development_workbench": False}
     )
     assert result["data"] == {**original, "v3_vehicle_dashboard": True}
+
+
+@pytest.mark.asyncio
+async def test_myaudi_options_validate_before_save_and_disconnect_independently():
+    from unittest.mock import AsyncMock
+    from custom_components.audiconnect.v3.myaudi import MyAudiUnavailable
+
+    flow = OptionsFlowHandler()
+    flow.handler = "test-audi-entry"
+    options = {
+        "runtime_version": "v3_climate",
+        "v3_data_act_enabled": True,
+        "v3_myaudi_enabled": True,
+        "v3_myaudi_email": "old@example.invalid",
+        "v3_myaudi_password": "synthetic-old",
+    }
+    flow._test_entry = SimpleNamespace(data={}, options=options)
+    flow.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_get_known_entry=lambda _id: flow._test_entry
+        )
+    )
+    flow._validate_myaudi_credentials = AsyncMock(
+        side_effect=MyAudiUnavailable("rejected")
+    )
+    assert (await flow.async_step_myaudi())["step_id"] == "myaudi"
+    result = await flow.async_step_myaudi_credentials(
+        {"email": "new@example.invalid", "password": "synthetic-new"}
+    )
+    assert result["errors"]["base"] == "myaudi_unavailable"
+    assert options["v3_myaudi_password"] == "synthetic-old"
+    flow._validate_myaudi_credentials = AsyncMock()
+    result = await flow.async_step_myaudi_credentials(
+        {"email": "new@example.invalid", "password": "synthetic-new"}
+    )
+    assert result["data"]["v3_myaudi_password"] == "synthetic-new"
+    result = await flow.async_step_myaudi({"action": "disconnect"})
+    assert result["data"]["v3_data_act_enabled"]
+    assert not any(k.startswith("v3_myaudi_") for k in result["data"])

@@ -116,6 +116,18 @@ def vehicle_list(hass, user):
                     "entities": [],
                     **(
                         {
+                            "myaudi_configured": bool(
+                                owner.options.get("v3_myaudi_enabled")
+                            ),
+                            "myaudi_dossier": car.myaudi_dossier
+                            if owner.options.get("v3_myaudi_enabled")
+                            else None,
+                        }
+                        if getattr(user, "is_admin", False)
+                        else {}
+                    ),
+                    **(
+                        {
                             "engineering_context": {
                                 "entry_id": owner.entry_id,
                                 "vin": car.vin,
@@ -285,3 +297,41 @@ async def ws_service_details(hass, connection, msg):
         connection.send_error(msg["id"], "unauthorized", "Service settings unavailable")
     except (KeyError, ValueError, RuntimeError):
         connection.send_error(msg["id"], "invalid_request", "Check service details")
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "audiconnect/vehicle/myaudi",
+        vol.Required("entity_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_myaudi(hass, connection, msg):
+    """Explicit read through the selected native device; no client VIN or URL."""
+    try:
+        user = connection.user
+        entity_id = msg["entity_id"]
+        if not user.is_admin or not user.permissions.check_entity(
+            entity_id, POLICY_READ
+        ):
+            raise PermissionError
+        scoped = _scoped_vehicle(hass, er.async_get(hass).async_get(entity_id))
+        if scoped is None:
+            raise ValueError
+        entry, vehicle, _, _ = scoped
+        engine = entry.runtime_data.v3
+        result = await engine.refresh_myaudi(vehicle.vin)
+        if (
+            not user.permissions.check_entity(entity_id, POLICY_READ)
+            or _loaded_engine(entry) is not engine
+            or not entry.options.get("v3_myaudi_enabled")
+        ):
+            raise PermissionError
+        connection.send_result(msg["id"], result)
+    except PermissionError:
+        connection.send_error(msg["id"], "unauthorized", "myAudi access unavailable")
+    except (KeyError, ValueError, RuntimeError):
+        connection.send_error(
+            msg["id"], "myaudi_unavailable", "myAudi read unavailable; check connection"
+        )

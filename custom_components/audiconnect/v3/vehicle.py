@@ -277,6 +277,7 @@ class V3Vehicle:
     registry_model: str | None = None
     year_operation: str | None = None
     year_observed_at: str | None = None
+    myaudi_dossier: dict[str, Any] | None = None
 
     @classmethod
     def from_graphql(cls, item: dict[str, Any], country: str) -> V3Vehicle:
@@ -502,3 +503,86 @@ class V3Vehicle:
 
         age = capture_age_minutes(self.climate_captured.isoformat())
         return int(age) if age is not None else None
+
+
+def normalize_myaudi_dossier(payload, vin, country, observed_at):
+    """Project observed OEM fields, not account identifiers or credentials."""
+    from math import isfinite
+
+    def scalar(value):
+        if (
+            isinstance(value, str)
+            and 0 < len(value) <= 512
+            and vin.lower() not in value.lower()
+        ):
+            return value
+        if type(value) in (int, float) and isfinite(value):
+            return value
+        return None
+
+    def fields(row, keys):
+        if not isinstance(row, dict):
+            return None
+        return {key: scalar(row.get(key)) for key in keys}
+
+    def rows(items, keys):
+        if (
+            not isinstance(items, list)
+            or len(items) > 1000
+            or any(not isinstance(row, dict) for row in items)
+        ):
+            return None
+        return [fields(row, keys) for row in items]
+
+    row = payload.get("identity")
+    if not isinstance(row, dict) or str(row.get("vin", "")).upper() != vin.upper():
+        raise ValueError("myAudi vehicle identity mismatch")
+    vehicle = graphql_vehicle_metadata(row.get("vehicle"), vin)
+    core = vehicle.get("core") if vehicle else None
+    if not isinstance(core, dict) or str(core.get("vin", "")).upper() != vin.upper():
+        raise ValueError("myAudi manufacturer identity mismatch")
+    candidate = V3Vehicle.from_graphql(row, country)
+    media = fields(vehicle.get("media"), ("exteriorColor", "interiorColor")) or {}
+    oil = payload.get("oil")
+    if not isinstance(oil, dict) or str(oil.get("vin", "")).upper() != vin.upper():
+        oil = None
+    services = payload.get("services")
+    service_rows = (
+        rows(services.get("data"), ("id", "expirationDate"))
+        if isinstance(services, dict)
+        else None
+    )
+    if service_rows is not None:
+        for item, source in zip(service_rows, services["data"], strict=True):
+            status = source.get("status")
+            item["status"] = (
+                status
+                if isinstance(status, list)
+                and len(status) <= 64
+                and all(type(code) is int for code in status)
+                else None
+            )
+    return {
+        "source": "myAudi",
+        "observed_at": observed_at,
+        "identity": {
+            "model": candidate.model or None,
+            "model_year": candidate.model_year or None,
+            "model_coding": scalar(core.get("modelCoding")),
+            "powertrain": candidate.car_type or None,
+            **media,
+        },
+        "image": select_vehicle_image(vehicle, vin),
+        "service": rows(payload.get("service"), ("serviceDescription", "serviceDate")),
+        "warranty": fields(
+            payload.get("warranty"),
+            ("startDate", "expirationDate", "odometerLimit", "odometerUnit"),
+        ),
+        "oil": {
+            "unit": scalar(oil.get("unit")),
+            "norms": rows(oil.get("oilNorms"), ("oilNorm", "amount")),
+        }
+        if oil
+        else None,
+        "services": service_rows,
+    }

@@ -105,7 +105,8 @@
         "description": "{data_act_status}",
         "menu_options": {
           "data_act": "EU Data Act",
-          "reverse_geocoding": "Geocodificação inversa"
+          "reverse_geocoding": "Geocodificação inversa",
+          "myaudi": "myAudi (Bélgica, experimental)"
         }
       },
       "advanced": {
@@ -187,11 +188,27 @@
         "data": {
           "action": "Ligação"
         }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nLigue ou desligue a sessão web opcional belga do myAudi.",
+        "data": {
+          "action": "Ligação"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "Ligar myAudi",
+        "description": "Verifique o início de sessão Audi ID e um veículo correspondente. Portal belga em neerlandês. As credenciais são guardadas localmente no Home Assistant.",
+        "data": {
+          "email": "E-mail Audi ID",
+          "password": "Palavra-passe"
+        }
       }
     },
     "error": {
       "invalid_stop_recovery_settings": "Introduza números inteiros dentro dos limites indicados.",
-      "invalid_scan_interval": "Introduza um intervalo válido."
+      "invalid_scan_interval": "Introduza um intervalo válido.",
+      "myaudi_unavailable": "Falha no início de sessão myAudi ou na verificação do veículo."
     }
   },
   "selector": {

@@ -105,7 +105,8 @@
         "description": "{data_act_status}",
         "menu_options": {
           "data_act": "EU Data Act",
-          "reverse_geocoding": "Omvendt geokoding"
+          "reverse_geocoding": "Omvendt geokoding",
+          "myaudi": "myAudi (Belgia, eksperimentell)"
         }
       },
       "advanced": {
@@ -187,11 +188,27 @@
         "data": {
           "action": "Tilkobling"
         }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nKoble til eller fra den valgfrie belgiske myAudi-nettøkten.",
+        "data": {
+          "action": "Tilkobling"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "Koble til myAudi",
+        "description": "Bekreft Audi ID-innlogging og et samsvarende kjøretøy. Belgisk nederlandskspråklig portal. Påloggingsinformasjon lagres lokalt i Home Assistant.",
+        "data": {
+          "email": "Audi ID e-post",
+          "password": "Passord"
+        }
       }
     },
     "error": {
       "invalid_stop_recovery_settings": "Angi hele tall innenfor de viste grensene.",
-      "invalid_scan_interval": "Angi et gyldig oppdateringsintervall."
+      "invalid_scan_interval": "Angi et gyldig oppdateringsintervall.",
+      "myaudi_unavailable": "myAudi-innlogging eller kjøretøykontroll mislyktes."
     }
   },
   "selector": {
