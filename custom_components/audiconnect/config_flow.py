@@ -907,6 +907,7 @@ class OptionsFlowHandler(OptionsFlow):
             step_id="init",
             menu_options=[
                 "general",
+                "workbench",
                 "discovery_vehicle",
                 "data_sources",
                 "dealer_vehicle",
@@ -977,7 +978,7 @@ class OptionsFlowHandler(OptionsFlow):
             return await self.async_step_init()
         return self.async_show_menu(
             step_id="advanced",
-            menu_options=["stop_recovery", "workbench"],
+            menu_options=["stop_recovery"],
         )
 
     async def async_step_reverse_geocoding(self, user_input=None) -> ConfigFlowResult:
@@ -1089,19 +1090,33 @@ class OptionsFlowHandler(OptionsFlow):
         )
 
     async def async_step_workbench(self, user_input=None) -> ConfigFlowResult:
+        from .v3.runtime import (
+            V3_DASHBOARD_OPTION,
+            V3_WORKBENCH_OPTION,
+            dashboard_enabled,
+        )
+
         if not self._is_v3():
             return await self.async_step_init()
         values = dict(self.config_entry.options)
-        key = "v3_development_workbench"
+        enabled = dashboard_enabled(values)
         if user_input is not None:
-            values[key] = user_input.get(key) is True
+            values[V3_DASHBOARD_OPTION] = user_input.get(V3_DASHBOARD_OPTION) is True
+            # Preserve a hidden preference without enabling engineering access.
+            if enabled and values[V3_DASHBOARD_OPTION]:
+                values[V3_WORKBENCH_OPTION] = (
+                    user_input.get(V3_WORKBENCH_OPTION) is True
+                )
             return self.async_create_entry(title="", data=values)
-        return self.async_show_form(
-            step_id="workbench",
-            data_schema=vol.Schema(
-                {vol.Required(key, default=values.get(key) is True): bool}
-            ),
-        )
+        schema = {vol.Required(V3_DASHBOARD_OPTION, default=enabled): bool}
+        if enabled:
+            schema[
+                vol.Required(
+                    V3_WORKBENCH_OPTION,
+                    default=values.get(V3_WORKBENCH_OPTION) is True,
+                )
+            ] = bool
+        return self.async_show_form(step_id="workbench", data_schema=vol.Schema(schema))
 
     async def _data_act_placeholders(self, values):
         """Read the existing scheduler status; opening options never calls Audi."""

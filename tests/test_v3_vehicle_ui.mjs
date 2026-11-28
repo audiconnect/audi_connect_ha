@@ -462,13 +462,46 @@ test("manual language and dealer contact use official link and authorized local 
       next_service_date: "2027-01-01",
     },
   };
-  assert.match(panel.dealerHTML(), /Brussels/);
-  assert.match(panel.dealerHTML(), /&lt;address&gt;/);
-  assert.match(panel.dealerHTML(), /2027-01-01/);
+  assert.match(panel.serviceHTML(), /Brussels/);
+  assert.match(panel.serviceHTML(), /&lt;address&gt;/);
+  assert.match(panel.serviceHTML(), /2027-01-01/);
+  assert.doesNotMatch(panel.serviceHTML(), /data-service-edit/);
+  panel._hass.user.is_admin = true;
+  panel.tab = "Service & Health";
+  panel.render();
+  let html = panel.shadowRoot.innerHTML;
+  assert.equal((html.match(/<h2>Service contact<\/h2>/g) || []).length, 1);
+  assert.equal(
+    (html.match(/Your local information, not manufacturer records\./g) || [])
+      .length,
+    1,
+  );
+  assert.match(html, /data-service-edit/);
+  assert.match(html, /Open Audi Connect configuration/);
+  assert.doesNotMatch(html, /<h2>Service preferences<\/h2>/);
+  assert.doesNotMatch(html, /<h2>Manage service details<\/h2>/);
+  panel.serviceDraft = { dealer_name: "Audi", dealer_city: "Brussels" };
+  panel.render();
+  html = panel.shadowRoot.innerHTML;
+  assert.match(html, /data-service-field="dealer_city" value="Brussels"/);
+  assert.doesNotMatch(html, /data-service-edit/);
+  assert.doesNotMatch(html, /class="status-value">Brussels<\/span>/);
+  panel._hass.user.is_admin = false;
+  assert.doesNotMatch(panel.serviceHTML(), /data-service-field/);
+  assert.match(panel.serviceHTML(), /Brussels/);
+  panel.serviceDraft = null;
+  panel._hass.states["sensor.dealer"].attributes.configured = false;
+  assert.match(panel.serviceHTML(), /data-details/);
+  panel._hass.user.is_admin = true;
+  assert.match(panel.serviceHTML(), /data-service-edit/);
+  panel._hass.user.is_admin = false;
   panel.current().entities = panel
     .current()
     .entities.filter((row) => row.key !== "sensor.local_dealer");
-  assert.equal(panel.dealerHTML(), "");
+  assert.equal(panel.serviceHTML(), "");
+  panel._hass.user.is_admin = true;
+  assert.match(panel.serviceHTML(), /Open Audi Connect configuration/);
+  assert.doesNotMatch(panel.serviceHTML(), /data-service-edit/);
 });
 
 test("trip chart shows independent recorded consumption values and omits missing metrics", () => {
@@ -941,4 +974,40 @@ test("journey groups place inspection and oil change in their own maintenance co
     1,
   );
   assert.equal(calls.length, 0);
+});
+
+test("manufacturer identity presents independent model year capture without duplicated identity panels", () => {
+  const { panel } = fixture();
+  panel._hass.language = "en";
+  Object.assign(panel._hass.states["sensor.model"].attributes, {
+    presentation_source: "manufacturer",
+    identity_observed_at: "2025-01-12T10:00:00Z",
+    model_year: "2022",
+    year_observed_at: "2026-01-12T10:00:00Z",
+  });
+  panel.tab = "Vehicle & Documents";
+  panel.render();
+  const html = panel.shadowRoot.innerHTML;
+  assert.match(html, /Manufacturer identity/);
+  assert.match(html, /2025/);
+  assert.match(html, /2026/);
+  assert.match(html, /2022/);
+  assert.equal((html.match(/data-entity="sensor.model"/g) || []).length, 1);
+  delete panel._hass.states["sensor.model"].attributes.year_observed_at;
+  assert.match(
+    panel.identityDetails(panel.reading("sensor.model"), new Set()),
+    /Capture time unknown/,
+  );
+});
+
+test("maintenance links distinguish external records from synchronized history across locales", () => {
+  const { panel } = fixture();
+  panel._hass.language = "en-US";
+  assert.equal(panel.manualURL(), "https://ownersmanual.audi.com/");
+  const html = panel.officialDocuments(true);
+  assert.match(html, /not synchronized maintenance history/);
+  assert.match(html, /https:\/\/my.audi.com\//);
+  assert.doesNotMatch(html, /eu-data-act/);
+  assert.doesNotMatch(html, /vin=/i);
+  assert.equal(panel.manualURL().includes("en_GB"), false);
 });

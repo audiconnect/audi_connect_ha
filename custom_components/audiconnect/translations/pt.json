@@ -77,7 +77,8 @@
           "discovery_vehicle": "Configuração e descoberta do veículo",
           "data_sources": "Fontes de dados adicionais",
           "dealer_vehicle": "Serviço e manutenção",
-          "advanced": "Avançado e experimental"
+          "advanced": "Avançado e experimental",
+          "workbench": "Aplicação Audi Connect"
         }
       },
       "general": {
@@ -110,8 +111,7 @@
       "advanced": {
         "title": "Avançado e experimental",
         "menu_options": {
-          "stop_recovery": "Recuperação da paragem de carregamento",
-          "workbench": "Ferramentas de desenvolvimento"
+          "stop_recovery": "Recuperação da paragem de carregamento"
         }
       },
       "reverse_geocoding": {
@@ -159,12 +159,14 @@
         }
       },
       "workbench": {
-        "title": "Ferramentas de desenvolvimento",
+        "title": "Aplicação Audi Connect",
         "data": {
-          "v3_development_workbench": "Enable V3 Development Workbench"
+          "v3_vehicle_dashboard": "Ativar painel Audi Connect",
+          "v3_development_workbench": "Ativar espaço de engenharia"
         },
         "data_description": {
-          "v3_development_workbench": "Show the administrator-only API Development Workbench in the Home Assistant sidebar. Available in V3 only. Off by default; disabling does not delete saved API profiles."
+          "v3_vehicle_dashboard": "Aplicação Audi Connect opcional. Entidades e automações continuam disponíveis.",
+          "v3_development_workbench": "Apenas administradores. Os perfis guardados são preservados."
         }
       },
       "discovery_vehicle": {

@@ -242,7 +242,7 @@ test("HA-native Workbench groups by the vehicle's API family", () => {
   panel.apiFamily = "cariad";
   panel.render();
   assert.match(panel.shadowRoot.innerHTML, /ha-font-family-body/);
-  assert.match(panel.shadowRoot.innerHTML, /Audi Engineering Dashboard/);
+  assert.match(panel.shadowRoot.innerHTML, /Engineering Workbench/);
   assert.match(panel.shadowRoot.innerHTML, /1 readable/);
   assert.match(panel.shadowRoot.innerHTML, /1 readable/);
   panel.apiFamily = "all";

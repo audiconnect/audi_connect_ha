@@ -20,6 +20,7 @@ const TABS = [
   "Service & Health",
   "Vehicle & Documents",
   "Settings",
+  "Engineering",
 ];
 const TAB_LABEL = {
   "Access & Security": "Access",
@@ -79,7 +80,7 @@ const JOURNEY_GROUPS = {
     ["Service contact", ["sensor.local_dealer"]],
   ],
   "Vehicle & Documents": [
-    ["Vehicle identity", ["sensor.model", "sensor.car_type", "sensor.mileage"]],
+    ["Vehicle identity", ["sensor.car_type", "sensor.mileage"]],
     [
       "Powertrain",
       ["sensor.primary_engine_type", "sensor.secondary_engine_type"],
@@ -329,6 +330,8 @@ class AudiVehiclePanel extends HTMLElement {
     });
   }
   resetVehicleView() {
+    this.engineeringElement = null;
+    this.engineeringKey = "";
     this.scopeVersion++;
     this.drafts.clear();
     this.archive = null;
@@ -349,6 +352,58 @@ class AudiVehiclePanel extends HTMLElement {
     this.vehicles = [];
     this.revalidating = false;
     if (this.loading) this.reloadPending = true;
+  }
+  set panel(value) {
+    this._panel = value;
+  }
+  engineeringContext() {
+    if (
+      !this._hass?.user?.is_admin ||
+      this.revalidating ||
+      this._hass.connected === false
+    )
+      return null;
+    return this.current()?.engineering_context || null;
+  }
+  async mountEngineering() {
+    const context = this.tab === "Engineering" && this.engineeringContext();
+    const host = this.shadowRoot.querySelector?.("#engineering-workspace");
+    if (!context || !host) {
+      this.engineeringElement = null;
+      this.engineeringKey = "";
+      return;
+    }
+    const key = JSON.stringify(context);
+    if (this.engineeringKey !== key) {
+      this.engineeringElement = null;
+      this.engineeringKey = key;
+    }
+    try {
+      if (!customElements.get("audiconnect-v3-panel")) {
+        const url =
+          this._panel?.config?.workbench_module_url ||
+          "/audiconnect_v3/panel.js";
+        await import(url);
+      }
+      if (
+        this.tab !== "Engineering" ||
+        JSON.stringify(this.engineeringContext()) !== key ||
+        this.shadowRoot.querySelector?.("#engineering-workspace") !== host
+      )
+        return;
+      if (!this.engineeringElement) {
+        this.engineeringElement = document.createElement(
+          "audiconnect-v3-panel",
+        );
+        this.engineeringElement.applicationContext = context;
+      }
+      if (this.engineeringElement.parentNode !== host)
+        host.replaceChildren(this.engineeringElement);
+      this.engineeringElement.hass = this._hass;
+    } catch {
+      if (this.shadowRoot.querySelector?.("#engineering-workspace") === host)
+        host.textContent = this.tr("Engineering workspace unavailable");
+    }
   }
   set hass(hass) {
     const before = this._hass;
@@ -414,6 +469,8 @@ class AudiVehiclePanel extends HTMLElement {
       rows.some((r) => before.states[r.entity_id] !== hass.states[r.entity_id])
     ) {
       this.render();
+    } else if (this.tab === "Engineering") {
+      void this.mountEngineering();
     }
   }
   tr(label) {
@@ -864,6 +921,7 @@ class AudiVehiclePanel extends HTMLElement {
       );
   }
   hasTab(tab) {
+    if (tab === "Engineering") return Boolean(this.engineeringContext());
     if (tab === "Charging")
       return (this.current()?.entities || []).some(
         (row) =>
@@ -902,7 +960,7 @@ class AudiVehiclePanel extends HTMLElement {
     const writable = controls && row.control;
     const id = esc(row.entity_id);
     const localService =
-      row.key === "sensor.service_overview"
+      row.key === "sensor.service_overview" && !this.hasConfiguredDealer()
         ? ["next_appointment_local", "warranty_expiry_local"]
             .filter((key) => state?.attributes?.[key])
             .map(
@@ -911,8 +969,8 @@ class AudiVehiclePanel extends HTMLElement {
                 esc(
                   this.tr(
                     key === "next_appointment_local"
-                      ? "Next appointment"
-                      : "Warranty expiry",
+                      ? "Next appointment (local)"
+                      : "Warranty expiry (local)",
                   ),
                 ) +
                 ": " +
@@ -1471,45 +1529,121 @@ class AudiVehiclePanel extends HTMLElement {
       this.render();
     }
   }
-  manualURL() {
-    const lang = String(this._hass?.language || "en")
-      .split("-")[0]
-      .toLowerCase();
-    const locale = { nl: "nl_NL", fr: "fr_FR", de: "de_DE", en: "en_GB" }[lang];
-    return "https://ownersmanual.audi.com/" + (locale ? "home/" + locale : "");
-  }
-  dealerHTML() {
-    const state = this.reading("sensor.local_dealer");
-    if (!available(state) || state.attributes?.configured !== true) return "";
-    const data = state.attributes;
-    const fields = [
-      ["Dealer", state.state],
-      ["City", data.dealer_city],
-      ["Address", data.dealer_address],
-      ["Phone", data.dealer_phone],
-      ["Website", data.dealer_website],
-      ["Next appointment", data.next_service_date],
-      ["Warranty expiry", data.warranty_expiry],
+  identityDetails(state, used) {
+    const row = this.row("sensor.model");
+    if (!row || !available(state)) return "";
+    used.add(row.entity_id);
+    const a = state.attributes || {};
+    const stamp = (value) => {
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed)
+        ? new Date(parsed).toLocaleString(this._hass?.language)
+        : this.tr("Capture time unknown");
+    };
+    const details = [
+      [
+        this.entityLabel(row),
+        this.display(state),
+        [
+          this.identityLabel(state),
+          a.presentation_source === "manufacturer"
+            ? stamp(a.identity_observed_at)
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      ],
+      [
+        this.tr("Model year"),
+        a.model_year || this.tr("Model year unknown"),
+        a.model_year ? stamp(a.year_observed_at) : "",
+      ],
     ];
     return (
       '<section class="status-card"><h2>' +
-      esc(this.tr("Service contact")) +
-      '</h2><p class="muted">' +
-      esc(this.tr("Your local information, not manufacturer records.")) +
-      "</p>" +
-      fields
-        .filter(([, value]) => typeof value === "string" && value)
+      esc(this.tr("Manufacturer identity")) +
+      "</h2>" +
+      details
         .map(
-          ([label, value]) =>
+          ([label, value, evidence]) =>
             '<div class="status-row"><span>' +
-            esc(this.tr(label)) +
+            esc(label) +
             '</span><span class="status-value">' +
             esc(value) +
+            (evidence ? "<small>" + esc(evidence) + "</small>" : "") +
             "</span></div>",
         )
         .join("") +
-      "</section>"
+      '<button data-entity="' +
+      esc(row.entity_id) +
+      '" data-details>' +
+      esc(this.tr("More details")) +
+      "</button></section>"
     );
+  }
+  officialDocuments(maintenance = false) {
+    const links = maintenance
+      ? [
+          ["Owner's Manual", this.manualURL()],
+          ["myAudi", "https://my.audi.com/"],
+        ]
+      : DOCS.map(([label, url]) => [
+          label,
+          label === "Owner's Manual" ? this.manualURL() : url,
+        ]);
+    return (
+      "<section><h2>" +
+      esc(
+        this.tr(
+          maintenance
+            ? "Manufacturer maintenance information"
+            : "Official documents & information",
+        ),
+      ) +
+      '</h2><p class="muted">' +
+      esc(
+        this.tr(
+          maintenance
+            ? "Use the official manual for maintenance instructions and myAudi for available service records. These are external services, not synchronized maintenance history."
+            : "Open the official Audi services. Select your vehicle in the external service; availability depends on your market and account.",
+        ),
+      ) +
+      '</p><div class="actions">' +
+      links
+        .map(
+          ([label, url]) =>
+            '<a href="' +
+            esc(url) +
+            '" target="_blank" rel="noopener noreferrer">' +
+            esc(this.tr(label)) +
+            " ↗</a>",
+        )
+        .join("") +
+      "</div></section>"
+    );
+  }
+  manualURL() {
+    const language = String(this._hass?.language || "en")
+      .toLowerCase()
+      .replace("_", "-");
+    const locale = {
+      nl: "nl_NL",
+      "nl-nl": "nl_NL",
+      "nl-be": "nl_NL",
+      fr: "fr_FR",
+      "fr-fr": "fr_FR",
+      "fr-be": "fr_FR",
+      de: "de_DE",
+      "de-de": "de_DE",
+      "de-at": "de_DE",
+      en: "en_GB",
+      "en-gb": "en_GB",
+    }[language];
+    return "https://ownersmanual.audi.com/" + (locale ? "home/" + locale : "");
+  }
+  hasConfiguredDealer() {
+    const state = this.reading("sensor.local_dealer");
+    return available(state) && state.attributes?.configured === true;
   }
   configurationURL() {
     const entry = this.current()?.configuration_entry;
@@ -1521,8 +1655,10 @@ class AudiVehiclePanel extends HTMLElement {
     );
   }
   serviceHTML() {
-    if (!this.row("sensor.local_dealer") || !this._hass?.user?.is_admin)
-      return "";
+    const row = this.row("sensor.local_dealer");
+    const admin = this._hass?.user?.is_admin;
+    if (!row && !admin) return "";
+    const state = row && this.state(row);
     const fields = [
       ["dealer_name", "Dealer"],
       ["dealer_city", "City"],
@@ -1532,40 +1668,74 @@ class AudiVehiclePanel extends HTMLElement {
       ["next_service_date", "Next appointment"],
       ["warranty_expiry", "Warranty expiry"],
     ];
+    const editing = admin && row && this.serviceDraft;
+    let content = "";
+    if (editing) {
+      content =
+        '<div class="service-form">' +
+        fields
+          .map(
+            ([key, label]) =>
+              "<label>" +
+              esc(this.tr(label)) +
+              '<input maxlength="255" type="' +
+              (key.endsWith("_date") || key === "warranty_expiry"
+                ? "date"
+                : "text") +
+              '" data-service-field="' +
+              key +
+              '" value="' +
+              esc(this.serviceDraft[key] || "") +
+              '"></label>',
+          )
+          .join("") +
+        '</div><div class="actions"><button class="action" data-service-save ' +
+        (this.serviceBusy ? "disabled" : "") +
+        (">" +
+          esc(this.tr("Save details")) +
+          "</button><button data-service-cancel ") +
+        (this.serviceBusy ? "disabled" : "") +
+        (">" + esc(this.tr("Close")) + "</button></div>");
+    } else if (this.hasConfiguredDealer()) {
+      content = fields
+        .map(([key, label]) => [
+          label,
+          key === "dealer_name" ? state.state : state.attributes[key],
+        ])
+        .filter(([, value]) => typeof value === "string" && value)
+        .map(
+          ([label, value]) =>
+            '<div class="status-row"><span>' +
+            esc(this.tr(label)) +
+            '</span><span class="status-value">' +
+            esc(value) +
+            "</span></div>",
+        )
+        .join("");
+    } else if (row) {
+      content = this.domainRow(row);
+    }
+    const actions = admin
+      ? '<div class="actions">' +
+        (row && !editing
+          ? "<button data-service-edit " +
+            (this.serviceBusy ? "disabled" : "") +
+            (">" + esc(this.tr("Edit service details")) + "</button>")
+          : "") +
+        '<a href="' +
+        esc(this.configurationURL()) +
+        '">' +
+        esc(this.tr("Open Audi Connect configuration")) +
+        "</a></div>"
+      : "";
     return (
       '<section class="status-card"><h2>' +
-      esc(this.tr("Service preferences")) +
+      esc(this.tr("Service contact")) +
       '</h2><p class="muted">' +
       esc(this.tr("Your local information, not manufacturer records.")) +
       "</p>" +
-      (this.serviceDraft
-        ? '<div class="service-form">' +
-          fields
-            .map(
-              ([key, label]) =>
-                "<label>" +
-                esc(this.tr(label)) +
-                '<input maxlength="255" type="' +
-                (key.endsWith("_date") || key === "warranty_expiry"
-                  ? "date"
-                  : "text") +
-                '" data-service-field="' +
-                key +
-                '" value="' +
-                esc(this.serviceDraft[key] || "") +
-                '"></label>',
-            )
-            .join("") +
-          '</div><div class="actions"><button class="action" data-service-save ' +
-          (this.serviceBusy ? "disabled" : "") +
-          (">" +
-            esc(this.tr("Save details")) +
-            "</button><button data-service-cancel ") +
-          (this.serviceBusy ? "disabled" : "") +
-          (">" + esc(this.tr("Close")) + "</button></div>")
-        : "<button data-service-edit " +
-          (this.serviceBusy ? "disabled" : "") +
-          (">" + esc(this.tr("Edit service details")) + "</button>")) +
+      content +
+      actions +
       "</section>"
     );
   }
@@ -2470,7 +2640,12 @@ class AudiVehiclePanel extends HTMLElement {
         nav +
         "</nav>";
       const used = new Set();
-      if (this.tab === "Overview") {
+      if (this.tab === "Engineering") {
+        body +=
+          '<section id="engineering-workspace" aria-label="' +
+          esc(this.tr("Engineering")) +
+          '"></section>';
+      } else if (this.tab === "Overview") {
         body +=
           '<div class="overview-layout"><div>' +
           this.energyCards() +
@@ -2533,10 +2708,12 @@ class AudiVehiclePanel extends HTMLElement {
         if (access) for (const id of access.used) used.add(id);
         if (this.tab === "Location" && this.row("device_tracker.position"))
           body += this.locationHTML(rows, used);
-        if (this.tab === "Service & Health" && this.dealerHTML()) {
+        if (this.tab === "Service & Health") {
           const dealer = this.row("sensor.local_dealer");
           if (dealer) used.add(dealer.entity_id);
         }
+        if (this.tab === "Vehicle & Documents")
+          body += this.identityDetails(modelState, used);
         body += this.journeyGroups(rows, used);
         if (access) body += access.html;
         const controls = rows.filter(
@@ -2561,7 +2738,8 @@ class AudiVehiclePanel extends HTMLElement {
       if (this.tab === "Charging" || this.tab === "Climate")
         body += this.timersHTML();
       if (this.tab === "Service & Health")
-        body += this.healthHTML() + this.dealerHTML() + this.serviceHTML();
+        body +=
+          this.healthHTML() + this.serviceHTML() + this.officialDocuments(true);
       if (this.tab === "Vehicle & Documents") body += this.ownershipHTML();
       const remaining = rows.filter((row) => !used.has(row.entity_id));
       let additional = "";
@@ -2578,52 +2756,7 @@ class AudiVehiclePanel extends HTMLElement {
             : "") +
           "</section>";
       }
-      if (this.tab === "Vehicle & Documents" && available(modelState))
-        body +=
-          "<section><h2>" +
-          esc(this.tr("Vehicle identity")) +
-          "</h2><p>" +
-          esc(attrs.model_year || this.tr("Model year unknown")) +
-          " · " +
-          esc(
-            attrs.vehicle_type
-              ? title(attrs.vehicle_type)
-              : this.tr("Powertrain unknown"),
-          ) +
-          '</p><p class="muted">' +
-          esc(this.identityLabel(modelState)) +
-          "</p></section>";
-      if (this.tab === "Vehicle & Documents")
-        body +=
-          "<section><h2>" +
-          esc(this.tr("Official documents & information")) +
-          '</h2><p class="muted">' +
-          esc(this.tr("Open the official Audi services for your vehicle.")) +
-          '</p><div class="actions">' +
-          DOCS.map(
-            ([label, url]) =>
-              '<a href="' +
-              esc(label === "Owner's Manual" ? this.manualURL() : url) +
-              '" target="_blank" rel="noopener noreferrer">' +
-              esc(this.tr(label)) +
-              " ↗</a>",
-          ).join("") +
-          "</div></section>";
-      if (this.tab === "Service & Health" && this._hass?.user?.is_admin)
-        body +=
-          "<section><h2>" +
-          esc(this.tr("Manage service details")) +
-          '</h2><a href="' +
-          esc(this.configurationURL()) +
-          ('">' +
-            esc(this.tr("Open Audi Connect configuration")) +
-            '</a><p class="muted">' +
-            esc(
-              this.tr(
-                "Edit local dealer, warranty and appointment information in Service & maintenance.",
-              ),
-            ) +
-            "</p></section>");
+      if (this.tab === "Vehicle & Documents") body += this.officialDocuments();
       if (this.tab === "Settings") {
         const shortcuts = [
           ["Charging", "Charging"],
@@ -2774,6 +2907,7 @@ class AudiVehiclePanel extends HTMLElement {
       }
     }
     if (this.tab === "Location") void this.mountMap();
+    void this.mountEngineering();
   }
 }
 customElements.define("audiconnect-vehicle-panel", AudiVehiclePanel);

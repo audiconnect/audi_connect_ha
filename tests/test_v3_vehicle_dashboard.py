@@ -493,3 +493,31 @@ def test_trip_period_uses_existing_native_permissions(native):
         panel.vehicle_trips(
             native.hass, user(set()), native.trips.entity_id, start_date="2026-11-01"
         )
+
+
+def test_dashboard_opt_out_and_engineering_context_are_account_scoped(native):
+    from custom_components.audiconnect.v3.dashboard import _workbench_engine
+
+    admin = user({native.model.entity_id})
+    admin.is_admin = True
+    resident = user({native.model.entity_id})
+    native.entry.options["v3_development_workbench"] = True
+    row = panel.vehicle_list(native.hass, admin)[0]
+    assert row["engineering_context"] == {
+        "entry_id": native.entry.entry_id,
+        "vin": native.vin,
+    }
+    assert "engineering_context" not in panel.vehicle_list(native.hass, resident)[0]
+    assert _workbench_engine(native.entry) is native.entry.runtime_data.v3
+    native.entry.options["v3_vehicle_dashboard"] = False
+    assert panel.vehicle_list(native.hass, admin) == []
+    with pytest.raises(ValueError, match="not enabled"):
+        _workbench_engine(native.entry)
+    assert native.entry.runtime_data.v3.vehicles[native.vin] is native.car
+    native.entry.options["v3_vehicle_dashboard"] = True
+    assert (
+        panel.vehicle_list(native.hass, admin)[0]["engineering_context"]["vin"]
+        == native.vin
+    )
+    native.entry.options["v3_development_workbench"] = False
+    assert "engineering_context" not in panel.vehicle_list(native.hass, admin)[0]

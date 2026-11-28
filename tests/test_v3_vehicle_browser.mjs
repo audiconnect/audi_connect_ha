@@ -45,12 +45,33 @@ function browserJourney() {
     device_id: "test-car",
     name: "Audi test vehicle",
     configuration_entry: "test-account",
+    engineering_context: { entry_id: "test-account", vin: "TEST-PHEV" },
     entities: rows,
   };
   const restricted = {
     device_id: "test-car",
     name: "Audi test vehicle",
     entities: [rows[0], { ...rows[6], control: false }],
+  };
+  const ice = {
+    device_id: "ice-car",
+    name: "Other market ICE",
+    configuration_entry: "other-account",
+    entities: [
+      { ...rows[0], entity_id: "sensor.ice_model" },
+      { ...rows[2], entity_id: "sensor.ice_fuel" },
+    ],
+  };
+  const bev = {
+    device_id: "bev-car",
+    name: "Other market BEV",
+    configuration_entry: "other-account",
+    engineering_context: { entry_id: "other-account", vin: "TEST-BEV" },
+    entities: [
+      { ...rows[0], entity_id: "sensor.bev_model" },
+      { ...rows[1], entity_id: "sensor.bev_battery" },
+      { ...rows[3], entity_id: "sensor.bev_charge" },
+    ],
   };
   let isAdmin = true;
   let mapConfig;
@@ -64,6 +85,11 @@ function browserJourney() {
     language: "en",
     user: { id: "admin", is_admin: true },
     states: {
+      "sensor.ice_model": read("A4 test model", { vehicle_type: "ice" }),
+      "sensor.ice_fuel": read("55", { unit_of_measurement: "%" }),
+      "sensor.bev_model": read("Q4 test model", { vehicle_type: "bev" }),
+      "sensor.bev_battery": read("62", { unit_of_measurement: "%" }),
+      "sensor.bev_charge": read("ready"),
       "sensor.model": read("Q8 test model", {
         model_year: 2025,
         vehicle_type: "phev",
@@ -112,7 +138,28 @@ function browserJourney() {
     callWS: async (msg) => {
       calls.push(msg);
       if (msg.type === "audiconnect/vehicle/list")
-        return { vehicles: [isAdmin ? fixture : restricted] };
+        return { vehicles: isAdmin ? [fixture, ice, bev] : [restricted] };
+      if (msg.type === "audiconnect/v3/list")
+        return {
+          integrations: [
+            {
+              entry_id: "test-account",
+              vehicles: [{ vin: "TEST-PHEV", name: "Pilot" }],
+            },
+            {
+              entry_id: "other-account",
+              vehicles: [{ vin: "TEST-BEV", name: "Electric" }],
+            },
+          ],
+        };
+      if (msg.type === "audiconnect/v3/status") {
+        assert(
+          ["TEST-PHEV", "TEST-BEV"].includes(msg.vin),
+          "Engineering uses selected vehicle",
+        );
+        return { counts: {}, rows: [], entity_links: [] };
+      }
+      if (msg.type === "audiconnect/v3/api_results") return { records: [] };
       if (msg.type === "audiconnect/vehicle/service_details")
         return { settings: msg.updates || { dealer_name: "Audi" } };
       if (msg.type === "audiconnect/vehicle/trips")
@@ -259,6 +306,16 @@ function browserJourney() {
     );
     tab("Service & Health");
     assert(root.textContent.includes("Test city"), "Local service contact");
+    assert(
+      [...root.querySelectorAll("h2")].filter(
+        (heading) => heading.textContent === "Service contact",
+      ).length === 1,
+      "One local service card",
+    );
+    assert(
+      !root.textContent.includes("Manage service details"),
+      "No duplicate service management card",
+    );
     root.querySelector("button[data-service-edit]").click();
     await tick();
     const dealer = root.querySelector(
@@ -285,6 +342,62 @@ function browserJourney() {
     );
     tab("Overview");
     assert(overflow(), "Overview overflow after actions");
+    const select = (id) => {
+      const picker = root.querySelector("#vehicle-select");
+      picker.value = id;
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    select("ice-car");
+    assert(
+      !root.querySelector("nav button[data-tab='Charging']"),
+      "ICE has no charging journey",
+    );
+    assert(
+      !root.querySelector("nav button[data-tab='Engineering']"),
+      "Account without engineering opt-in",
+    );
+    assert(
+      root.querySelectorAll(".energy-grid .energy").length === 1,
+      "ICE fuel only",
+    );
+    select("bev-car");
+    assert(
+      root.querySelector("nav button[data-tab='Charging']"),
+      "BEV charging available",
+    );
+    assert(
+      root.querySelectorAll(".energy-grid .energy").length === 1,
+      "BEV battery only",
+    );
+    tab("Engineering");
+    await tick();
+    await tick();
+    const embedded = root.querySelector(
+      "#engineering-workspace audiconnect-v3-panel",
+    );
+    assert(embedded, "Engineering is embedded in Audi Connect");
+    assert(embedded.vin === "TEST-BEV", "Selected BEV context");
+    assert(embedded.selected === "other-account", "Selected account context");
+    assert(
+      embedded.shadowRoot.querySelector("#entry").closest(".tool").hidden,
+      "No separate account picker",
+    );
+    assert(
+      embedded.shadowRoot.querySelector("#vehicle").closest(".tool").hidden,
+      "No separate vehicle picker",
+    );
+    select("test-car");
+    await tick();
+    await tick();
+    const pilot = root.querySelector(
+      "#engineering-workspace audiconnect-v3-panel",
+    );
+    assert(
+      pilot && pilot !== embedded,
+      "Vehicle switch replaces old engineering context",
+    );
+    assert(pilot.vin === "TEST-PHEV", "Pilot vehicle context");
+    assert(pilot.selected === "test-account", "Pilot account context");
     isAdmin = false;
     panel.hass = {
       ...hass,
@@ -293,6 +406,14 @@ function browserJourney() {
     };
     assert(!panel.current(), "Old account view cleared");
     await tick();
+    assert(
+      !root.querySelector("#engineering-workspace"),
+      "Old admin workspace removed",
+    );
+    assert(
+      !root.querySelector("nav button[data-tab='Engineering']"),
+      "Resident cannot access engineering",
+    );
     assert(
       !root.querySelector("nav button[data-tab='Trips & Consumption']"),
       "Archive denied",
@@ -450,7 +571,16 @@ function fixture(width, theme, workspace) {
       : "<audiconnect-vehicle-panel></audiconnect-vehicle-panel>") +
     '<script src="' +
     (workbench ? workbenchPanelScript : panelScript) +
-    '"></script><script>' +
+    '"></script>' +
+    (workbench
+      ? ""
+      : "<script>(() => {\n" +
+        fs.readFileSync(
+          "custom_components/audiconnect/v3/frontend/panel.js",
+          "utf8",
+        ) +
+        "\n})();</script>") +
+    "<script>" +
     (workbench ? workbenchScript : browserScript) +
     "</script></body></html>"
   );

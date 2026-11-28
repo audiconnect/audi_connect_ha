@@ -576,10 +576,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         _async_register_services(hass)
         if selected_v3:
             from .v3.registry_lifecycle import async_apply_v3_entity_visibility
-            from .v3.dashboard import (
-                async_setup_dashboard,
-                async_setup_vehicle_dashboard,
-            )
+            from .v3.dashboard import async_setup_vehicle_dashboard
+            from .v3.runtime import dashboard_enabled
 
             await async_apply_v3_entity_visibility(hass, config_entry, True)
             await hass.config_entries.async_forward_entry_setups(
@@ -587,15 +585,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             )
             # Presentation is optional to the native integration lifecycle.
             # Keep cancellation and native setup failures visible.
-            try:
-                await async_setup_vehicle_dashboard(hass)
-            except Exception:
-                _LOGGER.warning("Audi Connect vehicle panel unavailable")
-            if config_entry.options.get("v3_development_workbench", False):
+            if dashboard_enabled(config_entry.options):
                 try:
-                    await async_setup_dashboard(hass)
+                    await async_setup_vehicle_dashboard(hass)
                 except Exception:
-                    _LOGGER.warning("Audi Connect engineering panel unavailable")
+                    _LOGGER.warning("Audi Connect vehicle panel unavailable")
         else:
             from .v3.registry_lifecycle import async_apply_v3_entity_visibility
 
@@ -622,35 +616,11 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         return False
 
     if isinstance(getattr(runtime, "v3", None), V3Engine):
-        from .v3.dashboard import async_remove_dashboard, async_remove_vehicle_dashboard
+        from .v3.dashboard import async_remove_vehicle_dashboard
 
         await runtime.v3.status.async_stop_data_act()
         await runtime.v3.auth.async_close_data_act()
-        # On V3→V2 switch, or opting out, hide the sidebar panel. Do not
-        # remove it if another live V3 entry explicitly opted in.
-        others = any(
-            entry.entry_id != config_entry.entry_id
-            and entry.state is ConfigEntryState.LOADED
-            and entry.options.get(V3_RUNTIME_OPTION, V3_DEFAULT) == V3_ENABLED
-            and entry.options.get("v3_development_workbench", False)
-            and isinstance(
-                getattr(getattr(entry, "runtime_data", None), "v3", None),
-                V3Engine,
-            )
-            for entry in hass.config_entries.async_entries(DOMAIN)
-        )
-        if not others:
-            async_remove_dashboard(hass)
-        if not any(
-            entry.entry_id != config_entry.entry_id
-            and entry.state is ConfigEntryState.LOADED
-            and isinstance(
-                getattr(getattr(entry, "runtime_data", None), "v3", None),
-                V3Engine,
-            )
-            for entry in hass.config_entries.async_entries(DOMAIN)
-        ):
-            async_remove_vehicle_dashboard(hass)
+        await async_remove_vehicle_dashboard(hass, config_entry.entry_id)
 
     if not any(
         entry.entry_id != config_entry.entry_id

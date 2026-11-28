@@ -192,3 +192,49 @@ def test_render_selection_prefers_large_side_over_icon():
         )
         == side
     )
+
+
+@pytest.mark.parametrize(
+    "nested_vin,accepted",
+    [
+        (VIN, True),
+        (VIN.lower(), True),
+        (None, True),
+        ("WAUZZZ4M0MD654321", False),
+        ("", False),
+        (17, False),
+    ],
+)
+def test_graphql_nested_vin_binds_identity_and_media(nested_vin, accepted):
+    from custom_components.audiconnect.v3.transport import (
+        V3Response,
+        selected_identity_response,
+    )
+    from custom_components.audiconnect.v3.vehicle import select_vehicle_image
+
+    url = "https://mediaservice.audi.com/render/example.png"
+    row = {
+        "vin": VIN,
+        "nickname": "Local car",
+        "vehicle": {
+            "core": {"vin": nested_vin, "modelYear": 2025},
+            "media": {"longName": "Audi Q8"},
+            "classification": {"driveTrain": "PHEV"},
+            "renderPictures": [{"mediaType": "MYAPN8NB", "url": url}],
+        },
+    }
+    car = V3Vehicle.from_graphql(row, "DE")
+    assert car.vin == VIN
+    assert car.name == "Local car"
+    assert car.inventory_present
+    assert car.model == ("Audi Q8" if accepted else "")
+    assert car.model_year == ("2025" if accepted else "")
+    assert car.car_type == ("phev" if accepted else "")
+    assert select_vehicle_image(row["vehicle"], VIN) == (url if accepted else None)
+    response = V3Response(200, {"data": {"userVehicles": [row]}}, datetime.now(UTC))
+    selected = selected_identity_response(response, VIN)
+    vehicle = selected.data["data"]["userVehicles"][0]["vehicle"]
+    if accepted:
+        assert vehicle["core"] == {"modelYear": 2025}
+    else:
+        assert vehicle is None

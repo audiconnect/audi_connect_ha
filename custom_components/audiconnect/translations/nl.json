@@ -77,7 +77,8 @@
           "discovery_vehicle": "Voertuigconfiguratie & discovery",
           "data_sources": "Aanvullende gegevensbronnen",
           "dealer_vehicle": "Service & onderhoud",
-          "advanced": "Geavanceerd & experimenteel"
+          "advanced": "Geavanceerd & experimenteel",
+          "workbench": "Audi Connect-applicatie"
         }
       },
       "general": {
@@ -110,8 +111,7 @@
       "advanced": {
         "title": "Geavanceerd & experimenteel",
         "menu_options": {
-          "stop_recovery": "Herstel laadstop",
-          "workbench": "Development Workbench"
+          "stop_recovery": "Herstel laadstop"
         }
       },
       "reverse_geocoding": {
@@ -159,12 +159,14 @@
         }
       },
       "workbench": {
-        "title": "Development Workbench",
+        "title": "Audi Connect-applicatie",
         "data": {
-          "v3_development_workbench": "V3 Development Workbench inschakelen"
+          "v3_vehicle_dashboard": "Audi Connect-dashboard activeren",
+          "v3_development_workbench": "Engineeringwerkruimte activeren"
         },
         "data_description": {
-          "v3_development_workbench": "Toon het API-ontwikkeldashboard alleen in V3 en alleen na jouw toestemming. Standaard uit; opgeslagen API-profielen blijven bewaard."
+          "v3_vehicle_dashboard": "Toon de optionele Audi Connect-applicatie. Native entiteiten en automatiseringen blijven beschikbaar als deze is uitgeschakeld.",
+          "v3_development_workbench": "Werkruimte uitsluitend voor beheerders binnen Audi Connect. Opgeslagen profielen blijven behouden."
         }
       },
       "dealer_vehicle": {

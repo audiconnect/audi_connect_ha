@@ -174,6 +174,17 @@ class AudiConnectV3Panel extends HTMLElement {
     try {
       const response = await this.api("list");
       this.entries = response.integrations || [];
+      if (this.applicationContext) {
+        const { entry_id, vin } = this.applicationContext;
+        const entry = this.entries.find((e) => e.entry_id === entry_id);
+        if (!entry?.vehicles.some((v) => v.vin === vin)) {
+          this._resetVehicleSelection();
+          this.selected = this.vin = "";
+          throw new Error("Selected vehicle is not authorized for engineering");
+        }
+        this.selected = entry_id;
+        this.vin = vin;
+      }
       if (!this.entries.some((e) => e.entry_id === this.selected)) {
         this.selected = this.entries[0]?.entry_id || "";
       }
@@ -187,6 +198,11 @@ class AudiConnectV3Panel extends HTMLElement {
       await this._apiResults();
       this.error = "";
     } catch (err) {
+      if (this.applicationContext) {
+        this._resetVehicleSelection();
+        this.entries = [];
+        this.selected = this.vin = "";
+      }
       this.error = String(err.message || err);
     } finally {
       this.loading = false;
@@ -288,6 +304,8 @@ class AudiConnectV3Panel extends HTMLElement {
 
   async _change(e) {
     if (this.loading) return;
+    if (this.applicationContext && ["entry", "vehicle"].includes(e.target.id))
+      return;
     if (e.target.id === "entry") {
       this.selected = e.target.value;
       this.vin = "";
@@ -2095,15 +2113,15 @@ class AudiConnectV3Panel extends HTMLElement {
       </style>
       <main>
         <div class="top">
-          <div><div class="eyebrow">Audi Connect · V3</div>
-            <h1>Audi Engineering Dashboard</h1>
-            <p>Explore your Audi, validate functions and manage API mappings.</p></div>
-          <div class="actions"><a href="/audiconnect-vehicles">Vehicle management</a><button data-action="refresh" ${this.loading ? "disabled" : ""}>↻ Refresh</button></div>
+          <div><div class="eyebrow">Audi Connect · Engineering</div>
+            <h1>Engineering Workbench</h1>
+            <p>Investigate capabilities, verify operations and review evidence.</p></div>
+          <div class="actions">${this.applicationContext ? "" : '<a href="/audiconnect-vehicles">Vehicle management</a>'}<button data-action="refresh" ${this.loading ? "disabled" : ""}>↻ Refresh</button></div>
         </div>
         <div class="toolbar">
-          <div class="tool"><label>Integration</label>
+          <div class="tool" ${this.applicationContext ? "hidden" : ""}><label>Integration</label>
             <select id="entry" ${this.loading ? "disabled" : ""}>${this.entries.map((v) => `<option value="${escapeHTML(v.entry_id)}" ${v.entry_id === this.selected ? "selected" : ""}>Audi Connect / ${escapeHTML(v.entry_id.slice(0, 8))}</option>`).join("")}</select></div>
-          <div class="tool"><label>Vehicle</label><select id="vehicle" ${this.loading ? "disabled" : ""}>
+          <div class="tool" ${this.applicationContext ? "hidden" : ""}><label>Vehicle</label><select id="vehicle" ${this.loading ? "disabled" : ""}>
             ${(item?.vehicles || [])
               .map(
                 (v) =>
@@ -2267,7 +2285,7 @@ class AudiConnectV3Panel extends HTMLElement {
                 <td>Schema: ${escapeHTML(o.schema || "unknown")}
                   ${(o.mappings || []).map((m) => `<div class="subline"><button data-action="${m.capability === "vehicle_identity" ? "open-identity" : "open-capability"}" data-capability="${escapeHTML(m.capability)}">${escapeHTML(m.capability)}</button> · ${this.entityLinks(m.entity_ids) || escapeHTML(m.entity_key || "No published entity")}<br><code>${escapeHTML(m.field || "")}</code></div>`).join("")}
                   ${(o.graphql_errors || []).map((err) => `<div class="warn">${escapeHTML(err.code)} · ${escapeHTML(err.field)} ${escapeHTML(err.reason || "")}</div>`).join("")}
-                  ${o.auth_context ? `<div class="subline">${escapeHTML(o.auth_context.provider)} · ${escapeHTML(o.auth_context.role)} · ${escapeHTML(o.auth_context.audience)} · ${escapeHTML(o.auth_context.age_minutes ?? "?")} min</div>` : ""}
+                  ${o.auth_context ? `<div class="subline">${escapeHTML(o.auth_context.provider)} · ${escapeHTML(o.auth_context.role)} · ${escapeHTML(o.auth_context.audience)} · ${escapeHTML(o.auth_context.age_minutes ?? "?")} min · Issuer: ${escapeHTML(friendly(o.auth_context.issuer || "unknown"))} · Client: ${o.auth_context.configured_client_match === true ? "matches configuration" : o.auth_context.configured_client_match === false ? "different" : "unknown"} · Expiry: ${escapeHTML(friendly(o.auth_context.expiry || "unknown"))} · Claims unverified</div>` : ""}
                   ${o.read_only && !o.reference_only && (o.capabilities || []).includes("vehicle_identity") ? `<button data-action="identity-test" data-operation="${escapeHTML(o.operation)}">Test read-only</button>` : ""}<div class="subline">${o.active ? "ACTIVE" : "Inactive"} · ${escapeHTML(o.applicability || "unknown")}</div>
                   ${(o.fields || []).length ? `<details><summary>${o.fields.length} response fields · ${o.fields_truncated === true ? "truncated" : o.fields_truncated === false ? "within sample limits" : "coverage unknown"}</summary>${o.fields.map((f) => `<div class="subline"><code>${escapeHTML(f.path)}</code> · ${escapeHTML(f.type)} · ${escapeHTML(f.quality)} · ${escapeHTML(f.mapping)} ${escapeHTML((f.attributes || []).join(", "))}</div>`).join("")}</details>` : ""}</td>
                 <td>Physical: ${escapeHTML(o.physical || "not verified")}${o.discovery_review ? `<div class="subline">Verified on vehicle · HTTP ${escapeHTML(o.discovery_review.http_status ?? "—")} · ${escapeHTML(this.localTime(o.discovery_review.closed_at * 1000))}</div>` : ""}<div class="subline">${o.last_command_state ? "Last command: " : ""}${escapeHTML(o.last_command_state || "")} ${escapeHTML(o.backend_result || "")}</div>

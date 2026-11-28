@@ -414,11 +414,13 @@ def identity_errors(payload, vin):
 
 def selected_identity_response(response, vin):
     """Only selected vehicle, known fields, no image URLs or raw error messages."""
+    from .vehicle import graphql_vehicle_metadata
+
     rows = []
     for row in identity_rows(response.data):
         if not isinstance(row, dict) or str(row.get("vin", "")).lower() != vin.lower():
             continue
-        vehicle = row.get("vehicle")
+        vehicle = graphql_vehicle_metadata(row.get("vehicle"), vin)
         safe = {}
         if isinstance(vehicle, dict):
             for group, keys in {

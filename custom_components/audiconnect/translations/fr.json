@@ -77,7 +77,8 @@
           "discovery_vehicle": "Configuration et découverte du véhicule",
           "data_sources": "Sources de données supplémentaires",
           "dealer_vehicle": "Service et entretien",
-          "advanced": "Avancé et expérimental"
+          "advanced": "Avancé et expérimental",
+          "workbench": "Application Audi Connect"
         }
       },
       "general": {
@@ -110,8 +111,7 @@
       "advanced": {
         "title": "Avancé et expérimental",
         "menu_options": {
-          "stop_recovery": "Récupération de l’arrêt de charge",
-          "workbench": "Atelier de développement"
+          "stop_recovery": "Récupération de l’arrêt de charge"
         }
       },
       "reverse_geocoding": {
@@ -159,12 +159,14 @@
         }
       },
       "workbench": {
-        "title": "Atelier de développement",
+        "title": "Application Audi Connect",
         "data": {
-          "v3_development_workbench": "Activer l'atelier de développement V3"
+          "v3_vehicle_dashboard": "Activer le tableau de bord Audi Connect",
+          "v3_development_workbench": "Activer l’espace d’ingénierie"
         },
         "data_description": {
-          "v3_development_workbench": "Afficher l'atelier API réservé aux administrateurs uniquement en mode V3. Désactivé par défaut, sans supprimer les profils enregistrés."
+          "v3_vehicle_dashboard": "Afficher l’application Audi Connect facultative. Les entités natives et automatisations restent disponibles.",
+          "v3_development_workbench": "Espace réservé aux administrateurs dans Audi Connect. Les profils enregistrés sont conservés."
         }
       },
       "data_act": {
