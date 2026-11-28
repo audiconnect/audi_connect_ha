@@ -1,0 +1,1085 @@
+"""Shared V3 status polling recovers source-derived V2 fields without guesses."""
+
+from __future__ import annotations
+from datetime import UTC, datetime, timedelta
+from custom_components.audiconnect.v3.attribute_runtime import (
+    observe_read_only,
+    planned_jobs,
+)
+from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+
+class Profile:
+    attribute_routes = None
+    attribute_evidence = None
+
+    def __init__(self):
+        self.attribute_routes, self.attribute_evidence = {}, {}
+        self.job_discovery = {}
+
+
+def car():
+    return V3Vehicle(
+        vin="TESTVIN0000000001",
+        name="Audi",
+        model="Q8",
+        model_family="q8",
+        country="DE",
+    )
+
+
+def test_single_selectivestatus_response_recovers_multiple_fields():
+    car1, p, now = car(), Profile(), datetime.now(UTC)
+    assert len(planned_jobs(car1, p)) >= 23
+    sample = {
+        "charging": {
+            "batteryStatus": {
+                "value": {"currentSOC_pct": 55, "carCapturedTimestamp": now.isoformat()}
+            },
+            "chargingStatus": {
+                "value": {
+                    "chargingState": "charging",
+                    "carCapturedTimestamp": now.isoformat(),
+                }
+            },
+        },
+        "climatisation": {
+            "climatisationStatus": {
+                "value": {
+                    "climatisationState": "off",
+                    "carCapturedTimestamp": now.isoformat(),
+                }
+            }
+        },
+    }
+    outcome = observe_read_only(car1, p, sample, now)
+    assert outcome["fresh"] >= 3
+    assert all(
+        name in p.attribute_routes
+        for name in ("stateOfCharge", "chargingState", "climatisationState")
+    )
+    assert set(planned_jobs(car1, p)) >= {
+        "charging",
+        "climatisation",
+        "userCapabilities",
+    }
+    assert "tripStatistics" not in planned_jobs(car1, p)
+
+
+def test_unknown_and_stale_values_are_not_promoted():
+    car1, p, now = car(), Profile(), datetime.now(UTC)
+    old = (now - timedelta(hours=3)).isoformat()
+    observe_read_only(
+        car1,
+        p,
+        {
+            "charging": {
+                "batteryStatus": {
+                    "value": {"currentSOC_pct": 0, "carCapturedTimestamp": old}
+                }
+            }
+        },
+        now,
+    )
+    assert car1.readings["stateOfCharge"]["status"] == "readable_but_stale"
+    assert p.attribute_routes["stateOfCharge"] == "cariad.selectivestatus.batch"
+    assert "charging" in planned_jobs(car1, p)  # stale != unsupported; keep polling
+    assert "plugState" not in car1.readings
+
+
+def test_capability_advertisement_is_not_fresh_attribute_evidence():
+    car1, p, now = car(), Profile(), datetime.now(UTC)
+    observe_read_only(
+        car1,
+        p,
+        {
+            "userCapabilities": {
+                "capabilitiesStatus": {
+                    "value": [
+                        {"id": "charging", "status": None},
+                        {"id": "onlineLogBook", "status": "impaired"},
+                    ]
+                }
+            }
+        },
+        now,
+    )
+    assert car1.advertised_capabilities == {"charging", "onlineLogBook"}
+    assert car1.impaired_capabilities == {"onlineLogBook"}
+    assert not p.attribute_routes
+
+
+def test_stale_readable_v2_fields_are_active_after_first_discovery():
+    """A sleeping Q8 still reports its last known SoC, range and service data."""
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    captured = (now - timedelta(hours=4)).isoformat()
+    payload = {
+        "charging": {
+            "batteryStatus": {
+                "value": {
+                    "currentSOC_pct": 52,
+                    "carCapturedTimestamp": captured,
+                }
+            }
+        },
+        "fuelStatus": {
+            "rangeStatus": {
+                "value": {
+                    "totalRange_km": 410,
+                    "carCapturedTimestamp": captured,
+                }
+            }
+        },
+    }
+    result = observe_read_only(vehicle, profile, payload, now)
+    assert result["fresh"] == 0
+    assert vehicle.readings["stateOfCharge"]["value"] == 52
+    assert vehicle.readings["TOTAL_RANGE"]["value"] == 410
+    assert profile.attribute_routes["stateOfCharge"] == "cariad.selectivestatus.batch"
+    assert profile.attribute_routes["TOTAL_RANGE"] == "cariad.selectivestatus.batch"
+    assert {"charging", "fuelStatus"} <= set(planned_jobs(vehicle, profile))
+
+
+def test_observed_job_survives_pruning_when_no_fresh_attribute_exists():
+    vehicle, profile = car(), Profile()
+    vehicle.v2_initial_discovery_completed = True
+    profile.job_discovery["vehicleHealthInspection"] = "observed"
+    assert "vehicleHealthInspection" in planned_jobs(vehicle, profile)
+    assert "tripStatistics" not in planned_jobs(vehicle, profile)
+
+
+def test_older_cloud_cache_never_replaces_newer_captured_vehicle_value():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(value, capture):
+        return {
+            "charging": {
+                "batteryStatus": {
+                    "value": {
+                        "currentSOC_pct": value,
+                        "carCapturedTimestamp": capture.isoformat(),
+                    }
+                }
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(70, now), now)
+    observe_read_only(vehicle, profile, sample(49, now - timedelta(hours=3)), now)
+    assert vehicle.readings["stateOfCharge"]["value"] == 70
+    assert vehicle.readings["stateOfCharge"]["captured"] == now.isoformat()
+
+
+def test_boolean_oil_never_becomes_numeric_and_existing_binary_is_used():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(value, stamp):
+        return {
+            "oilLevel": {
+                "oilLevelStatus": {
+                    "value": {
+                        "value": value,
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(48, now), now)
+    assert vehicle.readings["OIL_LEVEL_DIPSTICKS_PERCENTAGE"]["value"] == 48
+    later = now + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(True, later), later)
+    assert vehicle.readings["OIL_LEVEL_DIPSTICKS_PERCENTAGE"]["value"] is None
+    assert (
+        vehicle.readings["OIL_LEVEL_DIPSTICKS_PERCENTAGE"]["reason"]
+        == "boolean_oil_level_use_binary"
+    )
+    assert vehicle.readings["oil_level_binary"]["value"] is False
+    observe_read_only(vehicle, profile, sample(25, now), later)
+    assert vehicle.readings["OIL_LEVEL_DIPSTICKS_PERCENTAGE"]["value"] is None
+    latest = later + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(False, latest), latest)
+    assert vehicle.readings["oil_level_binary"]["value"] is True
+
+
+def test_negative_duration_invalidates_newer_but_not_older_capture():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(value, stamp):
+        return {
+            "climatisation": {
+                "climatisationStatus": {
+                    "value": {
+                        "remainingClimatisationTime_min": value,
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(12, now), now)
+    observe_read_only(vehicle, profile, sample(-256, now - timedelta(minutes=1)), now)
+    assert vehicle.readings["remainingClimatisationTime"]["value"] == 12
+    later = now + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(-256, later), later)
+    assert vehicle.readings["remainingClimatisationTime"]["value"] is None
+    assert (
+        vehicle.readings["remainingClimatisationTime"]["reason"] == "negative_duration"
+    )
+
+
+def test_charging_eta_follows_valid_and_invalid_source_capture():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(value, stamp):
+        return {
+            "charging": {
+                "chargingStatus": {
+                    "value": {
+                        "remainingChargingTimeToComplete_min": value,
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(45, now), now)
+    assert (
+        vehicle.readings["charging_complete_time"]["value"]
+        == (now + timedelta(minutes=45)).isoformat()
+    )
+    later = now + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(-256, later), later)
+    eta = vehicle.readings["charging_complete_time"]
+    assert eta["value"] is None
+    assert eta["status"] == "invalid_value"
+    assert eta["captured"] == later.isoformat()
+    observe_read_only(vehicle, profile, sample(45, now), later)
+    assert vehicle.readings["charging_complete_time"]["value"] is None
+    newest = later + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(30, newest), newest)
+    assert (
+        vehicle.readings["charging_complete_time"]["value"]
+        == (newest + timedelta(minutes=30)).isoformat()
+    )
+    finished = newest + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(0, finished), finished)
+    assert vehicle.readings["remainingChargingTime"]["value"] == 0
+    assert "charging_complete_time" not in vehicle.readings
+    observe_read_only(vehicle, profile, sample(30, newest), finished)
+    assert "charging_complete_time" not in vehicle.readings
+
+
+def test_shared_scalar_mapping_preserves_meaningful_values_and_rejects_error_envelopes():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        normalize_attribute_value,
+    )
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+
+    assert normalize_attribute_value(ATTRIBUTES["stateOfCharge"], 0, None) == (0, None)
+    assert normalize_attribute_value(
+        ATTRIBUTES["externalPower"], "unavailable", None
+    ) == ("unavailable", None)
+    assert normalize_attribute_value(ATTRIBUTES["chargingState"], "unknown", None) == (
+        None,
+        "unknown_charging_state",
+    )
+    for bad in ({"error": {"code": 1}}, {}, [], "notavailable"):
+        assert normalize_attribute_value(ATTRIBUTES["externalPower"], bad, None) == (
+            None,
+            None,
+        )
+
+
+def test_charge_mode_has_one_capture_aware_normalization_path():
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+
+    def sample(stamp, preferred, options):
+        return {
+            "charging": {
+                "chargingStatus": {
+                    "value": {"carCapturedTimestamp": stamp.isoformat()}
+                },
+                "chargeMode": {
+                    "value": {
+                        "carCapturedTimestamp": stamp.isoformat(),
+                        "preferredChargeMode": preferred,
+                        "availableChargeModes": options,
+                    }
+                },
+            }
+        }
+
+    observe_read_only(vehicle, profile, sample(now, "manual", ["manual", "timer"]), now)
+    assert vehicle.readings["preferredChargeMode"]["captured"] == now.isoformat()
+    assert profile.attribute_evidence["preferredChargeMode"]["timestamp_present"]
+    later = now + timedelta(minutes=1)
+    observe_read_only(vehicle, profile, sample(later, "invalid", []), later)
+    assert vehicle.readings["preferredChargeMode"]["status"] == "invalid_value"
+    assert vehicle.readings["availableChargeModes"]["value"] == []
+    observe_read_only(vehicle, profile, sample(now, "manual", ["manual"]), later)
+    assert vehicle.readings["preferredChargeMode"]["value"] is None
+    assert vehicle.readings["availableChargeModes"]["value"] == []
+
+
+def test_family_selection_prefers_newest_capture_then_priority():
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle = car()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
+    )
+    now = datetime.now(UTC)
+
+    def sample(family, value, captured, observed):
+        return record_observation(
+            vehicle,
+            profile,
+            "stateOfCharge",
+            value,
+            captured.isoformat() if captured else None,
+            observed,
+            "test",
+            "charging",
+            family,
+            fresh=captured is not None and observed - captured <= timedelta(hours=1),
+            operation=family + ".test",
+            persist_evidence=False,
+        )
+
+    assert sample("cariad", 80, now, now)
+    newer = now + timedelta(minutes=5)
+    assert sample("mbb", 81, newer, newer)
+    assert vehicle.readings["stateOfCharge"]["value"] == 81
+    later = now + timedelta(hours=2)
+    assert not sample("mbb", 70, now - timedelta(hours=1), later)
+    assert not sample("mbb", 70, None, later)
+    assert not sample("mbb", 81, newer, later)
+    assert vehicle.readings["stateOfCharge"]["family"] == "mbb"
+    assert sample("cariad", 79, now, later)
+    assert vehicle.readings["stateOfCharge"]["family"] == "mbb"
+    assert sample("cariad", 82, newer, later)
+    assert vehicle.readings["stateOfCharge"]["family"] == "cariad"
+
+
+def test_invalid_secondary_sample_cannot_erase_other_family():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        record_invalid_observation,
+        record_observation,
+    )
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    assert record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        80,
+        now.isoformat(),
+        now,
+        "test",
+        "charging",
+        "cariad",
+        fresh=True,
+        operation="cariad.test",
+        persist_evidence=False,
+    )
+    newer = now + timedelta(minutes=1)
+    record_invalid_observation(
+        vehicle,
+        "stateOfCharge",
+        newer.isoformat(),
+        newer,
+        "test",
+        "charging",
+        "invalid",
+        "mbb",
+    )
+    assert vehicle.readings["stateOfCharge"]["value"] == 80
+    record_invalid_observation(
+        vehicle,
+        "stateOfCharge",
+        newer.isoformat(),
+        newer,
+        "test",
+        "charging",
+        "invalid",
+        "cariad",
+    )
+    assert vehicle.readings["stateOfCharge"]["status"] == "invalid_value"
+
+
+def test_family_selection_is_independent_of_response_arrival_order():
+    from itertools import permutations
+
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    now = datetime.now(UTC)
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    samples = [
+        ("cariad", 80, now - timedelta(minutes=10)),
+        ("mbb", 81, now - timedelta(minutes=5)),
+        ("graphql", 79, now - timedelta(minutes=15)),
+    ]
+    for order in permutations(samples):
+        vehicle = car()
+        profile = DevelopmentProfile(registry, vehicle.context)
+        for family, value, captured in order:
+            record_observation(
+                vehicle,
+                profile,
+                "stateOfCharge",
+                value,
+                captured.isoformat(),
+                now,
+                "test",
+                "charging",
+                family,
+                fresh=True,
+                operation=family + ".test",
+                persist_evidence=False,
+            )
+        assert vehicle.readings["stateOfCharge"]["family"] == "mbb"
+        assert vehicle.readings["stateOfCharge"]["value"] == 81
+        assert len(vehicle.family_readings["stateOfCharge"]) == 3
+
+
+def test_cached_families_do_not_revive_removed_or_newer_direct_projection():
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle = car()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
+    )
+    now = datetime.now(UTC)
+
+    def sample(family, value, captured):
+        return record_observation(
+            vehicle,
+            profile,
+            "stateOfCharge",
+            value,
+            captured.isoformat(),
+            now,
+            "test",
+            "charging",
+            family,
+            fresh=True,
+            operation=family + ".test",
+            persist_evidence=False,
+        )
+
+    assert sample("cariad", 80, now - timedelta(minutes=10))
+    assert sample("mbb", 70, now - timedelta(minutes=5))
+    vehicle.readings["stateOfCharge"] = {
+        **vehicle.readings["stateOfCharge"],
+        "family": "cariad",
+        "value": 90,
+        "captured": now.isoformat(),
+    }
+    assert not sample("cariad", 82, now - timedelta(minutes=2))
+    assert vehicle.readings["stateOfCharge"]["value"] == 90
+    vehicle.readings.pop("stateOfCharge")
+    assert sample("mbb", 71, now)
+    assert set(vehicle.family_readings["stateOfCharge"]) == {"mbb"}
+
+
+def test_family_selection_remains_latest_as_observations_age():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        record_observation,
+        refresh_family_observations,
+    )
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle = car()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
+    )
+    now = datetime.now(UTC)
+    for family, value, minutes in (("cariad", 80, 50), ("mbb", 81, 10)):
+        record_observation(
+            vehicle,
+            profile,
+            "stateOfCharge",
+            value,
+            (now - timedelta(minutes=minutes)).isoformat(),
+            now,
+            "test",
+            "charging",
+            family,
+            fresh=True,
+            operation=family + ".test",
+            persist_evidence=False,
+        )
+    assert vehicle.readings["stateOfCharge"]["value"] == 81
+    refresh_family_observations(vehicle, profile, now + timedelta(minutes=20))
+    assert vehicle.readings["stateOfCharge"]["value"] == 81
+    assert vehicle.readings["stateOfCharge"]["observed"] == now.isoformat()
+    vehicle.readings.pop("stateOfCharge")
+    refresh_family_observations(vehicle, profile, now + timedelta(minutes=30))
+    assert "stateOfCharge" not in vehicle.readings
+    assert not vehicle.family_readings["stateOfCharge"]
+
+
+def test_native_evidence_is_kept_when_other_read_channel_is_newer():
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    assert record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        70,
+        now.isoformat(),
+        now,
+        "dataset",
+        "charging",
+        "eu_data_act",
+        fresh=True,
+        operation="eu_data_act.dataset",
+        persist_evidence=False,
+    )
+    older = (now - timedelta(minutes=2)).isoformat()
+    assert record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        69,
+        older,
+        now,
+        "native",
+        "charging",
+        "cariad",
+        fresh=True,
+        operation="cariad.climate.status.batch",
+    )
+    assert vehicle.readings["stateOfCharge"]["value"] == 70
+    assert (
+        profile.attribute_evidence["stateOfCharge"]["source"]
+        == "cariad.selectivestatus"
+    )
+    assert vehicle.family_readings["stateOfCharge"]["cariad"]["value"] == 69
+
+
+def test_implausible_capture_cannot_block_recovery_or_replace_valid_sample():
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    future = now + timedelta(days=1)
+
+    def sample(value, stamp):
+        return record_observation(
+            vehicle,
+            profile,
+            "stateOfCharge",
+            value,
+            stamp.isoformat(),
+            now,
+            "test",
+            "charging",
+            "cariad",
+            fresh=False,
+            operation="cariad.test",
+            persist_evidence=False,
+        )
+
+    assert sample(1, future)
+    assert sample(80, now)
+    assert not sample(2, future)
+    assert vehicle.readings["stateOfCharge"]["value"] == 80
+
+
+def test_alias_selection_ignores_implausible_capture_for_ordering():
+    from custom_components.audiconnect.v3.attribute_runtime import select_reading
+
+    vehicle, now = car(), datetime.now(UTC)
+    vehicle.readings.update(
+        canonical={
+            "value": 80,
+            "family": "cariad",
+            "captured": now.isoformat(),
+        },
+        alias={
+            "value": 1,
+            "family": "cariad",
+            "captured": (now + timedelta(days=1)).isoformat(),
+        },
+    )
+    for sources in (("alias", "canonical"), ("canonical", "alias")):
+        name, reading = select_reading(
+            vehicle, sources, "canonical", now=now, families=("cariad",)
+        )
+        assert name == "canonical"
+        assert reading["value"] == 80
+
+
+def test_future_capture_never_becomes_valid_after_waiting():
+    from custom_components.audiconnect.v3.attribute_runtime import record_observation
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    future = now + timedelta(hours=1)
+    assert record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        50,
+        future.isoformat(),
+        now,
+        "test",
+        "charging",
+        "cariad",
+        fresh=False,
+        operation="cariad.test",
+        persist_evidence=False,
+    )
+    assert vehicle.readings["stateOfCharge"]["captured"] is None
+    assert record_observation(
+        vehicle,
+        profile,
+        "stateOfCharge",
+        80,
+        now.isoformat(),
+        future,
+        "test",
+        "charging",
+        "cariad",
+        fresh=True,
+        operation="cariad.test",
+        persist_evidence=False,
+    )
+    assert vehicle.readings["stateOfCharge"]["value"] == 80
+
+
+def test_undated_charge_mode_options_preserve_discovery_without_write_permission():
+    from itertools import permutations
+    from custom_components.audiconnect.v3.command_policy import charge_mode_evidence
+
+    now = datetime.now(UTC)
+    for options in permutations((["manual", "timer"], [])):
+        vehicle, profile = car(), Profile()
+        for values in options:
+            observe_read_only(
+                vehicle,
+                profile,
+                {
+                    "charging": {
+                        "chargeMode": {
+                            "value": {
+                                "availableChargeModes": values,
+                                "preferredChargeMode": "manual",
+                            }
+                        }
+                    }
+                },
+                now,
+            )
+        assert (
+            vehicle.readings["availableChargeModes"]["reason"]
+            == "conflicting_source_values"
+        )
+        evidence = charge_mode_evidence(vehicle, None)
+        assert evidence["last_known_advertised_modes"] == ["manual", "timer"]
+        assert evidence["writable_modes"] == []
+        assert vehicle.readings["preferredChargeMode"]["captured"] is None
+
+
+def test_inactive_charging_projection_has_explicit_not_applicable_reason():
+    from custom_components.audiconnect.v3.product_contract import projection_reading
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    vehicle.readings["remainingChargingTime"] = {
+        "value": 30,
+        "captured": (now - timedelta(minutes=1)).isoformat(),
+        "status": "verified",
+    }
+    vehicle.readings["chargingState"] = {
+        "value": "readyForCharging",
+        "captured": now.isoformat(),
+        "status": "verified",
+        "last_known": {
+            "value": "charging",
+            "captured": (now - timedelta(minutes=1)).isoformat(),
+        },
+    }
+    for ident in ("remainingChargingTime", "charging_complete_time"):
+        _, row = projection_reading(vehicle, ATTRIBUTES[ident], now=now)
+        attrs = reading_freshness_attributes(row, now=now)
+        assert row["value"] is None
+        assert attrs["availability_reason"] == "charging_not_active"
+        assert attrs["last_known_state"] is None
+    assert vehicle.readings["remainingChargingTime"]["value"] == 30
+
+
+def test_display_prefers_newer_historical_capture_without_promoting_command_evidence():
+    from custom_components.audiconnect.v3.attribute_runtime import (
+        bind_status,
+        last_known_observation,
+        restore_status,
+        record_invalid_observation,
+        record_observation,
+        remove_family_observations,
+        select_reading,
+    )
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.product_contract import projection_reading
+
+    vehicle = car()
+    profile = DevelopmentProfile(
+        CapabilityRegistry.from_json_file(catalog_path()), vehicle.context
+    )
+    bind_status(vehicle, profile)
+    now = datetime.now(UTC)
+    ident = "stateOfCharge"
+    for family, value, stamp in (
+        ("cariad", 80, now - timedelta(minutes=15)),
+        ("eu_data_act", 65, now - timedelta(hours=3)),
+    ):
+        record_observation(
+            vehicle,
+            profile,
+            ident,
+            value,
+            stamp.isoformat(),
+            now,
+            "test",
+            "charging",
+            family,
+            fresh=False,
+            operation=family + ".test",
+            persist_evidence=False,
+        )
+    record_invalid_observation(
+        vehicle,
+        ident,
+        now.isoformat(),
+        now,
+        "test",
+        "charging",
+        "invalid",
+        profile=profile,
+    )
+    _, row = projection_reading(
+        vehicle, ATTRIBUTES[ident], registry=profile.registry, now=now
+    )
+    assert row["status"] == "invalid_value"
+    assert last_known_observation(row)["value"] == 80
+    attrs = reading_freshness_attributes(row, allow_last_known=True, now=now)
+    assert attrs["vehicle_freshness"] == "stale_last_known"
+    assert attrs["vehicle_captured"] == (now - timedelta(minutes=15)).isoformat()
+    assert attrs["age_minutes"] == 15
+    assert attrs["cloud_observed"] is None
+    assert attrs["cloud_age_minutes"] is None
+    # Retained provenance remains available to diagnostics only.
+    known = last_known_observation(row)
+    assert known["observed"] == now.isoformat()
+    assert known["operation"] == "cariad.test"
+    _, native = select_reading(
+        vehicle, (ident,), ident, registry=profile.registry, families=("cariad",)
+    )
+    assert native["value"] is None
+    assert vehicle.readings[ident]["value"] == 65
+    from custom_components.audiconnect.v3.capability_status import build_status_report
+
+    report = build_status_report(vehicle, profile)
+    detail = next(
+        row
+        for row in report["rows"]
+        if row.get("attribute") == ident and row.get("entity_key")
+    )
+    assert detail["api_family"] == "eu_data_act"
+    assert detail["display_source"] == {
+        "attribute": ident,
+        "family": "cariad",
+        "captured": (now - timedelta(minutes=15)).isoformat(),
+        "historical": True,
+    }
+    restored = restore_status(profile.snapshot()["status_observations"])
+    assert restored[ident]["status"] == "invalid_value"
+    assert last_known_observation(restored[ident])["value"] == 80
+    remove_family_observations(vehicle, profile, "cariad", now)
+    _, row = projection_reading(
+        vehicle, ATTRIBUTES[ident], registry=profile.registry, now=now
+    )
+    assert row["value"] == 65
+    assert ident not in profile.snapshot()["status_observations"]
+
+
+def test_conflicting_native_observation_roundtrips_and_repairs_old_profile():
+    import pytest
+
+    from custom_components.audiconnect.v3.attribute_runtime import bind_status
+    from custom_components.audiconnect.v3.development_profiles import (
+        DevelopmentProfile,
+        DevelopmentProfileError,
+    )
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle = car()
+    catalog = CapabilityRegistry.from_json_file(catalog_path())
+    profile = DevelopmentProfile(catalog, vehicle.context)
+    bind_status(vehicle, profile)
+    now = datetime.now(UTC)
+
+    def sample(soc, stamp):
+        return {
+            "charging": {
+                "batteryStatus": {
+                    "value": {
+                        "currentSOC_pct": soc,
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            },
+            "climatisation": {
+                "climatisationStatus": {
+                    "value": {
+                        "climatisationState": "off",
+                        "carCapturedTimestamp": stamp.isoformat(),
+                    }
+                }
+            },
+        }
+
+    ident = "stateOfCharge"
+    observe_read_only(vehicle, profile, sample(50, now), now)
+    original = dict(profile.attribute_evidence[ident])
+    observe_read_only(vehicle, profile, sample(60, now), now)
+    assert vehicle.readings[ident]["status"] == "invalid_value"
+    assert profile.attribute_evidence[ident] == original
+    saved = profile.snapshot()
+    restored = restore_profile(catalog, vehicle.context, saved)
+    assert restored.attribute_evidence[ident] == original
+    # Reproduce the invalid row written by B42/B43 during the same conflict.
+    saved["attribute_evidence"][ident]["status"] = "invalid_value"
+    repaired = restore_profile(catalog, vehicle.context, saved)
+    assert ident not in repaired.attribute_evidence
+    assert ident not in repaired.attribute_routes
+    assert "climatisationState" in repaired.attribute_evidence
+    assert (
+        repaired.attribute_routes["climatisationState"]
+        == (profile.attribute_routes["climatisationState"])
+    )
+    next_vehicle = car()
+    bind_status(next_vehicle, repaired)
+    later = now + timedelta(seconds=10)
+    observe_read_only(next_vehicle, repaired, sample(61, later), later)
+    assert repaired.attribute_evidence[ident]["status"] == "verified"
+    assert repaired.attribute_routes[ident] == "cariad.selectivestatus.batch"
+    assert restore_profile(catalog, vehicle.context, repaired.snapshot())
+    # Malformed/unsafe mappings remain rejected; no blanket validation bypass.
+    saved["attribute_evidence"][ident]["path"] = "untrusted.path"
+    with pytest.raises(DevelopmentProfileError, match="Untrusted attribute evidence"):
+        restore_profile(catalog, vehicle.context, saved)
+
+
+def test_engine_range_projection_uses_semantic_role_and_capture():
+    from custom_components.audiconnect.v3.historical_catalog import ATTRIBUTES
+    from custom_components.audiconnect.v3.product_contract import projection_reading
+
+    car1 = car()
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=1)).isoformat()
+    fresh = now.isoformat()
+    car1.readings.update(
+        {
+            "primary_engine_type": {"value": "gasoline"},
+            "secondary_engine_type": {"value": "electric"},
+            "primaryEngineRange": {"value": 700, "captured": old},
+            "secondaryEngineRange": {"value": 42, "captured": old},
+            "measuredFuelRange": {"value": 690, "captured": fresh},
+            "measuredElectricRange": {"value": 31, "captured": fresh},
+            "batteryElectricRange": {"value": 0, "captured": old},
+            "measuredTotalRange": {"value": 721, "captured": fresh},
+        }
+    )
+    for ident, expected in (("primaryEngineRange", 690), ("secondaryEngineRange", 31)):
+        _, reading = projection_reading(car1, ATTRIBUTES[ident], now=now)
+        assert reading["value"] == expected
+    car1.readings["secondary_engine_type"]["value"] = "gasoline"
+    _, reading = projection_reading(car1, ATTRIBUTES["secondaryEngineRange"], now=now)
+    assert reading["value"] == 42
+    car1.readings["secondary_engine_type"]["value"] = "unknown"
+    _, reading = projection_reading(car1, ATTRIBUTES["secondaryEngineRange"], now=now)
+    assert reading["value"] == 42
+
+
+def test_climate_settings_queue_is_informational_and_no_ids_or_body_exported():
+    from custom_components.audiconnect.v3.structured_details import details_for
+
+    car1, p, now = car(), Profile(), datetime.now(UTC)
+    observe_read_only(
+        car1,
+        p,
+        {
+            "climatisation": {
+                "climatisationSettings": {
+                    "requests": [
+                        {
+                            "operation": "settings",
+                            "status": "queued",
+                            "requestId": "private-id",
+                            "body": {
+                                "targetTemperature": 19,
+                                "targetTemperatureUnit": "celsius",
+                                "windowHeatingEnabled": False,
+                                "private": "not-exported",
+                            },
+                        }
+                    ]
+                }
+            }
+        },
+        now,
+    )
+    row = car1.readings["climate_settings_requests_detail"]
+    assert row["informational"]
+    assert row["captured"] is None
+    detail = details_for(car1, "climate_settings_requests_detail")
+    assert detail["climate_settings_requests"]["data"]["items"] == [
+        {
+            "operation": "settings",
+            "status": "queued",
+            "parameters": {
+                "target_temperature_c": 19,
+                "window_heating_enabled": False,
+            },
+        }
+    ]
+    assert "private-id" not in str(detail)
+    assert "not-exported" not in str(detail)
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_request_queue,
+    )
+
+    queues = diagnostic_request_queue(car1)
+    assert queues[0]["items"] == detail["climate_settings_requests"]["data"]["items"]
+    assert "private-id" not in str(queues)
+    assert "not-exported" not in str(queues)
+
+
+def test_api_broadening_read_only_charging_metrics_keep_units_and_capture():
+    from custom_components.audiconnect.v3.capability_status import (
+        diagnostic_telemetry,
+    )
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    old = (now - timedelta(hours=1)).isoformat()
+    observe_read_only(
+        vehicle,
+        profile,
+        {
+            "charging": {
+                "chargingSettings": {
+                    "value": {"minChargeLimit_pct": 0, "carCapturedTimestamp": old}
+                },
+                "batteryStatus": {
+                    "value": {
+                        "navigationTargetSOC_pct": 85,
+                        "carCapturedTimestamp": now.isoformat(),
+                    }
+                },
+                "chargingStatus": {
+                    "value": {"remainingChargingTimeNavigation_min": -1}
+                },
+            },
+            "measurements": {
+                "temperatureBatteryStatus": {
+                    "value": {
+                        "temperatureHvBatteryMin_K": 295,
+                        "temperatureHvBatteryMax_K": 0,
+                        "carCapturedTimestamp": old,
+                    }
+                }
+            },
+        },
+        now,
+    )
+    assert vehicle.readings["minimumChargeLimit"]["value"] == 0
+    assert vehicle.readings["minimumChargeLimit"]["captured"] == old
+    assert vehicle.readings["navigationTargetSOC"]["value"] == 85
+    assert vehicle.readings["hvBatteryMinimumTemperature"]["value"] == 295
+    assert "hvBatteryMaximumTemperature" not in vehicle.readings
+    assert "navigationRemainingChargingTime" not in vehicle.readings
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    rows = {
+        row["attribute"]: row
+        for row in diagnostic_telemetry(vehicle, registry)["attributes"]
+    }
+    assert rows["minimumChargeLimit"]["unit"] == "%"
+    assert rows["hvBatteryMinimumTemperature"]["unit"] == "K"
+    assert rows["hvBatteryMinimumTemperature"]["selected"]["value"] == 295
+    assert "cariad.status.automation" in registry.operations
+    assert registry.operations["cariad.status.automation"]["delivery"] == "manual"
+
+
+def test_app_schema_fields_are_passive_typed_and_keep_own_capture():
+    from custom_components.audiconnect.v3.historical_catalog import (
+        ATTRIBUTES,
+        INVENTORY,
+    )
+    from custom_components.audiconnect.v3.product_contract import projection_descriptor
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    access_stamp = (now - timedelta(minutes=3)).isoformat()
+    battery_stamp = (now - timedelta(minutes=5)).isoformat()
+    sample = {
+        "access": {
+            "accessStatus": {
+                "value": {
+                    "safelockActive": False,
+                    "carCapturedTimestamp": access_stamp,
+                }
+            }
+        },
+        "charging": {
+            "batteryStatus": {
+                "value": {
+                    "chargePowerLimitationReason": "futureFirmwareReason",
+                    "carCapturedTimestamp": battery_stamp,
+                }
+            }
+        },
+    }
+    observe_read_only(vehicle, profile, sample, now)
+    for ident, value, stamp in (
+        ("safelockActive", False, access_stamp),
+        ("chargePowerLimitationReason", "futureFirmwareReason", battery_stamp),
+    ):
+        assert vehicle.readings[ident]["value"] == value
+        assert vehicle.readings[ident]["captured"] == stamp
+        assert profile.attribute_routes[ident] == "cariad.selectivestatus.batch"
+        assert projection_descriptor(ATTRIBUTES[ident]) == ATTRIBUTES[ident]
+        assert ident not in {row["id"] for row in INVENTORY["attributes"]}
+    assert planned_jobs(vehicle, profile) == tuple(
+        row["id"] for row in INVENTORY["jobs"]
+    )
+
+    for invalid_lock, invalid_reason in ((1, {}), ("false", 0), ([], "a b")):
+        vehicle, profile = car(), Profile()
+        sample["access"]["accessStatus"]["value"]["safelockActive"] = invalid_lock
+        sample["charging"]["batteryStatus"]["value"]["chargePowerLimitationReason"] = (
+            invalid_reason
+        )
+        observe_read_only(vehicle, profile, sample, now)
+        assert "safelockActive" not in profile.attribute_routes
+        assert "chargePowerLimitationReason" not in profile.attribute_routes

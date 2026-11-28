@@ -92,7 +92,42 @@ def test_options_flow_translations_have_manual_dealer_steps():
     root = Path(__file__).resolve().parents[1] / "custom_components/audiconnect"
     for name in ("strings.json", "translations/en.json", "translations/nl.json"):
         data = json.loads((root / name).read_text())
-        assert "edit_local_dealer" in data["options"]["step"]["init"]["data"]
+        # Manual dealer metadata moves to V3 Options, not legacy V2 runtime.
+        assert "dealer_vehicle" in data["options"]["step"]["init"]["menu_options"]
         assert "dealer_vehicle" in data["options"]["step"]
         assert "dealer" in data["options"]["step"]
-        assert "experimental_commands" in data["options"]["step"]["init"]["data"]
+        assert "experimental_commands" not in data["options"]["step"]["general"]["data"]
+
+
+def test_v3_service_summary_uses_retained_maintenance_and_conservative_quality():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.entities import V3LocalServiceSensor
+
+    now = datetime.now(UTC)
+    car = NS(
+        vin="test",
+        readings={
+            "MAINTENANCE_INTERVAL_TIME_TO_INSPECTION": {
+                "value": None,
+                "status": "invalid_value",
+                "last_known": {
+                    "value": 14,
+                    "status": "verified",
+                    "captured": (now - timedelta(hours=3)).isoformat(),
+                },
+            },
+            "MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE": {
+                "value": 90,
+                "status": "verified",
+                "captured": now.isoformat(),
+            },
+        },
+    )
+    coordinator = NS(engine=NS(entry=NS(options={})))
+    summary = V3LocalServiceSensor(coordinator, car, "service_overview")
+    assert summary.native_value == "due_soon"
+    assert summary.extra_state_attributes["inspection_due_days"] == 14
+    assert summary.extra_state_attributes["vehicle_freshness"] == "stale_last_known"
+    assert "vehicle_captured" not in summary.extra_state_attributes
+    car.readings["MAINTENANCE_INTERVAL_TIME_TO_OIL_CHANGE"].pop("captured")
+    assert summary.extra_state_attributes["vehicle_freshness"] == "unknown"

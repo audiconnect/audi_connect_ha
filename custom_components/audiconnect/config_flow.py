@@ -41,6 +41,9 @@ from .const import (
     CONF_FILTER_VINS,
     CONF_PASSWORD,
     CONF_REFRESH_AFTER_ACTION,
+    CONF_V3_CHARGING_STOP_RETRY,
+    STOP_RECOVERY_OPTIONS,
+    stop_recovery_options,
     CONF_REFRESH_TOKEN,
     CONF_REGION,
     CONF_SCAN_INITIAL,
@@ -213,11 +216,26 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _reauth_account_matches(self, identifier, *, password_login=False):
+        """Never replace credentials of a different existing account."""
+        entry = self._reauth_entry
+        expected = entry.unique_id or (
+            entry.data.get(CONF_USERNAME) if password_login else None
+        )
+        return bool(
+            isinstance(expected, str)
+            and isinstance(identifier, str)
+            and expected
+            and expected.lower() == identifier.lower()
+        )
+
     async def _finish_password_login(
         self, username: str, password: str
     ) -> ConfigFlowResult:
         """Persist a username/password entry (or update it on reauth)."""
         if self._reauth_entry is not None:
+            if not self._reauth_account_matches(username, password_login=True):
+                return self.async_abort(reason="wrong_account")
             # Schedule the reload ourselves: async_update_reload_and_abort is
             # deprecated (HA 2026.12) for entries that register an update
             # listener, which this integration does.
@@ -359,7 +377,10 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
             # Approved but no refresh token issued; do not persist a dead entry.
             return self.async_abort(reason="device_auth_failed")
 
+        identifier = self._connection.account_identifier()
         if self._reauth_entry is not None:
+            if not self._reauth_account_matches(identifier):
+                return self.async_abort(reason="wrong_account")
             # Schedule the reload ourselves (see _finish_password_login). A
             # token reauth only changes the refresh token, which the
             # update listener deliberately ignores, so the reload has to be
@@ -373,12 +394,11 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        identifier = self._connection.account_identifier()
         if identifier:
             await self.async_set_unique_id(identifier.lower())
             self._abort_if_unique_id_configured()
         return self.async_create_entry(
-            title=identifier or "Audi Connect",
+            title="Audi Connect",
             data={**self._flow_data, CONF_REFRESH_TOKEN: refresh_token},
         )
 
@@ -486,10 +506,15 @@ class AudiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(OptionsFlow):
-    """Configure polling and optional per-vehicle, local dealer details."""
+    """Native account settings and explicit configuration journeys."""
 
-    _pending_options: dict[str, Any] | None = None
     _dealer_vin: str | None = None
+    _discovery_vin: str | None = None
+    _discovery_action: str | None = None
+    _discovery_candidate: dict[str, Any] | None = None
+    _discovery_guided: bool = False
+    _discovery_sequence: int | None = None
+    _discovery_skipped: set[str] | None = None
 
     def _dealer_vehicles(self) -> list[tuple[str, str]]:
         """Vehicles already loaded in this account; no extra Audi API request."""
@@ -508,6 +533,11 @@ class OptionsFlowHandler(OptionsFlow):
                 or "Audi"
             )
             items.append((vin, f"{name} (…{vin[-4:]})"))
+        # V3 owns its own vehicle inventory and no longer creates AudiAccount.
+        if not items:
+            v3 = getattr(runtime, "v3", None)
+            for vehicle in getattr(v3, "vehicles", {}).values():
+                items.append((vehicle.vin, f"{vehicle.name} (…{vehicle.vin[-4:]})"))
         return items
 
     async def async_step_dealer_vehicle(
@@ -554,7 +584,7 @@ class OptionsFlowHandler(OptionsFlow):
         vin = self._dealer_vin
         if not vin:
             return await self.async_step_dealer_vehicle()
-        pending = self._pending_options or dict(self.config_entry.options)
+        pending = dict(self.config_entry.options)
         errors: dict[str, str] = {}
         if user_input is not None:
             updates = {
@@ -589,77 +619,779 @@ class OptionsFlowHandler(OptionsFlow):
             step_id="dealer", data_schema=data_schema, errors=errors
         )
 
+    def _discovery_engine(self):
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        return getattr(runtime, "v3", None)
+
+    def _discovery_context(self):
+        engine = self._discovery_engine()
+        if engine is None or self._discovery_vin is None:
+            raise ValueError("No active V3 vehicle")
+        car = engine.require_vehicle(self._discovery_vin)
+        return engine, car, engine.profiles[car.vin.lower()]
+
+    async def async_step_discovery_vehicle(self, user_input=None):
+        engine = self._discovery_engine()
+        if engine is None:
+            return self.async_abort(reason="no_vehicle_available")
+        vehicles = [
+            (car.vin, f"{car.name} (…{car.vin[-4:]})")
+            for car in engine.vehicles.values()
+            if car.inventory_present
+        ]
+        if not vehicles:
+            return self.async_create_entry(
+                title="", data=dict(self.config_entry.options)
+            )
+        if len(vehicles) == 1:
+            self._discovery_vin = vehicles[0][0]
+            return await self.async_step_discovery()
+        if user_input and user_input.get("vehicle") in dict(vehicles):
+            self._discovery_vin = user_input["vehicle"]
+            return await self.async_step_discovery()
+        return self.async_show_form(
+            step_id="discovery_vehicle",
+            data_schema=vol.Schema({vol.Required("vehicle"): vol.In(dict(vehicles))}),
+        )
+
+    async def async_step_discovery(self, user_input=None):
+        from .v3.read_discovery import user_test_candidates
+
+        engine, car, profile = self._discovery_context()
+        active = profile.discovery._active
+        if active is not None:
+            self._discovery_sequence = active.sequence
+            return await self.async_step_discovery_review()
+        if profile.last_command is not None and profile.last_command.unresolved:
+            return await self.async_step_discovery_recover()
+        if self._discovery_skipped is None:
+            self._discovery_skipped = set()
+        candidates = user_test_candidates(engine, car, profile, include_verified=True)
+        if user_input is not None:
+            choice = user_input.get("action")
+            if choice == "finish":
+                return self.async_create_entry(
+                    title="",
+                    data=dict(self.config_entry.options),
+                )
+            if choice == "refresh":
+                await engine.resume_read_discovery(car.vin)
+                return await self.async_step_discovery()
+            if choice == "retry_skipped":
+                self._discovery_skipped.clear()
+            self._discovery_guided = choice in ("guided", "retry_skipped")
+            if not self._discovery_guided and choice in candidates:
+                self._discovery_action = choice
+                self._discovery_candidate = candidates[choice]
+                return await self.async_step_discovery_consent()
+        if self._discovery_guided:
+            guided = user_test_candidates(engine, car, profile)
+            remaining = {
+                key: value
+                for key, value in guided.items()
+                if key not in self._discovery_skipped
+            }
+            if remaining:
+                self._discovery_action, self._discovery_candidate = next(
+                    iter(remaining.items())
+                )
+                return await self.async_step_discovery_consent()
+            self._discovery_guided = False
+        progress = engine.discovery_progress(car, profile)
+        return self.async_show_form(
+            step_id="discovery",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action", default="finish"): vol.In(
+                        {
+                            "finish": "Finish / skip for now",
+                            "guided": "Guided discovery",
+                            **(
+                                {"retry_skipped": "Resume skipped controls"}
+                                if self._discovery_skipped
+                                else {}
+                            ),
+                            "refresh": "Resume unresolved read discovery",
+                            **{key: row["label"] for key, row in candidates.items()},
+                        }
+                    )
+                }
+            ),
+            description_placeholders={
+                "vehicle": car.name,
+                "read_state": str(progress["read_state"]).replace("_", " "),
+                "read": str(progress["read_assessment_percent"]),
+                "assessed": str(progress["read_assessed"]),
+                "total": str(progress["read_total"]),
+                "verified": str(progress["controls_physically_verified"]),
+                "controls": str(progress["controls_catalog_applicable"]),
+            },
+        )
+
+    async def async_step_discovery_consent(self, user_input=None):
+        from .v3.read_discovery import user_test_candidates
+
+        engine, car, profile = self._discovery_context()
+        candidate = user_test_candidates(
+            engine, car, profile, include_verified=not self._discovery_guided
+        ).get(self._discovery_action)
+        if candidate is None or candidate != self._discovery_candidate:
+            # Do not reuse a consent when discovery changed the actual route.
+            self._discovery_candidate = None
+            return await self.async_step_discovery()
+        from .v3.command_parameters import validate_inputs
+
+        schema = candidate["parameter_schema"]
+        errors = {}
+        if user_input is not None:
+            answer = user_input.get("accept")
+            if answer == "finish":
+                return self.async_create_entry(
+                    title="",
+                    data=dict(self.config_entry.options),
+                )
+            if answer is not True and answer != "yes":
+                if self._discovery_skipped is None:
+                    self._discovery_skipped = set()
+                self._discovery_skipped.add(self._discovery_action)
+                self._discovery_candidate = None
+                return await self.async_step_discovery()
+            params = {
+                name: value for name, value in user_input.items() if name != "accept"
+            }
+            self._discovery_candidate = None  # Single-use explicit action approval.
+            for name, contract in schema.items():
+                if contract["type"] == "boolean" and params.get(name) in (
+                    "true",
+                    "false",
+                ):
+                    params[name] = params[name] == "true"
+            try:
+                validate_inputs(params, schema)
+                result = await engine.approved_control_discovery(
+                    car.vin,
+                    candidate["action"],
+                    candidate["operation"],
+                    approval=candidate["approval_group"],
+                    capability=candidate["capability"],
+                    params=params or None,
+                    guided=True,
+                    expert=not self._discovery_guided,
+                )
+            except (ValueError, RuntimeError, OSError, TimeoutError):
+                errors["base"] = "discovery_test_failed"
+                if profile.discovery._active is not None:
+                    self._discovery_sequence = profile.discovery._active.sequence
+                    return await self.async_step_discovery_review()
+                # Keep the same question available for an explicit retry after cooldown.
+                self._discovery_candidate = candidate
+            else:
+                self._discovery_sequence = result["sequence"]
+                return await self.async_step_discovery_review()
+        progress = engine.discovery_progress(car, profile)
+        return self.async_show_form(
+            step_id="discovery_consent",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("accept", default="no"): vol.In(
+                        {"yes": "Yes", "no": "No / skip", "finish": "Finish"}
+                    ),
+                    **{
+                        vol.Optional(name): (
+                            SelectSelector(
+                                SelectSelectorConfig(
+                                    options=contract["enum"],
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                )
+                            )
+                            if "enum" in contract
+                            else SelectSelector(
+                                SelectSelectorConfig(
+                                    options=["true", "false"],
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                )
+                            )
+                            if contract["type"] == "boolean"
+                            else NumberSelector(
+                                NumberSelectorConfig(
+                                    min=contract["minimum"],
+                                    max=contract["maximum"],
+                                    mode="box",
+                                )
+                            )
+                        )
+                        for name, contract in schema.items()
+                    },
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "vehicle": car.name,
+                "action": candidate["label"],
+                "instructions": candidate["instructions"],
+                "verified": str(progress["controls_physically_verified"]),
+                "controls": str(progress["controls_catalog_applicable"]),
+                "skipped": str(len(self._discovery_skipped or ())),
+            },
+        )
+
+    async def async_step_discovery_review(self, user_input=None):
+        engine, car, profile = self._discovery_context()
+        active = profile.discovery._active
+        if active is None:
+            return await self.async_step_discovery()
+        errors = {}
+        if user_input is not None:
+            outcome = user_input.get("outcome")
+            if outcome in ("worked", "failed", "uncertain"):
+                try:
+                    await engine.review_action(car.vin, active.sequence, outcome)
+                except (ValueError, RuntimeError, OSError):
+                    errors["base"] = "discovery_test_failed"
+                else:
+                    if outcome == "uncertain":
+                        return self.async_create_entry(
+                            title="",
+                            data=dict(self.config_entry.options),
+                        )
+                    return await self.async_step_discovery()
+        return self.async_show_form(
+            step_id="discovery_review",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("outcome", default="uncertain"): vol.In(
+                        {
+                            "worked": "OK",
+                            "failed": "Not OK",
+                            "uncertain": "Not sure — retain pending review",
+                        }
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "vehicle": car.name,
+                "action": active.action,
+                "transport": active.transport,
+            },
+        )
+
+    async def async_step_discovery_recover(self, user_input=None):
+        engine, car, profile = self._discovery_context()
+        command = profile.last_command
+        if command is None or not command.unresolved:
+            return await self.async_step_discovery()
+        if user_input is not None:
+            if user_input.get("inspected"):
+                await engine.review_normal_command(car.vin, command.command_id)
+                return await self.async_step_discovery()
+            return self.async_create_entry(
+                title="", data=dict(self.config_entry.options)
+            )
+        return self.async_show_form(
+            step_id="discovery_recover",
+            data_schema=vol.Schema({vol.Required("inspected", default=False): bool}),
+            description_placeholders={"vehicle": car.name, "action": command.action},
+        )
+
+    def _is_v3(self) -> bool:
+        return self.config_entry.options.get("runtime_version") == "v3_climate"
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        if user_input is not None:
-            user_input = dict(user_input)
-            edit_dealer = bool(user_input.pop("edit_local_dealer", False))
-            user_input[CONF_SCAN_INTERVAL] = max(
-                int(user_input[CONF_SCAN_INTERVAL]), MIN_UPDATE_INTERVAL
-            )
-            # OptionsFlow replaces all options; preserve per-vehicle metadata.
-            if "local_dealers" in self.config_entry.options:
-                user_input["local_dealers"] = self.config_entry.options["local_dealers"]
-            if edit_dealer:
-                self._pending_options = user_input
-                return await self.async_step_dealer_vehicle()
-            return self.async_create_entry(title="", data=user_input)
-
-        return self.async_show_form(
+        """Keep the historical V2 form and expose native navigation in V3."""
+        if not self._is_v3():
+            return await self.async_step_general(user_input)
+        return self.async_show_menu(
             step_id="init",
+            menu_options=[
+                "general",
+                "workbench",
+                "discovery_vehicle",
+                "data_sources",
+                "dealer_vehicle",
+                "advanced",
+            ],
+            description_placeholders=await self._data_act_placeholders(
+                self.config_entry.options
+            ),
+        )
+
+    async def async_step_general(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Save only general fields; preserve hidden settings and local metadata."""
+        values = dict(self.config_entry.options)
+        errors = {}
+        if user_input is not None:
+            # Only fields visible in this form are writable here.
+            fields = {key.schema for key in self._options_schema(values).schema}
+            values.update(
+                {key: value for key, value in user_input.items() if key in fields}
+            )
+            values.setdefault("runtime_version", "v2")
+            interval = values.get(
+                CONF_SCAN_INTERVAL,
+                self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+            )
+            try:
+                values[CONF_SCAN_INTERVAL] = max(int(interval), MIN_UPDATE_INTERVAL)
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_scan_interval"
+            else:
+                if values["runtime_version"] != "v3_climate":
+                    # Preserve the existing V2 rollback behavior. Explicit V3
+                    # permissions must not carry across a runtime switch.
+                    values["v3_development_workbench"] = False
+                    values[CONF_V3_CHARGING_STOP_RETRY] = False
+                    values["v3_reverse_geocoding"] = False
+                    for key in (
+                        "v3_data_act_enabled",
+                        "v3_data_act_email",
+                        "v3_data_act_password",
+                        "v3_myaudi_enabled",
+                        "v3_myaudi_email",
+                        "v3_myaudi_password",
+                    ):
+                        values.pop(key, None)
+                else:
+                    values.setdefault("v3_development_workbench", False)
+                    values.setdefault(CONF_V3_CHARGING_STOP_RETRY, False)
+                return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="general",
+            data_schema=self._options_schema(values),
+            errors=errors,
+        )
+
+    async def async_step_data_sources(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        return self.async_show_menu(
+            step_id="data_sources",
+            menu_options=["data_act", "myaudi", "reverse_geocoding"],
+            description_placeholders=await self._data_act_placeholders(
+                self.config_entry.options
+            ),
+        )
+
+    async def async_step_advanced(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        return self.async_show_menu(
+            step_id="advanced",
+            menu_options=["stop_recovery"],
+        )
+
+    async def async_step_reverse_geocoding(self, user_input=None) -> ConfigFlowResult:
+        from .v3.parking import REVERSE_GEOCODING
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        if user_input is not None:
+            if user_input.get(REVERSE_GEOCODING) is True:
+                return await self.async_step_geocoding_endpoint()
+            values[REVERSE_GEOCODING] = False
+            return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="reverse_geocoding",
             data_schema=vol.Schema(
                 {
-                    vol.Optional("edit_local_dealer", default=False): bool,
                     vol.Required(
-                        CONF_SCAN_INITIAL,
-                        default=self.config_entry.options.get(CONF_SCAN_INITIAL, True),
-                    ): bool,
-                    vol.Required(
-                        "climate_quick_start",
-                        default=self.config_entry.options.get(
-                            "climate_quick_start", False
-                        ),
-                    ): bool,
-                    vol.Required(
-                        "experimental_commands",
-                        default=self.config_entry.options.get(
-                            "experimental_commands", False
-                        ),
-                    ): bool,
-                    vol.Required(
-                        CONF_REFRESH_AFTER_ACTION,
-                        default=self.config_entry.options.get(
-                            CONF_REFRESH_AFTER_ACTION, False
-                        ),
-                    ): bool,
-                    vol.Required(
-                        CONF_UPDATE_SLEEP,
-                        default=self.config_entry.options.get(
-                            CONF_UPDATE_SLEEP, UPDATE_SLEEP
-                        ),
-                    ): NumberSelector(NumberSelectorConfig(min=0, mode="box")),
-                    vol.Required(
-                        CONF_SCAN_INTERVAL,
-                        default=self.config_entry.options.get(
-                            CONF_SCAN_INTERVAL,
-                            self.config_entry.data.get(
-                                CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
-                            ),
-                        ),
-                    ): NumberSelector(
-                        NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")
-                    ),
-                    vol.Optional(
-                        CONF_FILTER_VINS,
-                        default=self.config_entry.options.get(
-                            CONF_FILTER_VINS,
-                            self.config_entry.data.get(CONF_FILTER_VINS, ""),
-                        ),
-                    ): TextSelector(),
+                        REVERSE_GEOCODING,
+                        default=values.get(REVERSE_GEOCODING) is True,
+                    ): bool
                 }
             ),
         )
+
+    async def async_step_geocoding_endpoint(self, user_input=None) -> ConfigFlowResult:
+        from .v3.parking import (
+            GEOCODING_ENDPOINT,
+            REVERSE_GEOCODING,
+            valid_geocoding_endpoint,
+        )
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        endpoint = values.get(GEOCODING_ENDPOINT, "")
+        errors = {}
+        if user_input is not None:
+            endpoint = user_input.get(GEOCODING_ENDPOINT, "")
+            if valid_geocoding_endpoint(endpoint):
+                values.update({REVERSE_GEOCODING: True, GEOCODING_ENDPOINT: endpoint})
+                return self.async_create_entry(title="", data=values)
+            errors[GEOCODING_ENDPOINT] = "invalid_geocoding_endpoint"
+        return self.async_show_form(
+            step_id="geocoding_endpoint",
+            data_schema=vol.Schema(
+                {vol.Required(GEOCODING_ENDPOINT, default=endpoint): TextSelector()}
+            ),
+            errors=errors,
+        )
+
+    async def async_step_stop_recovery(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        if user_input is not None:
+            if user_input.get(CONF_V3_CHARGING_STOP_RETRY) is True:
+                return await self.async_step_stop_recovery_settings()
+            values[CONF_V3_CHARGING_STOP_RETRY] = False
+            return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="stop_recovery",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_V3_CHARGING_STOP_RETRY,
+                        default=values.get(CONF_V3_CHARGING_STOP_RETRY) is True,
+                    ): bool
+                }
+            ),
+        )
+
+    async def async_step_stop_recovery_settings(
+        self, user_input=None
+    ) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        recovery = stop_recovery_options(values)
+        errors = {}
+        if user_input is not None:
+            proposed = {
+                **recovery,
+                **{key: value for key, value in user_input.items() if key in recovery},
+            }
+            normalized = stop_recovery_options(proposed)
+            if proposed != normalized:
+                errors["base"] = "invalid_stop_recovery_settings"
+            else:
+                values.update(normalized)
+                values[CONF_V3_CHARGING_STOP_RETRY] = True
+                return self.async_create_entry(title="", data=values)
+        schema = {
+            vol.Required(key, default=recovery[key]): NumberSelector(
+                NumberSelectorConfig(min=minimum, max=maximum, step=1, mode="box")
+            )
+            for key, (_, minimum, maximum) in STOP_RECOVERY_OPTIONS.items()
+        }
+        schema[
+            vol.Required(
+                "v3_stop_final_notification",
+                default=recovery["v3_stop_final_notification"],
+            )
+        ] = bool
+        return self.async_show_form(
+            step_id="stop_recovery_settings",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+        )
+
+    async def async_step_workbench(self, user_input=None) -> ConfigFlowResult:
+        from .v3.runtime import (
+            V3_DASHBOARD_OPTION,
+            V3_WORKBENCH_OPTION,
+            dashboard_enabled,
+        )
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        values = dict(self.config_entry.options)
+        enabled = dashboard_enabled(values)
+        if user_input is not None:
+            values[V3_DASHBOARD_OPTION] = user_input.get(V3_DASHBOARD_OPTION) is True
+            # Preserve a hidden preference without enabling engineering access.
+            if enabled and values[V3_DASHBOARD_OPTION]:
+                values[V3_WORKBENCH_OPTION] = (
+                    user_input.get(V3_WORKBENCH_OPTION) is True
+                )
+            return self.async_create_entry(title="", data=values)
+        schema = {vol.Required(V3_DASHBOARD_OPTION, default=enabled): bool}
+        if enabled:
+            schema[
+                vol.Required(
+                    V3_WORKBENCH_OPTION,
+                    default=values.get(V3_WORKBENCH_OPTION) is True,
+                )
+            ] = bool
+        return self.async_show_form(step_id="workbench", data_schema=vol.Schema(schema))
+
+    async def _data_act_placeholders(self, values):
+        """Read the existing scheduler status; opening options never calls Audi."""
+        if values.get("runtime_version", "v2") != "v3_climate":
+            return {"data_act_status": ""}
+        engine = self._discovery_engine()
+        status = getattr(engine, "status", None)
+        report = {}
+        if not values.get("v3_data_act_enabled"):
+            state = "not_configured"
+        elif status is not None:
+            report = status.data_act_poll_status()
+            state = report["connection_state"]
+        else:
+            state = (
+                "awaiting_data"
+                if values.get("v3_data_act_email")
+                and values.get("v3_data_act_password")
+                else "credentials_required"
+            )
+        label = state.replace("_", " ").capitalize()
+        language = getattr(getattr(self.hass, "config", None), "language", None)
+        if language:
+            from homeassistant.helpers.translation import async_get_translations
+
+            translations = await async_get_translations(
+                self.hass, language, "entity", [DOMAIN]
+            )
+            label = translations.get(
+                f"component.{DOMAIN}.entity.sensor.v3_data_act_status.state.{state}",
+                label,
+            )
+        if stamp := report.get("last_success"):
+            from datetime import datetime
+            from homeassistant.util.dt import as_local
+
+            label += " · " + as_local(datetime.fromisoformat(stamp)).strftime(
+                "%Y-%m-%d %H:%M %Z"
+            )
+        return {"data_act_status": f"EU Data Act: {label}"}
+
+    async def async_step_data_act(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the optional source without changing native credentials."""
+        options = dict(self.config_entry.options)
+        if user_input is not None:
+            if user_input["action"] == "keep":
+                return self.async_create_entry(title="", data=options)
+            if user_input["action"] == "disconnect":
+                for key in ("v3_data_act_email", "v3_data_act_password"):
+                    options.pop(key, None)
+                options["v3_data_act_enabled"] = False
+                return self.async_create_entry(title="", data=options)
+            return await self.async_step_data_act_credentials()
+        configured = bool(options.get("v3_data_act_enabled"))
+        return self.async_show_form(
+            step_id="data_act",
+            description_placeholders=await self._data_act_placeholders(options),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "action", default="keep" if configured else "connect"
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=(
+                                ["keep", "connect", "disconnect"]
+                                if configured
+                                else ["connect"]
+                            ),
+                            translation_key="data_act_action",
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def _validate_data_act_credentials(self, email: str, password: str) -> None:
+        """Use the existing bounded portal authenticator, with an isolated session."""
+        from aiohttp import ClientSession, CookieJar
+        from .v3.data_act_auth import DataActPortalLogin
+        from .v3.quota import QuotaBudget
+
+        country = (self.config_entry.data.get(CONF_REGION) or "DE").upper()
+        async with ClientSession(cookie_jar=CookieJar()) as session:
+            login = DataActPortalLogin(session, email, password, country)
+            await login.authenticate(QuotaBudget(reserve=0))
+
+    async def async_step_data_act_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        from .v3.data_act import DataActAuthorizationRequired, DataActUnavailable
+
+        options = dict(self.config_entry.options)
+        email = options.get("v3_data_act_email") or self.config_entry.data.get(
+            CONF_USERNAME, ""
+        )
+        errors = {}
+        if user_input is not None:
+            email = user_input.get("email", "").strip()
+            password = user_input.get("password", "")
+            if not email or not password:
+                errors["base"] = "data_act_credentials_required"
+            else:
+                try:
+                    await self._validate_data_act_credentials(email, password)
+                except DataActAuthorizationRequired:
+                    errors["base"] = "data_act_authorization_required"
+                except DataActUnavailable:
+                    errors["base"] = "data_act_unavailable"
+                else:
+                    options.update(
+                        v3_data_act_enabled=True,
+                        v3_data_act_email=email,
+                        v3_data_act_password=password,
+                    )
+                    return self.async_create_entry(title="", data=options)
+        return self.async_show_form(
+            step_id="data_act_credentials",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("email", default=email): TextSelector(),
+                    vol.Required("password"): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_myaudi(self, user_input=None) -> ConfigFlowResult:
+        if not self._is_v3():
+            return await self.async_step_init()
+        options = dict(self.config_entry.options)
+        configured = bool(options.get("v3_myaudi_enabled"))
+        if user_input is not None:
+            if user_input["action"] == "keep":
+                return self.async_create_entry(title="", data=options)
+            if user_input["action"] == "disconnect":
+                for key in (
+                    "v3_myaudi_enabled",
+                    "v3_myaudi_email",
+                    "v3_myaudi_password",
+                ):
+                    options.pop(key, None)
+                return self.async_create_entry(title="", data=options)
+            return await self.async_step_myaudi_credentials()
+        return self.async_show_form(
+            step_id="myaudi",
+            description_placeholders={
+                "status": "Configured" if configured else "Not configured"
+            },
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "action", default="keep" if configured else "connect"
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=["keep", "connect", "disconnect"]
+                            if configured
+                            else ["connect"],
+                            translation_key="data_act_action",
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def _validate_myaudi_credentials(self, email, password):
+        from aiohttp import ClientSession, CookieJar
+        from .v3.myaudi import MyAudiPortal, MyAudiUnavailable
+
+        engine = self._discovery_engine()
+        vins = (
+            [car.vin for car in engine.vehicles.values() if car.inventory_present]
+            if engine
+            else []
+        )
+        if not vins:
+            raise MyAudiUnavailable("No native vehicle available")
+        async with ClientSession(cookie_jar=CookieJar()) as session:
+            await MyAudiPortal(session, email, password).connect(vins)
+
+    async def async_step_myaudi_credentials(self, user_input=None) -> ConfigFlowResult:
+        from .v3.myaudi import MyAudiUnavailable
+
+        if not self._is_v3():
+            return await self.async_step_init()
+        options = dict(self.config_entry.options)
+        email = options.get("v3_myaudi_email") or self.config_entry.data.get(
+            CONF_USERNAME, ""
+        )
+        errors = {}
+        if user_input is not None:
+            email = user_input.get("email", "").strip()
+            password = user_input.get("password", "")
+            if not email or not password:
+                errors["base"] = "data_act_credentials_required"
+            else:
+                try:
+                    await self._validate_myaudi_credentials(email, password)
+                except MyAudiUnavailable:
+                    errors["base"] = "myaudi_unavailable"
+                else:
+                    options.update(
+                        v3_myaudi_enabled=True,
+                        v3_myaudi_email=email,
+                        v3_myaudi_password=password,
+                    )
+                    return self.async_create_entry(title="", data=options)
+        return self.async_show_form(
+            step_id="myaudi_credentials",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("email", default=email): TextSelector(),
+                    vol.Required("password"): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    def _options_schema(self, values: dict[str, Any]) -> vol.Schema:
+        """Build the form from the persisted mode, preserving legacy V2 UX."""
+        schema = {
+            vol.Required(
+                "runtime_version",
+                default=values.get("runtime_version", "v2"),
+            ): vol.In({"v2": "V2 — Stable", "v3_climate": "V3 — Experimental"}),
+            vol.Required(
+                CONF_SCAN_INTERVAL,
+                default=values.get(
+                    CONF_SCAN_INTERVAL,
+                    self.config_entry.data.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_UPDATE_INTERVAL
+                    ),
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(min=MIN_UPDATE_INTERVAL, mode="box")
+            ),
+            vol.Optional(
+                CONF_FILTER_VINS,
+                default=values.get(
+                    CONF_FILTER_VINS,
+                    self.config_entry.data.get(CONF_FILTER_VINS, ""),
+                ),
+            ): TextSelector(),
+        }
+
+        if values.get("runtime_version", "v2") != "v3_climate":
+            # Preserve every historical V2 option and user metadata.
+            # API route editing is reserved for the opt-in V3 Workbench.
+            schema.update(
+                {
+                    vol.Required(
+                        CONF_SCAN_INITIAL,
+                        default=values.get(CONF_SCAN_INITIAL, True),
+                    ): bool,
+                    vol.Required(
+                        CONF_REFRESH_AFTER_ACTION,
+                        default=values.get(CONF_REFRESH_AFTER_ACTION, False),
+                    ): bool,
+                    vol.Required(
+                        CONF_UPDATE_SLEEP,
+                        default=values.get(CONF_UPDATE_SLEEP, UPDATE_SLEEP),
+                    ): NumberSelector(NumberSelectorConfig(min=0, mode="box")),
+                }
+            )
+        return vol.Schema(schema)
 
 
 __all__ = ["AudiConfigFlow", "OptionsFlowHandler"]

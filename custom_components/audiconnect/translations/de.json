@@ -1,6 +1,7 @@
 {
   "config": {
     "abort": {
+      "wrong_account": "Melde dich mit dem ursprünglichen Audi-Konto an. Das Konto konnte nicht bestätigt werden oder stimmt nicht mit dieser Integration überein.",
       "already_configured": "Das Konto wurde bereits konfiguriert",
       "reauth_successful": "Die erneute Authentifizierung war erfolgreich",
       "reconfigure_successful": "Die Neukonfiguration war erfolgreich",
@@ -88,26 +89,104 @@
   "options": {
     "step": {
       "init": {
-        "data": {
-          "scan_initial": "Cloud-Update beim Start",
-          "scan_interval": "Abfrageintervall",
-          "refresh_vehicle_data_after_action": "Fahrzeugdaten nach einer Aktion aktualisieren",
-          "climate_quick_start": "Klimatisierung mit gespeicherten Fahrzeugeinstellungen starten",
-          "update_sleep": "Verzögerung der Cloud-Aktualisierung",
-          "filter_vins": "Ausgeschlossene VINs",
-          "edit_local_dealer": "Händler- und Servicedaten lokal bearbeiten",
-          "experimental_commands": "Experimentelle Fahrzeugsteuerungen aktivieren"
-        },
         "title": "Audi Connect-Optionen",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "general": "Allgemeine Einstellungen",
+          "discovery_vehicle": "Fahrzeugeinrichtung & Erkennung",
+          "data_sources": "Zusätzliche Datenquellen",
+          "dealer_vehicle": "Service & Wartung",
+          "advanced": "Erweitert & experimentell",
+          "workbench": "Audi Connect-Anwendung"
+        }
+      },
+      "general": {
+        "title": "Allgemeine Einstellungen",
+        "data": {
+          "runtime_version": "Laufzeitversion",
+          "scan_interval": "Abfrageintervall",
+          "filter_vins": "Ausgeschlossene VINs",
+          "scan_initial": "Cloud-Update beim Start",
+          "refresh_vehicle_data_after_action": "Fahrzeugdaten nach einer Aktion aktualisieren",
+          "update_sleep": "Verzögerung der Cloud-Aktualisierung"
+        },
         "data_description": {
-          "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
+          "runtime_version": "V2 bleibt als Rückfalloption verfügbar. Nach Aktivierung von V3 die Konfiguration erneut öffnen.",
           "scan_interval": "Minuten zwischen Cloud-Abfragen.",
-          "refresh_vehicle_data_after_action": "Sendet nach jeder Fahrzeugaktion (z. B. Klimatisieren oder Verriegeln) einen Aktualisierungsbefehl an das Fahrzeug. Normalerweise ist dies nicht erforderlich, da sich das Fahrzeug nach einer Aktion selbst bei der Cloud meldet. Jede Fahrzeugaktualisierung zählt zum API-Limit. Erhöhen Sie stattdessen die Verzögerung der Cloud-Aktualisierung.",
-          "climate_quick_start": "Beim Einschalten der Klimatisierung wird eine CARIAD-Startanfrage ohne zusätzliche Parameter gesendet. Dabei verwendet das Fahrzeug seine gespeicherten Einstellungen. Die in Home Assistant angezeigte Solltemperatur wird nicht übertragen. Diese Option dient als alternative Startmethode für neuere Fahrzeuge und sollte nur bei Bedarf aktiviert werden.",
-          "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln.",
           "filter_vins": "Kommagetrennte Liste von VINs, die bei der Einrichtung und bei Aktualisierungen ausgeschlossen werden.",
-          "edit_local_dealer": "Öffnet ein Formular zur lokalen Speicherung von Händlerdaten, Serviceterminen und Garantieinformationen in Home Assistant. Dabei werden keine Anfragen an die Audi-API gesendet.",
-          "experimental_commands": "Aktiviert zusätzliche, manuell auslösbare CARIAD-Fahrzeugaktionen für das Laden, die Scheibenheizung und das Aufwecken des Fahrzeugs. Standardmässig deaktiviert. Die tatsächliche Ausführung muss überprüft werden, da eine erfolgreiche API-Antwort nicht zwangsläufig bedeutet, dass das Fahrzeug die Aktion ausgeführt hat."
+          "scan_initial": "Führen Sie sofort nach dem Start ein Cloud-Update durch.",
+          "refresh_vehicle_data_after_action": "Sendet nach jeder Fahrzeugaktion (z. B. Klimatisieren oder Verriegeln) einen Aktualisierungsbefehl an das Fahrzeug. Normalerweise ist dies nicht erforderlich, da sich das Fahrzeug nach einer Aktion selbst bei der Cloud meldet. Jede Fahrzeugaktualisierung zählt zum API-Limit. Erhöhen Sie stattdessen die Verzögerung der Cloud-Aktualisierung.",
+          "update_sleep": "Wartezeit in Sekunden nach einer Fahrzeugaktion, bevor die Cloud-Daten aktualisiert werden. Eine längere Wartezeit gibt dem Fahrzeug mehr Zeit, seinen neuen Status an die Cloud zu übermitteln."
+        }
+      },
+      "data_sources": {
+        "title": "Zusätzliche Datenquellen",
+        "description": "{data_act_status}",
+        "menu_options": {
+          "data_act": "EU Data Act",
+          "reverse_geocoding": "Reverse Geocoding",
+          "myaudi": "myAudi (Belgien, experimentell)"
+        }
+      },
+      "advanced": {
+        "title": "Erweitert & experimentell",
+        "menu_options": {
+          "stop_recovery": "Wiederherstellung Ladestopp"
+        }
+      },
+      "reverse_geocoding": {
+        "title": "Reverse Geocoding",
+        "data": {
+          "v3_reverse_geocoding": "Rückwärtsgeokodierung"
+        },
+        "data_description": {
+          "v3_reverse_geocoding": "Ungefähre letzte Parkkoordinaten an den konfigurierten externen Anbieter senden (standardmäßig aus)."
+        }
+      },
+      "geocoding_endpoint": {
+        "title": "Reverse Geocoding",
+        "data": {
+          "v3_geocoding_endpoint": "Endpunkt für Rückwärtsgeokodierung"
+        },
+        "data_description": {
+          "v3_geocoding_endpoint": "Autorisierter HTTPS-Endpunkt /reverse, Nominatim-kompatibel. Der öffentliche OpenStreetMap-Dienst wird nicht unterstützt."
+        }
+      },
+      "stop_recovery": {
+        "title": "Wiederherstellung Ladestopp",
+        "data": {
+          "v3_charging_stop_retry": "Fehlgeschlagenen Ladestopp wiederholen"
+        },
+        "data_description": {
+          "v3_charging_stop_retry": "Experimentell, standardmäßig deaktiviert. Erlaubt einen weiteren STOP nur nach einem endgültigen Audi-Timeout und aktuellen Fahrzeugdaten, die weiterhin Laden melden. Keine Wiederholung bei unklarem oder laufendem Auftrag."
+        }
+      },
+      "stop_recovery_settings": {
+        "title": "Wiederherstellung Ladestopp",
+        "data": {
+          "v3_stop_confirmation_seconds": "Bestätigungszeitlimit (Sekunden)",
+          "v3_stop_repoll_seconds": "Prüfintervall (Sekunden)",
+          "v3_stop_verification_seconds": "Prüfzeitfenster (Sekunden)",
+          "v3_stop_extra_retries": "Zusätzliche STOP-Versuche",
+          "v3_stop_final_notification": "STOP-Abschlussmeldung"
+        },
+        "data_description": {
+          "v3_stop_confirmation_seconds": "Zeit für die Bestätigung durch Audi.",
+          "v3_stop_repoll_seconds": "Wartezeit zwischen lesenden Prüfungen.",
+          "v3_stop_verification_seconds": "Maximale Wartezeit auf aktuelle Fahrzeugdaten.",
+          "v3_stop_extra_retries": "Null oder ein weiterer STOP nach endgültigem Timeout und aktuellen widersprüchlichen Daten.",
+          "v3_stop_final_notification": "Home-Assistant-Meldung bei fehlgeschlagener oder unbestätigter Wiederherstellung."
+        }
+      },
+      "workbench": {
+        "title": "Audi Connect-Anwendung",
+        "data": {
+          "v3_vehicle_dashboard": "Audi Connect-Dashboard aktivieren",
+          "v3_development_workbench": "Engineering-Arbeitsbereich aktivieren"
+        },
+        "data_description": {
+          "v3_vehicle_dashboard": "Optionale Audi Connect-Anwendung anzeigen. Native Entitäten und Automatisierungen bleiben verfügbar.",
+          "v3_development_workbench": "Nur für Administratoren innerhalb Audi Connect. Gespeicherte Profile bleiben erhalten."
         }
       },
       "dealer_vehicle": {
@@ -129,11 +208,54 @@
           "warranty_expiry": "Garantieende",
           "clear": "Lokale Daten dieses Fahrzeugs löschen"
         }
+      },
+      "data_act": {
+        "title": "EU Data Act",
+        "description": "{data_act_status}\n\nWählen Sie Verbinden zur Prüfung der Portal-Zugangsdaten oder Trennen zum Entfernen der lokalen Zugangsdaten. Die native Audi-Verbindung und Portalanfrage bleiben unverändert.",
+        "data": {
+          "action": "Verbindung"
+        }
+      },
+      "data_act_credentials": {
+        "title": "Verbinden / erneut verbinden",
+        "description": "Geben Sie die Zugangsdaten des autorisierten Data-Act-Portals ein. Sie werden vor dem Ersetzen der Verbindung geprüft. Die Datenlieferung wird separat geprüft.",
+        "data": {
+          "email": "Portal-E-Mail",
+          "password": "Portal-Passwort"
+        }
+      },
+      "discovery_vehicle": {
+        "title": "Fahrzeug zur Erkennung auswählen",
+        "data": {
+          "vehicle": "Fahrzeug"
+        }
+      },
+      "myaudi": {
+        "title": "myAudi",
+        "description": "{status}\n\nOptionale belgische myAudi-Websitzung verbinden oder trennen.",
+        "data": {
+          "action": "Verbindung"
+        }
+      },
+      "myaudi_credentials": {
+        "title": "myAudi verbinden",
+        "description": "Audi ID und übereinstimmendes Fahrzeug prüfen. Belgisches niederländischsprachiges Portal. Zugangsdaten werden lokal in Home Assistant gespeichert.",
+        "data": {
+          "email": "Audi ID E-Mail",
+          "password": "Passwort"
+        }
       }
     },
     "error": {
       "invalid_dealer": "Bitte überprüfen Sie die Datumsangaben, die Webseite und die Feldlängen.",
-      "invalid_vehicle": "Bitte wählen Sie ein gültiges Fahrzeug aus."
+      "invalid_vehicle": "Bitte wählen Sie ein gültiges Fahrzeug aus.",
+      "data_act_credentials_required": "Bitte E-Mail und Passwort eingeben.",
+      "data_act_authorization_required": "Das Portal hat die Anmeldung abgelehnt oder erfordert eine interaktive Autorisierung. Zugangsdaten und Einwilligung prüfen.",
+      "data_act_unavailable": "Das Portal ist vorübergehend nicht verfügbar. Die bestehende Verbindung bleibt erhalten.",
+      "invalid_geocoding_endpoint": "Geben Sie einen autorisierten HTTPS-Endpunkt ein, nicht den öffentlichen OpenStreetMap-Dienst.",
+      "invalid_stop_recovery_settings": "Ganze Zahlen innerhalb der angezeigten Grenzen eingeben.",
+      "invalid_scan_interval": "Ein gültiges Abfrageintervall eingeben.",
+      "myaudi_unavailable": "myAudi-Anmeldung oder Fahrzeugprüfung fehlgeschlagen."
     },
     "abort": {
       "no_vehicle_available": "Derzeit ist kein Audi-Fahrzeug geladen."
@@ -154,6 +276,13 @@
         "start_window_heating": "Fensterheizung starten",
         "stop_window_heating": "Stoppen Sie die Fensterheizung",
         "is_moving": "In Bewegung"
+      }
+    },
+    "data_act_action": {
+      "options": {
+        "connect": "Verbinden / erneut verbinden",
+        "disconnect": "Trennen",
+        "keep": "Aktuelle Verbindung beibehalten"
       }
     }
   },
@@ -311,6 +440,498 @@
           "name": "Fahrzeug",
           "description": "Das Audi-Fahrzeug, dessen Motor gestoppt werden soll."
         }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "v3_charge_power_limitation_reason": {
+        "name": "Grund der Ladeleistungsbegrenzung"
+      },
+      "v3_last_update_time": {
+        "name": "Letzte Fahrzeugerfassung"
+      },
+      "v3_shortterm_current": {
+        "name": "Kurzzeit-Fahrdaten"
+      },
+      "v3_shortterm_reset": {
+        "name": "Kurzzeit-Fahrdaten seit Rücksetzung"
+      },
+      "v3_longterm_current": {
+        "name": "Langzeit-Fahrdaten"
+      },
+      "v3_longterm_reset": {
+        "name": "Langzeit-Fahrdaten seit Rücksetzung"
+      },
+      "v3_model": {
+        "name": "Modell"
+      },
+      "v3_mileage": {
+        "name": "Kilometerstand"
+      },
+      "v3_service_adblue_distance": {
+        "name": "AdBlue-Reichweite"
+      },
+      "v3_range": {
+        "name": "Gesamtreichweite"
+      },
+      "v3_hybrid_range": {
+        "name": "Kombinierte Reichweite"
+      },
+      "v3_service_inspection_time": {
+        "name": "Zeit bis zur Inspektion"
+      },
+      "v3_service_inspection_distance": {
+        "name": "Strecke bis zur Inspektion"
+      },
+      "v3_oil_change_time": {
+        "name": "Zeit bis zum Ölwechsel"
+      },
+      "v3_oil_change_distance": {
+        "name": "Strecke bis zum Ölwechsel"
+      },
+      "v3_oil_level": {
+        "name": "Ölstand in Prozent"
+      },
+      "v3_charging_state": {
+        "name": "Ladezustand"
+      },
+      "v3_charging_mode": {
+        "name": "Lademodus"
+      },
+      "v3_charging_type": {
+        "name": "Ladeart"
+      },
+      "v3_energy_flow": {
+        "name": "Energiefluss"
+      },
+      "v3_max_charge_current": {
+        "name": "Maximaler Ladestrom"
+      },
+      "v3_charging_current_limit_a": {
+        "name": "AC-Ladestromgrenze"
+      },
+      "v3_charging_current_limit_mode": {
+        "name": "Ladestrommodus"
+      },
+      "v3_charging_plug_auto_unlock": {
+        "name": "Ladestecker nach Laden entriegeln"
+      },
+      "v3_vehicle_reported_online": {
+        "name": "Gemeldete Fahrzeugverbindung"
+      },
+      "v3_vehicle_reported_active": {
+        "name": "Gemeldete Fahrzeugaktivität"
+      },
+      "v3_primary_engine_type": {
+        "name": "Primärer Antriebstyp"
+      },
+      "v3_secondary_engine_type": {
+        "name": "Sekundärer Antriebstyp"
+      },
+      "v3_primary_engine_range": {
+        "name": "Primäre Antriebsreichweite"
+      },
+      "v3_secondary_engine_range": {
+        "name": "Sekundäre Antriebsreichweite"
+      },
+      "v3_primary_engine_range_percent": {
+        "name": "Primärer Antriebsfüllstand"
+      },
+      "v3_car_type": {
+        "name": "Fahrzeugtyp"
+      },
+      "v3_secondary_engine_range_percent": {
+        "name": "Sekundärer Antriebsfüllstand"
+      },
+      "v3_charging_power": {
+        "name": "Ladeleistung"
+      },
+      "v3_actual_charge_rate": {
+        "name": "Ladegeschwindigkeit"
+      },
+      "v3_tank_level": {
+        "name": "Kraftstoffstand"
+      },
+      "v3_state_of_charge": {
+        "name": "Batterieladezustand"
+      },
+      "v3_remaining_charging_time": {
+        "name": "Verbleibende Ladezeit"
+      },
+      "v3_charging_complete_time": {
+        "name": "Ladeende"
+      },
+      "v3_target_state_of_charge": {
+        "name": "Ziel-Ladezustand"
+      },
+      "v3_external_power": {
+        "name": "Externe Stromversorgung"
+      },
+      "v3_plug_led_color": {
+        "name": "Farbe der Ladestecker-LED"
+      },
+      "v3_doors_trunk_status": {
+        "name": "Tür- und Kofferraumstatus"
+      },
+      "v3_climatisation_state": {
+        "name": "Klimatisierungsstatus"
+      },
+      "v3_outdoor_temperature": {
+        "name": "Außentemperatur"
+      },
+      "v3_park_time": {
+        "name": "Geparkt seit"
+      },
+      "v3_parked_in": {
+        "name": "Geparkt in"
+      },
+      "v3_position_last_updated": {
+        "name": "Letzte Positionsaktualisierung"
+      },
+      "v3_remaining_climatisation_time": {
+        "name": "Verbleibende Klimatisierungszeit"
+      },
+      "v3_preheater_duration": {
+        "name": "Standheizungsdauer"
+      },
+      "v3_preheater_remaining": {
+        "name": "Verbleibende Standheizungszeit"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Ladeziel des aktiven Profils"
+      },
+      "v3_active_charging_profile_name": {
+        "name": "Aktives Ladeprofil"
+      },
+      "v3_active_charging_profile_min_soc": {
+        "name": "Mindestladung des aktiven Profils"
+      },
+      "v3_preferred_charging_time_start": {
+        "name": "Beginn des bevorzugten Ladefensters"
+      },
+      "v3_preferred_charging_time_end": {
+        "name": "Ende des bevorzugten Ladefensters"
+      },
+      "v3_climatisation_timer_enabled_count": {
+        "name": "Aktive Klimatisierungstimer"
+      },
+      "v3_next_climatisation_timer_local": {
+        "name": "Nächster Klimatisierungstimer"
+      },
+      "v3_charging_timer_enabled_count": {
+        "name": "Aktive Ladetimer"
+      },
+      "v3_vehicle_data_freshness": {
+        "name": "Aktualität der Fahrzeugdaten"
+      },
+      "v3_vehicle_data_age": {
+        "name": "Alter der neuesten Fahrzeugdaten"
+      },
+      "v3_cloud_last_successful_poll": {
+        "name": "Letzte erfolgreiche Cloud-Abfrage"
+      },
+      "v3_local_dealer": {
+        "name": "Händler"
+      },
+      "v3_service_overview": {
+        "name": "Serviceübersicht"
+      },
+      "v3_api_requests_remaining": {
+        "name": "Verbleibende API-Anfragen"
+      },
+      "v3_last_trip": {
+        "name": "Letzte Fahrt"
+      },
+      "v3_last_trip_distance": {
+        "name": "Strecke (letzte Fahrt)"
+      },
+      "v3_last_trip_duration": {
+        "name": "Dauer (letzte Fahrt)"
+      },
+      "v3_last_trip_average_speed": {
+        "name": "Durchschnittsgeschwindigkeit (letzte Fahrt)"
+      },
+      "v3_last_trip_average_fuel_consumption": {
+        "name": "Durchschnittlicher Kraftstoffverbrauch (letzte Fahrt)"
+      },
+      "v3_last_trip_average_electric_consumption": {
+        "name": "Durchschnittlicher Stromverbrauch (letzte Fahrt)"
+      },
+      "v3_last_trip_fuel_consumption": {
+        "name": "Kraftstoffverbrauch (letzte Fahrt)"
+      },
+      "v3_last_trip_electric_consumption": {
+        "name": "Stromverbrauch (letzte Fahrt)"
+      },
+      "v3_longterm_trip_distance": {
+        "name": "Strecke (Langzeit)"
+      },
+      "v3_longterm_trip_duration": {
+        "name": "Dauer (Langzeit)"
+      },
+      "v3_longterm_trip_average_speed": {
+        "name": "Durchschnittsgeschwindigkeit (Langzeit)"
+      },
+      "v3_longterm_trip_average_fuel_consumption": {
+        "name": "Durchschnittlicher Kraftstoffverbrauch (Langzeit)"
+      },
+      "v3_longterm_trip_average_electric_consumption": {
+        "name": "Durchschnittlicher Stromverbrauch (Langzeit)"
+      },
+      "v3_longterm_trip_fuel_consumption": {
+        "name": "Kraftstoffverbrauch (Langzeit)"
+      },
+      "v3_longterm_trip_electric_consumption": {
+        "name": "Stromverbrauch (Langzeit)"
+      },
+      "v3_shortterm_trip_distance": {
+        "name": "Strecke (Kurzzeit)"
+      },
+      "v3_shortterm_trip_duration": {
+        "name": "Dauer (Kurzzeit)"
+      },
+      "v3_shortterm_trip_average_speed": {
+        "name": "Durchschnittsgeschwindigkeit (Kurzzeit)"
+      },
+      "v3_shortterm_trip_average_fuel_consumption": {
+        "name": "Durchschnittlicher Kraftstoffverbrauch (Kurzzeit)"
+      },
+      "v3_shortterm_trip_average_electric_consumption": {
+        "name": "Durchschnittlicher Stromverbrauch (Kurzzeit)"
+      },
+      "v3_shortterm_trip_fuel_consumption": {
+        "name": "Kraftstoffverbrauch (Kurzzeit)"
+      },
+      "v3_shortterm_trip_electric_consumption": {
+        "name": "Stromverbrauch (Kurzzeit)"
+      },
+      "v3_last_trip_zero_emission_distance": {
+        "name": "Emissionsfreie Strecke (letzte Fahrt)"
+      },
+      "v3_shortterm_trip_zero_emission_distance": {
+        "name": "Emissionsfreie Strecke (Kurzzeit)"
+      },
+      "v3_longterm_trip_zero_emission_distance": {
+        "name": "Emissionsfreie Strecke (Langzeit)"
+      },
+      "v3_trip_history": {
+        "name": "Fahrtenverlauf"
+      },
+      "v3_discovery_coverage": {
+        "name": "Discovery-Bewertung"
+      },
+      "v3_integration_status": {
+        "name": "Integrationsstatus"
+      },
+      "v3_last_error": {
+        "name": "Letzter Fehler"
+      },
+      "v3_door_status": {
+        "name": "Türstatus"
+      },
+      "v3_window_status": {
+        "name": "Fensterstatus"
+      },
+      "v3_electric_range": {
+        "name": "Elektrische Reichweite"
+      },
+      "v3_fuel_range": {
+        "name": "Kraftstoffreichweite"
+      },
+      "v3_data_act_status": {
+        "name": "EU Data Act",
+        "state": {
+          "not_configured": "Nicht konfiguriert",
+          "credentials_required": "Zugangsdaten erforderlich",
+          "awaiting_data": "Warten auf Daten",
+          "connected": "Verbunden",
+          "partial": "Teilweise verbunden",
+          "authorization_required": "Autorisierung erforderlich",
+          "vehicle_access_denied": "Fahrzeugzugriff verweigert",
+          "subscription_unavailable": "Abonnement nicht verfügbar",
+          "rate_limited": "Anfragelimit erreicht",
+          "session_refresh_pending": "Sitzungserneuerung ausstehend",
+          "unavailable": "Vorübergehend nicht verfügbar"
+        }
+      },
+      "v3_parking_address": {
+        "name": "Parkadresse"
+      }
+    },
+    "binary_sensor": {
+      "v3_safelock_active": {
+        "name": "Safelock aktiv"
+      },
+      "v3_plug_state": {
+        "name": "Ladestecker"
+      },
+      "v3_plug_lock_state": {
+        "name": "Ladesteckerverriegelung"
+      },
+      "v3_glass_surface_heating": {
+        "name": "Scheibenheizung"
+      },
+      "v3_sun_roof": {
+        "name": "Schiebedach"
+      },
+      "v3_roof_cover": {
+        "name": "Dachabdeckung"
+      },
+      "v3_parking_light": {
+        "name": "Fahrzeugbeleuchtung"
+      },
+      "v3_any_window_open": {
+        "name": "Fenster"
+      },
+      "v3_any_door_unlocked": {
+        "name": "Türverriegelungen"
+      },
+      "v3_any_door_open": {
+        "name": "Türen"
+      },
+      "v3_trunk_unlocked": {
+        "name": "Kofferraumverriegelung"
+      },
+      "v3_trunk_open": {
+        "name": "Kofferraum"
+      },
+      "v3_hood_open": {
+        "name": "Motorhaube"
+      },
+      "v3_left_front_door_open": {
+        "name": "Tür vorne links"
+      },
+      "v3_right_front_door_open": {
+        "name": "Tür vorne rechts"
+      },
+      "v3_left_rear_door_open": {
+        "name": "Tür hinten links"
+      },
+      "v3_right_rear_door_open": {
+        "name": "Tür hinten rechts"
+      },
+      "v3_left_front_window_open": {
+        "name": "Fenster vorne links"
+      },
+      "v3_right_front_window_open": {
+        "name": "Fenster vorne rechts"
+      },
+      "v3_left_rear_window_open": {
+        "name": "Fenster hinten links"
+      },
+      "v3_right_rear_window_open": {
+        "name": "Fenster hinten rechts"
+      },
+      "v3_braking_status": {
+        "name": "Bremsstatus"
+      },
+      "v3_oil_level_binary": {
+        "name": "Ölstandswarnung"
+      },
+      "v3_is_moving": {
+        "name": "Fahrzeug in Bewegung"
+      },
+      "v3_integration_problem": {
+        "name": "Integrationsproblem"
+      }
+    },
+    "button": {
+      "v3_refresh_vehicle_data": {
+        "name": "Aktuelle Fahrzeugdaten anfordern"
+      },
+      "v3_flash_lights": {
+        "name": "Lichtsignal auslösen"
+      },
+      "v3_start_charging_modern": {
+        "name": "Laden starten"
+      },
+      "v3_stop_charging_modern": {
+        "name": "Laden stoppen"
+      },
+      "v3_start_window_heating_modern": {
+        "name": "Scheibenheizung starten"
+      },
+      "v3_stop_window_heating_modern": {
+        "name": "Scheibenheizung stoppen"
+      },
+      "v3_wake_vehicle_modern": {
+        "name": "Fahrzeug aufwecken"
+      },
+      "v3_start_engine": {
+        "name": "Motor starten"
+      },
+      "v3_stop_engine": {
+        "name": "Motor stoppen"
+      },
+      "v3_v3_refresh_cloud": {
+        "name": "Cloud-Daten aktualisieren"
+      }
+    },
+    "switch": {
+      "v3_preheater_active": {
+        "name": "Standheizung"
+      },
+      "v3_climatisation_window_heating": {
+        "name": "Klimatisierung mit Scheibenheizung"
+      },
+      "v3_climatisation_at_unlock": {
+        "name": "Klimatisierung beim Entriegeln"
+      },
+      "v3_climatisation_zone_front_left": {
+        "name": "Klimazone vorne links"
+      },
+      "v3_climatisation_zone_front_right": {
+        "name": "Klimazone vorne rechts"
+      },
+      "v3_climatisation_zone_rear_left": {
+        "name": "Klimazone hinten links"
+      },
+      "v3_climatisation_zone_rear_right": {
+        "name": "Klimazone hinten rechts"
+      },
+      "v3_climate_quick_control": {
+        "name": "Klimatisierung ein/aus"
+      },
+      "v3_charging": {
+        "name": "Laden"
+      },
+      "v3_window_heating": {
+        "name": "Scheibenheizung"
+      }
+    },
+    "number": {
+      "v3_target_state_of_charge": {
+        "name": "Ziel-Ladezustand"
+      },
+      "v3_active_charging_profile_target_soc": {
+        "name": "Ladeziel am aktuellen Standort"
+      },
+      "v3_charge_profile_target_soc": {
+        "name": "Ladeziel für Profil {profile_id}"
+      }
+    },
+    "select": {
+      "v3_location_charging_current": {
+        "name": "AC-Ladestrom am Ladeort"
+      },
+      "v3_charge_mode": {
+        "name": "Bevorzugter Lademodus"
+      }
+    },
+    "climate": {
+      "v3_climatisation": {
+        "name": "Klimatisierung"
+      }
+    },
+    "lock": {
+      "v3_lock": {
+        "name": "Zentralverriegelung"
+      }
+    },
+    "device_tracker": {
+      "v3_position": {
+        "name": "Position"
       }
     }
   }

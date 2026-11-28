@@ -21,6 +21,8 @@ def _module(name, package=False):
 
 class TestSnapshot(TestCase):
     def test_no_raw_personal_data_in_export(self):
+        from custom_components.audiconnect.const import stop_recovery_options
+
         ha = _module("homeassistant", True)
         cfg = _module("homeassistant.config_entries")
         cfg.ConfigEntry = type("ConfigEntry", (), {})
@@ -38,6 +40,7 @@ class TestSnapshot(TestCase):
         values = {
             "CONF_API_LEVEL": "api_level",
             "CONF_REFRESH_AFTER_ACTION": "refresh_vehicle_data_after_action",
+            "CONF_V3_CHARGING_STOP_RETRY": "v3_charging_stop_retry",
             "CONF_REGION": "region",
             "CONF_SCAN_INTERVAL": "scan_interval",
             "DEFAULT_API_LEVEL": 0,
@@ -45,6 +48,7 @@ class TestSnapshot(TestCase):
         }
         for key, value in values.items():
             setattr(const, key, value)
+        const.stop_recovery_options = stop_recovery_options
         catalog = _module("test_audi_package.capability_catalog")
         catalog.snapshot_capabilities = lambda vehicle: {
             "source": "vehicle_poll_not_browser_session",
@@ -127,6 +131,32 @@ class TestSnapshot(TestCase):
                 result = asyncio.run(
                     diagnostics.async_get_config_entry_diagnostics(NS(), entry)
                 )
+                for mode, enabled, expected in (
+                    ("v2", True, False),
+                    ("v3_climate", True, True),
+                    ("v3_climate", False, False),
+                    ("v3_climate", "true", False),
+                ):
+                    entry.options = {
+                        "runtime_version": mode,
+                        "v3_charging_stop_retry": enabled,
+                    }
+                    option_result = asyncio.run(
+                        diagnostics.async_get_config_entry_diagnostics(NS(), entry)
+                    )
+                    self.assertIs(
+                        option_result["entry"]["v3_charging_stop_retry"], expected
+                    )
+                    if expected:
+                        self.assertEqual(
+                            option_result["entry"]["stop_recovery_options"],
+                            stop_recovery_options(entry.options),
+                        )
+                    else:
+                        self.assertNotIn(
+                            "stop_recovery_options", option_result["entry"]
+                        )
+        self.assertIs(result["entry"]["v3_charging_stop_retry"], False)
         rendered = repr(result)
         for secret in (
             "EXAMPLEVIN0000001",

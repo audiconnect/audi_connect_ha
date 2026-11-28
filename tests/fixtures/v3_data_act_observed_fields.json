@@ -1,0 +1,338 @@
+[
+  {
+    "key": "80e4fc45-1bf3-35eb-99b0-e956fd5ae5f0",
+    "name": "active_warnings_in_instrument_cluster_fff"
+  },
+  {
+    "key": "053496dc-0a8e-3e0c-93fd-055e622d3f99",
+    "name": "bem_level"
+  },
+  {
+    "key": "97c7b448-13e7-3266-a6be-7487caf1a354",
+    "name": "charging_mode"
+  },
+  {
+    "key": "61118afe-a4e4-3750-b1ad-2b38ff1d349b",
+    "name": "charging_reason_trigger"
+  },
+  {
+    "key": "9da735bb-c5d5-39f8-bf53-0fa2a367aa8f",
+    "name": "charging_state"
+  },
+  {
+    "key": "4c81b70a-b304-3df3-bb25-53cbc10e7236",
+    "name": "charging_state_error_code"
+  },
+  {
+    "key": "153e8c40-4c6c-3c17-a11b-0ecc35d55b81",
+    "name": "cruising_range_combined"
+  },
+  {
+    "key": "55e0d40b-38ed-3cb5-9dcd-6193df6fc493",
+    "name": "cruising_range_primary_engine"
+  },
+  {
+    "key": "3dedefab-8ded-3f5a-907f-d5e9970720bf",
+    "name": "cruising_range_secondary_engine"
+  },
+  {
+    "key": "0f43f2e7-3556-36a9-8271-a60bc54afad8",
+    "name": "echo"
+  },
+  {
+    "key": "769f98fd-b821-367e-8434-e2c92fc5c52e",
+    "name": "energy_flow"
+  },
+  {
+    "key": "a56a4e27-7d8d-3434-a746-4736c3b5a496",
+    "name": "external_power_supply_state"
+  },
+  {
+    "key": "7e35b2a4-8f31-30a7-848d-3af7bb1c5e55",
+    "name": "fuel_level__accuracy"
+  },
+  {
+    "key": "1503760b-5570-3001-8ffc-1bb6f464948e",
+    "name": "fuel_level_current_level"
+  },
+  {
+    "key": "acdd25b5-8d20-3dbc-83f7-e5b8436e0362",
+    "name": "last_battery_charger_update_trigger"
+  },
+  {
+    "key": "b6c6d710-53c3-3a5d-a23c-5a5141681d30",
+    "name": "led_color"
+  },
+  {
+    "key": "9c390ebd-cc97-3f18-8e47-82dcc44a514e",
+    "name": "led_state"
+  },
+  {
+    "key": "60bc0937-f5a7-3809-9535-9a7942e5dd94",
+    "name": "lock_state"
+  },
+  {
+    "key": "fc0dab76-59ca-31bd-8845-e4b39d485b71",
+    "name": "locked_state__rear_left_door"
+  },
+  {
+    "key": "937bf8d6-bd3e-306e-af30-8a8a4cc14644",
+    "name": "locked_state_front_engine_bonnet"
+  },
+  {
+    "key": "db6919e8-430a-35dc-a930-14d289be6985",
+    "name": "locked_state_front_left_door"
+  },
+  {
+    "key": "21e084ad-51bf-3461-a521-49a544720c91",
+    "name": "locked_state_front_right_door"
+  },
+  {
+    "key": "6e36232f-4c55-3688-9948-a3a6ae056db1",
+    "name": "locked_state_rear_right_door"
+  },
+  {
+    "key": "95380872-847c-39d7-857f-17cdea1579ce",
+    "name": "locked_state_tailgate"
+  },
+  {
+    "key": "fd600221-7965-3396-96d7-82a840a2831c",
+    "name": "maintenance_interval__time_until_inspection"
+  },
+  {
+    "key": "42b1c47b-e1d1-375f-a76f-32ab0177f03e",
+    "name": "maintenance_interval__time_until_oil_change"
+  },
+  {
+    "key": "ac86e00b-7fa1-3a59-b481-aa7cfc49b0d9",
+    "name": "maintenance_interval_distance_until_inspection"
+  },
+  {
+    "key": "d9f36adc-1840-37da-8ca1-7c2d789bcf9e",
+    "name": "maintenance_interval_distance_until_oil_change"
+  },
+  {
+    "key": "97aa3271-7b36-322f-b913-d4bf5ab31633",
+    "name": "maintenance_interval_inspection_warning"
+  },
+  {
+    "key": "d607f5ff-cacb-3460-a8eb-8ca16d4acc08",
+    "name": "maintenance_interval_monthly_mileage"
+  },
+  {
+    "key": "0b7f22d9-1703-35f5-94cc-0c58a42fcbb4",
+    "name": "maintenance_interval_oil_change_warning"
+  },
+  {
+    "key": "41c0805c-43e5-313e-9dfb-356cb8d20f7c",
+    "name": "mileage"
+  },
+  {
+    "key": "a3368611-8c63-3b7d-9d19-148a464c7a7b",
+    "name": "oil_level_actual_level"
+  },
+  {
+    "key": "78e92351-cf56-3c15-96d3-9b63d62ca618",
+    "name": "oil_level_additional_oil_level"
+  },
+  {
+    "key": "78fdf808-7917-335f-a44b-f4ad582f98bc",
+    "name": "oil_level_dipstick_indicator_function"
+  },
+  {
+    "key": "db768a8b-7aed-3851-801a-fe9e0c13e372",
+    "name": "oil_level_min_warning"
+  },
+  {
+    "key": "a105604b-c44c-30da-b1c9-14bb9c48c714",
+    "name": "oil_level_status"
+  },
+  {
+    "key": "8d4cb2b4-a4f5-3285-9cc4-fc6709ada6fd",
+    "name": "oil_level_total_max"
+  },
+  {
+    "key": "e1c6d420-b439-3de6-a5b7-d0b474cc2752",
+    "name": "open_state_front_engine_bonnet"
+  },
+  {
+    "key": "bc9bbc65-8461-30eb-88db-f94148552a20",
+    "name": "open_state_front_left_door"
+  },
+  {
+    "key": "0bb971a6-12ef-3382-9b99-5ed0a52f18e9",
+    "name": "open_state_front_right_door"
+  },
+  {
+    "key": "bf62dd10-b184-3425-a64c-c50b09420bc3",
+    "name": "open_state_rear_left_door"
+  },
+  {
+    "key": "60c81e02-4825-3aab-8da8-b8b07f251623",
+    "name": "open_state_rear_right_door"
+  },
+  {
+    "key": "dbb8f3b1-2bc9-3afc-a1d5-61f1eb04d1c4",
+    "name": "open_state_tailgate"
+  },
+  {
+    "key": "6810b781-e54a-35e8-af98-fcdefb54bac6",
+    "name": "outside_temperature"
+  },
+  {
+    "key": "f8bbe94d-06e1-3311-bf8f-c0c99cc67d48",
+    "name": "parking_brake"
+  },
+  {
+    "key": "c17ead4f-09b8-357f-ac2b-38c448ab88c4",
+    "name": "parking_lights"
+  },
+  {
+    "key": "c111830c-f959-30d2-859a-ea996190d864",
+    "name": "plug_state"
+  },
+  {
+    "key": "cf28f7d9-6201-30b8-82e5-a461968d30dc",
+    "name": "remaining_charging_time"
+  },
+  {
+    "key": "8a188a0b-24ea-34a9-9d6b-ed089547a128",
+    "name": "remaining_charging_time_target_soc"
+  },
+  {
+    "key": "1c62bf0a-8088-332c-9399-3b8cb0573099",
+    "name": "remaining_climatisation_time"
+  },
+  {
+    "key": "940aad2a-eb21-3e5c-b0c6-8ff4b395f917",
+    "name": "safe_state_front_engine_bonnet"
+  },
+  {
+    "key": "3611b9e7-c6f3-39ef-b700-1f650dde7979",
+    "name": "safe_state_front_right_door"
+  },
+  {
+    "key": "d5e199c6-cdd5-31c3-b3d1-915c78662521",
+    "name": "safe_state_rear_left_door"
+  },
+  {
+    "key": "1416247c-df11-3685-b839-65d87cf97bcb",
+    "name": "safe_state_rear_right_door"
+  },
+  {
+    "key": "92346806-a547-3014-b291-476c90558e53",
+    "name": "safe_state_tailgate"
+  },
+  {
+    "key": "f17c58f9-8763-3cd3-9cc6-c34e74482308",
+    "name": "scr_number_of_engine_starts"
+  },
+  {
+    "key": "b43ff74c-2505-3a38-bf98-78c817fbaf96",
+    "name": "scr_range"
+  },
+  {
+    "key": "60a4f436-5534-32f4-b4cc-b5a88a9d4b91",
+    "name": "state_front_left_door_window_lifter"
+  },
+  {
+    "key": "5fcf7d27-6b76-3de0-9ce9-f207370cdaff",
+    "name": "state_front_right_door_window_lifter"
+  },
+  {
+    "key": "ae0294b4-1286-3e98-a818-1485b8d88430",
+    "name": "state_of_charge"
+  },
+  {
+    "key": "d48ccd21-a39f-33eb-989b-d81bd23fa766",
+    "name": "state_of_hood"
+  },
+  {
+    "key": "5fb120bb-ab59-38fc-8e03-9ae197c7a1ae",
+    "name": "state_rear_left_door_window_lifter"
+  },
+  {
+    "key": "3ef13c1d-7e08-3cf4-b501-a8bda80cff78",
+    "name": "state_rear_right_door_window_lifter"
+  },
+  {
+    "key": "b38e35e9-b2e9-38ce-9b14-27e6066ab888",
+    "name": "state_service_hatch"
+  },
+  {
+    "key": "6d90f88e-b7bf-3b1e-a306-c0e1c0c29c6e",
+    "name": "state_spoiler"
+  },
+  {
+    "key": "cff28415-8084-34e0-ad91-db191e5ff3b6",
+    "name": "state_sunroof_motor_hood_1"
+  },
+  {
+    "key": "a8bd75f4-e8d2-3c8b-973d-b2d15d9a1d46",
+    "name": "state_sunroof_motor_hood_3"
+  },
+  {
+    "key": "173589ce-e437-3c6e-a0ec-6df704586fd7",
+    "name": "trueness"
+  },
+  {
+    "key": "c4a26fd6-c08f-3921-bb8c-23fab6751c54",
+    "name": "tyre_pressure_actual_front_left"
+  },
+  {
+    "key": "be03dca4-16fb-3072-82bd-17064bd423b9",
+    "name": "tyre_pressure_actual_front_right"
+  },
+  {
+    "key": "33d2c35b-8aac-3509-bb88-807682055b1b",
+    "name": "tyre_pressure_actual_rear_left"
+  },
+  {
+    "key": "5f913493-351d-3aa8-a1c5-20506d9d7f9a",
+    "name": "tyre_pressure_actual_rear_right"
+  },
+  {
+    "key": "1403559a-d939-3ec2-96c6-c2e8e6d0bd13",
+    "name": "tyre_pressure_actual_spare_tyre"
+  },
+  {
+    "key": "69729e19-7b1a-3189-8e11-b4b31ab7601a",
+    "name": "tyre_pressure_differential_front_left"
+  },
+  {
+    "key": "a86e735b-5f04-336a-8dc7-8fb189d02cd2",
+    "name": "tyre_pressure_differential_front_right"
+  },
+  {
+    "key": "a59fa6dd-c0e8-35af-afc0-1f411c33c78c",
+    "name": "tyre_pressure_differential_rear_left"
+  },
+  {
+    "key": "d7d35c0a-706c-3f28-a61a-c3b002116a25",
+    "name": "tyre_pressure_differential_rear_right"
+  },
+  {
+    "key": "351e9e10-b831-391e-9fc4-ccacc8cd3eba",
+    "name": "tyre_pressure_differential_spare_tyre"
+  },
+  {
+    "key": "1e4d13b5-ce70-3429-a545-796f40775f92",
+    "name": "tyre_pressure_required_front_left"
+  },
+  {
+    "key": "8ab83a99-d382-3ce1-9470-d98612e85066",
+    "name": "tyre_pressure_required_front_right"
+  },
+  {
+    "key": "5497c6f9-d22e-3bfc-886e-d1279a6be410",
+    "name": "tyre_pressure_required_rear_left"
+  },
+  {
+    "key": "fcbbc9c5-d302-3019-a293-07a0123e3f53",
+    "name": "tyre_pressure_required_rear_right"
+  },
+  {
+    "key": "c046a189-1068-3f8a-b00b-8bc4b9b4c6e0",
+    "name": "tyre_pressure_required_spare_tyre"
+  }
+]

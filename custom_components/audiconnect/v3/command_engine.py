@@ -1,0 +1,1210 @@
+"""V3 command owner: eligibility, dispatch, manual evidence and normal execution.
+
+No HA entities, V2 business logic or status polling. Dependencies are explicit
+and shared with the composition root; a command cannot create a second runtime.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from datetime import UTC, datetime
+from typing import Any
+
+from aiohttp import ClientError
+
+from .quota import optional_budget_available
+from .action_discovery import approval_group
+from .auth import configured_spin
+from .command_journal import (
+    CommandRecord,
+    check_command_sequence,
+    dispatch_block_reason,
+    ENGINEERING_COMMAND_COOLDOWN_SECONDS,
+    unresolved_normal_commands,
+)
+from .operation_revision import operation_revision
+from .command_parameters import (
+    map_parameters,
+    runtime_ready,
+    native_climate_parameter_schema,
+    climate_variant,
+    validate_inputs,
+    validate_parameter,
+    SOC,
+)
+from .command_readback import (
+    configure_readback,
+    configure_discovery_readback,
+    reconcile_readback,
+    reconcile_access_mismatch,
+    observe_command_response,
+    latest_readback_command,
+    follow_up_refresh_allowed,
+    recent_charging_state,
+)
+from .control_resolution import control_decision, resolve_control
+from .command_policy import supported_charge_modes
+from .response_preview import safe_response_preview
+from .vehicle import V3Vehicle
+
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class CommandEngine:
+    def __init__(
+        self,
+        *,
+        auth,
+        transport,
+        storage,
+        profiles,
+        require_vehicle,
+        operation_request,
+        api_record,
+        notify,
+        stop_retry_enabled=lambda: False,
+        recovery_options=lambda: {},
+    ):
+        self.auth = auth
+        self._transport = transport
+        self.storage = storage
+        self.profiles = profiles
+        self.require_vehicle = require_vehicle
+        self._operation_request = operation_request
+        self._api_record = api_record
+        self._notify_discovery_change = notify
+        self._stop_retry_enabled = stop_retry_enabled
+        self._recovery_options = recovery_options
+        self._actions = asyncio.Lock()
+
+    def exclusive(self):
+        """Serialize engineering transactions with physical command execution."""
+        return self._actions
+
+    @property
+    def transport(self):
+        return self._transport()
+
+    async def command_request(
+        self, car: V3Vehicle, ident: str, params: dict[str, Any] | None = None
+    ):
+        profile = self.profiles[car.vin.lower()]
+        route = profile.custom.get(ident, {})
+        op = profile.registry.operations[ident]
+        # Fixed-body controls cannot silently discard caller-supplied parameters.
+        if op.get("request_mode") in (
+            "bodyless",
+            "json",
+            "secure_spin",
+            "mbb_rlu",
+        ) and not op.get("request_variables"):
+            validate_inputs(params or {}, {})
+        rendered = map_parameters(op if op.get("input_schema") else route, params)
+        family, method, path, body = self._operation_request(car, ident, rendered)
+        mode = op.get("request_mode")
+        if mode in ("mbb_climate_start", "mbb_climate_stop"):
+            from .legacy_commands import climate_body
+
+            body = climate_body(mode, params or {})
+        elif mode in {
+            "charging_settings_update",
+            "charging_profile_update",
+            "charging_profile_current_update",
+            "climate_settings_update",
+            "climate_start_settings",
+            "flash",
+            "auxiliary_start",
+            "engine_start",
+        }:
+            from .command_payloads import build
+
+            body = await build(self, car, mode, params or {})
+        return family, method, path, body
+
+    async def _prepare_command(self, car, operation, params):
+        """Validate ordinary commands before journaling; defer OEM proof until persisted."""
+        profile = self.profiles[car.vin.lower()]
+        proof_required = (
+            profile.registry.operations[operation].get("request_mode") == "engine_start"
+        )
+        if proof_required:
+            if params:
+                raise ValueError("Unexpected engine start parameters")
+            request = self._operation_request(car, operation, params)
+        else:
+            request = await self.command_request(car, operation, params)
+        return proof_required, request
+
+    async def dispatch_command(self, car, family, method, path, body):
+        legacy_access = family == "mbb" and path.endswith(("/lock", "/unlock"))
+        if family == "mbb" and hasattr(self.transport, "executors"):
+            from .legacy_commands import configure_home_region
+
+            await configure_home_region(
+                self.transport,
+                self.auth,
+                car,
+                command_preparation=3 if legacy_access else 1,
+            )
+        if legacy_access:
+            from .legacy_commands import security_token
+
+            token = await security_token(
+                self.transport,
+                car.vin,
+                path.rsplit("/", 1)[-1],
+                configured_spin(self.auth),
+            )
+            return await self.transport.request(
+                family,
+                method,
+                path,
+                body=body,
+                explicit_action=True,
+                security_token=token,
+            )
+        return await self.transport.request(
+            family, method, path, body=body, explicit_action=True
+        )
+
+    async def _execute_prepared(self, car, profile, record, prepared, params):
+        """One physical dispatch and initial evidence path, after durable journaling."""
+        proof_required, (family, method, path, body) = prepared
+        # Bind any returned request ID to the actual dispatch context.
+        # A context replacement or restart makes this correlation ineligible.
+        request_context = profile.discovery.context
+
+        def observe(status):
+            if record.origin == "workbench":
+                profile.observe_http(record.engineering_sequence, status)
+            else:
+                record.observe_http(status)
+
+        try:
+            if proof_required:
+                family, method, path, body = await self.command_request(
+                    car, record.operation, params
+                )
+            response = await self.dispatch_command(car, family, method, path, body)
+        except (TimeoutError, OSError, RuntimeError, ValueError, ClientError):
+            observe(None)
+            self._api_record(profile, record.operation, family, method, None, car.vin)
+            raise
+        observe(response.status)
+        if family == "cariad" and 200 <= response.status < 300:
+            from .request_status import request_id_of
+
+            record.request_id = request_id_of(response.data)
+            record.request_context = request_context
+        self._api_record(profile, record.operation, family, method, response, car.vin)
+        return family, path, response
+
+    def control_routes_for(
+        self, vin: str, capability: str, action: str
+    ) -> dict[str, Any]:
+        vehicle = self.require_vehicle(vin)
+        profile = self.profiles[vehicle.vin.lower()]
+        applicable = profile.registry.resolve(capability, action, vehicle.context)[
+            "available_operations"
+        ]
+        routes = [
+            {
+                "id": op,
+                "family": profile.registry.operations[op]["family"],
+                "method": profile.registry.operations[op]["method"],
+                "path": profile.registry.operations[op]["path"],
+                "approval_group": approval_group(
+                    capability, action, profile.registry.operations[op]
+                ),
+                "parameters_required": bool(
+                    native_climate_parameter_schema(
+                        profile.registry.operations[op],
+                        profile.custom.get(op, {}),
+                        vehicle,
+                    )
+                )
+                or profile.registry.operations[op].get("request_mode")
+                == "climate_settings_update",
+                "parameter_schema": native_climate_parameter_schema(
+                    profile.registry.operations[op],
+                    profile.custom.get(op, {}),
+                    vehicle,
+                ),
+                "verified_climate_variants": sorted(
+                    variant
+                    for variant, revision in getattr(
+                        profile, "verified_climate_variants", {}
+                    )
+                    .get(op, {})
+                    .items()
+                    if revision == operation_revision(profile.registry.operations[op])
+                ),
+                "status": profile.control_results.get(op, "not_tested"),
+                "active": profile.active.get(f"{capability}.{action}") == op,
+                "runtime_ready": runtime_ready(profile.custom.get(op, {})),
+                "parameter_bindings": profile.custom.get(op, {}).get(
+                    "parameter_bindings", {}
+                ),
+                "request_mode": profile.registry.operations[op].get("request_mode"),
+                # Definition only; no resolved credentials.
+                "request_body": profile.registry.operations[op].get("request_body"),
+                "request_variables": profile.registry.operations[op].get(
+                    "request_variables", {}
+                ),
+                "handler": profile.registry.operations[op].get("handler"),
+                "scope": profile.registry.operations[op].get("scope", {}),
+            }
+            for op in applicable
+            if profile.registry.operations[op]["method"] in ("POST", "PUT")
+        ]
+        in_progress = profile.discovery.active_attempt
+        match = control_decision(vehicle, profile, self.auth, capability, action)
+        return {
+            "capability": capability,
+            "action": action,
+            "routes": routes,
+            "active": match["operation"],
+            "binding": match,
+            "pending": in_progress.public() if in_progress else None,
+            "requires": "Explicit per-action consent and physical verification",
+            "spin_configured": bool(configured_spin(self.auth)),
+        }
+
+    async def disable_control(
+        self, vin: str, capability: str, action: str, *, disabled=True
+    ) -> None:
+        async with self._actions:
+            vehicle = self.require_vehicle(vin)
+            profile = self.profiles[vehicle.vin.lower()]
+            if disabled:
+                profile.disable(capability, action)
+            else:
+                if not profile.registry.operations_for(capability, action):
+                    raise ValueError("Unknown control")
+                profile.discovery.enable(capability, action)
+            await self.storage.async_save(self.profiles)
+            self._notify_discovery_change()
+
+    def reconcile_native_requests(self, car, profile, payload, observed_at):
+        """Receive existing native status evidence; never dispatch or retry."""
+        from .request_status import reconcile_native_queue
+
+        if self.profiles.get(car.vin.lower()) is not profile:
+            return
+        if not car.inventory_present:
+            return
+        for record in reconcile_native_queue(profile, payload, observed_at):
+            if record is profile.last_command:
+                car.last_command_result = record.state
+
+    def reconcile_commands(self) -> None:
+        """Correlate fresh scheduled observations without another request."""
+        for vin, profile in self.profiles.items():
+            try:
+                car = self.require_vehicle(vin)
+            except ValueError:
+                continue
+            active = profile.discovery.active_attempt
+            if (
+                active is not None
+                and active.result == "awaiting_user_feedback"
+                and active.sequence != profile.invalidated_attempt_sequence
+            ):
+                record = profile.engineering_record(active.sequence)
+                if record is not None:
+                    reconcile_readback(record, car, registry=profile.registry)
+            # Reconcile independent commands even when a different capability
+            # has subsequently been used. Never attribute a newer same-field
+            # observation to a superseded accepted action.
+            attributes = {
+                record.readback_attribute
+                for record in profile.command_journal
+                if record.readback_attribute
+            }
+            for attribute in attributes:
+                record = latest_readback_command(profile, attribute)
+                if (
+                    record
+                    and (
+                        reconcile_readback(record, car, registry=profile.registry)
+                        or reconcile_access_mismatch(
+                            record, car, registry=profile.registry
+                        )
+                    )
+                    and record is profile.last_command
+                ):
+                    car.last_command_result = record.state
+
+    def binding_snapshot(self, car, profile):
+        """Resolve one vehicle's controls without network or profile mutation."""
+        return {
+            f"{capability}.{action}": control_decision(
+                car, profile, self.auth, capability, action
+            )
+            for capability, definition in profile.registry.capabilities.items()
+            for action in (definition.get("control") or {})
+        }
+
+    def refresh_bindings(self) -> None:
+        """Publish the current control decisions at the runtime boundary."""
+        for key, profile in self.profiles.items():
+            try:
+                car = self.require_vehicle(key)
+            except ValueError:
+                continue
+            profile.fast_bindings = self.binding_snapshot(car, profile)
+
+    def command_route(self, vin: str, aspect: str, capability: str) -> str | None:
+        try:
+            car = self.require_vehicle(vin)
+        except ValueError:
+            return None
+        return resolve_control(
+            car, self.profiles[vin.lower()], self.auth, capability, aspect
+        )
+
+    @staticmethod
+    def _parameter_variant_verified(profile, operation, params):
+        variant = climate_variant(operation, params)
+        return variant is None or (
+            getattr(profile, "verified_climate_variants", {})
+            .get(operation, {})
+            .get(variant)
+            == operation_revision(profile.registry.operations[operation])
+        )
+
+    def control_enabled(
+        self, vin: str, aspect: str, capability: str = "climate", *, params=None
+    ) -> bool:
+        operation = self.command_route(vin, aspect, capability)
+        if operation is None:
+            return False
+        if params is None:
+            return True
+        try:
+            return self._parameter_variant_verified(
+                self.profiles[vin.lower()], operation, params
+            )
+        except ValueError:
+            return False
+
+    def _command_allowance(self, family):
+        quota = getattr(self.transport, "quota", None)
+        return quota.planning_remaining(datetime.now(UTC), family) if quota else None
+
+    def _reserve_wake(self, vin: str, operation: str) -> None:
+        if operation not in ("cariad.remote.wake", "cariad.remote.refresh"):
+            return
+        remaining = self._command_allowance("cariad")
+        if not optional_budget_available(remaining):
+            raise RuntimeError("Audi wake quota reserve reached")
+        from .command_journal import check_wake_budget
+
+        check_wake_budget(self.profiles[vin.lower()], time.time())
+
+    async def test_action(
+        self,
+        vin: str,
+        aspect: str,
+        operation: str,
+        *,
+        params: dict[str, Any] | None = None,
+        capability: str = "climate",
+        guided: bool = False,
+        expert: bool = False,
+        approval: str | None = None,
+    ) -> dict[str, Any]:
+        """One action consent; at most one reviewed equivalent after definite rejection."""
+        async with self._actions:
+            from .control_resolution import reviewed_alternative
+
+            car = self.require_vehicle(vin)
+            context = car.context
+            profile = self.profiles[vin.lower()]
+            alternative = (
+                reviewed_alternative(capability, aspect, operation)
+                if guided and not expert
+                else None
+            )
+            if alternative and (
+                alternative in profile.custom
+                or alternative
+                not in profile.registry.resolve(capability, aspect, context)[
+                    "available_operations"
+                ]
+                or approval_group(
+                    capability, aspect, profile.registry.operations[alternative]
+                )
+                != approval
+            ):
+                alternative = None
+            revision = (
+                operation_revision(profile.registry.operations[alternative])
+                if alternative
+                else None
+            )
+            result = await self._test_action_once(
+                vin,
+                aspect,
+                operation,
+                params=params,
+                capability=capability,
+                guided=guided,
+                expert=expert,
+                approval=approval,
+            )
+            if not alternative or result["physical_result"] != "rejected":
+                return result
+            profile = self.profiles[vin.lower()]
+            # Respect the same per-vehicle cooldown; no detached background work.
+            delay = (
+                profile.discovery.history[-1].started_at
+                + profile.discovery.cooldown_seconds
+                - time.time()
+            )
+            if delay > 15:
+                return {**result, "alternative": "paused_cooldown"}
+            if delay > 0:
+                await asyncio.sleep(delay)
+            remaining = self._command_allowance(
+                profile.registry.operations[alternative]["family"]
+            )
+            if (
+                car.context != context
+                or self.profiles.get(vin.lower()) is not profile
+                or operation_revision(profile.registry.operations[alternative])
+                != revision
+                or not optional_budget_available(remaining)
+            ):
+                return {**result, "alternative": "paused_context_or_quota"}
+            from .read_discovery import user_test_candidates
+
+            candidate = user_test_candidates(
+                self, car, profile, include_verified=expert
+            ).get(f"{capability}.{aspect}")
+            if not candidate or (
+                candidate["operation"],
+                candidate["approval_group"],
+            ) != (alternative, approval):
+                return {**result, "alternative": "no_eligible_route"}
+            try:
+                next_result = await self._test_action_once(
+                    vin,
+                    aspect,
+                    alternative,
+                    params=params,
+                    capability=capability,
+                    guided=True,
+                    expert=expert,
+                    approval=approval,
+                )
+            except (ValueError, RuntimeError, OSError, TimeoutError, ClientError):
+                if profile.discovery.active_attempt is not None:
+                    raise  # The alternate may have been dispatched; preserve pending uncertainty.
+                return {**result, "alternative": "paused_check_status"}
+            return {
+                **next_result,
+                "previous_attempt": {
+                    "operation": operation,
+                    "sequence": result["sequence"],
+                    "status": result["status"],
+                    "result": "rejected",
+                },
+            }
+
+    async def _test_action_once(
+        self, vin, aspect, operation, *, params, capability, guided, expert, approval
+    ):
+        """Shared single physical dispatch; caller holds the command lock."""
+        vehicle = self.require_vehicle(vin)
+        profile = self.profiles[vin.lower()]
+        if guided:
+            from .read_discovery import user_test_candidates
+
+            candidate = next(
+                (
+                    row
+                    for row in user_test_candidates(
+                        self, vehicle, profile, include_verified=expert
+                    ).values()
+                    if (
+                        row["capability"],
+                        row["action"],
+                        row["operation"],
+                    )
+                    == (capability, aspect, operation)
+                ),
+                None,
+            )
+            if not candidate or (
+                candidate["operation"],
+                candidate["approval_group"],
+            ) != (operation, approval):
+                raise ValueError(
+                    "Discovery action changed; refresh status before testing"
+                )
+            validate_inputs(params or {}, candidate["parameter_schema"])
+            if (
+                capability == "climate"
+                and aspect in ("start_with_settings", "set_settings")
+                and not params
+            ):
+                raise ValueError("Choose at least one climate setting")
+        family = profile.registry.operations.get(operation, {}).get("family")
+        if family not in ("cariad", "mbb") or (
+            family == "mbb" and self.auth.uses_auth0
+        ):
+            raise ValueError("Control is not applicable to this authentication family")
+        if (
+            operation
+            not in profile.registry.resolve(capability, aspect, vehicle.context)[
+                "available_operations"
+            ]
+        ):
+            raise ValueError("Control not applicable to this car")
+        if capability == "remote" and aspect in ("engine_start", "engine_stop"):
+            from .command_policy import eligible_operation
+
+            if eligible_operation(vehicle, self.auth, capability, aspect) != operation:
+                raise ValueError(
+                    "Remote engine operation is not permitted for this vehicle"
+                )
+        if profile.registry.operations[operation]["method"] not in ("POST", "PUT"):
+            raise ValueError("Read-only operation cannot be a control")
+        if profile.discovery.active_attempt is not None:
+            raise ValueError("Review the previous action before trying another")
+        if profile.last_command is not None:
+            check_command_sequence(
+                profile,
+                time.time(),
+                capability=capability,
+                action=aspect,
+                cooldown=ENGINEERING_COMMAND_COOLDOWN_SECONDS,
+            )
+        if f"{capability}.{aspect}" in profile.discovery.disabled:
+            raise ValueError("This action has been disabled by the user")
+        if (
+            profile.discovery.history
+            and time.time()
+            < profile.discovery.history[-1].started_at
+            + profile.discovery.cooldown_seconds
+        ):
+            raise ValueError("Vehicle command cooldown still active")
+        # Reject invalid templates/parameters BEFORE reserving a pending
+        # physical action, otherwise a mere validation error locks the car.
+        variant = climate_variant(operation, params or {})
+        prepared = await self._prepare_command(vehicle, operation, params)
+        self._reserve_wake(vehicle.vin, operation)
+        with profile.command_transaction():
+            attempt = profile.begin_test(capability, aspect, operation, now=time.time())
+            record = profile.engineering_record(attempt.sequence)
+            if record is None:
+                raise RuntimeError("Missing durable engineering command record")
+            record.requested_climate_variant = variant
+            if (
+                capability == "charging"
+                and aspect == "set_charge_mode"
+                and operation == "cariad.charging.mode"
+            ):
+                record.requested_charge_mode = (params or {}).get("value")
+            # The single-field readback cannot verify an optional combination.
+            # Keep its physical review explicit; base actions retain readback.
+            if guided and variant is None:
+                configure_discovery_readback(
+                    record, vehicle, params, registry=profile.registry
+                )
+            await self.storage.async_save(self.profiles)
+        try:
+            family, _, response = await self._execute_prepared(
+                vehicle, profile, record, prepared, params
+            )
+        except (TimeoutError, OSError, RuntimeError, ValueError, ClientError):
+            response = None
+        from .read_discovery import explicitly_unsupported
+
+        if (
+            guided
+            and response is not None
+            and response.status in (405, 410)
+            and explicitly_unsupported(response.data)
+            and record.state == "rejected"
+            and attempt.sequence != profile.invalidated_attempt_sequence
+        ):
+            profile.reject_test(attempt.sequence, now=time.time())
+        telemetry_received = False
+        if guided and response is not None and record.state == "accepted_unconfirmed":
+            telemetry_received = observe_command_response(
+                record, vehicle, profile, family, response
+            )
+        await self.storage.async_save(self.profiles)
+        if telemetry_received or (guided and attempt.result in ("worked", "rejected")):
+            self._notify_discovery_change()
+        return {
+            "sequence": attempt.sequence,
+            "operation": operation,
+            "transport": attempt.transport,
+            "status": response.status if response else None,
+            "response_preview": None
+            if (
+                capability == "access"
+                or aspect in ("engine_start", "engine_stop", "preheater_start")
+            )
+            else safe_response_preview(
+                response.data if response else None,
+                vehicle_vin=vehicle.vin,
+            ),
+            "physical_result": (
+                "verified"
+                if attempt.result == "worked"
+                else "rejected"
+                if attempt.result == "rejected"
+                else "requires_user_confirmation"
+            ),
+        }
+
+    async def review_action(
+        self,
+        vin: str,
+        sequence: int,
+        outcome: str,
+    ) -> dict[str, Any]:
+        async with self._actions:
+            profile = self.profiles[self.require_vehicle(vin).vin.lower()]
+            if outcome not in ("worked", "failed", "uncertain"):
+                raise ValueError("Unsupported outcome")
+            profile.confirm(
+                sequence,
+                worked=None if outcome == "uncertain" else outcome == "worked",
+                inspected_vehicle=outcome != "uncertain",
+                now=time.time(),
+            )
+            if outcome == "worked":
+                attempt = profile.discovery.history[-1]
+                if profile.control_results.get(
+                    attempt.operation
+                ) == "worked" and runtime_ready(
+                    profile.custom.get(attempt.operation, {})
+                ):
+                    profile.choose_working(
+                        attempt.capability, attempt.action, attempt.operation
+                    )
+            await self.storage.async_save(self.profiles)
+            self._notify_discovery_change()
+            return {"confirmed": outcome, "active": dict(profile.active)}
+
+    def charging_stop_retry_current(
+        self, car, profile, record, *, child=None, verification=False
+    ):
+        """One same-session explicit STOP intent, never a restored or superseded one."""
+        latest = profile.last_command
+        return (
+            self._stop_retry_enabled()
+            and self.profiles.get(car.vin.lower()) is profile
+            and car.inventory_present
+            and record.origin == "home_assistant"
+            and record.operation == "cariad.charging.stop"
+            and record.capability == "charging"
+            and record.action == "stop"
+            and record.parent_command_id is None
+            and not getattr(record, "restored", False)
+            and record.http_status is not None
+            and 200 <= record.http_status < 300
+            and getattr(record, "request_context", None) is profile.discovery.context
+            and any(row is record for row in profile.command_journal)
+            and (
+                verification
+                or (
+                    record.request_id is not None
+                    and sum(
+                        row.request_id == record.request_id
+                        for row in profile.command_journal
+                    )
+                    == 1
+                )
+            )
+            and (
+                latest is child
+                and child is not None
+                and child.parent_command_id == record.command_id
+                if child is not None
+                else latest is record
+                or (
+                    latest is not None
+                    and latest.parent_command_id == record.command_id
+                    and latest.capability == "remote"
+                    and latest.action == "refresh"
+                )
+            )
+            # Workbench uses a separate latest pointer. Its newer explicit
+            # physical intent must supersede this delayed recovery as well.
+            and not (
+                profile.discovery.history
+                and profile.discovery.history[-1].started_at >= record.started_at
+            )
+            and (verification or record.readback_observed_at is None)
+            and (verification or 0 <= time.time() - record.started_at <= 600)
+            and self.command_route(car.vin, record.action, record.capability)
+            == record.operation
+            and record.operation in profile.registry.operations
+            and record.operation_revision
+            == operation_revision(profile.registry.operations[record.operation])
+        )
+
+    def charging_stop_retry_ready(self, car, profile, record, *, child=None):
+        """Require a correlated terminal timeout and recent native still-charging evidence."""
+        if (
+            not self.charging_stop_retry_current(car, profile, record, child=child)
+            or not record.stop_retry_timed_out
+            or self._recovery_options().get("v3_stop_extra_retries", 1) != 1
+            or not self.recovery_budget_available(cost=4)
+        ):
+            return False
+        return (
+            recent_charging_state(
+                record,
+                car,
+                registry=profile.registry,
+                receipt_after=record.completed_at,
+                capture_after=record.completed_at,
+            )
+            is True
+        )
+
+    def recovery_budget_available(self, *, cost):
+        """Conservative optional-traffic reserve, not an OEM quota estimate."""
+        quota = getattr(self.transport, "quota", None)
+        now = datetime.now(UTC)
+        return quota is None or (
+            not quota.read_deferred(now, "cariad")
+            and optional_budget_available(
+                quota.planning_remaining(now, "cariad", include_reads=True),
+                cost=cost,
+            )
+        )
+
+    async def verify_recovery(
+        self,
+        record,
+        refresh,
+        current,
+        readback,
+        *,
+        interval=30,
+        window=300,
+        max_polls=10,
+    ):
+        """Bound optional read-only verification; never dispatch from this loop.
+
+        Reuse the caller's existing coordinator and canonical readback. A
+        successful cloud receipt alone is not a fresh vehicle observation.
+        """
+        deadline = time.monotonic() + window
+        for attempt in range(max_polls):
+            if not current():
+                return None, "superseded_or_disabled"
+            if time.monotonic() >= deadline:
+                break
+            # Normal polling may already have delivered the required capture.
+            # Do not spend another cloud request if the evidence is available.
+            value = readback()
+            if value is not None:
+                return value, "fresh_native_capture"
+            if not self.recovery_budget_available(cost=5):
+                return None, "quota_reserve"
+            try:
+                async with asyncio.timeout(max(0, deadline - time.monotonic())):
+                    await refresh(current)
+            except TimeoutError:
+                return None, "verification_deadline"
+            if not current():
+                return None, "superseded_or_disabled"
+            if time.monotonic() >= deadline:
+                break
+            value = readback()
+            if value is not None:
+                return value, "fresh_native_capture"
+            _LOGGER.debug(
+                "Audi %s.%s recovery poll %s: no fresh native capture",
+                record.capability,
+                record.action,
+                attempt + 1,
+            )
+            if attempt + 1 < max_polls:
+                await asyncio.sleep(min(interval, max(0, deadline - time.monotonic())))
+        return None, "fresh_capture_unavailable"
+
+    async def verify_recovery_attempt(self, car, profile, root, record, refresh):
+        """Shared confirmation and verification for either attempt of one intent."""
+        from .request_status import confirm
+
+        options = self._recovery_options()
+        timeout = options.get("v3_stop_confirmation_seconds", 300)
+        window = options.get("v3_stop_verification_seconds", 300)
+        deadline = record.started_at + timeout + window
+
+        def current():
+            return self.charging_stop_retry_current(
+                car,
+                profile,
+                root,
+                child=record if record is not root else None,
+                verification=True,
+            )
+
+        await asyncio.sleep(max(0, record.started_at + timeout - time.time()))
+        if not current():
+            return None, "superseded_or_disabled"
+        if time.time() >= deadline:
+            return None, "verification_deadline"
+        # One exact-ID query if scheduled status has not already resolved it.
+        if (
+            record.state == "accepted_unconfirmed"
+            and record.request_id is not None
+            and getattr(record, "request_context", None) is profile.discovery.context
+            and sum(
+                row.request_id == record.request_id for row in profile.command_journal
+            )
+            == 1
+            and self.recovery_budget_available(cost=5)
+        ):
+            try:
+                async with asyncio.timeout(max(0, deadline - time.time())):
+                    outcome = await confirm(
+                        self.transport,
+                        car.vin,
+                        record.request_id,
+                        max_reads=1,
+                        distinguish_timeout=True,
+                    )
+            except TimeoutError:
+                return None, "verification_deadline"
+            async with self._actions:
+                if not current():
+                    return None, "superseded_or_disabled"
+                if record.state == "accepted_unconfirmed" and outcome in (
+                    "timeout",
+                    "backend_completed",
+                    "rejected",
+                ):
+                    record.observe_backend(outcome, time.time())
+                    if profile.last_command is record:
+                        car.last_command_result = record.state
+                    await self.storage.async_save(self.profiles)
+                    self._notify_discovery_change()
+
+        def readback():
+            boundary = (
+                record.completed_at
+                if record.stop_retry_timed_out
+                else record.started_at
+            )
+            return recent_charging_state(
+                record,
+                car,
+                registry=profile.registry,
+                receipt_after=boundary,
+                capture_after=boundary,
+            )
+
+        charging, reason = await self.verify_recovery(
+            record,
+            refresh,
+            current,
+            readback,
+            interval=options.get("v3_stop_repoll_seconds", 30),
+            window=max(0, min(window, deadline - time.time())),
+        )
+        if charging is False:
+            reason = "expected_state_observed"
+        elif charging is True:
+            reason = "fresh_still_charging"
+        record.recovery_result = reason
+        _LOGGER.info(
+            "Audi %s.%s recovery attempt %s: backend=%s, timeout=%s, outcome=%s",
+            record.capability,
+            record.action,
+            1 if record is root else 2,
+            record.backend_result,
+            record.stop_retry_timed_out,
+            reason,
+        )
+        return charging, reason
+
+    async def retry_charging_stop(self, vin, record, refresh):
+        """Only an explicit terminal timeout may authorize one linked STOP."""
+        if not self._stop_retry_enabled():
+            return None
+        try:
+            car = self.require_vehicle(vin)
+            profile = self.profiles[vin.lower()]
+            charging, reason = await self.verify_recovery_attempt(
+                car, profile, record, record, refresh
+            )
+            record.recovery_result = reason
+            if charging is not True:
+                return None
+            if not record.stop_retry_timed_out:
+                record.recovery_result = "no_correlated_terminal_timeout"
+                return None
+            if self._recovery_options().get("v3_stop_extra_retries", 1) != 1:
+                record.recovery_result = "retry_disabled"
+                return None
+            return await self.send_control(
+                vin, record.action, record.capability, _retry_of=record
+            )
+        except (RuntimeError, ValueError, OSError, TimeoutError, ClientError):
+            record.recovery_result = "dispatch_or_verification_failed"
+            _LOGGER.info("Audi charging STOP recovery: %s", record.recovery_result)
+            return None
+
+    async def send_control(
+        self,
+        vin: str,
+        aspect: str,
+        capability: str = "climate",
+        *,
+        params: dict[str, Any] | None = None,
+        _follow_up_to: str | None = None,
+        _retry_of: CommandRecord | None = None,
+    ) -> CommandRecord:
+        """One journaled mutation, persisted before dispatch; no uncertain replay.
+
+        Only an opt-in, linked refresh after an accepted user command may
+        bypass the general command cooldown. It still needs its own route,
+        security policy, wake budget and durable journal entry.
+        """
+        async with self._actions:
+            car = self.require_vehicle(vin)
+            p = self.profiles[vin.lower()]
+            if (
+                p.discovery.active_attempt is not None
+                and p.discovery.active_attempt.capability == capability
+            ):
+                raise RuntimeError(
+                    "A control experiment for this capability is awaiting physical confirmation"
+                )
+            if _retry_of is not None and (
+                _follow_up_to is not None
+                or capability != "charging"
+                or aspect != "stop"
+                or params
+                or not self.charging_stop_retry_ready(car, p, _retry_of)
+            ):
+                raise RuntimeError("Charging STOP recovery is no longer eligible")
+            if _follow_up_to is not None:
+                parent = p.last_command
+                if (
+                    capability != "remote"
+                    or aspect != "refresh"
+                    or parent is None
+                    or parent.command_id != _follow_up_to
+                    or not follow_up_refresh_allowed(parent, car, p.registry)
+                ):
+                    raise RuntimeError(
+                        "No eligible accepted parent command for vehicle refresh"
+                    )
+            else:
+                blocked = dispatch_block_reason(p, capability, aspect)
+                if blocked:
+                    raise RuntimeError(blocked)
+            if (
+                _follow_up_to is not None
+                and p.discovery.history
+                and time.time()
+                < (p.discovery.history[-1].started_at + p.discovery.cooldown_seconds)
+            ):
+                raise RuntimeError(
+                    "Vehicle command cooldown active after engineering test"
+                )
+            if (
+                capability == "charging"
+                and aspect == "set_charge_mode"
+                and (params or {}).get("value") not in supported_charge_modes(car, p)
+            ):
+                raise ValueError("Charge mode not advertised by this vehicle")
+            ident = self.command_route(vin, aspect, capability)
+            if ident is None:
+                raise RuntimeError("No eligible Audi command route")
+            if _retry_of is not None and ident != _retry_of.operation:
+                raise RuntimeError("Charging STOP recovery route changed")
+            if not self._parameter_variant_verified(p, ident, params or {}):
+                raise ValueError(
+                    "Climate parameter combination requires vehicle discovery"
+                )
+            if aspect == "set_location_charge_current" and capability == "charging":
+                params = dict(params or {})
+                if params.get("profile_id") is None:
+                    params["profile_id"] = car.active_charging_profile_id
+            prepared = await self._prepare_command(car, ident, params)
+            self._reserve_wake(vin, ident)
+            record = CommandRecord.begin(
+                capability,
+                aspect,
+                ident,
+                time.time(),
+                operation_revision=operation_revision(p.registry.operations[ident]),
+                parent_command_id=_retry_of.command_id if _retry_of else _follow_up_to,
+            )
+            configure_readback(record, params)
+            with p.command_transaction():
+                p.track_command(record)
+                # No physical action until the pending record is durable.
+                await self.storage.async_save(self.profiles)
+            if _retry_of is not None and not self.charging_stop_retry_ready(
+                car, p, _retry_of, child=record
+            ):
+                # Consent, route or telemetry can change while storage awaits.
+                # This is a local cancellation, not an Audi response.
+                record.observe_backend("rejected", time.time())
+                car.last_command_result = record.state
+                await self.storage.async_save(self.profiles)
+                self._notify_discovery_change()
+                raise RuntimeError("Charging STOP recovery cancelled before dispatch")
+            try:
+                family, path, response = await self._execute_prepared(
+                    car, p, record, prepared, params
+                )
+                if not 200 <= response.status < 300:
+                    car.last_command_result = f"request_failed_{response.status}"
+                else:
+                    car.last_command_result = record.state
+                    # A response's actual telemetry is independent of its command
+                    # outcome. Publish it before waiting for backend confirmation.
+                    observe_command_response(record, car, p, family, response)
+                    await self.storage.async_save(self.profiles)
+                    self._notify_discovery_change()
+                    outcome = record.backend_result
+                    if family == "cariad":
+                        from .request_status import confirm
+
+                        if record.request_id is not None:
+                            if (
+                                self._stop_retry_enabled()
+                                and record.operation == "cariad.charging.stop"
+                            ):
+                                outcome = await confirm(
+                                    self.transport,
+                                    car.vin,
+                                    record.request_id,
+                                    distinguish_timeout=True,
+                                )
+                            else:
+                                outcome = await confirm(
+                                    self.transport, car.vin, record.request_id
+                                )
+                    elif family == "mbb":
+                        from .legacy_commands import confirm
+
+                        outcome = await confirm(self.transport, path, response.data)
+                    if outcome is not None:
+                        record.observe_backend(outcome, time.time())
+                    car.last_command_result = record.state
+            except asyncio.CancelledError:
+                # Never discard a known HTTP receipt on interrupted result processing.
+                if record.http_status is None:
+                    record.observe_http(None)
+                    car.last_command_result = "transport_uncertain"
+                raise
+            except (
+                TimeoutError,
+                OSError,
+                RuntimeError,
+                ValueError,
+                ClientError,
+            ) as err:
+                if record.http_status is None:
+                    record.observe_http(None)
+                    car.last_command_result = "transport_uncertain"
+                    detail = "connection error or timeout; outcome uncertain"
+                else:
+                    # Parsing, persistence and read-only confirmation failures
+                    # cannot change an already observed mutation receipt.
+                    car.last_command_result = record.state
+                    detail = (
+                        f"HTTP {record.http_status}; {record.state}; "
+                        "result processing failed"
+                    )
+                if (
+                    record.state
+                    in (
+                        "rejected",
+                        "uncertain",
+                    )
+                    and not record.stop_retry_timed_out
+                ):
+                    record.completed_at = max(record.started_at, time.time())
+                await self.storage.async_save(self.profiles)
+                self._notify_discovery_change()
+                advice = "check the vehicle; try again after the short cooldown"
+                raise RuntimeError(
+                    f"Audi {capability}.{aspect}: {detail}. {advice}."
+                ) from err
+            if (
+                record.state
+                in (
+                    "rejected",
+                    "uncertain",
+                )
+                and not record.stop_retry_timed_out
+            ):
+                record.completed_at = max(record.started_at, time.time())
+            await self.storage.async_save(self.profiles)
+            self._notify_discovery_change()
+            if record.state in ("rejected", "uncertain"):
+                detail = (
+                    f"HTTP {response.status}"
+                    if not 200 <= response.status < 300
+                    else (record.backend_result or record.state)
+                )
+                advice = (
+                    "check the vehicle; try again after the short cooldown"
+                    if record.state == "uncertain"
+                    else "check permissions, quota or vehicle prerequisites"
+                )
+                raise RuntimeError(
+                    f"Audi {capability}.{aspect}: {detail}; {record.state}. {advice}."
+                )
+            return record
+
+    async def review_normal_command(self, vin: str, command_id: str) -> None:
+        """Explicit acknowledgement after inspecting the car; never dispatch."""
+        async with self._actions:
+            car = self.require_vehicle(vin)
+            p = self.profiles[car.vin.lower()]
+            record = next(
+                (
+                    row
+                    for row in unresolved_normal_commands(p)
+                    if row.command_id == command_id
+                ),
+                None,
+            )
+            if record is None:
+                raise ValueError("No matching unresolved normal command")
+            record.state = "reviewed"
+            record.completed_at = max(record.started_at, time.time())
+            await self.storage.async_save(self.profiles)
+            self._notify_discovery_change()
+
+    async def send_setting(self, vin: str, kind: str, value: Any) -> CommandRecord:
+        """Typed V3-owned write through an explicitly verified route.
+
+        This method cannot invoke V2. OEM method, path and body are owned by
+        the active declarative V3 operation.
+        """
+        if kind == "set_target_soc":
+            try:
+                validate_parameter(value, SOC)
+            except ValueError as exc:
+                raise ValueError(
+                    "Audi target SoC must be 20..100 in steps of 5"
+                ) from exc
+        elif kind == "set_charge_mode":
+            if value not in ("manual", "timer"):
+                raise ValueError("Audi charge mode must be manual or timer")
+        else:
+            raise ValueError("Unsupported V3 setting")
+        return await self.send_control(vin, kind, "charging", params={"value": value})

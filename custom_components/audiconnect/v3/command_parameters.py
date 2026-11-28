@@ -1,0 +1,358 @@
+"""Canonical input binding for local, physically reviewed command variants.
+
+The mapping is configuration; semantic limits and protected settings handlers
+remain code-owned. Unbound experimental parameters never become HA controls.
+"""
+
+from __future__ import annotations
+
+import math
+
+from .vehicle import PROFILE_CURRENT_OPTIONS
+
+
+# Shared input contracts for built-in command preparation and Workbench fields.
+# Settings updates with heterogeneous OEM field types retain their reviewed handler.
+SOC = {"type": "integer", "minimum": 20, "maximum": 100, "step": 5, "required": True}
+DURATION = {"type": "integer", "minimum": 10, "maximum": 60, "step": 10, "default": 30}
+PROFILE_CURRENT = {
+    "type": "string",
+    "enum": list(PROFILE_CURRENT_OPTIONS),
+    "required": True,
+}
+TEMPERATURE = {
+    "temp_c": {
+        "type": "number",
+        "minimum": 15,
+        "maximum": 30,
+        "label": "Target temperature (°C)",
+    },
+    "temp_f": {
+        "type": "number",
+        "minimum": 59,
+        "maximum": 86,
+        "label": "Target temperature (°F)",
+    },
+}
+# Only these semantic parameters may bind to a raw template. Settings PUTs
+# retain their reviewed read-modify-write handlers.
+_BINDABLE = {("climate", "start_with_settings"): TEMPERATURE}
+
+CLIMATE_FLAGS = {
+    key: {"type": "boolean"}
+    for key in (
+        "glass_heating",
+        "climatisation_at_unlock",
+        "seat_fl",
+        "seat_fr",
+        "seat_rl",
+        "seat_rr",
+    )
+}
+CLIMATE_INPUTS = {
+    **TEMPERATURE,
+    **CLIMATE_FLAGS,
+    "climatisation_mode": {"type": "string", "enum": ["comfort", "economy"]},
+}
+LEGACY_CLIMATE_INPUTS = {
+    **CLIMATE_INPUTS,
+    "climatisation_mode": {"type": "string", "enum": ["comfort"]},
+}
+CLIMATE_SETTINGS_INPUTS = {
+    **TEMPERATURE,
+    "targetTemperature": {"type": "number"},
+    "targetTemperature_C": TEMPERATURE["temp_c"],
+    "targetTemperature_F": TEMPERATURE["temp_f"],
+    "targetTemperatureUnit": {"type": "string"},
+    "heaterSource": {"type": "string"},
+    **{
+        name: {"type": "boolean"}
+        for name in (
+            "climatisationWithoutExternalPower",
+            "climatizationAtUnlock",
+            "windowHeatingEnabled",
+            "zoneFrontLeftEnabled",
+            "zoneFrontRightEnabled",
+            "zoneRearLeftEnabled",
+            "zoneRearRightEnabled",
+        )
+    },
+}
+
+
+# Existing native scalar observations are the only source of optional
+# CARIAD settings candidates. A read field is not proof of write support.
+CLIMATE_SETTING_FIELDS = {
+    "windowHeatingEnabled": "climatisationWindowHeatingEnabled",
+    "climatizationAtUnlock": "climatisationAtUnlock",
+    "climatisationWithoutExternalPower": "climatisationWithoutExternalPower",
+    "zoneFrontLeftEnabled": "climatisationZoneFrontLeft",
+    "zoneFrontRightEnabled": "climatisationZoneFrontRight",
+    "zoneRearLeftEnabled": "climatisationZoneRearLeft",
+    "zoneRearRightEnabled": "climatisationZoneRearRight",
+}
+CLIMATE_START_OVERRIDES = {
+    "climatisation_at_unlock": "climatizationAtUnlock",
+    "glass_heating": "windowHeatingEnabled",
+    "seat_fl": "zoneFrontLeftEnabled",
+    "seat_fr": "zoneFrontRightEnabled",
+    "seat_rl": "zoneRearLeftEnabled",
+    "seat_rr": "zoneRearRightEnabled",
+}
+CLIMATE_VARIANT_ROUTES = {
+    "cariad.climate.start.vehicle_settings": "climate_start_settings",
+    "cariad.climate.settings": "climate_settings_update",
+}
+
+
+def climate_variant(operation, params):
+    """A bounded semantic combination, not a raw body or temperature value."""
+    mode = CLIMATE_VARIANT_ROUTES.get(operation)
+    if mode is None:
+        return None
+    schema = (
+        CLIMATE_INPUTS if mode == "climate_start_settings" else CLIMATE_SETTINGS_INPUTS
+    )
+    validate_inputs(params, schema)
+    # Temperature-only remains the existing independently reviewed route.
+    # The same unit-normalized setpoint contract applies throughout its range.
+    tokens = []
+    if TEMPERATURE.keys() & params.keys():
+        tokens.append("temperature")
+    for key, value in sorted(params.items()):
+        if key in TEMPERATURE:
+            continue
+        field = CLIMATE_START_OVERRIDES.get(key, key)
+        if field in CLIMATE_SETTING_FIELDS:
+            tokens.append(field + "=" + str(value).lower())
+        elif key == "climatisation_mode":
+            tokens.append("mode=" + value)
+        elif key in ("targetTemperature_C", "targetTemperature_F"):
+            # Keep old raw temperature compatibility, but do not conflate it
+            # with the semantic-temperature variant.
+            tokens.append(key)
+        else:
+            raise ValueError("Climate setting has no reviewed parameter contract")
+    if not tokens or tokens == ["temperature"]:
+        return None
+    return "|".join(sorted(tokens))
+
+
+def valid_climate_variant(operation, variant):
+    """Validate stored keys without accepting arbitrary user strings."""
+    if operation not in CLIMATE_VARIANT_ROUTES or not isinstance(variant, str):
+        return False
+    tokens = variant.split("|")
+    if len(variant) > 300 or tokens != sorted(set(tokens)):
+        return False
+    mode = CLIMATE_VARIANT_ROUTES[operation]
+    fields = (
+        set(CLIMATE_START_OVERRIDES.values())
+        if mode == "climate_start_settings"
+        else set(CLIMATE_SETTING_FIELDS)
+    )
+    allowed = {"temperature"} | {
+        field + "=" + value for field in fields for value in ("true", "false")
+    }
+    if mode == "climate_start_settings":
+        allowed |= {"mode=comfort", "mode=economy"}
+    else:
+        allowed |= {"targetTemperature_C", "targetTemperature_F"}
+    return (
+        set(tokens) <= allowed
+        and tokens != ["temperature"]
+        and len({token.split("=")[0] for token in tokens}) == len(tokens)
+    )
+
+
+def native_climate_parameter_schema(operation, route, vehicle):
+    """Vehicle-specific discovery fields; a fresh GET still guards dispatch."""
+    schema = parameter_schema(operation, route)
+    mode = operation.get("request_mode")
+    if (
+        route
+        or operation.get("input_schema")
+        or mode
+        not in (
+            "climate_start_settings",
+            "climate_settings_update",
+        )
+    ):
+        return schema
+    from .attribute_runtime import select_reading
+
+    def reported(field):
+        ident = CLIMATE_SETTING_FIELDS[field]
+        _, row = select_reading(vehicle, (ident,), ident, families=("cariad",))
+        return (
+            row is not None
+            and row.get("status") != "invalid_value"
+            and type(row.get("value")) is bool
+            and row.get("path") == "climatisation.climatisationSettings.value." + field
+        )
+
+    result = {key: schema[key] for key in TEMPERATURE}
+    for key in schema:
+        field = CLIMATE_START_OVERRIDES.get(key, key)
+        if field in CLIMATE_SETTING_FIELDS and reported(field):
+            result[key] = schema[key]
+    # Only observed native modes are candidates; no guessed economy support.
+    if mode == "climate_start_settings":
+        _, row = select_reading(
+            vehicle, ("climatisationMode",), "climatisationMode", families=("cariad",)
+        )
+        if (
+            row is not None
+            and row.get("status") != "invalid_value"
+            and row.get("value") in ("comfort", "economy")
+            and row.get("path")
+            == "climatisation.climatisationSettings.value.climatisationMode"
+        ):
+            result["climatisation_mode"] = {
+                **schema["climatisation_mode"],
+                "enum": [row["value"]],
+            }
+    return result
+
+
+def validate_parameter(value, schema):
+    kind = schema["type"]
+    valid = (
+        (kind == "integer" and type(value) is int)
+        or (kind == "number" and type(value) in (int, float) and math.isfinite(value))
+        or (kind == "string" and isinstance(value, str))
+        or (kind == "boolean" and type(value) is bool)
+    )
+    if not valid:
+        raise ValueError("Invalid typed command parameter")
+    if "enum" in schema and value not in schema["enum"]:
+        raise ValueError("Command parameter is outside its approved enum")
+    if ("minimum" in schema and value < schema["minimum"]) or (
+        "maximum" in schema and value > schema["maximum"]
+    ):
+        raise ValueError("Command parameter is outside its approved range")
+    if "step" in schema and (value - schema.get("minimum", 0)) % schema["step"]:
+        raise ValueError("Command parameter is outside its approved step")
+    return value
+
+
+def validate_inputs(params, schema):
+    """Validate only supplied, declared parameters; never discard extra inputs."""
+    if set(params) - set(schema):
+        raise ValueError("Unknown command parameter")
+    if {"temp_c", "temp_f"} <= params.keys():
+        raise ValueError("Supply only one temperature unit")
+    if (
+        TEMPERATURE.keys() & params.keys()
+        and {
+            "targetTemperature",
+            "targetTemperature_C",
+            "targetTemperature_F",
+            "targetTemperatureUnit",
+        }
+        & params.keys()
+    ):
+        raise ValueError("Supply one semantic temperature, not raw settings")
+    for name, contract in schema.items():
+        if name in params:
+            validate_parameter(params[name], contract)
+        elif contract.get("required"):
+            raise ValueError("Missing required command parameter")
+
+
+def temperature_celsius(params, default):
+    value = params.get("temp_c")
+    if params.get("temp_f") is not None:
+        if value is not None:
+            raise ValueError("Supply only one temperature unit")
+        from .api_value_mappings import normalize_api_value
+
+        value = normalize_api_value(
+            validate_parameter(params["temp_f"], TEMPERATURE["temp_f"]),
+            {"unit_class": "temperature", "from": "°F", "to": "°C"},
+        )
+    if value is None:
+        value = default
+    return validate_parameter(value, TEMPERATURE["temp_c"])
+
+
+def parameter_schema(operation, route, *, discovery_parameters=None):
+    """One input contract; discovery selects reviewed, required inputs."""
+    if discovery_parameters is not None:
+        schema = parameter_schema(operation, route)
+        return {
+            name: {**schema[name], "required": True} for name in discovery_parameters
+        }
+    if operation.get("input_schema"):
+        return operation["input_schema"]
+    variables = operation.get("request_variables", {})
+    if variables:
+        bindings = route.get("parameter_bindings", {})
+        if bindings:
+            cap, action = route["capability"], route["aspect"]
+            schema = _BINDABLE[(cap, action)]
+            return {
+                name: {
+                    "type": variables[var],
+                    "minimum": schema[name]["minimum"],
+                    "maximum": schema[name]["maximum"],
+                    "required": True,
+                }
+                for var, name in bindings.items()
+            }
+        return {
+            name: {"type": kind, "required": True} for name, kind in variables.items()
+        }
+    return {
+        "charging_settings_update": {"value": SOC},
+        "charging_profile_update": {"value": SOC, "profile_id": {"type": "integer"}},
+        "charging_profile_current_update": {
+            "value": PROFILE_CURRENT,
+            "profile_id": {"type": "integer"},
+        },
+        "auxiliary_start": {"duration": DURATION},
+        "climate_start_settings": CLIMATE_INPUTS,
+        "mbb_climate_start": LEGACY_CLIMATE_INPUTS,
+        "climate_settings_update": CLIMATE_SETTINGS_INPUTS,
+    }.get(operation.get("request_mode"), {})
+
+
+def validate_bindings(capability, aspect, variables, bindings):
+    if not isinstance(bindings, dict) or set(bindings) != set(variables):
+        raise ValueError("Runtime parameter bindings must cover every variable")
+    schema = _BINDABLE.get((capability, aspect), {})
+    if not bindings or len(bindings) != len(set(bindings.values())):
+        raise ValueError("Invalid runtime parameter binding")
+    if len(bindings) != 1:
+        raise ValueError("Choose exactly one canonical temperature input")
+    for variable, semantic in bindings.items():
+        if semantic not in schema or variables[variable] not in ("integer", "number"):
+            raise ValueError("Unapproved semantic parameter binding")
+    return dict(bindings)
+
+
+def map_parameters(route, supplied):
+    bindings = route.get("parameter_bindings", {})
+    if not bindings:
+        return supplied
+    schema = (
+        route.get("input_schema") or _BINDABLE[(route["capability"], route["aspect"])]
+    )
+    variables = route.get("request_variables", route.get("variables", {}))
+    supplied = supplied or {}
+    if set(supplied) != set(bindings.values()):
+        raise ValueError("Supply the exact declared semantic command parameters")
+    rendered = {}
+    for variable, semantic in bindings.items():
+        value = supplied[semantic]
+        validate_parameter(value, schema[semantic])
+        if variables[variable] == "integer":
+            if int(value) != value:
+                raise ValueError("Command parameter requires an integer")
+            value = int(value)
+        rendered[variable] = value
+    return rendered
+
+
+def runtime_ready(route):
+    return not route.get("variables") or bool(route.get("parameter_bindings"))

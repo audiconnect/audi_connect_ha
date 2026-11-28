@@ -74,6 +74,84 @@ class TestDiagnostics(unittest.TestCase):
             "http_rejected",
         )
 
+    def test_redirect_is_not_command_acceptance(self):
+        event = module.build_http_event(
+            "PUT", "https://example.test/vehicle/v1/vehicles/VIN/charging/profiles", 307
+        )
+        self.assertEqual(event["outcome"], "http_redirect")
+
+
+class TestVehicleTransport(unittest.IsolatedAsyncioTestCase):
+    async def test_vehicle_write_does_not_follow_redirect(self):
+        from unittest.mock import MagicMock
+
+        from aiohttp import ClientResponseError
+        from custom_components.audiconnect.audi_api import AudiAPI
+
+        session = MagicMock()
+        response = session.request.return_value.__aenter__.return_value
+        response.status = 307
+        response.headers = {"Location": "https://example.test/other"}
+        response.reason = "Temporary Redirect"
+        response.history = ()
+        for path in (
+            "/vehicle/v1/vehicles/VIN/charging/profiles",
+            "/vehicle/v1/engine/VIN/stop",
+            "/fs-car/bs/rlu/v1/Audi/DE/vehicles/VIN/actions",
+        ):
+            session.request.reset_mock()
+            with self.assertRaises(ClientResponseError):
+                await AudiAPI(session).request(
+                    "PUT",
+                    "https://example.test" + path,
+                    data="{}",
+                    allow_redirects=True,
+                )
+            session.request.assert_called_once()
+            self.assertIs(session.request.call_args.kwargs["allow_redirects"], False)
+
+        session.request.reset_mock()
+        await AudiAPI(session).request(
+            "POST",
+            "https://group.identity.vwgroup.io/oauth/token",
+            data=None,
+            raw_reply=True,
+            allow_redirects=True,
+        )
+        self.assertIs(session.request.call_args.kwargs["allow_redirects"], True)
+        self.assertNotIn("middlewares", session.request.call_args.kwargs)
+
+    async def test_actual_aiohttp_disconnect_never_replays_vehicle_write(self):
+        from aiohttp import ClientSession, web
+        from custom_components.audiconnect.audi_api import AudiAPI
+
+        calls = []
+
+        async def disconnect(request):
+            calls.append(request.method)
+            await request.read()
+            request.transport.abort()
+            return web.Response()
+
+        app = web.Application()
+        app.router.add_route(
+            "*", "/vehicle/v1/vehicles/VIN/charging/profiles", disconnect
+        )
+        runner = web.AppRunner(app)
+        await runner.setup()
+        try:
+            site = web.TCPSite(runner, "127.0.0.1", 0)
+            await site.start()
+            port = runner.addresses[0][1]
+            url = f"http://127.0.0.1:{port}/vehicle/v1/vehicles/VIN/charging/profiles"
+            async with ClientSession() as session:
+                for method in ("PUT", "POST"):
+                    with self.assertRaisesRegex(RuntimeError, "outcome uncertain"):
+                        await AudiAPI(session).request(method, url, data="{}")
+            self.assertEqual(calls, ["PUT", "POST"])
+        finally:
+            await runner.cleanup()
+
 
 if __name__ == "__main__":
     unittest.main()
