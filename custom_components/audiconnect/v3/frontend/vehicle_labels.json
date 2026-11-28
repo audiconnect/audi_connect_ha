@@ -672,5 +672,24 @@
     "Sommige planningsgegevens konden niet worden geïnterpreteerd.",
     "Certains détails de planification n’ont pas pu être interprétés.",
     "Einige Zeitplandetails konnten nicht interpretiert werden."
-  ]
+  ],
+  "Last request": ["Laatste verzoek", "Dernière demande", "Letzte Anfrage"],
+  "Request accepted · vehicle result unconfirmed": [
+    "Verzoek geaccepteerd · voertuigresultaat onbevestigd",
+    "Demande acceptée · résultat véhicule non confirmé",
+    "Anfrage angenommen · Fahrzeugergebnis unbestätigt"
+  ],
+  "Request recorded as pending": [
+    "Verzoek geregistreerd als in behandeling",
+    "Demande enregistrée comme en attente",
+    "Anfrage als ausstehend erfasst"
+  ],
+  "Central locking": [
+    "Centrale vergrendeling",
+    "Verrouillage central",
+    "Zentralverriegelung"
+  ],
+  "Inspection": ["Inspectie", "Inspection", "Inspektion"],
+  "Oil change": ["Olieverversing", "Vidange", "Ölwechsel"],
+  "Powertrain": ["Aandrijflijn", "Motorisation", "Antrieb"]
 }

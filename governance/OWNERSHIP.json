@@ -90,6 +90,7 @@
         "product_entities.json",
         "vehicle_dashboard.py",
         "frontend/vehicle.js",
+        "frontend/presentation.css",
         "frontend/vehicle_labels.json"
       ],
       "responsibility": "native HA projection from Status and Command, local scheduling; no independent vehicle state cache; permission-scoped consumer vehicle presentation"

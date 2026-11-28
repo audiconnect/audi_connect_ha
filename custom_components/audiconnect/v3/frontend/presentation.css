@@ -1,0 +1,25 @@
+/* Shared presentation primitives. Domain layouts remain in their owning panels. */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+summary {
+  cursor: pointer;
+}
+
+small {
+  color: var(--secondary-text-color);
+}
