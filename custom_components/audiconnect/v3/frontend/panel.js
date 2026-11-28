@@ -69,6 +69,11 @@ const stateTone = (value) =>
 const pill = (value, label) =>
   `<span class="state ${stateTone(value)}">${escapeHTML(label || friendly(value))}</span>`;
 
+const PRESENTATION_URL =
+  typeof document !== "undefined" && document.currentScript?.src
+    ? new URL("presentation.css", document.currentScript.src).href
+    : "/audiconnect_v3/presentation.css";
+
 class AudiConnectV3Panel extends HTMLElement {
   constructor() {
     super();
@@ -538,7 +543,7 @@ class AudiConnectV3Panel extends HTMLElement {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     try {
-      return date.toLocaleString(undefined, {
+      return date.toLocaleString(this._hass?.language, {
         timeZone: this._hass?.config?.time_zone,
         year: "numeric",
         month: "2-digit",
@@ -2006,30 +2011,31 @@ class AudiConnectV3Panel extends HTMLElement {
         chosen?.result === "readable_but_stale");
     const bg = "var(--primary-background-color, #f8fafc)";
     const body = "var(--primary-text-color, #111827)";
-    this.shadowRoot.innerHTML = `
+    const html = `
       <style>
+        @import url("${PRESENTATION_URL}");
         :host {display:block; min-height:100%; background:${bg}; color:${body};
           font-family:var(--ha-font-family-body,Roboto,Noto,sans-serif);font-size:var(--ha-font-size-m,16px);line-height:var(--ha-line-height-normal,1.6);}
-        *{box-sizing:border-box}
-        main{max-width:1240px;margin:auto;padding:28px 24px 48px}
+         *{box-sizing:border-box}
+        main{max-width:1240px;margin:auto;padding:clamp(12px,3vw,32px)}
         .eyebrow{letter-spacing:.12em;text-transform:uppercase;font-weight:700;
           font-size:var(--ha-font-size-s,12px);color:var(--secondary-text-color,#64748b)}
         h1{font-size:var(--ha-font-size-2xl,24px);margin:8px 0 4px;font-weight:750}
         h2{font-size:var(--ha-font-size-xl,20px);margin:0 0 18px}
         p{line-height:1.5;color:var(--secondary-text-color,#64748b)}
         .top,.toolbar,.line{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
-        .toolbar{justify-content:flex-start;padding:22px 0}
-        .grid{display:grid;grid-template-columns:1fr 1.6fr;gap:18px}
-        .card{border-radius:13px;background:var(--card-background-color,white);
-          border:1px solid var(--divider-color,#e2e8f0);padding:22px;min-width:0}
-        .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+        .toolbar{justify-content:flex-start;padding:10px 0}.toolbar label{margin:0}.toolbar .tool{min-width:0;flex:1 1 200px}.filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}.filter-grid .toolbar{display:block}.filter-grid label{display:block;margin-bottom:6px}.context{margin:12px 0 18px}.context summary{cursor:pointer;font-weight:650;padding:10px 0}
+        .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:18px}
+        .card{border-radius:16px;background:var(--card-background-color,white);
+          border:1px solid var(--divider-color,#e2e8f0);padding:16px;min-width:0}
+        .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
         .stat{font-size:20px;font-weight:700;margin-top:8px;overflow-wrap:anywhere}
         label{font-size:var(--ha-font-size-m,14px);color:var(--secondary-text-color,#64748b);display:block;font-weight:700;margin-bottom:6px}
         select,textarea,input{width:100%;font:inherit;padding:10px 12px;border:1px solid
           var(--divider-color,#d1d5db);border-radius:8px;background:var(--card-background-color,white);
           color:inherit}
         textarea{font-family:var(--ha-font-family-code,monospace);font-size:var(--ha-font-size-m,14px);line-height:1.5;resize:vertical}
-        .tool{min-width:180px;flex:1;max-width:360px}
+        .tool{min-width:0;flex:1;max-width:360px}
         button{font:inherit;border:1px solid var(--divider-color,#cbd5e1);
           border-radius:8px;background:var(--card-background-color,white);
           color:inherit;padding:10px 15px;cursor:pointer;font-weight:650}
@@ -2037,39 +2043,36 @@ class AudiConnectV3Panel extends HTMLElement {
         button:disabled{opacity:.42;cursor:not-allowed}
         .badge{display:inline-block;font-size:var(--ha-font-size-s,12px);border:1px solid var(--divider-color,#cbd5e1);
           border-radius:20px;padding:4px 9px;font-weight:700}
-        .route{display:flex;justify-content:space-between;gap:12px;padding:11px 0;
+        .route{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 0;
           border-bottom:1px solid var(--divider-color,#e2e8f0);font-size:var(--ha-font-size-m,14px)}
         code{overflow-wrap:anywhere;font-family:var(--ha-font-family-code,monospace)}
         .summary{font-size:var(--ha-font-size-m,14px);margin-top:12px}
         .error{padding:12px;border:1px solid #d97706;border-radius:9px;margin:14px 0}
         .warn{border-left:3px solid #d97706;padding:12px;background:var(--secondary-background-color,#f8fafc)}
-        .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+        .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.top .actions{margin:0;align-items:center}.top a{color:inherit;text-decoration:none;border:1px solid var(--divider-color);border-radius:10px;padding:9px 13px}
         pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--secondary-background-color,#f8fafc);
           padding:14px;border-radius:9px;font-size:var(--ha-font-size-m,14px);max-height:340px;overflow:auto}
         .foot{font-size:var(--ha-font-size-m,14px);margin-top:25px}
-        .steps{display:flex;gap:8px;margin:12px 0 22px;flex-wrap:wrap}
-        .steps button{flex:1;min-width:145px;text-align:left}
-        .steps button.current{border-color:var(--primary-color,#2366a6);box-shadow:inset 0 -3px var(--primary-color,#2366a6)}
         .cap-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
         .cap-card{width:100%;padding:16px;text-align:left}
         .cap-card b{font-size:var(--ha-font-size-l,16px)}
         .cap-card .subline{line-height:1.45;margin-top:5px}
-        .state{display:inline-flex;align-items:center;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:650;background:var(--secondary-background-color,#eee);white-space:nowrap}
+        .state{display:inline-flex;align-items:center;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:650;background:var(--secondary-background-color,#eee);white-space:normal;overflow-wrap:anywhere}
         .state.good{color:var(--success-color,#237647)} .state.warn{color:var(--warning-color,#a36100)} .state.bad{color:var(--error-color,#c62828)}
         .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.metrics .card{padding:16px}.metrics .stat{font-size:26px}.metrics .summary{margin-top:4px}
-        .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.section-head h2{margin:0}.cap-card:hover{border-color:var(--primary-color)}
+        .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.section-head h2{margin:0}.cap-card:hover{border-color:var(--primary-color)}
         .cap-card .eyeline{justify-content:space-between}.cap-card .stat{font-size:22px}.cap-card .subline{font-size:13px}.cap-card b{font-size:16px}
         .function-tabs{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}.function-tabs button.current{border-color:var(--primary-color);color:var(--primary-color)}
         .compact{padding:14px 18px}.muted{color:var(--secondary-text-color)}.finding{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--divider-color)}
-        .steps{position:sticky;top:0;z-index:2;background:var(--primary-background-color);padding:8px 0}.steps button{text-align:center;min-width:100px}.steps button.current{background:var(--card-background-color);color:var(--primary-color)}
-        @media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.finding{align-items:flex-start}.steps{position:static}.steps button{min-width:40%}}
+        .steps{display:flex;gap:8px;overflow:auto;flex-wrap:nowrap;padding:0 0 14px;scrollbar-width:thin}.steps button{white-space:nowrap;flex:0 0 auto;text-align:center;min-width:0;border:0;border-radius:24px;background:transparent}.steps button.current{background:var(--primary-text-color);color:var(--primary-background-color);box-shadow:none}
+        @media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.finding{align-items:flex-start}}
         .eyeline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
         .callout{background:var(--secondary-background-color,#f8fafc);padding:15px;border-radius:9px}
         .attribute-row{display:flex;justify-content:space-between;align-items:center;gap:16px;
           border-top:1px solid var(--divider-color,#e2e8f0);padding:11px 0}
         .attribute-row button{text-align:center;flex:0 0 auto;overflow-wrap:anywhere}
         .helper{font-size:var(--ha-font-size-m,14px);margin:9px 0;color:var(--secondary-text-color,#64748b)}
-        .coverage-table{overflow-x:auto}.entity-link{font-size:12px;max-width:100%;overflow-wrap:anywhere;text-align:left;white-space:normal;padding:4px 7px;margin:2px;color:var(--primary-color)}
+        .coverage-table{overflow-x:auto;min-width:0;max-width:100%}.entity-link{font-size:12px;max-width:100%;overflow-wrap:anywhere;text-align:left;white-space:normal;padding:4px 7px;margin:2px;color:var(--primary-color)}
         table{width:100%;border-collapse:collapse;font-size:var(--ha-font-size-m,14px)}
         th{text-align:left;font-weight:700;color:var(--secondary-text-color,#64748b);
           padding:11px 10px;position:sticky;top:0;background:var(--card-background-color,white);
@@ -2078,25 +2081,24 @@ class AudiConnectV3Panel extends HTMLElement {
         .subline{font-size:var(--ha-font-size-m,14px);color:var(--secondary-text-color);margin-top:5px;line-height:1.5}
         .coverage-note{font-size:var(--ha-font-size-m,14px);margin:10px 0 0}
         .family-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0}
-        .family-toolbar select{width:auto;min-width:240px}
+        .family-toolbar select{width:auto;min-width:min(100%,240px);max-width:100%}
         .discovery-summary{padding:16px;border-radius:12px;background:var(--secondary-background-color,#f3f6f9);margin:14px 0 18px}
         .family-hint{color:var(--secondary-text-color);font-size:var(--ha-font-size-m,14px)}
-        button:focus-visible,select:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
-        .record{border-top:1px solid var(--divider-color);padding:12px 0}
+         .record{border-top:1px solid var(--divider-color);padding:12px 0}
         .record summary{cursor:pointer;font-weight:600}
         .definition-row{display:grid;grid-template-columns:minmax(100px,1fr) minmax(0,3fr);align-items:center;gap:8px;margin:6px 0}
         .definition-row label{margin:0}
         @media(max-width:600px){.definition-row{grid-template-columns:1fr}}
         .family-select{width:280px;max-width:100%}
         @media(max-width:780px){.attribute-row{align-items:stretch;flex-direction:column}.attribute-row button{width:100%}}
-        @media(max-width:780px){main{padding:18px 12px}.grid,.cards,.cap-grid{grid-template-columns:1fr}h1{font-size:21px}}
+        @media(max-width:780px){main{padding:18px 12px}.grid,.cards,.cap-grid{grid-template-columns:minmax(0,1fr)}h1{font-size:21px}.metrics .stat{font-size:21px}.metrics button{max-width:100%;overflow-wrap:anywhere}.line>label{min-width:0;max-width:100%}.finding{flex-wrap:wrap}}
       </style>
       <main>
         <div class="top">
           <div><div class="eyebrow">Audi Connect · V3</div>
             <h1>Audi Engineering Dashboard</h1>
             <p>Explore your Audi, validate functions and manage API mappings.</p></div>
-          <button data-action="refresh" ${this.loading ? "disabled" : ""}>↻ Refresh</button>
+          <div class="actions"><a href="/audiconnect-vehicles">Vehicle management</a><button data-action="refresh" ${this.loading ? "disabled" : ""}>↻ Refresh</button></div>
         </div>
         <div class="toolbar">
           <div class="tool"><label>Integration</label>
@@ -2120,6 +2122,15 @@ class AudiConnectV3Panel extends HTMLElement {
               ${families.map((source) => `<option value="${escapeHTML(source.id)}" ${family === source.id ? "selected" : ""}>${escapeHTML(source.label)}</option>`).join("")}
             </select></div>
         </div>
+        <nav class="steps" aria-label="Engineering workspace">
+          <button data-action="step-1" aria-current="${this.step === 1 ? "page" : "false"}" class="${this.step === 1 ? "current" : ""}">Overview</button>
+          <button data-action="step-2" aria-current="${this.step === 2 ? "page" : "false"}" class="${this.step === 2 ? "current" : ""}">Capabilities</button>
+          <button data-action="step-3" aria-current="${this.step === 3 ? "page" : "false"}" class="${this.step === 3 ? "current" : ""}">Configure & test</button>
+          <button data-action="step-4" aria-current="${this.step === 4 ? "page" : "false"}" class="${this.step === 4 ? "current" : ""}">API Log</button>
+          <button data-action="step-5" aria-current="${this.step === 5 ? "page" : "false"}" class="${this.step === 5 ? "current" : ""}">End-user validation</button>
+        </nav>
+        <details class="context card" ${this.step !== 1 || this.searchText || this.capabilityFilter || this.entityFilter ? "open" : ""}>
+          <summary>Search and filter engineering evidence</summary><div class="filter-grid">
         <div class="toolbar" style="padding-top:0"><label for="global-search">Search capabilities, entities and API fields</label><input id="global-search" type="search" value="${escapeHTML(this.searchText)}" placeholder="e.g. model, charging, media.longName"></div>
         <div class="toolbar"><label for="capability-filter">Capability</label><select id="capability-filter"><option value="">All capabilities</option>${[
           ...new Set(
@@ -2141,14 +2152,8 @@ class AudiConnectV3Panel extends HTMLElement {
           )
           .join("")}</select></div>
         <div class="toolbar"><label for="entity-filter">Home Assistant entity</label><select id="entity-filter"><option value="">All entities</option>${entityLinks.flatMap((link) => (link.entity_ids.length ? link.entity_ids : [link.contract_key]).map((id) => `<option value="${escapeHTML(id)}" ${this.entityFilter === id ? "selected" : ""}>${escapeHTML(id)}${link.entity_ids.length ? "" : " (not registered)"}</option>`)).join("")}</select>${selectedEntity ? `<p class="helper">${escapeHTML(selectedEntity.capabilities.map(domainName).join(" · ") || "No capability mapping declared")} · ${selectedEntity.operations.length} linked API operations</p>` : ""}</div>
+        </div></details>
         ${this.entityInspector(selectedEntity)}
-        <div class="steps">
-          <button data-action="step-1" class="${this.step === 1 ? "current" : ""}">Overview</button>
-          <button data-action="step-2" class="${this.step === 2 ? "current" : ""}">Capabilities</button>
-          <button data-action="step-3" class="${this.step === 3 ? "current" : ""}">Configure & test</button>
-          <button data-action="step-4" class="${this.step === 4 ? "current" : ""}">API Log</button>
-          <button data-action="step-5" class="${this.step === 5 ? "current" : ""}">End-user validation</button>
-        </div>
         ${this.error ? `<div class="error">${escapeHTML(this.error)}</div>` : ""}
         ${
           car && this.pending
@@ -2182,7 +2187,7 @@ class AudiConnectV3Panel extends HTMLElement {
           <section style="display:${this.step === 1 ? "block" : "none"}" data-view="overview">
             ${(this.capabilityStatus.end_user_candidates || []).length ? `<div class="card"><b>Verify your vehicle controls</b><p>Automatic discovery does not prove physical execution. Test all eligible functions or choose one; no test runs without your consent.</p><button data-action="step-5">Open vehicle discovery</button></div>` : ""}
             <div class="metrics">
-              <div class="card"><div class="eyebrow">Cloud connection</div><div class="stat">${item.poll_success ? "Connected" : "Unknown"}</div><div class="summary">${escapeHTML(item.poll_success ? new Date(item.poll_success).toLocaleString() : "No successful poll")}</div></div>
+              <div class="card"><div class="eyebrow">Cloud connection</div><div class="stat">${item.poll_success ? "Connected" : "Unknown"}</div><div class="summary">${escapeHTML(item.poll_success ? this.localTime(item.poll_success) : "No successful poll")}</div></div>
               <div class="card"><div class="eyebrow">Readable data</div><div class="stat">${family === "all" ? readable.length : (families.find((source) => source.id === family)?.normalized ?? 0)}</div><div class="summary">${family === "all" ? freshCount + " fresh · " + staleCount + " last known" : "Source observations · includes alternatives"}</div></div>
               <div class="card"><div class="eyebrow">Enabled controls</div><div class="stat">${enabledCount}</div><div class="summary">${verifiedCount} locally verified</div></div>
               <div class="card"><div class="eyebrow">Needs review</div><div class="stat">${nextActions.length}</div><div class="summary"><button data-action="step-4">View evidence</button></div></div>
@@ -2574,6 +2579,58 @@ class AudiConnectV3Panel extends HTMLElement {
           Detailed engineering responses are local, temporary and masked. Only restricted previews are persisted. V2 remains available for rollback.</p>`
         }
       </main>`;
+    this.updateView(html);
+  }
+
+  updateView(html) {
+    const root = this.shadowRoot;
+    if (html === this._renderedHTML) return;
+    const context = this.selected + ":" + this.vin + ":" + this.step;
+    const sameContext = context === this._renderContext;
+    const active = root.activeElement;
+    const key =
+      active && sameContext
+        ? [active.tagName, active.id, JSON.stringify(active.dataset)]
+        : null;
+    const selection =
+      active?.selectionStart == null
+        ? null
+        : [active.selectionStart, active.selectionEnd];
+    const filter = root.querySelector?.(".context");
+    const filterOpen = sameContext && filter ? filter.open : null;
+    const navScroll = root.querySelector?.("nav")?.scrollLeft || 0;
+    root.innerHTML = html;
+    this._renderedHTML = html;
+    this._renderContext = context;
+    const nav = root.querySelector?.("nav");
+    if (nav) nav.scrollLeft = navScroll;
+    const nextFilter = root.querySelector?.(".context");
+    if (nextFilter && filterOpen !== null) nextFilter.open = filterOpen;
+    if (key && (key[1] || key[2] !== "{}")) {
+      const next = [
+        ...(root.querySelectorAll?.("button,input,select,textarea,a") || []),
+      ].find(
+        (element) =>
+          element.tagName === key[0] &&
+          element.id === key[1] &&
+          JSON.stringify(element.dataset) === key[2] &&
+          !element.disabled,
+      );
+      if (next) {
+        next.focus({ preventScroll: true });
+        if (selection && next.setSelectionRange) {
+          try {
+            next.setSelectionRange(...selection);
+          } catch {
+            /* Native input types without text selection. */
+          }
+        }
+      }
+    } else if (active?.dataset?.action?.startsWith("step-")) {
+      nav
+        ?.querySelector('[aria-current="page"]')
+        ?.focus({ preventScroll: true });
+    }
   }
 }
 customElements.define("audiconnect-v3-panel", AudiConnectV3Panel);

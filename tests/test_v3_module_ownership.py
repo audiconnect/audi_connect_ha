@@ -15,7 +15,7 @@ def test_production_paths_have_exactly_one_owner():
     actual = {
         p.relative_to(V3).as_posix()
         for p in V3.rglob("*")
-        if p.is_file() and p.suffix in (".py", ".json", ".js")
+        if p.is_file() and p.suffix in (".py", ".json", ".js", ".css")
     }
     assert len(paths) == len(set(paths))
     assert set(paths) == actual

@@ -855,3 +855,90 @@ test("archive pagination back to first page uses applied period not pending edit
   assert.equal(calls[0].start_date, "2026-11-01");
   assert.equal(calls[0].end_date, "2026-12-01");
 });
+
+test("charging groups native profile and settings in the same domain without duplicate controls or requests", () => {
+  const { panel, calls } = fixture();
+  panel.current().entities.push(
+    {
+      key: "sensor.active_charging_profile_name",
+      entity_id: "sensor.profile",
+      name: "Active charging profile",
+      control: false,
+    },
+    {
+      key: "sensor.charging_current_limit_a",
+      entity_id: "sensor.current",
+      name: "Charging current",
+      control: false,
+    },
+  );
+  panel._hass.states["sensor.profile"] = {
+    state: "Home",
+    attributes: { vehicle_freshness: "stale_last_known" },
+  };
+  panel._hass.states["sensor.current"] = {
+    state: "unknown",
+    attributes: {},
+  };
+  panel.tab = "Charging";
+  panel.render();
+  const html = panel.shadowRoot.innerHTML;
+  assert.match(html, /class="charge-settings"/);
+  assert.match(html, /Active charging profile/);
+  assert.match(html, /Home/);
+  assert.match(html, /Last known/);
+  assert.match(html, /Charging current/);
+  assert.equal(
+    (html.match(/data-entity="number.audi" data-save/g) || []).length,
+    1,
+  );
+  assert.equal((html.match(/class="charge-settings"/g) || []).length, 1);
+  assert.equal(calls.length, 0);
+});
+
+test("domain presentation formats recorded consumption without changing raw data", () => {
+  const { panel } = fixture();
+  panel._hass.language = "en";
+  const trip = {
+    timestamp: "2026-11-27T10:00:00Z",
+    totalElectricConsumption: 4.469999999999995,
+  };
+  const html = panel.tripChart([trip]);
+  assert.match(html, /4.47 kWh/);
+  assert.doesNotMatch(html, /999999/);
+  assert.equal(trip.totalElectricConsumption, 4.469999999999995);
+});
+
+test("historical request is not presented as a currently awaiting operation", () => {
+  const { panel } = fixture();
+  panel._hass.states["number.audi"].attributes.command_status =
+    "accepted_unconfirmed";
+  panel._hass.states["number.audi"].attributes.command_requested_at =
+    "2026-11-19T18:00:00Z";
+  const html = panel.domainRows("Settings", [target], true);
+  assert.match(html, /Last request/);
+  assert.match(html, /vehicle result unconfirmed/);
+  assert.doesNotMatch(html, /awaiting vehicle/);
+  assert.equal((html.match(/data-save/g) || []).length, 1);
+});
+
+test("journey groups place inspection and oil change in their own maintenance context", () => {
+  const { panel, calls } = fixture();
+  for (const [key, id, name] of [
+    ["sensor.service_inspection_time", "sensor.inspection", "Inspection time"],
+    ["sensor.oil_change_distance", "sensor.oil", "Oil distance"],
+  ]) {
+    panel.current().entities.push({ key, entity_id: id, name, control: false });
+    panel._hass.states[id] = { state: "227", attributes: {} };
+  }
+  panel.tab = "Service & Health";
+  panel.render();
+  const html = panel.shadowRoot.innerHTML;
+  assert.match(html, /<h2>Inspection<\/h2>/);
+  assert.match(html, /<h2>Oil change<\/h2>/);
+  assert.equal(
+    (html.match(/data-entity="sensor.inspection"/g) || []).length,
+    1,
+  );
+  assert.equal(calls.length, 0);
+});

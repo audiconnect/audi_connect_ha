@@ -321,9 +321,119 @@ function browserJourney() {
   });
 }
 
-const browserScript = "(" + browserJourney.toString() + ")();";
+function workbenchJourney() {
+  const panel = document.querySelector("audiconnect-v3-panel");
+  const assert = (value, message) => {
+    if (!value) throw new Error(message);
+  };
+  async function verify() {
+    const calls = [];
+    panel._hass = { user: { is_admin: true }, language: "en" };
+    panel.api = async (name) => {
+      calls.push(name);
+      throw new Error("Unexpected navigation request: " + name);
+    };
+    panel.entries = [
+      {
+        entry_id: "entry",
+        poll_success: "2026-11-27T10:00:00Z",
+        vehicles: [{ vin: "TESTVIN", model: "Q8", api_family: "cariad" }],
+      },
+    ];
+    panel.selected = "entry";
+    panel.vin = "TESTVIN";
+    panel.capabilityStatus = {
+      counts: {},
+      rows: [
+        {
+          capability: "charging",
+          attribute: "stateOfCharge",
+          entity_key: "state_of_charge",
+          status: "readable_but_stale",
+          api_family: "cariad",
+          source: "v3_live_evidence",
+        },
+      ],
+      control_actions: [
+        {
+          capability: "charging",
+          action: "stop",
+          api_family: "cariad",
+          enabled: true,
+          physical_evidence: "not_verified",
+        },
+      ],
+    };
+    panel.render();
+    const root = panel.shadowRoot;
+    const overflow = () => {
+      const main = root.querySelector("main");
+      return main.scrollWidth <= main.clientWidth + 1;
+    };
+    assert(overflow(), "Workbench overview overflow");
+    assert(
+      root.textContent.includes("0 fresh · 1 last known"),
+      "Freshness is independent",
+    );
+    assert(
+      root.textContent.includes("0 locally verified"),
+      "Physical evidence is independent",
+    );
+    assert(
+      root.querySelector("a[href='/audiconnect-vehicles']"),
+      "Consumer navigation",
+    );
+    const filter = root.querySelector(".context");
+    assert(!filter.open, "Overview filters collapsed");
+    filter.open = true;
+    const search = root.querySelector("#global-search");
+    search.focus();
+    panel.capabilityStatus.counts = { observed_jobs: 1 };
+    panel.render();
+    assert(
+      root.querySelector(".context").open,
+      "Filter disclosure survives update",
+    );
+    assert(
+      root.activeElement?.id === "global-search",
+      "Filter focus survives update",
+    );
+    for (const step of [2, 3, 4, 5, 1]) {
+      const nav = root.querySelector("nav");
+      const next = nav.querySelector("button[data-action='step-" + step + "']");
+      next.focus();
+      next.click();
+      assert(panel.step === step, "Task navigation " + step);
+      assert(overflow(), "Workbench step " + step + " overflow");
+      assert(
+        root.querySelector("nav [aria-current='page']")?.dataset.action ===
+          "step-" + step,
+        "Current task indication",
+      );
+      assert(
+        root.activeElement?.dataset.action === "step-" + step,
+        "Navigation focus",
+      );
+    }
+    assert(calls.length === 0, "Navigation must not invoke OEM requests");
+    document.body.dataset.result = "PASS";
+  }
+  verify().catch((error) => {
+    document.body.dataset.result = "FAIL";
+    const out = document.createElement("pre");
+    out.textContent = error.stack;
+    document.body.append(out);
+  });
+}
 
-function fixture(width, theme) {
+const browserScript = "(" + browserJourney.toString() + ")();";
+const workbenchScript = "(" + workbenchJourney.toString() + ")();";
+const workbenchPanelScript = pathToFileURL(
+  path.resolve("custom_components/audiconnect/v3/frontend/panel.js"),
+).href;
+
+function fixture(width, theme, workspace) {
+  const workbench = workspace === "workbench";
   return (
     '<!doctype html><html><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -334,53 +444,57 @@ function fixture(width, theme) {
       ? "--primary-text-color:#13171b;--secondary-text-color:#4b5563;--primary-background-color:#f5f6f7;--secondary-background-color:#ffffff;--card-background-color:#ffffff;--divider-color:#d4d8de;--primary-color:#285b89;--text-primary-color:#ffffff;background:#f5f6f7"
       : "--primary-text-color:#f4f4f4;--secondary-text-color:#b9c2cc;--primary-background-color:#13171b;--secondary-background-color:#20262c;--card-background-color:#20262c;--divider-color:#3d4650;--primary-color:#729fcf;--text-primary-color:#10161c;background:#13171b") +
     "}</style></head>" +
-    '<body data-result="PENDING"><audiconnect-vehicle-panel></audiconnect-vehicle-panel>' +
+    '<body data-result="PENDING">' +
+    (workbench
+      ? "<audiconnect-v3-panel></audiconnect-v3-panel>"
+      : "<audiconnect-vehicle-panel></audiconnect-vehicle-panel>") +
     '<script src="' +
-    panelScript +
+    (workbench ? workbenchPanelScript : panelScript) +
     '"></script><script>' +
-    browserScript +
+    (workbench ? workbenchScript : browserScript) +
     "</script></body></html>"
   );
 }
 
-for (const width of [390, 768, 1280])
-  for (const theme of ["dark", "light"]) {
-    test(
-      "consumer panel in Chromium at " + width + "px (" + theme + ")",
-      () => {
-        const directory = fs.mkdtempSync(
-          path.join(os.tmpdir(), "audi-browser-"),
-        );
-        try {
-          const file = path.join(directory, "fixture.html");
-          fs.writeFileSync(file, fixture(width, theme));
-          const result = spawnSync(
-            process.env.AUDICONNECT_BROWSER || "google-chrome",
-            [
-              "--headless",
-              "--no-sandbox",
-              "--disable-dev-shm-usage",
-              "--disable-background-networking",
-              "--no-first-run",
-              "--window-size=" + width + ",900",
-              "--virtual-time-budget=3000",
-              "--dump-dom",
-              pathToFileURL(file).href,
-            ],
-            { encoding: "utf8", timeout: 30000 },
+for (const workspace of ["consumer", "workbench"])
+  for (const width of [390, 768, 1280])
+    for (const theme of ["dark", "light"]) {
+      test(
+        workspace + " panel in Chromium at " + width + "px (" + theme + ")",
+        () => {
+          const directory = fs.mkdtempSync(
+            path.join(os.tmpdir(), "audi-browser-"),
           );
-          assert.ifError(result.error);
-          assert.equal(result.status, 0, result.stderr);
-          const body = result.stdout.match(/<body[^>]*data-result="([^"]+)"/);
-          assert.equal(
-            body?.[1],
-            "PASS",
-            result.stdout.match(/<pre>[\s\S]*?<\/pre>/)?.[0] ||
-              "Browser result unavailable",
-          );
-        } finally {
-          fs.rmSync(directory, { recursive: true, force: true });
-        }
-      },
-    );
-  }
+          try {
+            const file = path.join(directory, "fixture.html");
+            fs.writeFileSync(file, fixture(width, theme, workspace));
+            const result = spawnSync(
+              process.env.AUDICONNECT_BROWSER || "google-chrome",
+              [
+                "--headless",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-background-networking",
+                "--no-first-run",
+                "--window-size=" + width + ",900",
+                "--virtual-time-budget=3000",
+                "--dump-dom",
+                pathToFileURL(file).href,
+              ],
+              { encoding: "utf8", timeout: 30000 },
+            );
+            assert.ifError(result.error);
+            assert.equal(result.status, 0, result.stderr);
+            const body = result.stdout.match(/<body[^>]*data-result="([^"]+)"/);
+            assert.equal(
+              body?.[1],
+              "PASS",
+              result.stdout.match(/<pre>[\s\S]*?<\/pre>/)?.[0] ||
+                "Browser result unavailable",
+            );
+          } finally {
+            fs.rmSync(directory, { recursive: true, force: true });
+          }
+        },
+      );
+    }
