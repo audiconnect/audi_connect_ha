@@ -190,6 +190,21 @@ def projection_reading(vehicle, attribute, *, registry=None, now=None):
     sources = list(declared) if canonical in declared else [canonical]
     if key == "range":
         sources.extend(("hybridRange", "measuredTotalRange"))
+        from .vehicle import powertrain_identity
+
+        # For an explicitly single-fuel combustion vehicle, a reported fuel
+        # range is also the total. Do not sum or substitute hybrid ranges.
+        if powertrain_identity(vehicle)["value"] == "combustion":
+            roles = [
+                slot
+                for slot in ("primary", "secondary")
+                if engine_role(vehicle, slot) == "fuel"
+            ]
+            if len(roles) == 1 and all(
+                engine_role(vehicle, slot) != "electric"
+                for slot in ("primary", "secondary")
+            ):
+                sources.extend(("measuredFuelRange", roles[0] + "EngineRange"))
     if key == "state_of_charge":
         sources.extend(electric_soc_sources(vehicle))
     if key in ("primary_engine_range", "secondary_engine_range"):
@@ -357,6 +372,8 @@ def entity_availability_reason(engine, uid, key, status, state_present):
             controls = [("access", "lock"), ("access", "unlock")]
         elif key == "select.charge_mode":
             controls = [("charging", "set_charge_mode")]
+        elif key == "select.location_charging_current":
+            controls = [("charging", "set_location_charge_current")]
         elif key == "number.target_state_of_charge":
             if car.readings.get("targetstateOfCharge", {}).get("value") is None:
                 return "target_soc_not_observed"

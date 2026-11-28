@@ -154,3 +154,59 @@ async def test_shared_mbb_climater_get_is_reused_for_selected_attribute():
     assert legacy.readings["climatisationState"]["value"] == "off"
     assert legacy.readings["climatisationState"]["family"] == "mbb"
     assert profile.attribute_evidence["climatisationState"]["source"] == "mbb.legacy"
+
+
+@pytest.mark.asyncio
+async def test_missing_legacy_route_is_deferred_after_profile_reload(monkeypatch):
+    from custom_components.audiconnect.v3.engine import V3Engine
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.profile_store import restore_profile
+    from custom_components.audiconnect.v3.legacy_read_mappings import read_routes
+
+    legacy = V3Vehicle(
+        vin="WAUZZZ4M0MD123456",
+        name="Audi",
+        model="Audi A4",
+        model_family="",
+        country="DE",
+        auth_family="legacy",
+    )
+    catalog = CapabilityRegistry.from_json_file(catalog_path())
+    calls = []
+    charger = read_routes()["charger"].format(
+        VIN=legacy.vin, COUNTRY=legacy.country, TYPE="Audi"
+    )
+
+    class FakeTransport:
+        request_count = 0
+        remaining_calls = 100
+
+        async def request(self, family, method, path, **kw):
+            calls.append(path)
+            return V3Response(404 if path == charger else 200, {}, datetime.now(UTC))
+
+    engine = V3Engine(
+        None,
+        SimpleNamespace(entry_id="test-audi", data={}, options={}),
+        catalog,
+        auth=SimpleNamespace(country="DE", uses_auth0=False),
+        transport=FakeTransport(),
+        storage=SimpleNamespace(),
+    )
+    clock = [1800000000.0]
+    monkeypatch.setattr(
+        "custom_components.audiconnect.v3.status_engine.time.time", lambda: clock[0]
+    )
+    profile = DevelopmentProfile(catalog, legacy.context)
+    await engine.status._poll_legacy(legacy, profile, {})
+    assert charger in calls
+    due = profile.native_read_retry_at["charger"]
+    restored = restore_profile(catalog, legacy.context, profile.snapshot())
+    calls.clear()
+    await engine.status._poll_legacy(legacy, restored, {})
+    assert charger not in calls
+    assert len(calls) == len(read_routes()) - 1
+    clock[0] = due
+    calls.clear()
+    await engine.status._poll_legacy(legacy, restored, {})
+    assert charger in calls

@@ -393,3 +393,35 @@ async def test_recovery_resets_only_unresolved_read_attempts():
     assert result["read_state"] == "discovering"
     assert profile.job_probe_attempts == {"charging": 3, "batterySupport": 1}
     coordinator.async_request_refresh.assert_awaited_once()
+
+
+def test_explicit_enrollment_refusal_is_scoped_bounded_and_persisted(monkeypatch):
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+    from custom_components.audiconnect.v3.read_discovery import (
+        enrollment_deferred,
+        observe_enrollment_refusal,
+    )
+    from custom_components.audiconnect.v3.transport import V3Response
+
+    profile = SimpleNamespace(native_read_retry_at={})
+    other = SimpleNamespace(native_read_retry_at={})
+    now = 1800000000.0
+    monkeypatch.setattr("time.time", lambda: now)
+    for status, data in (
+        (404, {}),
+        (404, {"error": {"code": 2105}}),
+        (404, {"error": {"code": 2104, "retry": True}}),
+        (500, {"error": {"code": 2104}}),
+    ):
+        assert not observe_enrollment_refusal(
+            profile, V3Response(status, data, datetime.now(UTC))
+        )
+    assert observe_enrollment_refusal(
+        profile,
+        V3Response(404, {"error": {"code": 2104, "retry": False}}, datetime.now(UTC)),
+    )
+    assert enrollment_deferred(profile, now)
+    assert not enrollment_deferred(other, now)
+    assert not enrollment_deferred(profile, now + 6 * 3600)
+    assert not enrollment_deferred(profile, now - 1)

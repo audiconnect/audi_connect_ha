@@ -340,7 +340,12 @@ def build_status_report(
                         attributes_for(profile),
                     )["evidence_operation"]
                     if selected
-                    else "v2.attribute." + attr["id"]
+                    else (
+                        "v3.attribute."
+                        if attr.get("source") == "v3_schema_reference"
+                        else "v2.attribute."
+                    )
+                    + attr["id"]
                 ),
                 "method": "GET" if known else "-",
                 "path": mapped_path,
@@ -349,6 +354,8 @@ def build_status_report(
                 if evidence
                 else "v3_derived_reference"
                 if attr.get("derived_job")
+                else "v3_schema_reference"
+                if attr.get("source") == "v3_schema_reference"
                 else "v2_attribute_reference",
                 "selected": selected is not None,
                 "saved_candidate": False,
@@ -461,7 +468,7 @@ def build_status_report(
         ),
         "total": len(rows),
         "v2_attribute_inventory": len(INVENTORY["attributes"]),
-        "v2_unique_attributes": len(CANONICAL_ATTRIBUTES),
+        "v2_unique_attributes": len(INVENTORY["attributes"]) - len(ALIAS_OF),
         "v2_alias_references": len(ALIAS_OF),
         "v2_control_inventory": len(INVENTORY["controls"]),
         "v3_verified_attributes": sum(

@@ -411,6 +411,37 @@ def record_standalone_read(profile, operation, status, payload=None):
             profile.standalone_discovery[operation] = status
 
 
+ENROLLMENT_BACKOFF_SECONDS = 6 * 3600
+
+
+def enrollment_deferred(profile, now=None):
+    """A scoped native read refusal, independent of optional Data Act delivery."""
+    import time
+
+    current = time.time() if now is None else now
+    deadline = getattr(profile, "native_read_retry_at", {}).get("cariad_enrollment", 0)
+    return current < deadline <= current + ENROLLMENT_BACKOFF_SECONDS
+
+
+def observe_enrollment_refusal(profile, response):
+    """Use the explicit Audi 2104 response, never infer removal from plain 404."""
+    import time
+
+    error = response.data.get("error") if isinstance(response.data, dict) else None
+    if (
+        response.status != 404
+        or not isinstance(error, dict)
+        or type(error.get("code")) is not int
+        or error["code"] != 2104
+        or error.get("retry") is True
+    ):
+        return False
+    profile.native_read_retry_at["cariad_enrollment"] = (
+        time.time() + ENROLLMENT_BACKOFF_SECONDS
+    )
+    return True
+
+
 def read_excluded(profile, operation):
     return operation in getattr(profile, "unsupported_reads", ())
 

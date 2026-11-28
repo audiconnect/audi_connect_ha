@@ -7,8 +7,14 @@ from collections import deque
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
-from aiohttp import ClientResponseError, ClientSession
+from aiohttp import (
+    ClientOSError,
+    ClientResponseError,
+    ClientSession,
+    ServerDisconnectedError,
+)
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
 import builtins
 
@@ -24,6 +30,20 @@ DEBUG_VERBOSE = False
 
 TIMEOUT = 30
 _LOGGER = logging.getLogger(__name__)
+
+
+async def single_vehicle_attempt(request, handler):
+    """Do not let aiohttp replay a vehicle write on a dropped connection.
+
+    Its automatic persistent-connection retry includes PUT/DELETE. Translate
+    the retryable network exceptions before they reach that retry loop. No
+    shared session setting is changed; all writes already disable redirects,
+    so the HA redirect-only middleware is unnecessary for these requests.
+    """
+    try:
+        return await handler(request)
+    except (ClientOSError, ServerDisconnectedError):
+        raise RuntimeError("Audi vehicle request outcome uncertain") from None
 
 
 class AudiAPI:
@@ -70,6 +90,15 @@ class AudiAPI:
             _LOGGER.debug("Headers: %s", headers)
             _LOGGER.debug("Kwargs: %s", kwargs)
             _LOGGER.debug("Proxy: %s", self.__proxy)
+
+        # A vehicle mutation must not be replayed by HTTP redirects. Leave
+        # authentication redirects and read-only regional discovery unchanged.
+        path = urlsplit(url).path.lower()
+        if method.upper() in ("POST", "PUT", "PATCH", "DELETE") and (
+            "/vehicles/" in path or path.startswith("/vehicle/v1/engine/")
+        ):
+            kwargs["allow_redirects"] = False
+            kwargs["middlewares"] = (single_vehicle_attempt,)
 
         try:
             async with asyncio.timeout(TIMEOUT):

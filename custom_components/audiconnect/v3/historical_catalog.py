@@ -1638,13 +1638,51 @@ INVENTORY: dict[str, Any] = json.loads(r"""{
       "path": null
     }
   ],
+  "extensions": [
+    {
+      "id": "safelockActive",
+      "capability": "access",
+      "job": "access",
+      "entity_key": "safelock_active",
+      "platform": "binary_sensor",
+      "paths": [
+        "access.accessStatus.value.safelockActive"
+      ],
+      "source": "v3_schema_reference",
+      "sensitivity": "vehicle_state",
+      "type": "boolean",
+      "contract": {
+        "icon": "mdi:lock-check",
+        "display_last_known": false
+      }
+    },
+    {
+      "id": "chargePowerLimitationReason",
+      "capability": "charging",
+      "job": "charging",
+      "entity_key": "charge_power_limitation_reason",
+      "platform": "sensor",
+      "paths": [
+        "charging.batteryStatus.value.chargePowerLimitationReason"
+      ],
+      "source": "v3_schema_reference",
+      "sensitivity": "vehicle_state",
+      "type": "token",
+      "contract": {
+        "icon": "mdi:flash-alert-outline",
+        "display_last_known": false
+      }
+    }
+  ],
   "api_families": [
     "cariad",
     "mbb"
   ]
 }""")
 V2_JOBS = tuple(row["id"] for row in INVENTORY["jobs"])
-ATTRIBUTES = {row["id"]: row for row in INVENTORY["attributes"]}
+ATTRIBUTES = {
+    row["id"]: row for row in (*INVENTORY["attributes"], *INVENTORY["extensions"])
+}
 CONTROLS = {row["id"]: row for row in INVENTORY["controls"]}
 # Preserve all raw historical references, but one Home Assistant unique ID
 # must never be counted twice in the user-facing capability inventory.
@@ -1680,11 +1718,11 @@ def capture_time(payload: Any, dotted_path: str) -> str | None:
 
 
 def extract_attributes(payload: Any) -> list[dict[str, Any]]:
-    """Extract only declared V2 mappings, preserving False/0 and source evidence."""
+    """Extract declared mappings, preserving False/0 and source evidence."""
     if not isinstance(payload, dict):
         return []
     results = []
-    for item in INVENTORY["attributes"]:
+    for item in ATTRIBUTES.values():
         value, path = extract_first(payload, item["paths"])
         if path is not None:
             results.append(

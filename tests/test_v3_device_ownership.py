@@ -129,3 +129,34 @@ def test_last_loaded_entry_unregisters_all_services_even_with_inactive_entries()
     assert {call.args[1] for call in services.async_remove.call_args_list} == set(
         audiconnect.SERVICE_SCHEMAS
     )
+
+
+def test_native_single_entry_ownership_never_uses_deprecated_property(monkeypatch):
+    class NativeDevice:
+        identifiers = {("audiconnect", VIN)}
+        config_entry_id = "owner"
+
+        @property
+        def config_entries(self):
+            raise AssertionError("Deprecated ownership property accessed")
+
+    device = NativeDevice()
+    owner = entry("owner")
+    monkeypatch.setattr(
+        audiconnect.dr,
+        "async_get",
+        lambda hass: SimpleNamespace(async_get=lambda ident: device),
+    )
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_entries=lambda domain: [entry("other"), owner]
+        )
+    )
+    service = SimpleNamespace(data={"device_id": "device"})
+    assert audiconnect._resolve_service_call(hass, service) == (
+        VIN,
+        owner.runtime_data.account,
+    )
+    device.config_entry_id = None
+    with pytest.raises(HomeAssistantError, match="owning account"):
+        audiconnect._resolve_service_call(hass, service)

@@ -39,6 +39,41 @@ def test_archive_merge_preserves_fields_and_does_not_store_ids_or_raw_payload():
     assert merge_history(merged, merged) == merged
 
 
+def test_full_archive_export_uses_existing_projection_without_pagination_loss():
+    from datetime import UTC, datetime, timedelta
+
+    import pytest
+
+    from custom_components.audiconnect.v3.trip_archive import trip_history_payload
+
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    rows = normalize_cariad_history(
+        {
+            "data": [
+                _row(
+                    (start + timedelta(minutes=i)).isoformat(),
+                    totalElectricConsumption_kwh=0,
+                )
+                for i in range(300)
+            ]
+        }
+    )
+    # Even a malformed extra field must never enter a private export.
+    rows[0]["private_raw"] = "must not export"
+    page = trip_history_payload(rows)
+    assert page["total"] == 300
+    assert len(page["trips"]) == 100
+    result = trip_history_payload(rows, export=True)
+    assert result["total"] == len(result["trips"]) == 300
+    assert result["trips"][0]["totalElectricConsumption"] == 0
+    assert "private_raw" not in result["trips"][0]
+    assert "tripID" not in result["trips"][0]
+    assert result["coverage"] == "observed_records"
+    assert trip_history_payload([], export=True)["trips"] == []
+    with pytest.raises(ValueError, match="offset zero"):
+        trip_history_payload(rows, offset=1, export=True)
+
+
 def test_archive_roundtrip_restores_without_network_and_preserves_other_vehicles():
     async def scenario():
         car = V3Vehicle(VIN, "Audi", "Q8", "q8", "DE")
@@ -156,3 +191,43 @@ def test_scoped_trip_snapshots_survive_restart_and_never_replace_longterm_with_h
         assert restored.trips["last_trip"]["totalFuelConsumption"] == 0.5
 
     asyncio.run(scenario())
+
+
+def test_period_archive_filters_before_pagination_and_reports_missing_coverage():
+    import pytest
+    from custom_components.audiconnect.v3.trip_archive import trip_history_payload
+
+    rows = normalize_cariad_history(
+        {
+            "data": [
+                _row("2026-11-01T00:00:00Z", totalElectricConsumption_kwh=0),
+                _row("2026-11-02T00:00:00Z", totalFuelConsumption_L=2),
+                _row("2026-11-03T00:00:00Z", totalElectricConsumption_kwh=8),
+            ]
+        }
+    )
+    query = {"start_date": "2026-11-01", "end_date": "2026-11-03"}
+    page = trip_history_payload(rows, limit=1, **query)
+    assert page["total"] == 2
+    assert len(page["trips"]) == 1
+    assert page["metrics"]["totalElectricConsumption"] == {
+        "sum": 0,
+        "reported_count": 1,
+    }
+    assert page["metrics"]["totalFuelConsumption"] == {"sum": 2, "reported_count": 1}
+    assert page["metrics"]["traveltime"] == {"sum": None, "reported_count": 0}
+    exported = trip_history_payload(rows, export=True, **query)
+    assert len(exported["trips"]) == exported["total"] == 2
+    assert exported["metrics"] == page["metrics"]
+    assert (
+        trip_history_payload(rows, offset=1, limit=1, **query)["trips"] != page["trips"]
+    )
+    assert trip_history_payload(rows, start_date="2027-01-01")["total"] == 0
+    for start, end in [
+        ("2026-11-03", "2026-11-03"),
+        ("2026-11-04", "2026-11-03"),
+        ("2026-02-30", None),
+        ("not-a-date", None),
+    ]:
+        with pytest.raises(ValueError):
+            trip_history_payload(rows, start_date=start, end_date=end)

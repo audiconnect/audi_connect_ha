@@ -212,6 +212,32 @@ def _service(row):
     )
 
 
+def _tyre_warning(row):
+    """Positive evidence only: narrow reported warning type or EN/DE text."""
+    if not isinstance(row, dict):
+        return False
+    kind = row.get("type")
+    if isinstance(kind, str) and kind.casefold() in (
+        "tyre",
+        "tire",
+        "tyrepressure",
+        "tirepressure",
+        "tyre_pressure",
+        "tire_pressure",
+    ):
+        return True
+    # Audi can report a generic stoWarning with only localized text. Do not
+    # turn an unrecognized language, empty envelope or missing text into OK.
+    message = row.get("text") or row.get("message")
+    if not isinstance(message, str):
+        return False
+    words = re.findall(r"[^\W\d_]+", message[:300].casefold())
+    return any(
+        word in ("tyre", "tyres", "tire", "tires") or word.startswith("reifen")
+        for word in words
+    )
+
+
 def _warning(row):
     """Known Audi warning/campaign fields, no embedded SVG or personal IDs."""
     if not isinstance(row, dict):
@@ -396,6 +422,10 @@ def observe_structured(
                 if lights and lights["normalized_count"]
                 else "unknown",
                 "empty_envelope": not bool(warnings),
+                "tyre_warning_reported": True
+                if isinstance(warnings.get("warningLights"), list)
+                and any(_tyre_warning(row) for row in warnings["warningLights"][:50])
+                else None,
                 "warnings": lights,
                 "campaigns": campaigns,
                 "mileage_km": warnings["mileage_km"]

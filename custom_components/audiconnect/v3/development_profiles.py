@@ -378,6 +378,7 @@ class DevelopmentProfile:
         self.status_family_readings: dict[str, Any] = {}
         # Status-owner deadline; wall-clock checkpoint survives HA restart.
         self.trip_poll_due_at: float | None = None
+        self.native_read_retry_at: dict[str, float] = {}
         self.last_command: CommandRecord | None = None
         self.command_journal: list[CommandRecord] = []
         self.invalidated_attempt_sequence: int | None = None
@@ -684,6 +685,7 @@ class DevelopmentProfile:
             return
         previous = self.discovery.context
         self.trip_poll_due_at = None
+        self.native_read_retry_at.clear()
         if context.auth != previous.auth or context.region != previous.region:
             self.status_readings.clear()
             self.status_family_readings.clear()
@@ -999,6 +1001,7 @@ class DevelopmentProfile:
                 self.status_readings, family_readings=self.status_family_readings
             ),
             "trip_poll_due_at": self.trip_poll_due_at,
+            "native_read_retry_at": dict(self.native_read_retry_at),
             "identity_drafts": deepcopy(self.identity_drafts),
             "last_command": legacy_snapshot(self.last_command)
             if self.last_command

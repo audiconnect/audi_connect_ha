@@ -730,6 +730,12 @@ def normalize_attribute_value(definition, value, conversion):
         ):
             return value, None
         return None, "invalid_charge_mode_options"
+    if definition.get("type") == "boolean" and not definition.get("local"):
+        return (value, None) if type(value) is bool else (None, "invalid_boolean")
+    if definition.get("type") == "token":
+        if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value):
+            return value, None
+        return None, "invalid_token"
     if ident == "preferredChargeMode" and not isinstance(value, str):
         return None, "invalid_preferred_charge_mode"
     if (

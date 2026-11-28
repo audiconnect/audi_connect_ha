@@ -24,6 +24,29 @@ CHARGING_OFF_STATES = (
 )
 
 
+PROFILE_CURRENT_OPTIONS = ("max", "reduced")
+
+
+def unique_charging_profile(profiles, ident):
+    """Select exactly one native profile by typed ID, never by name or order."""
+    if type(ident) is not int or not isinstance(profiles, list):
+        return None
+    matches = [
+        row
+        for row in profiles
+        if isinstance(row, dict) and type(row.get("id")) is int and row["id"] == ident
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def active_profile_current(car):
+    profile = unique_charging_profile(
+        car.charging_profiles, car.active_charging_profile_id
+    )
+    value = (profile or {}).get("maxChargingCurrent")
+    return value if value in PROFILE_CURRENT_OPTIONS else None
+
+
 def charging_active(value):
     if not isinstance(value, str):
         return None

@@ -27,7 +27,11 @@ jobs:
       - name: Node Workbench syntax and interaction tests
         run: |
           node --check custom_components/audiconnect/v3/frontend/panel.js
-          node --test tests/test_v3_workbench_ui.mjs
+          node --check custom_components/audiconnect/v3/frontend/vehicle.js
+          node --test tests/test_v3_workbench_ui.mjs tests/test_v3_vehicle_ui.mjs
+
+      - name: Consumer panel browser interaction and responsive layout
+        run: node --test tests/test_v3_vehicle_browser.mjs
 
   lint:
     runs-on: ubuntu-latest

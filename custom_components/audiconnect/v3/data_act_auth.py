@@ -1,7 +1,7 @@
 """Optional Audi owner-portal sign-in; independent of native Audi auth.
 
 Protocol reference: mikrohard/hass-vw-eu-data-act (MIT), api.py and const.py.
-No consent submission, browser-cookie import, token exchange or native tokens.
+No consent grants, browser-cookie import, token exchange or native tokens.
 Only the official portal's registered Audi OIDC client and reviewed hosts.
 """
 
@@ -26,6 +26,8 @@ from .data_act import (
 IDENTITY = "https://identity.vwgroup.io"
 CLIENT_ID = "cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com"
 CALLBACK = "/services/callbacklogin"
+_MARKETING_PAGE = "/v2/login/ui/marketing-consent"
+_MARKETING_SKIP = _MARKETING_PAGE + "/skip"
 PORTAL_HOST = urlsplit(PORTAL).hostname
 LEGACY_PORTAL_HOST = "eu-data-act.drivesomethinggreater.com"
 
@@ -84,6 +86,25 @@ def _form(html, url, step):
     return target, fields
 
 
+def _marketing_skip(url):
+    """Recognize only the provider's optional Not now flow, never grant consent."""
+    parsed = urlsplit(url)
+    if (
+        _host(url) != "identity.vwgroup.io"
+        or parsed.path.rstrip("/") != _MARKETING_PAGE
+        or parsed.fragment
+    ):
+        return None
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    fields = {}
+    for key in ("relayState", "state"):
+        values = query.get(key, [])
+        if len(values) != 1 or not 0 < len(values[0]) <= 4096:
+            return None
+        fields[key] = values[0]
+    return fields
+
+
 class DataActPortalLogin:
     """Bounded standard owner login on its own cookie jar."""
 
@@ -97,14 +118,23 @@ class DataActPortalLogin:
         for _ in range(10):
             host = _host(url)
             parsed = urlsplit(url)
-            if method == "POST" and (
-                host != "identity.vwgroup.io"
-                or not parsed.path.startswith("/signin-service/")
-                or not parsed.path.endswith(
-                    ("/login/identifier", "/login/authenticate")
-                )
-            ):
-                raise DataActAuthorizationRequired("Unexpected credential destination")
+            marketing_skip = method == "POST" and url == IDENTITY + _MARKETING_SKIP
+            if method == "POST":
+                if marketing_skip:
+                    if not referer or data != _marketing_skip(referer):
+                        raise DataActAuthorizationRequired(
+                            "Unexpected marketing interaction"
+                        )
+                elif (
+                    host != "identity.vwgroup.io"
+                    or not parsed.path.startswith("/signin-service/")
+                    or not parsed.path.endswith(
+                        ("/login/identifier", "/login/authenticate")
+                    )
+                ):
+                    raise DataActAuthorizationRequired(
+                        "Unexpected credential destination"
+                    )
             if host != "identity.vwgroup.io" and parsed.path not in (
                 "/login",
                 CALLBACK,
@@ -115,12 +145,15 @@ class DataActPortalLogin:
                 and parse_qs(parsed.query).get("state") != [self.state]
             ):
                 raise DataActUnavailable("Invalid Data Act authorization state")
+            headers = {"Referer": referer} if referer else None
+            if marketing_skip:
+                headers = {**(headers or {}), "Origin": IDENTITY}
             quota.authorize(datetime.now(UTC))
             async with self.session.request(
                 method,
                 url,
                 data=data,
-                headers={"Referer": referer} if referer else None,
+                headers=headers,
                 allow_redirects=False,
             ) as response:
                 quota.observe(
@@ -170,6 +203,11 @@ class DataActPortalLogin:
                 target, fields = _form(html or "", url, "authenticate")
                 fields.update(email=self.email, password=self.password)
                 url, html = await self._request("POST", target, quota, fields, url)
+                skip = _marketing_skip(url)
+                if skip is not None:
+                    url, html = await self._request(
+                        "POST", IDENTITY + _MARKETING_SKIP, quota, skip, url
+                    )
                 if urlsplit(url).path != CALLBACK or html is not None:
                     raise DataActAuthorizationRequired(
                         "Data Act interactive authorization required"

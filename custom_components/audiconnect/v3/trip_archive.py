@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from datetime import UTC, date, datetime, time
+import math
 
 from .trips import MAX_TRIP_HISTORY, _timestamp, _number
 
@@ -157,6 +159,75 @@ def merge_snapshots(*groups):
             ):
                 result[key] = {**old, **{k: v for k, v in row.items() if v is not None}}
     return result
+
+
+def trip_history_payload(
+    rows, *, offset=0, limit=100, export=False, start_date=None, end_date=None
+):
+    """Read-only projection, optionally filtered by UTC dates before pagination."""
+    if export:
+        if offset:
+            raise ValueError("Full trip export must start at offset zero")
+        limit = MAX_TRIP_HISTORY
+    if start_date is not None or end_date is not None:
+        start = _date_boundary(start_date)
+        end = _date_boundary(end_date)
+        if start is not None and end is not None and start >= end:
+            raise ValueError("Trip start date must precede end date")
+        rows = [
+            row
+            for raw in rows[:MAX_TRIP_HISTORY]
+            if (row := clean_trip(raw)) is not None
+            and (start is None or _timestamp(row["timestamp"]) >= start)
+            and (end is None or _timestamp(row["timestamp"]) < end)
+        ]
+    else:
+        rows = [
+            row
+            for raw in rows[:MAX_TRIP_HISTORY]
+            if (row := clean_trip(raw)) is not None
+        ]
+    total = len(rows)
+    metrics = {}
+    for key in (
+        "mileage",
+        "totalElectricConsumption",
+        "totalFuelConsumption",
+        "traveltime",
+    ):
+        values = [row[key] for row in rows if row.get(key) is not None]
+        metrics[key] = {
+            "sum": math.fsum(values) if values else None,
+            "reported_count": len(values),
+        }
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "coverage": "observed_records",
+        "metrics": metrics,
+        "start_date": start_date,
+        "end_date": end_date,
+        "trips": [
+            {
+                key: value
+                for key, value in row.items()
+                if key != "tripID" and value is not None
+            }
+            for row in rows[offset : offset + limit]
+        ],
+    }
+
+
+def _date_boundary(value):
+    if value is None:
+        return None
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError("Expected YYYY-MM-DD")
+    day = date.fromisoformat(value)
+    if day.isoformat() != value:
+        raise ValueError("Expected YYYY-MM-DD")
+    return datetime.combine(day, time.min, tzinfo=UTC)
 
 
 class V3TripArchive:

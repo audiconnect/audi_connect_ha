@@ -321,3 +321,34 @@ def test_registered_conditionals_survive_reload_without_write_permission(monkeyp
     assert select.available
     assert select.options == ["manual"]
     assert select.current_option is None
+
+
+def test_known_plug_in_vehicles_offer_unknown_cable_state_without_oem_value():
+    from custom_components.audiconnect.v3 import ha_platforms
+
+    for powertrain, expected in (
+        ("electric", True),
+        ("phev", True),
+        ("combustion", False),
+        ("hybrid", False),
+        (None, False),
+    ):
+        vehicle = car()
+        vehicle.car_type = powertrain
+        ctx = coordinator()
+        ctx.engine.vehicles = {VIN.lower(): vehicle}
+        ctx.engine.profiles = {}
+        entry = SimpleNamespace(
+            entry_id="entry",
+            runtime_data=SimpleNamespace(v3=ctx.engine, coordinator=ctx),
+            async_on_unload=lambda _: None,
+        )
+        offered = []
+        ha_platforms.setup("binary_sensor", entry, offered.extend)
+        plugs = [
+            entity
+            for entity in offered
+            if entity.unique_id.endswith(("_plug_state", "_plug_lock_state"))
+        ]
+        assert len(plugs) == (2 if expected else 0)
+        assert all(entity.is_on is None and not entity.available for entity in plugs)

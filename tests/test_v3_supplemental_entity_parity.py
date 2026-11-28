@@ -387,3 +387,39 @@ def test_operational_entities_keep_metadata_findings_in_engineering():
     assert data_act.extra_state_attributes["next_poll_at"] is None
     assert data_act.extra_state_attributes["rate_limit_streak"] == 0
     assert co.engine.health.snapshot(co.engine, car)["active_finding_count"] == 1
+
+
+def test_generic_audi_tyre_warning_is_positive_evidence_not_health_claim():
+    from custom_components.audiconnect.v3.structured_details import observe_structured
+
+    car, co, now = context()
+    service = V3LocalServiceSensor(co, car, "service_overview")
+    for index, (warning, expected) in enumerate(
+        (
+            ({"type": "stoWarning", "text": "Loss of pressure: check all tyres"}, True),
+            ({"type": "stoWarning", "text": "Reifendruck prüfen"}, True),
+            ({"type": "tyrePressure"}, True),
+            ({"type": "stoWarning", "text": "Check entire Fahrstreifen"}, None),
+            ({"type": "stoWarning", "text": "Unknown warning"}, None),
+            (None, None),
+        )
+    ):
+        stamp = now + timedelta(seconds=index)
+        observe_structured(
+            car,
+            {
+                "vehicleHealthWarnings": {
+                    "warningLights": {
+                        "value": {
+                            "carCapturedTimestamp": stamp.isoformat(),
+                            "warningLights": [warning] if warning is not None else [],
+                        }
+                    }
+                }
+            },
+            stamp,
+            _accept_observation,
+        )
+        evidence = service.extra_state_attributes["health_warning_evidence"]
+        assert evidence["data"]["tyre_warning_reported"] is expected
+        assert evidence["vehicle_captured"] == stamp.isoformat()

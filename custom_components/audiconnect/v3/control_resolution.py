@@ -74,7 +74,12 @@ def control_decision(
     active = profile.discovery.active_attempt
     if active is not None and active.capability == capability:
         pending_reason = "engineering_command_awaiting_review"
-    restricted = capability == "remote" and aspect in ("engine_start", "engine_stop")
+    location_current = (
+        capability == "charging" and aspect == "set_location_charge_current"
+    )
+    restricted = location_current or (
+        capability == "remote" and aspect in ("engine_start", "engine_stop")
+    )
     allowed = (
         eligible_operation(car, auth, capability, aspect, profile=profile)
         if restricted
@@ -101,6 +106,10 @@ def control_decision(
         if ident not in available:
             return False
         op = profile.registry.operations[ident]
+        from .read_discovery import enrollment_deferred
+
+        if op["family"] == "cariad" and enrollment_deferred(profile):
+            return False
         group = approval_group(capability, aspect, op)
         if group not in ("non_spin", "spin"):
             return False
@@ -175,6 +184,16 @@ def control_decision(
         return decision("unknown")
     ident = eligible_operation(car, auth, capability, aspect, profile=profile)
     if ident and currently_safe(ident):
+        if location_current:
+            # This parameter write requires separate physical evidence; a
+            # verified target SOC operation is not authorization for current.
+            return decision(
+                "candidate_unverified",
+                ident
+                if for_discovery and discovery_operation in (None, ident)
+                else None,
+                "location_current_requires_verification",
+            )
         alternative = reviewed_alternative(capability, aspect, ident)
         if discovery_operation is not None:
             if (

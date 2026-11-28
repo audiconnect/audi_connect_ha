@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from collections.abc import Mapping
@@ -31,6 +31,7 @@ class RateLimit:
     max_recovery_delay: timedelta = timedelta(hours=2)
     clear_streak_on_success: bool = True
     rate_limit_streak: int = 0
+    _probe_reserved: bool = field(default=False, init=False, repr=False)
 
     def read_deferred(self, now: datetime) -> bool:
         return self.retry_at is not None and now < self.retry_at
@@ -41,6 +42,7 @@ class RateLimit:
         if self.retry_at is not None:
             # Reserve the next probe before I/O, including timeout/cancellation.
             self.retry_at = now + self.recovery_delay
+            self._probe_reserved = True
 
     def observe(
         self,
@@ -51,9 +53,12 @@ class RateLimit:
         accepted_empty=False,
         allow_redirect=False,
     ) -> None:
-        if 200 <= status < (400 if allow_redirect else 300) or (
-            accepted_empty and status == 404
-        ):
+        probe_reserved = self._probe_reserved
+        self._probe_reserved = False
+        if (
+            200 <= status < (400 if allow_redirect else 300)
+            or (accepted_empty and status == 404)
+        ) and (self.retry_at is None or probe_reserved):
             self.retry_at = None
             if self.clear_streak_on_success:
                 self.rate_limit_streak = 0
@@ -75,7 +80,9 @@ class RateLimit:
                             delay = max(now, parsed.astimezone(UTC))
                     except (ValueError, TypeError, OverflowError):
                         pass
-            # A new server deadline supersedes a speculative probe reservation.
+            # Replace a recovery probe reservation, not an actual longer restriction.
+            if not probe_reserved and self.retry_at is not None:
+                delay = max(delay, self.retry_at)
             self.retry_at = delay
 
     def rate_limit_checkpoint(self) -> dict:
@@ -98,6 +105,7 @@ class RateLimit:
         if type(streak) is int and 1 <= streak <= 8 and retry.tzinfo is not None:
             self.rate_limit_streak = streak
             self.retry_at = retry.astimezone(UTC)
+            self._probe_reserved = False
 
 
 NATIVE_FAMILIES = ("cariad", "graphql", "mbb")

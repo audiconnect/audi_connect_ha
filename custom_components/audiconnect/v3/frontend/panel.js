@@ -561,6 +561,10 @@ class AudiConnectV3Panel extends HTMLElement {
       return;
     }
     if (this.loading) return;
+    if (action === "download-trip-archive") {
+      await this.downloadTripArchive();
+      return;
+    }
     if (action === "discovery-mode") {
       this.expertDiscovery = button.dataset.mode === "expert";
       this.render();
@@ -1690,6 +1694,41 @@ class AudiConnectV3Panel extends HTMLElement {
     </details>`;
   }
 
+  async downloadTripArchive() {
+    if (!this.selected || !this.vin) return;
+    this.loading = true;
+    this.error = "";
+    this.render();
+    try {
+      const result = await this.api("trip_history", {
+        ...this.selection,
+        export: true,
+      });
+      const blob = new Blob([JSON.stringify(result, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "audi-trip-history.json";
+        document.body.appendChild(link);
+        try {
+          link.click();
+        } finally {
+          link.remove();
+        }
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (err) {
+      this.error = String(err.message || err);
+    } finally {
+      this.loading = false;
+      this.render();
+    }
+  }
+
   async copyEvidence(button) {
     const block = button.closest("[data-copy-evidence]");
     const kind = button.dataset.copy;
@@ -2187,6 +2226,7 @@ class AudiConnectV3Panel extends HTMLElement {
               }
               <p class="muted">Historical tests and mapping observations remain in API Log.</p>
             </section>
+            <section class="card compact" style="margin:18px 0"><div class="section-head"><h2>Trip archive</h2><button data-action="download-trip-archive" ${this.loading ? "disabled" : ""}>Download trip archive (JSON)</button></div><p>All locally observed completed trips, including private trip times and consumption. No new Audi request. Keep the file private.</p></section>
             <section class="card compact"><div class="section-head"><h2>Home Assistant</h2><button data-action="step-4">Details</button></div><div>${escapeHTML(projection.registered ?? "—")} registered · ${escapeHTML(projection.projected ?? "—")} projected <span class="muted">· account scope</span></div></section>
           </section>
           <section class="card" data-view="evidence" style="margin-bottom:18px;display:${this.step === 4 ? "block" : "none"}">

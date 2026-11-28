@@ -613,13 +613,10 @@ def observe_derived(
             car.charging_profiles = snapshot.get("profiles", [])
             car.charging_profiles_captured = selected.get("captured")
             car.active_charging_profile_id = snapshot.get("active_profile_id")
-            active = next(
-                (
-                    x
-                    for x in car.charging_profiles
-                    if x["id"] == car.active_charging_profile_id
-                ),
-                None,
+            from .vehicle import unique_charging_profile
+
+            active = unique_charging_profile(
+                car.charging_profiles, car.active_charging_profile_id
             )
             captured = car.charging_profiles_captured
             keys = {

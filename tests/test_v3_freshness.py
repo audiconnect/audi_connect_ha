@@ -309,3 +309,39 @@ def test_late_history_and_conflict_have_same_projection_for_all_permutations():
         assert current["value"] is None
         assert last_known_observation(current)["value"] == "charging"
         assert last_known_observation(current)["captured"] == middle
+
+
+def test_retained_value_keeps_its_own_source_and_capture():
+    from custom_components.audiconnect.v3.freshness import reading_freshness_attributes
+
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=2)).isoformat()
+    row = {
+        "value": None,
+        "status": "invalid_value",
+        "reason": "invalid_vehicle_value",
+        "family": "cariad",
+        "path": "new.path",
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "last_known": {
+            "value": 80,
+            "family": "cariad",
+            "path": "old.path",
+            "captured": old,
+            "status": "verified",
+            "operation": "old_operation",
+        },
+    }
+    attrs = reading_freshness_attributes(row, allow_last_known=True, now=now)
+    assert attrs["displayed_last_known"] is True
+    assert attrs["response_mapping"] == "old.path"
+    assert attrs["api_family"] == "cariad"
+    assert attrs["source_operation"] == "old_operation"
+    assert attrs["vehicle_captured"] == old
+    assert attrs["cloud_observed"] is None
+    assert attrs["availability_reason"] == "invalid_vehicle_value"
+    current = reading_freshness_attributes(row, now=now)
+    assert current["displayed_last_known"] is False
+    assert current["response_mapping"] == "new.path"
+    assert reading_freshness_attributes({}, now=now)["api_family"] is None

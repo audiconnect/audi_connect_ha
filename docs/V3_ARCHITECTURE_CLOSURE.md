@@ -18,23 +18,24 @@ Preserve proven behavior as a first-class regression requirement. Each change mu
 | Extendability   | Add reviewed variants through existing catalog and contracts; no parallel resolver or UI. |
 | User experience | Ordinary use needs no Workbench, duplicate integration, API knowledge or entity rename.   |
 
-Use the existing PR review, not an additional workflow or a second governance catalog. Show before/after runtime impact, user-visible outcome and remaining live acceptance. Provider problems must be actionable without exposing credentials or making another channel unavailable. The Workbench remains optional and administrator-only.
+Use the existing PR review, not an additional workflow or a second governance catalog. Show before/after runtime impact, user-visible outcome and remaining live acceptance. Provider problems must be actionable without exposing credentials or making another channel unavailable. The Workbench remains optional and administrator-only. The Audi Connect Vehicle Dashboard is a separate normal-user presentation of existing HA entities, native services, configuration and scoped archive. It must never require Workbench opt-in or weaken its server-side permissions.
 
 ### Authoritative responsibilities
 
-| Owner           | Responsibility                                                                 |
-| --------------- | ------------------------------------------------------------------------------ |
-| Shared HA entry | Account/device association, config and runtime selection                       |
-| API             | Authentication, transport, family protocols and quota                          |
-| Catalog         | Canonical capabilities, operations, attributes and reviewed discovery metadata |
-| Status          | Read discovery, polling, normalization and freshness                           |
-| Vehicle         | Canonical vehicle identity and observations                                    |
-| Command         | Eligibility, execution, durable journal, verification                          |
-| Profiles        | Bindings and persistent evidence                                               |
-| HA              | Stable native entities, services and registry lifecycle                        |
-| Workbench       | Optional administrator analysis, configuration and test UX                     |
-| Diagnostics     | Read-only reporting and redaction                                              |
-| Engine          | Composition and lifecycle orchestration                                        |
+| Owner             | Responsibility                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Shared HA entry   | Account/device association, config and runtime selection                                                          |
+| API               | Authentication, transport, family protocols and quota                                                             |
+| Catalog           | Canonical capabilities, operations, attributes and reviewed discovery metadata                                    |
+| Status            | Read discovery, polling, normalization and freshness                                                              |
+| Vehicle           | Canonical vehicle identity and observations                                                                       |
+| Command           | Eligibility, execution, durable journal, verification                                                             |
+| Profiles          | Bindings and persistent evidence                                                                                  |
+| HA                | Stable native entities, services and registry lifecycle                                                           |
+| Workbench         | Optional administrator analysis, configuration and test UX                                                        |
+| Vehicle Dashboard | Permission-scoped HA user presentation; native entities and configuration, no independent state or control policy |
+| Diagnostics       | Read-only reporting and redaction                                                                                 |
+| Engine            | Composition and lifecycle orchestration                                                                           |
 
 Read: API → status → vehicle → HA. Write: HA owning device → active runtime → command → API → shared status writer → vehicle/HA and verified native readback. Engineering: discover → configure → isolated test → explicit activation. A command must never be routed to an unrelated account by VIN. Ambiguous ownership fails closed.
 
@@ -60,7 +61,7 @@ The existing Status parking owner may resolve one approximate address from an al
 
 ### Family polling ownership
 
-Keep the existing HA coordinator and Status owner. Family cadence and source priority are independent. Native API accounting separates last server-reported VCF allowance, local requests by family and read/command class, and actual server restrictions. The remote scope is unknown; do not invent independent or additive OEM budgets. Ordinary reads do not debit or block on a presumed remaining allowance. A fresh same-family header may inform a conservative local preparation estimate for command sequences; its local validity window is not an OEM refill period. A server restriction defers reads for the affected family and prevents dispatch during the deadline. Only success in the matching family and request class can clear its streak; explicit new commands may recover after the deadline, never automatic replay.
+Keep the existing HA coordinator and Status owner. Family cadence and source priority are independent. Native API accounting separates last server-reported VCF allowance, local requests by family and read/command class, and actual server restrictions. The remote scope is unknown; do not invent independent or additive OEM budgets. Ordinary reads do not debit or block on a presumed remaining allowance. A fresh same-family header may inform a conservative local preparation estimate for command sequences; its local validity window is not an OEM refill period. A server restriction defers reads for the affected family and prevents dispatch during the deadline. A repeated rate-limit response cannot shorten a still-active actual restriction; an authorized recovery probe's local reservation may be replaced by its own server deadline. No additional request or persisted quota state is needed. Only success in the matching family and request class can clear its streak; explicit new commands may recover after the deadline, never automatic replay.
 
 Native and separately authorized Data Act sessions reuse the shared rate-limit mechanism with independent checkpoints in the existing private entry store. Restore restrictions, not a numeric current allowance. No extra coordinator, consent creation or implicit auth downgrade. Data Act maintains its independent delivery cadence and backoff; optional failure must not invalidate native success.
 

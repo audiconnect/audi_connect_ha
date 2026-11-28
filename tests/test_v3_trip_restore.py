@@ -377,3 +377,73 @@ def test_trip_failed_cycle_retries_even_with_cached_scopes(monkeypatch):
     engine.profiles[VIN.lower()] = restored
     asyncio.run(StatusEngine._poll_trips(engine, car))
     assert transport.request.await_count == 5
+
+
+def test_q5_2025_reported_trip_windows_and_native_metrics():
+    """Public Q5 evidence: VAG issue #2136, Nov 17 actual app API values."""
+    from custom_components.audiconnect.v3.product_contract import trip_metric_value
+    from custom_components.audiconnect.v3.trips import observe_cariad_trip
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle(VIN, "Audi", "Q5", "q5", "LV")
+    for scope, distance, start, minutes, fuel, electric, total_fuel, total_electric in (
+        ("shortTerm", 28, 5196, 49, 3.2, 20.7, 0.8959999999999999, 5.796),
+        ("longTerm", 5204, 20, 8756, 2.5, 18.2, 130.1, 947.128),
+    ):
+        payload = {
+            "data": {
+                "tripEndTimestamp": "2026-11-17T16:36:20Z",
+                "tripType": scope,
+                "vehicleType": "hybrid",
+                "mileage_km": distance,
+                "startMileage_km": start,
+                "overallMileage_km": 5224,
+                "travelTime": minutes,
+                "averageSpeed_kmph": 35,
+                "averageFuelConsumption": fuel,
+                "averageElectricConsumption": electric,
+                "totalElectricConsumption_kwh": total_electric,
+                "totalFuelConsumption_L": total_fuel,
+            }
+        }
+        assert observe_cariad_trip(car, "cariad.mobility.status." + scope, payload)
+        key = scope.lower()
+        assert trip_metric_value(car, key + "_trip_distance") == distance
+        assert trip_metric_value(car, key + "_trip_average_fuel_consumption") == fuel
+        assert (
+            trip_metric_value(car, key + "_trip_average_electric_consumption")
+            == electric
+        )
+        assert trip_metric_value(car, key + "_trip_fuel_consumption") == total_fuel
+        assert (
+            trip_metric_value(car, key + "_trip_electric_consumption") == total_electric
+        )
+    assert len(car.trip_history) == 1
+    assert car.trips["longterm_current"]["overallMileage"] == 5224
+
+
+def test_app_route_average_without_total_and_foreign_units():
+    from custom_components.audiconnect.v3.trips import observe_cariad_trip
+    from custom_components.audiconnect.v3.vehicle import V3Vehicle
+
+    car = V3Vehicle(VIN, "Audi", "RS e-tron GT", "etron", "DE")
+    row = {
+        "tripEndTimestamp": "2026-11-18T10:00:00Z",
+        "mileage_km": 47,
+        "averageElectricConsumption": 21.5,
+        "averageFuelConsumption": 2.7,
+    }
+    assert normalize_cariad_trip(row)[0]["averageElectricEngineConsumption"] is None
+    assert observe_cariad_trip(car, "cariad.mobility.status.lastTrip", row)
+    assert car.trips["last_trip"]["averageElectricEngineConsumption"] == 21.5
+    assert car.trip_history[0]["averageElectricEngineConsumption"] == 21.5
+    assert car.trips["last_trip"]["totalElectricConsumption"] is None
+    row.update(
+        averageFuelConsumptionUnit="mpg",
+        averageElectricConsumptionUnit="mi_per_kWh",
+        totalFuelConsumption_l=1.269,
+    )
+    trip, _ = normalize_cariad_trip(row, final_units=True)
+    assert trip["averageFuelConsumption"] is None
+    assert trip["averageElectricEngineConsumption"] is None
+    assert trip["totalFuelConsumption"] == 1.269

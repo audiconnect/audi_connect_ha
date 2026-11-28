@@ -213,12 +213,18 @@ def eligible_operation(car, auth, capability, aspect, *, profile=None):
             if isinstance(row, dict)
         ):
             return None
+        elif aspect == "set_location_charge_current":
+            from .vehicle import active_profile_current
+
+            if active_profile_current(car) is None:
+                return None
         return {
             "start": "cariad.charging.start",
             "stop": "cariad.charging.stop",
             "set_target_soc": "cariad.charging.settings",
             "set_charge_mode": "cariad.charging.mode",
             "set_location_charge_target": "cariad.charging.profiles",
+            "set_location_charge_current": "cariad.charging.profiles.current",
         }.get(aspect)
     if capability == "remote":
         if aspect == "wake" and supports("vehicleWakeUp", "vehicleWakeUpTrigger"):

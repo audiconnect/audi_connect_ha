@@ -1609,5 +1609,47 @@ async def test_deferred_native_poll_preserves_actual_success_and_command_reserve
         read_only=True,
     )
     await engine.poll()
+    assert not transport.calls
+    assert engine.status.poll_attempt_count == count
+    # Exercise an actually expired restriction, not a stale shorter response.
+    checkpoint = transport.quota.rate_limit_checkpoint()
+    checkpoint["cariad:read"]["retry_at"] = (now - timedelta(seconds=1)).isoformat()
+    transport.quota = NativeQuota()
+    transport.quota.restore_rate_limit(checkpoint)
+    await engine.poll()
     assert len(transport.calls) == 1
     assert engine.status.poll_attempt_count == count + 1
+
+
+@pytest.mark.asyncio
+async def test_enrollment_refusal_defers_only_affected_vehicle_and_survives_reload():
+    from custom_components.audiconnect.v3.read_discovery import enrollment_deferred
+
+    refusal = V3Response(
+        404, {"error": {"code": 2104, "retry": False}}, datetime.now(UTC)
+    )
+    engine, transport, store = engine_for(refusal, status(), status())
+    await engine.poll()
+    profile = engine.profiles[VIN.lower()]
+    assert enrollment_deferred(profile)
+    assert transport.request_count == 1
+    assert engine.vehicles[VIN.lower()].inventory_present
+    assert enrollment_deferred(
+        restore_profile(engine.registry, profile.discovery.context, profile.snapshot())
+    )
+    second = "WAUZZZ4M0MD123457"
+    car = V3Vehicle(second, "Audi", "Audi Q8", "q8", "DE")
+    engine.vehicles[second.lower()] = car
+    engine.profiles[second.lower()] = DevelopmentProfile(engine.registry, car.context)
+    await engine.poll()
+    assert transport.request_count == 2
+    assert second in transport.calls[-1][2]
+    assert car.climate_state == "off"
+    assert not enrollment_deferred(engine.profiles[second.lower()])
+    profile.native_read_retry_at["cariad_enrollment"] = 1
+    # The original car is eligible for normal reads again, without re-enrollment
+    # inference or an extra polling task.
+    transport._responses.append(status())
+    await engine.poll()
+    assert transport.request_count == 4
+    assert engine.vehicles[VIN.lower()].climate_state == "off"

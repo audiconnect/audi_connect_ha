@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from aiohttp import ClientPayloadError
 
 from custom_components.audiconnect.v3.quota import NativeQuota, RateLimit
 from custom_components.audiconnect.v3.command_journal import CommandRecord
@@ -22,6 +23,24 @@ def test_server_recovery_is_bounded_and_honors_retry_after():
     limit.observe(200, {}, due)
     assert limit.retry_at is None
     assert limit.rate_limit_streak == 0
+
+
+def test_shorter_rate_limit_cannot_shorten_actual_restriction():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    limit = RateLimit()
+    limit.observe(429, {"Retry-After": "3600"}, now)
+    deadline = now + timedelta(hours=1)
+    limit.observe(429, {"Retry-After": "30"}, now + timedelta(seconds=1))
+    assert limit.retry_at == deadline
+    checkpoint = limit.rate_limit_checkpoint()
+    restored = RateLimit()
+    restored.restore_rate_limit(checkpoint)
+    with pytest.raises(RuntimeError):
+        restored.authorize(now + timedelta(minutes=30))
+    restored.authorize(deadline)
+    assert restored.retry_at == deadline + timedelta(minutes=15)
+    restored.observe(429, {"Retry-After": "60"}, deadline)
+    assert restored.retry_at == deadline + timedelta(minutes=1)
 
 
 def test_actual_command_throttle_does_not_allow_replay_before_deadline():
@@ -145,7 +164,10 @@ async def test_fast_discovery_enables_known_controls_without_mutating_requests()
 
 
 @pytest.mark.asyncio
-async def test_normal_command_persisted_before_dispatch_and_timeout_blocks_restart():
+@pytest.mark.parametrize("failure", [TimeoutError, ClientPayloadError])
+async def test_normal_command_persisted_before_dispatch_and_timeout_blocks_restart(
+    failure,
+):
     from pathlib import Path
     from types import SimpleNamespace as NS
     from custom_components.audiconnect.v3.engine import V3Engine
@@ -170,7 +192,7 @@ async def test_normal_command_persisted_before_dispatch_and_timeout_blocks_resta
         async def request(self, family, method, path, **kwargs):
             assert saved[-1]["last_command"]["state"] == "pending"
             calls.append(method)
-            raise TimeoutError("synthetic")
+            raise failure("synthetic")
 
     engine = V3Engine(
         None,
@@ -464,3 +486,17 @@ def test_native_observation_and_restrictions_are_not_a_shared_read_counter():
     restored.authorize(later, family="cariad", read_only=False)
     restored.observe(200, {}, later, family="cariad", read_only=False)
     assert restored.rate_limit_checkpoint() == {}
+
+
+def test_unreserved_success_cannot_clear_observed_cooldown():
+    now = datetime(2026, 11, 12, tzinfo=UTC)
+    limit = RateLimit()
+    limit.observe(429, {"Retry-After": "60"}, now)
+    due = limit.retry_at
+    limit.observe(200, {}, now + timedelta(seconds=1))
+    assert limit.retry_at == due
+    assert limit.rate_limit_streak == 1
+    limit.authorize(due)
+    limit.observe(200, {}, due)
+    assert limit.retry_at is None
+    assert limit.rate_limit_streak == 0

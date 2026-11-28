@@ -27,6 +27,7 @@ def test_all_clean_v3_modules_import_under_pinned_homeassistant():
         "response_preview",
         "registry_lifecycle",
         "dashboard",
+        "vehicle_dashboard",
         "ha_platforms",
         "parking",
         "service_commands",
@@ -90,13 +91,14 @@ def test_required_v3_platforms_forwarded_in_v3():
 
 @pytest.mark.parametrize("portal_enabled", [True, False])
 @pytest.mark.parametrize("platform_failure", [True, False])
+@pytest.mark.parametrize("panel_failure", [True, False])
 async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
-    monkeypatch, portal_enabled, platform_failure
+    monkeypatch, portal_enabled, platform_failure, panel_failure
 ):
     from homeassistant.exceptions import ConfigEntryNotReady
 
     from custom_components import audiconnect as integration
-    from custom_components.audiconnect.v3 import auth, registry_lifecycle
+    from custom_components.audiconnect.v3 import auth, dashboard, registry_lifecycle
 
     first_failure = ConfigEntryNotReady("native status unavailable")
     first_failure.__cause__ = integration.NativeStatusUnavailable("native poll failed")
@@ -127,6 +129,10 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
         config_entries=SimpleNamespace(async_forward_entry_setups=forward),
         async_add_executor_job=AsyncMock(return_value=object()),
     )
+    setup_panel = AsyncMock(
+        side_effect=RuntimeError("panel unavailable") if panel_failure else None
+    )
+    monkeypatch.setattr(dashboard, "async_setup_vehicle_dashboard", setup_panel)
     monkeypatch.setattr(integration, "AudiAccount", Mock())
     monkeypatch.setattr(integration, "V3Engine", Mock(return_value=engine))
     monkeypatch.setattr(
@@ -151,9 +157,67 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
         assert await integration.async_setup_entry(hass, entry)
         forward.assert_awaited_once()
         assert not coordinator.last_update_success
+        setup_panel.assert_awaited_once_with(hass)
 
     if not portal_enabled or platform_failure:
+        setup_panel.assert_not_awaited()
         engine.status.async_stop_data_act.assert_awaited_once()
         portal.async_close_data_act.assert_awaited_once()
     else:
         portal.async_close_data_act.assert_not_awaited()
+
+
+@pytest.mark.parametrize("other_change", [None, "options", "data", "v2"])
+async def test_local_service_only_update_preserves_v3_runtime(other_change):
+    from custom_components import audiconnect as integration
+
+    coordinator = SimpleNamespace(async_update_listeners=Mock())
+    original = {integration.V3_RUNTIME_OPTION: integration.V3_ENABLED}
+    data = {"region": "DE"}
+    runtime = integration.AudiRuntimeData(
+        account=None,
+        coordinator=coordinator,
+        v3=None if other_change == "v2" else object(),
+        options_snapshot=original,
+        data_snapshot=dict(data),
+    )
+    options = {**original, "local_dealers": {"test": {"dealer_name": "New dealer"}}}
+    if other_change == "options":
+        options["scan_interval"] = 30
+    if other_change == "data":
+        data["region"] = "FR"
+    entry = SimpleNamespace(
+        entry_id="test", data=data, options=options, runtime_data=runtime
+    )
+    hass = SimpleNamespace(config_entries=SimpleNamespace(async_reload=AsyncMock()))
+    await integration._async_update_listener(hass, entry)
+    if other_change is None:
+        hass.config_entries.async_reload.assert_not_awaited()
+        coordinator.async_update_listeners.assert_called_once_with()
+        assert runtime.options_snapshot == options
+        await integration._async_update_listener(hass, entry)
+        coordinator.async_update_listeners.assert_called_once_with()
+    else:
+        hass.config_entries.async_reload.assert_awaited_once_with("test")
+        coordinator.async_update_listeners.assert_not_called()
+
+
+async def test_panel_resource_registration_can_retry_without_duplicate_static_path(
+    monkeypatch,
+):
+    from custom_components.audiconnect.v3 import dashboard
+
+    hass = SimpleNamespace(
+        data={}, http=SimpleNamespace(async_register_static_paths=AsyncMock())
+    )
+    register = Mock(side_effect=RuntimeError("handler registration unavailable"))
+    monkeypatch.setattr(dashboard.websocket_api, "async_register_command", register)
+    with pytest.raises(RuntimeError):
+        await dashboard._async_setup_panel_resources(hass)
+    hass.http.async_register_static_paths.assert_not_awaited()
+    register.side_effect = None
+    await dashboard._async_setup_panel_resources(hass)
+    calls = register.call_count
+    await dashboard._async_setup_panel_resources(hass)
+    assert register.call_count == calls
+    hass.http.async_register_static_paths.assert_awaited_once()

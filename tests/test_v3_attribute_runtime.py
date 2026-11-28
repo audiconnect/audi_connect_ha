@@ -1030,3 +1030,56 @@ def test_api_broadening_read_only_charging_metrics_keep_units_and_capture():
     assert rows["hvBatteryMinimumTemperature"]["selected"]["value"] == 295
     assert "cariad.status.automation" in registry.operations
     assert registry.operations["cariad.status.automation"]["delivery"] == "manual"
+
+
+def test_app_schema_fields_are_passive_typed_and_keep_own_capture():
+    from custom_components.audiconnect.v3.historical_catalog import (
+        ATTRIBUTES,
+        INVENTORY,
+    )
+    from custom_components.audiconnect.v3.product_contract import projection_descriptor
+
+    vehicle, profile, now = car(), Profile(), datetime.now(UTC)
+    access_stamp = (now - timedelta(minutes=3)).isoformat()
+    battery_stamp = (now - timedelta(minutes=5)).isoformat()
+    sample = {
+        "access": {
+            "accessStatus": {
+                "value": {
+                    "safelockActive": False,
+                    "carCapturedTimestamp": access_stamp,
+                }
+            }
+        },
+        "charging": {
+            "batteryStatus": {
+                "value": {
+                    "chargePowerLimitationReason": "futureFirmwareReason",
+                    "carCapturedTimestamp": battery_stamp,
+                }
+            }
+        },
+    }
+    observe_read_only(vehicle, profile, sample, now)
+    for ident, value, stamp in (
+        ("safelockActive", False, access_stamp),
+        ("chargePowerLimitationReason", "futureFirmwareReason", battery_stamp),
+    ):
+        assert vehicle.readings[ident]["value"] == value
+        assert vehicle.readings[ident]["captured"] == stamp
+        assert profile.attribute_routes[ident] == "cariad.selectivestatus.batch"
+        assert projection_descriptor(ATTRIBUTES[ident]) == ATTRIBUTES[ident]
+        assert ident not in {row["id"] for row in INVENTORY["attributes"]}
+    assert planned_jobs(vehicle, profile) == tuple(
+        row["id"] for row in INVENTORY["jobs"]
+    )
+
+    for invalid_lock, invalid_reason in ((1, {}), ("false", 0), ([], "a b")):
+        vehicle, profile = car(), Profile()
+        sample["access"]["accessStatus"]["value"]["safelockActive"] = invalid_lock
+        sample["charging"]["batteryStatus"]["value"]["chargePowerLimitationReason"] = (
+            invalid_reason
+        )
+        observe_read_only(vehicle, profile, sample, now)
+        assert "safelockActive" not in profile.attribute_routes
+        assert "chargePowerLimitationReason" not in profile.attribute_routes

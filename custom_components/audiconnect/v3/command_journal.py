@@ -32,6 +32,7 @@ _READBACKS = {
     "doorLockStatus",
     "targetstateOfCharge",
     "preferredChargeMode",
+    "locationChargingCurrent",
     "windowHeatingActive",
     "preheater_active",
     "climatisationWindowHeatingEnabled",

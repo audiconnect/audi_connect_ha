@@ -57,7 +57,11 @@ from .const import (
     uses_auth0,
 )
 from .coordinator import AudiDataUpdateCoordinator
-from .local_extensions import DEALER_FIELDS, update_local_dealer_options
+from .local_extensions import (
+    CONF_LOCAL_DEALERS,
+    DEALER_FIELDS,
+    update_local_dealer_options,
+)
 from .v3.coordinator_clean import NativeStatusUnavailable, V3CleanCoordinator
 from .v3.engine import V3Engine
 from .v3.service_commands import execute as v3_execute_action
@@ -175,6 +179,15 @@ class AudiRuntimeData:
     data_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
+def _device_entry_ids(device: DeviceEntry) -> set[str]:
+    """Use single-entry device ownership on current HA, legacy sets on older HA."""
+    try:
+        owner = device.config_entry_id
+    except AttributeError:
+        return set(device.config_entries)
+    return {owner} if isinstance(owner, str) and owner else set()
+
+
 def _resolve_service_call(
     hass: HomeAssistant, service: ServiceCall
 ) -> tuple[str, AudiAccount | V3Engine]:
@@ -198,10 +211,11 @@ def _resolve_service_call(
         )
     vin = next(iter(vins))
 
+    device_owners = _device_entry_ids(device)
     owners = [
         entry
         for entry in hass.config_entries.async_entries(DOMAIN)
-        if entry.entry_id in device.config_entries
+        if entry.entry_id in device_owners
     ]
     if len(owners) != 1:
         raise HomeAssistantError(
@@ -272,6 +286,17 @@ async def _async_update_listener(
     ):
         # Only the refresh token rotated; nothing the running setup depends on.
         return
+    if runtime_data is not None and runtime_data.v3 is not None:
+        current = dict(config_entry.options)
+        previous = runtime_data.options_snapshot
+        if runtime_data.data_snapshot == _reloadable_data(config_entry) and {
+            k: v for k, v in previous.items() if k != CONF_LOCAL_DEALERS
+        } == {k: v for k, v in current.items() if k != CONF_LOCAL_DEALERS}:
+            # Local service entities read the live entry options. Refresh only
+            # their existing coordinator projection; do not tear down OEM auth.
+            runtime_data.options_snapshot = current
+            runtime_data.coordinator.async_update_listeners()
+            return
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
@@ -444,7 +469,7 @@ def _async_cleanup_orphaned_devices(
         if (
             device_vin is not None
             and device_vin.lower() not in active_vins
-            and device_entry.config_entries == {config_entry.entry_id}
+            and _device_entry_ids(device_entry) == {config_entry.entry_id}
         ):
             _LOGGER.info(
                 "Removing orphaned device %s (VIN no longer active)",
@@ -551,14 +576,26 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         _async_register_services(hass)
         if selected_v3:
             from .v3.registry_lifecycle import async_apply_v3_entity_visibility
-            from .v3.dashboard import async_setup_dashboard
+            from .v3.dashboard import (
+                async_setup_dashboard,
+                async_setup_vehicle_dashboard,
+            )
 
             await async_apply_v3_entity_visibility(hass, config_entry, True)
             await hass.config_entries.async_forward_entry_setups(
                 config_entry, config_entry.runtime_data.loaded_platforms
             )
+            # Presentation is optional to the native integration lifecycle.
+            # Keep cancellation and native setup failures visible.
+            try:
+                await async_setup_vehicle_dashboard(hass)
+            except Exception:
+                _LOGGER.warning("Audi Connect vehicle panel unavailable")
             if config_entry.options.get("v3_development_workbench", False):
-                await async_setup_dashboard(hass)
+                try:
+                    await async_setup_dashboard(hass)
+                except Exception:
+                    _LOGGER.warning("Audi Connect engineering panel unavailable")
         else:
             from .v3.registry_lifecycle import async_apply_v3_entity_visibility
 
@@ -585,7 +622,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         return False
 
     if isinstance(getattr(runtime, "v3", None), V3Engine):
-        from .v3.dashboard import async_remove_dashboard
+        from .v3.dashboard import async_remove_dashboard, async_remove_vehicle_dashboard
 
         await runtime.v3.status.async_stop_data_act()
         await runtime.v3.auth.async_close_data_act()
@@ -604,6 +641,16 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         )
         if not others:
             async_remove_dashboard(hass)
+        if not any(
+            entry.entry_id != config_entry.entry_id
+            and entry.state is ConfigEntryState.LOADED
+            and isinstance(
+                getattr(getattr(entry, "runtime_data", None), "v3", None),
+                V3Engine,
+            )
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        ):
+            async_remove_vehicle_dashboard(hass)
 
     if not any(
         entry.entry_id != config_entry.entry_id

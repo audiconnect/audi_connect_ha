@@ -426,6 +426,9 @@
   },
   "entity": {
     "sensor": {
+      "v3_charge_power_limitation_reason": {
+        "name": "Grund der Ladeleistungsbegrenzung"
+      },
       "v3_last_update_time": {
         "name": "Letzte Fahrzeugerfassung"
       },
@@ -738,6 +741,9 @@
       }
     },
     "binary_sensor": {
+      "v3_safelock_active": {
+        "name": "Safelock aktiv"
+      },
       "v3_plug_state": {
         "name": "Ladestecker"
       },
@@ -887,6 +893,9 @@
       }
     },
     "select": {
+      "v3_location_charging_current": {
+        "name": "AC-Ladestrom am Ladeort"
+      },
       "v3_charge_mode": {
         "name": "Bevorzugter Lademodus"
       }

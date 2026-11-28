@@ -87,13 +87,16 @@
         "service_commands.py",
         "registry_lifecycle.py",
         "product_contract.py",
-        "product_entities.json"
+        "product_entities.json",
+        "vehicle_dashboard.py",
+        "frontend/vehicle.js",
+        "frontend/vehicle_labels.json"
       ],
-      "responsibility": "native HA projection from Status and Command, local scheduling; no independent vehicle state cache"
+      "responsibility": "native HA projection from Status and Command, local scheduling; no independent vehicle state cache; permission-scoped consumer vehicle presentation"
     },
     "workbench": {
       "paths": ["dashboard.py", "frontend/panel.js", "entity_traceability.py"],
-      "responsibility": "admin engineering UX"
+      "responsibility": "admin engineering UX and shared panel lifecycle registration"
     },
     "diagnostics": {
       "paths": [

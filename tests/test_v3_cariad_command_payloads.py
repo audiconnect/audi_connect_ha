@@ -90,6 +90,85 @@ def test_profile_target_preserves_location_and_other_fields_on_wire():
     assert body == {"profile": {**profile, "targetSOC_pct": 80}}
 
 
+def test_location_current_reuses_profile_writer_and_preserves_all_fields():
+    vehicle = car()
+    vehicle.active_charging_profile_id = 2
+    profile = {
+        "id": 2,
+        "maxChargingCurrent": "max",
+        "targetSOC_pct": 80,
+        "position": {"lat": 0, "lon": 0},
+        "options": {"smartChargingEnabled": True},
+        "timers": None,
+    }
+    snapshot = {
+        "vehiclePositionedInProfileID": 2,
+        "profiles": [profile],
+    }
+    obj = engine({"chargingProfiles": {"chargingProfilesStatus": {"value": snapshot}}})
+    body = asyncio.run(
+        build(obj, vehicle, "charging_profile_current_update", {"value": "reduced"})
+    )
+    assert body == {"profile": {**profile, "maxChargingCurrent": "reduced"}}
+    assert profile["maxChargingCurrent"] == "max"
+    assert obj.transport.request.await_count == 1
+    for active, rows in (
+        (3, [profile]),
+        (2, [profile, profile]),
+        (2, [{"id": 2}]),
+        (2, [{**profile, "maxChargingCurrent": "invalid"}]),
+        (True, [profile]),
+    ):
+        snapshot.update(vehiclePositionedInProfileID=active, profiles=rows)
+        with pytest.raises(ValueError):
+            asyncio.run(
+                build(
+                    obj,
+                    vehicle,
+                    "charging_profile_current_update",
+                    {"value": "reduced"},
+                )
+            )
+    before = obj.transport.request.await_count
+    with pytest.raises(ValueError):
+        asyncio.run(
+            build(obj, vehicle, "charging_profile_current_update", {"value": "maximum"})
+        )
+    assert obj.transport.request.await_count == before
+
+
+def test_location_current_requires_independent_physical_route_review():
+    from custom_components.audiconnect.v3.control_resolution import control_decision
+    from custom_components.audiconnect.v3.development_profiles import DevelopmentProfile
+    from custom_components.audiconnect.v3.registry import CapabilityRegistry
+    from custom_components.audiconnect.v3.runtime import catalog_path
+    from custom_components.audiconnect.v3.operation_revision import operation_revision
+
+    vehicle = car()
+    vehicle.advertised_capabilities.add("charging")
+    registry = CapabilityRegistry.from_json_file(catalog_path())
+    profile = DevelopmentProfile(registry, vehicle.context)
+    auth = engine().auth
+    action = "set_location_charge_current"
+    key = "charging." + action
+    route = "cariad.charging.profiles.current"
+
+    def decide(**kwargs):
+        return control_decision(vehicle, profile, auth, "charging", action, **kwargs)
+
+    assert decide(for_discovery=True)["operation"] is None
+    vehicle.active_charging_profile_id = 2
+    vehicle.charging_profiles = [{"id": 2, "maxChargingCurrent": "max"}]
+    assert decide()["operation"] is None
+    assert decide(for_discovery=True)["operation"] == route
+    profile.active[key] = route
+    profile.control_results[route] = "worked"
+    profile.active_revisions[key] = operation_revision(registry.operations[route])
+    assert decide()["operation"] == route
+    vehicle.charging_profiles.append(vehicle.charging_profiles[0])
+    assert decide()["operation"] is None
+
+
 def test_parameterized_climate_preserves_stored_zones():
     obj = engine(
         {
@@ -339,3 +418,56 @@ def test_null_optional_fahrenheit_does_not_block_celsius_update():
         "windowHeatingEnabled": False,
     }
     obj.transport.request.assert_awaited_once()
+
+
+def test_missing_ppe_climate_settings_never_invent_a_parameterized_payload():
+    # Normal start already has a reviewed bodyless operation. A temperature
+    # bearing start must not substitute it after an incomplete settings read.
+    obj = engine({"climatisation": {"climatisationSettings": {"value": {}}}})
+    with pytest.raises(ValueError, match="settings unavailable"):
+        asyncio.run(build(obj, car(), "climate_start_settings", {"temp_c": 22}))
+    assert obj.transport.request.await_count == 1
+
+
+def test_location_current_readback_is_bound_to_exact_active_profile():
+    from datetime import UTC, datetime, timedelta
+    from custom_components.audiconnect.v3.command_journal import CommandRecord
+    from custom_components.audiconnect.v3.command_readback import (
+        configure_readback,
+        reconcile_readback,
+        optimistic_expiry,
+    )
+
+    vehicle = car()
+    now = datetime.now(UTC)
+    record = CommandRecord.begin(
+        "charging",
+        "set_location_charge_current",
+        "cariad.charging.profiles.current",
+        (now - timedelta(seconds=10)).timestamp(),
+    )
+    record.observe_http(200)
+    configure_readback(record, {"profile_id": 2, "value": "reduced"})
+    assert optimistic_expiry(record) is None
+    assert CommandRecord.restore(record.snapshot()).readback_values == ["2:reduced"]
+    row = {
+        "value": {
+            "active_profile_id": 3,
+            "profiles": [{"id": 3, "maxChargingCurrent": "reduced"}],
+        },
+        "captured": now.isoformat(),
+        "observed": now.isoformat(),
+        "family": "cariad",
+        "status": "verified",
+    }
+    vehicle.readings["charging_profile_context_detail"] = row
+    assert not reconcile_readback(record, vehicle, now)
+    row["value"] = {
+        "active_profile_id": 2,
+        "profiles": [{"id": 2, "maxChargingCurrent": "reduced"}],
+    }
+    row["captured"] = (now - timedelta(seconds=20)).isoformat()
+    assert not reconcile_readback(record, vehicle, now)
+    row["captured"] = now.isoformat()
+    assert reconcile_readback(record, vehicle, now)
+    assert record.readback_observed_at == now.timestamp()

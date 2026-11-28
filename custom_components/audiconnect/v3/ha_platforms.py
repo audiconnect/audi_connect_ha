@@ -28,6 +28,7 @@ from .entities import (
     V3ParkingAddressSensor,
     V3ChargeTargetNumber,
     V3ChargeModeSelect,
+    V3LocationChargingCurrentSelect,
     V3LocationChargeTargetNumber,
     V3ClimateSettingSwitch,
     V3PreheaterSwitch,
@@ -168,14 +169,24 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                     in (int, float)
                 ):
                     add_once(f"{vin}:target_soc", V3ChargeTargetNumber)
-            elif platform == "select" and (
-                retained("charge_mode")
-                or (
+            elif platform == "select":
+                from .vehicle import active_profile_current
+
+                if retained("charge_mode") or (
                     engine.control_enabled(car.vin, "set_charge_mode", "charging")
                     and supported_charge_modes(car, engine.profiles.get(vin))
-                )
-            ):
-                add_once(f"{vin}:charge_mode", V3ChargeModeSelect)
+                ):
+                    add_once(f"{vin}:charge_mode", V3ChargeModeSelect)
+                if retained("location_charging_current") or (
+                    active_profile_current(car) is not None
+                    and engine.control_enabled(
+                        car.vin, "set_location_charge_current", "charging"
+                    )
+                ):
+                    add_once(
+                        f"{vin}:location_charging_current",
+                        V3LocationChargingCurrentSelect,
+                    )
 
             if platform in ("sensor", "binary_sensor"):
                 if platform == "sensor":
@@ -206,6 +217,14 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                             "secondaryEngineRange",
                         )
                     )
+                # Offer the existing cable/lock identities for a known BEV
+                # or PHEV even when the OEM omits plug data. No false OFF.
+                from .vehicle import powertrain_identity
+
+                plug_expected = powertrain_identity(car)["value"] in (
+                    "electric",
+                    "phev",
+                )
                 for ident, descriptor in sorted(attributes.items()):
                     if descriptor["platform"] != platform:
                         continue
@@ -221,8 +240,16 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                         continue
                     key = descriptor["entity_key"]
                     previously_offered = f"{vin}_{platform}_{key}" in registered
-                    if ident not in candidates and (
-                        ident != descriptor["id"] or not previously_offered
+                    missing_plug = (
+                        platform == "binary_sensor"
+                        and key in ("plug_state", "plug_lock_state")
+                        and plug_expected
+                        and ident == descriptor["id"]
+                    )
+                    if (
+                        not missing_plug
+                        and ident not in candidates
+                        and (ident != descriptor["id"] or not previously_offered)
                     ):
                         continue
                     _source, reading = projection_reading(
@@ -241,7 +268,7 @@ def setup(platform: str, entry: Any, async_add_entities: Any) -> None:
                         ):
                             add_once(f"{vin}:car_type", V3ReadOnlySensor, descriptor)
                         continue
-                    if not previously_offered:
+                    if not previously_offered and not missing_plug:
                         if not reading or not isinstance(
                             reading.get("value"), (str, int, float, bool)
                         ):
