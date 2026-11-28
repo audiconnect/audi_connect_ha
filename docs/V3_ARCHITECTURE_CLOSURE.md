@@ -18,23 +18,24 @@ Preserve proven behavior as a first-class regression requirement. Each change mu
 | Extendability   | Add reviewed variants through existing catalog and contracts; no parallel resolver or UI. |
 | User experience | Ordinary use needs no Workbench, duplicate integration, API knowledge or entity rename.   |
 
-Use the existing PR review, not an additional workflow or a second governance catalog. Show before/after runtime impact, user-visible outcome and remaining live acceptance. Provider problems must be actionable without exposing credentials or making another channel unavailable. The Workbench remains optional and administrator-only.
+Use the existing PR review, not an additional workflow or a second governance catalog. Show before/after runtime impact, user-visible outcome and remaining live acceptance. Provider problems must be actionable without exposing credentials or making another channel unavailable. The Workbench remains optional and administrator-only. The Audi Connect Vehicle Dashboard is a separate normal-user presentation of existing HA entities, native services, configuration and scoped archive. It must never require Workbench opt-in or weaken its server-side permissions.
 
 ### Authoritative responsibilities
 
-| Owner           | Responsibility                                                                 |
-| --------------- | ------------------------------------------------------------------------------ |
-| Shared HA entry | Account/device association, config and runtime selection                       |
-| API             | Authentication, transport, family protocols and quota                          |
-| Catalog         | Canonical capabilities, operations, attributes and reviewed discovery metadata |
-| Status          | Read discovery, polling, normalization and freshness                           |
-| Vehicle         | Canonical vehicle identity and observations                                    |
-| Command         | Eligibility, execution, durable journal, verification                          |
-| Profiles        | Bindings and persistent evidence                                               |
-| HA              | Stable native entities, services and registry lifecycle                        |
-| Workbench       | Optional administrator analysis, configuration and test UX                     |
-| Diagnostics     | Read-only reporting and redaction                                              |
-| Engine          | Composition and lifecycle orchestration                                        |
+| Owner             | Responsibility                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Shared HA entry   | Account/device association, config and runtime selection                                                          |
+| API               | Authentication, transport, family protocols and quota                                                             |
+| Catalog           | Canonical capabilities, operations, attributes and reviewed discovery metadata                                    |
+| Status            | Read discovery, polling, normalization and freshness                                                              |
+| Vehicle           | Canonical vehicle identity and observations                                                                       |
+| Command           | Eligibility, execution, durable journal, verification                                                             |
+| Profiles          | Bindings and persistent evidence                                                                                  |
+| HA                | Stable native entities, services and registry lifecycle                                                           |
+| Workbench         | Optional administrator analysis, configuration and test UX                                                        |
+| Vehicle Dashboard | Permission-scoped HA user presentation; native entities and configuration, no independent state or control policy |
+| Diagnostics       | Read-only reporting and redaction                                                                                 |
+| Engine            | Composition and lifecycle orchestration                                                                           |
 
 Read: API → status → vehicle → HA. Write: HA owning device → active runtime → command → API → shared status writer → vehicle/HA and verified native readback. Engineering: discover → configure → isolated test → explicit activation. A command must never be routed to an unrelated account by VIN. Ambiguous ownership fails closed.
 

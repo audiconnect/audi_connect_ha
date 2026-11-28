@@ -27,6 +27,7 @@ def test_all_clean_v3_modules_import_under_pinned_homeassistant():
         "response_preview",
         "registry_lifecycle",
         "dashboard",
+        "vehicle_dashboard",
         "ha_platforms",
         "parking",
         "service_commands",
@@ -96,7 +97,7 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
     from homeassistant.exceptions import ConfigEntryNotReady
 
     from custom_components import audiconnect as integration
-    from custom_components.audiconnect.v3 import auth, registry_lifecycle
+    from custom_components.audiconnect.v3 import auth, dashboard, registry_lifecycle
 
     first_failure = ConfigEntryNotReady("native status unavailable")
     first_failure.__cause__ = integration.NativeStatusUnavailable("native poll failed")
@@ -127,6 +128,8 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
         config_entries=SimpleNamespace(async_forward_entry_setups=forward),
         async_add_executor_job=AsyncMock(return_value=object()),
     )
+    setup_panel = AsyncMock()
+    monkeypatch.setattr(dashboard, "async_setup_vehicle_dashboard", setup_panel)
     monkeypatch.setattr(integration, "AudiAccount", Mock())
     monkeypatch.setattr(integration, "V3Engine", Mock(return_value=engine))
     monkeypatch.setattr(
@@ -151,8 +154,10 @@ async def test_v3_setup_keeps_optional_channel_only_after_valid_inventory(
         assert await integration.async_setup_entry(hass, entry)
         forward.assert_awaited_once()
         assert not coordinator.last_update_success
+        setup_panel.assert_awaited_once_with(hass)
 
     if not portal_enabled or platform_failure:
+        setup_panel.assert_not_awaited()
         engine.status.async_stop_data_act.assert_awaited_once()
         portal.async_close_data_act.assert_awaited_once()
     else:

@@ -551,12 +551,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         _async_register_services(hass)
         if selected_v3:
             from .v3.registry_lifecycle import async_apply_v3_entity_visibility
-            from .v3.dashboard import async_setup_dashboard
+            from .v3.dashboard import (
+                async_setup_dashboard,
+                async_setup_vehicle_dashboard,
+            )
 
             await async_apply_v3_entity_visibility(hass, config_entry, True)
             await hass.config_entries.async_forward_entry_setups(
                 config_entry, config_entry.runtime_data.loaded_platforms
             )
+            await async_setup_vehicle_dashboard(hass)
             if config_entry.options.get("v3_development_workbench", False):
                 await async_setup_dashboard(hass)
         else:
@@ -585,7 +589,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         return False
 
     if isinstance(getattr(runtime, "v3", None), V3Engine):
-        from .v3.dashboard import async_remove_dashboard
+        from .v3.dashboard import async_remove_dashboard, async_remove_vehicle_dashboard
 
         await runtime.v3.status.async_stop_data_act()
         await runtime.v3.auth.async_close_data_act()
@@ -604,6 +608,16 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         )
         if not others:
             async_remove_dashboard(hass)
+        if not any(
+            entry.entry_id != config_entry.entry_id
+            and entry.state is ConfigEntryState.LOADED
+            and isinstance(
+                getattr(getattr(entry, "runtime_data", None), "v3", None),
+                V3Engine,
+            )
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        ):
+            async_remove_vehicle_dashboard(hass)
 
     if not any(
         entry.entry_id != config_entry.entry_id

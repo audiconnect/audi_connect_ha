@@ -12,6 +12,26 @@ Follow the [main README](../readme.md) for installation and sign-in. Back up Hom
 
 V3 enumerates vehicles during setup; the V2-only startup update preference is retained for rollback. To revert, select V2 in the same entry and reload. Do not delete the integration or the registry to resolve a temporary data problem. Retain device IDs, entity IDs, user preferences and trip history. Verify automations after any runtime change.
 
+### Audi Connect — daily vehicle management
+
+The Audi Connect sidebar follows the owner-approved vehicle-first visual reference: My garage, vehicle identity and image where available, direct function tabs (Overview, Charging, Climate, Access, Location, Trips, Service, Vehicle), and a Settings icon. Overview groups battery and fuel, quick actions, vehicle status and service information. No intermediate menu is required. It is independent of the optional Engineering Workbench. Status and useful actions come first, context-specific settings next, and additional native detail is available on demand. Choose an available vehicle; only data and controls that Home Assistant grants the signed-in user for that vehicle may appear. Use the normal dashboard to understand status, perform actions, edit supported vehicle settings and inspect history, without knowing API families or enabling engineering.
+
+| Journey             | Expected outcome                                                                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Overview            | Vehicle identity/image where available, actual freshness, range, charge/fuel, security and health, with contextual quick actions.                                                    |
+| Charging            | Actual state, plug, power, range, ETA, charging targets, active profile, current and mode; operate the existing native controls.                                                     |
+| Climate             | Actual climate state, target temperature, supported zones/heating and existing timer information; change supported native settings and actions.                                      |
+| Access & Security   | Door/window/lock state and supported actions; distinguish unknown and last-known from secure.                                                                                        |
+| Location            | Last reported parking location/time and native tracker; never describe a retained position as live.                                                                                  |
+| Trips & Consumption | Native trip statistics and existing scoped archive, paginated details and bounded export with appropriate access.                                                                    |
+| Service & Health    | Native inspection/oil/tyre data and existing local dealer, appointment and warranty settings (editable directly by administrators).                                                  |
+| Vehicle & Documents | Model/year/image/powertrain and verified source data; official manual in the interface language, myAudi and Data Act links without sending VIN in URLs.                              |
+| Settings            | Existing HA configuration flow for account options, data sources, service details and explicit discovery; preserve configuration permissions and native device/automation workflows. |
+
+The UI uses Home Assistant entities and the existing command owner, including native configuration and control dialogs. Service preferences use the same validated config-entry options as the native configuration flow. Existing read-only timer observations are displayed without inventing timer-write support. Parking uses the existing Home Assistant tracker and map; trip charts show recorded trips only. A service call returning successfully does not establish physical execution. Use reported capture, actual readback and command feedback; no optimistic success in the dashboard itself. Unavailable or unsupported functions are not invented; unknown measurements remain unknown. Additional factory data, service history and recalls require authorized source evidence before integration. No separate data store, API poller or command engine.
+
+Engineering Workbench remains separately opt-in and administrator-only. It retains discovery, mapping, API evidence and activation workflows. Verify read/control denial, multiple accounts/vehicles, state updates, one intentional action, configuration save/readback, history/export, mobile/tablet/desktop, dark/light themes, disabled entities, unload/restart and V2 rollback; keep native HA entities and automations usable independently.
+
 ### Data and freshness
 
 Audi's cloud can be reachable while a parked vehicle has not sent new data. A cloud refresh is not proof of a new vehicle capture. No automatic wake on every poll.

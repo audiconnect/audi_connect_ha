@@ -6,6 +6,7 @@ diagnostic exports. Admin actions may address their own authenticated VIN.
 
 from __future__ import annotations
 
+import asyncio
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,9 @@ from .runtime import V3_DEFAULT, V3_ENABLED, V3_RUNTIME_OPTION
 
 _PANEL = "audiconnect-v3"
 _READY_KEY = "audiconnect_v3_dashboard_registered"
+_VEHICLE_PANEL = "audiconnect-vehicles"
+_VEHICLE_READY_KEY = "audiconnect_v3_vehicle_panel_registered"
+_PANEL_LOCK_KEY = "audiconnect_v3_panel_lock"
 _HANDLERS_KEY = "audiconnect_v3_dashboard_commands_registered"
 
 
@@ -817,17 +821,16 @@ async def ws_trip_history(hass, connection, msg):
         )
 
 
-def _panel_module_url(frontend_dir: Path) -> str:
+def _panel_module_url(frontend_dir: Path, filename: str = "panel.js") -> str:
     """Invalidate the browser cache only when the packaged script changes."""
-    digest = sha256((frontend_dir / "panel.js").read_bytes()).hexdigest()[:16]
-    return f"/audiconnect_v3/panel.js?v={digest}"
+    digest = sha256((frontend_dir / filename).read_bytes()).hexdigest()[:16]
+    return f"/audiconnect_v3/{filename}?v={digest}"
 
 
-async def async_setup_dashboard(hass) -> None:
-    if hass.data.get(_READY_KEY):
-        return
+async def _async_setup_panel_resources(hass) -> None:
+    from .vehicle_dashboard import ws_service_details, ws_vehicle_list, ws_vehicle_trips
+
     frontend_dir = Path(__file__).parent / "frontend"
-    module_url = await hass.async_add_executor_job(_panel_module_url, frontend_dir)
     # HA websocket commands and static paths live for the HA process.
     # Removing and re-adding the optional sidebar must not register duplicates.
     if not hass.data.get(_HANDLERS_KEY):
@@ -860,22 +863,62 @@ async def async_setup_dashboard(hass) -> None:
             ws_test_identity_operation,
             ws_save_identity_draft,
             ws_trip_history,
+            ws_vehicle_list,
+            ws_vehicle_trips,
+            ws_service_details,
         ):
             websocket_api.async_register_command(hass, handler)
         hass.data[_HANDLERS_KEY] = True
-    await panel_custom.async_register_panel(
-        hass,
-        webcomponent_name="audiconnect-v3-panel",
-        frontend_url_path=_PANEL,
-        module_url=module_url,
-        sidebar_title="Audi Engineering Dashboard",
-        sidebar_icon="mdi:car-cog",
-        require_admin=True,
-        embed_iframe=False,
-    )
-    hass.data[_READY_KEY] = True
+
+
+async def async_setup_dashboard(hass) -> None:
+    async with hass.data.setdefault(_PANEL_LOCK_KEY, asyncio.Lock()):
+        if hass.data.get(_READY_KEY):
+            return
+        await _async_setup_panel_resources(hass)
+        frontend_dir = Path(__file__).parent / "frontend"
+        module_url = await hass.async_add_executor_job(_panel_module_url, frontend_dir)
+        await panel_custom.async_register_panel(
+            hass,
+            webcomponent_name="audiconnect-v3-panel",
+            frontend_url_path=_PANEL,
+            module_url=module_url,
+            sidebar_title="Engineering Workbench",
+            sidebar_icon="mdi:car-cog",
+            require_admin=True,
+            embed_iframe=False,
+        )
+        hass.data[_READY_KEY] = True
 
 
 def async_remove_dashboard(hass) -> None:
     if hass.data.pop(_READY_KEY, False):
         frontend.async_remove_panel(hass, _PANEL, warn_if_unknown=False)
+
+
+async def async_setup_vehicle_dashboard(hass) -> None:
+    """Normal V3 users do not need the optional engineering panel."""
+    async with hass.data.setdefault(_PANEL_LOCK_KEY, asyncio.Lock()):
+        if hass.data.get(_VEHICLE_READY_KEY):
+            return
+        await _async_setup_panel_resources(hass)
+        frontend_dir = Path(__file__).parent / "frontend"
+        module_url = await hass.async_add_executor_job(
+            _panel_module_url, frontend_dir, "vehicle.js"
+        )
+        await panel_custom.async_register_panel(
+            hass,
+            webcomponent_name="audiconnect-vehicle-panel",
+            frontend_url_path=_VEHICLE_PANEL,
+            module_url=module_url,
+            sidebar_title="Audi Connect",
+            sidebar_icon="mdi:car",
+            require_admin=False,
+            embed_iframe=False,
+        )
+        hass.data[_VEHICLE_READY_KEY] = True
+
+
+def async_remove_vehicle_dashboard(hass) -> None:
+    if hass.data.pop(_VEHICLE_READY_KEY, False):
+        frontend.async_remove_panel(hass, _VEHICLE_PANEL, warn_if_unknown=False)

@@ -1,0 +1,551 @@
+{
+  "Overview": ["Overzicht", "Vue d’ensemble", "Übersicht"],
+  "Charging": ["Laden", "Recharge", "Laden"],
+  "Climate": ["Klimaat", "Climatisation", "Klima"],
+  "Access": ["Toegang", "Accès", "Zugang"],
+  "Location": ["Locatie", "Localisation", "Standort"],
+  "Trips": ["Ritten", "Trajets", "Fahrten"],
+  "Service": ["Onderhoud", "Entretien", "Service"],
+  "Vehicle": ["Voertuig", "Véhicule", "Fahrzeug"],
+  "Settings": ["Instellingen", "Paramètres", "Einstellungen"],
+  "My garage": ["Mijn garage", "Mon garage", "Meine Garage"],
+  "Quick actions": ["Snelle acties", "Actions rapides", "Schnellaktionen"],
+  "Vehicle status": ["Voertuigstatus", "État du véhicule", "Fahrzeugstatus"],
+  "Battery": ["Batterij", "Batterie", "Batterie"],
+  "Fuel": ["Brandstof", "Carburant", "Kraftstoff"],
+  "Charge": ["Laden", "Recharger", "Laden"],
+  "Flash": ["Lichtsignaal", "Appel de phares", "Lichthupe"],
+  "Lock": ["Vergrendelen", "Verrouiller", "Verriegeln"],
+  "Unlock": ["Ontgrendelen", "Déverrouiller", "Entriegeln"],
+  "Doors": ["Deuren", "Portes", "Türen"],
+  "Windows": ["Ramen", "Vitres", "Fenster"],
+  "Odometer": ["Kilometerstand", "Kilométrage", "Kilometerstand"],
+  "Maintenance": ["Onderhoud", "Entretien", "Wartung"],
+  "Service & maintenance": [
+    "Service en onderhoud",
+    "Service et entretien",
+    "Service und Wartung"
+  ],
+  "Vehicle data": ["Voertuiggegevens", "Données du véhicule", "Fahrzeugdaten"],
+  "Vehicle functions": [
+    "Voertuigfuncties",
+    "Fonctions du véhicule",
+    "Fahrzeugfunktionen"
+  ],
+  "Total range": ["Totale actieradius", "Autonomie totale", "Gesamtreichweite"],
+  "electric range": [
+    "Elektrische actieradius",
+    "Autonomie électrique",
+    "Elektrische Reichweite"
+  ],
+  "fuel range": [
+    "Actieradius brandstof",
+    "Autonomie carburant",
+    "Kraftstoffreichweite"
+  ],
+  "Parked": ["Geparkeerd", "Stationné", "Geparkt"],
+  "Fresh": ["Actueel", "Récent", "Aktuell"],
+  "Last known": ["Laatst bekend", "Dernière valeur connue", "Zuletzt bekannt"],
+  "Current state unknown": [
+    "Huidige toestand onbekend",
+    "État actuel inconnu",
+    "Aktueller Zustand unbekannt"
+  ],
+  "Freshness unknown": [
+    "Actualiteit onbekend",
+    "Actualité inconnue",
+    "Aktualität unbekannt"
+  ],
+  "Unknown": ["Onbekend", "Inconnu", "Unbekannt"],
+  "Unavailable": ["Niet beschikbaar", "Indisponible", "Nicht verfügbar"],
+  "Available": ["Beschikbaar", "Disponible", "Verfügbar"],
+  "Requested — awaiting vehicle": [
+    "Aangevraagd — wacht op voertuig",
+    "Demandé — en attente du véhicule",
+    "Angefordert — warte auf Fahrzeug"
+  ],
+  "Requested · awaiting vehicle": [
+    "Aangevraagd · wacht op voertuig",
+    "Demandé · en attente du véhicule",
+    "Angefordert · warte auf Fahrzeug"
+  ],
+  "Requested: ": ["Aangevraagd: ", "Demandé : ", "Angefordert: "],
+  "Refresh view": [
+    "Weergave vernieuwen",
+    "Actualiser l’affichage",
+    "Ansicht aktualisieren"
+  ],
+  "Manufacturer vehicle image": [
+    "Voertuigafbeelding van Audi",
+    "Image du véhicule Audi",
+    "Audi-Fahrzeugbild"
+  ],
+  "Actions": ["Acties", "Actions", "Aktionen"],
+  "Current status": ["Huidige status", "État actuel", "Aktueller Status"],
+  "Additional information": [
+    "Aanvullende informatie",
+    "Informations complémentaires",
+    "Weitere Informationen"
+  ],
+  "More details": ["Meer details", "Plus de détails", "Mehr Details"],
+  "Hide details": [
+    "Details verbergen",
+    "Masquer les détails",
+    "Details ausblenden"
+  ],
+  "Details": ["Details", "Détails", "Details"],
+  "Control / edit": [
+    "Bedienen / wijzigen",
+    "Commander / modifier",
+    "Bedienen / ändern"
+  ],
+  "Apply": ["Toepassen", "Appliquer", "Übernehmen"],
+  "Start charging": ["Laden starten", "Démarrer la recharge", "Laden starten"],
+  "Stop charging": ["Laden stoppen", "Arrêter la recharge", "Laden stoppen"],
+  "Start climate": [
+    "Klimaat starten",
+    "Démarrer la climatisation",
+    "Klimatisierung starten"
+  ],
+  "Stop climate": [
+    "Klimaat stoppen",
+    "Arrêter la climatisation",
+    "Klimatisierung stoppen"
+  ],
+  "Turn on": ["Inschakelen", "Activer", "Einschalten"],
+  "Turn off": ["Uitschakelen", "Désactiver", "Ausschalten"],
+  "Cabin climate": [
+    "Interieurklimaat",
+    "Climatisation de l’habitacle",
+    "Innenraumklima"
+  ],
+  "Climate details": [
+    "Klimaatdetails",
+    "Détails de climatisation",
+    "Klimadetails"
+  ],
+  "Target temperature": [
+    "Gewenste temperatuur",
+    "Température cible",
+    "Zieltemperatur"
+  ],
+  "Target temperature unavailable": [
+    "Gewenste temperatuur niet beschikbaar",
+    "Température cible indisponible",
+    "Zieltemperatur nicht verfügbar"
+  ],
+  "Local preference · applied on next start": [
+    "Lokale voorkeur · toegepast bij volgende start",
+    "Préférence locale · au prochain démarrage",
+    "Lokale Einstellung · beim nächsten Start"
+  ],
+  "Requested temperature · awaiting vehicle": [
+    "Temperatuur aangevraagd · wacht op voertuig",
+    "Température demandée · en attente du véhicule",
+    "Temperatur angefordert · warte auf Fahrzeug"
+  ],
+  "Last reported target": [
+    "Laatst gemelde temperatuur",
+    "Dernière consigne signalée",
+    "Zuletzt gemeldete Zieltemperatur"
+  ],
+  "Charging status": ["Laadstatus", "État de recharge", "Ladestatus"],
+  "Plug": ["Laadstekker", "Prise", "Ladestecker"],
+  "Charging power": ["Laadvermogen", "Puissance de recharge", "Ladeleistung"],
+  "Time remaining": ["Resterende tijd", "Temps restant", "Restzeit"],
+  "Estimated completion": [
+    "Verwacht einde",
+    "Fin estimée",
+    "Voraussichtliches Ende"
+  ],
+  "Charging schedules": [
+    "Laadschema’s",
+    "Programmes de recharge",
+    "Ladezeitpläne"
+  ],
+  "Departure schedules": [
+    "Vertrekschema’s",
+    "Horaires de départ",
+    "Abfahrtszeitpläne"
+  ],
+  "Climate schedules": [
+    "Klimaatschema’s",
+    "Programmes de climatisation",
+    "Klimazeitpläne"
+  ],
+  "Ventilation schedules": [
+    "Ventilatieschema’s",
+    "Programmes de ventilation",
+    "Lüftungszeitpläne"
+  ],
+  "Time not reported": [
+    "Tijd niet gemeld",
+    "Heure non communiquée",
+    "Uhrzeit nicht gemeldet"
+  ],
+  "Reported schedule": [
+    "Gemeld schema",
+    "Programme signalé",
+    "Gemeldeter Zeitplan"
+  ],
+  "Enabled": ["Actief", "Activé", "Aktiv"],
+  "Disabled": ["Uitgeschakeld", "Désactivé", "Deaktiviert"],
+  "Read-only vehicle schedule": [
+    "Alleen-lezen voertuigschema",
+    "Programme du véhicule en lecture seule",
+    "Fahrzeugzeitplan nur lesbar"
+  ],
+  "Schedules were returned but could not be interpreted.": [
+    "Schema’s ontvangen maar niet interpreteerbaar.",
+    "Programmes reçus mais non interprétables.",
+    "Zeitpläne empfangen, aber nicht interpretierbar."
+  ],
+  "No schedules reported in this response.": [
+    "Geen schema’s gemeld in dit antwoord.",
+    "Aucun programme signalé dans cette réponse.",
+    "Keine Zeitpläne in dieser Antwort gemeldet."
+  ],
+  "Last reported parking position": [
+    "Laatst gemelde parkeerlocatie",
+    "Dernière position de stationnement",
+    "Zuletzt gemeldete Parkposition"
+  ],
+  "Not live driving GPS.": [
+    "Geen live GPS tijdens het rijden.",
+    "Pas de GPS en direct.",
+    "Kein Live-GPS während der Fahrt."
+  ],
+  "Open parking map": [
+    "Open parkeerkaart",
+    "Ouvrir la carte",
+    "Parkkarte öffnen"
+  ],
+  "Parking position unavailable.": [
+    "Parkeerlocatie niet beschikbaar.",
+    "Position de stationnement indisponible.",
+    "Parkposition nicht verfügbar."
+  ],
+  "Last trip": ["Laatste rit", "Dernier trajet", "Letzte Fahrt"],
+  "Observed trip archive": [
+    "Beschikbare rittenhistoriek",
+    "Historique des trajets observés",
+    "Erfasste Fahrtenhistorie"
+  ],
+  "Recorded trips only; not a complete lifetime history.": [
+    "Alleen geregistreerde ritten; geen volledige historiek.",
+    "Trajets enregistrés uniquement ; historique incomplet.",
+    "Nur erfasste Fahrten; keine vollständige Historie."
+  ],
+  "Load latest": [
+    "Laatste ritten laden",
+    "Charger les derniers trajets",
+    "Neueste Fahrten laden"
+  ],
+  "Export JSON": ["JSON exporteren", "Exporter JSON", "JSON exportieren"],
+  "Date": ["Datum", "Date", "Datum"],
+  "Distance": ["Afstand", "Distance", "Strecke"],
+  "Electric": ["Elektrisch", "Électrique", "Elektrisch"],
+  "Previous": ["Vorige", "Précédent", "Zurück"],
+  "Next": ["Volgende", "Suivant", "Weiter"],
+  "Distance per recorded trip": [
+    "Afstand per geregistreerde rit",
+    "Distance par trajet enregistré",
+    "Strecke pro erfasster Fahrt"
+  ],
+  "archived records": [
+    "geregistreerde ritten",
+    "trajets enregistrés",
+    "erfasste Fahrten"
+  ],
+  "Service preferences": [
+    "Onderhoudsvoorkeuren",
+    "Préférences d’entretien",
+    "Serviceeinstellungen"
+  ],
+  "Your local information, not manufacturer records.": [
+    "Jouw lokale gegevens, geen fabrikantgegevens.",
+    "Vos données locales, pas celles du constructeur.",
+    "Ihre lokalen Angaben, keine Herstellerdaten."
+  ],
+  "Dealer": ["Dealer", "Concessionnaire", "Händler"],
+  "City": ["Gemeente", "Ville", "Ort"],
+  "Address": ["Adres", "Adresse", "Adresse"],
+  "Phone": ["Telefoon", "Téléphone", "Telefon"],
+  "Website": ["Website", "Site web", "Website"],
+  "Next appointment": [
+    "Volgende afspraak",
+    "Prochain rendez-vous",
+    "Nächster Termin"
+  ],
+  "Warranty expiry": ["Einde garantie", "Fin de garantie", "Garantieablauf"],
+  "Save details": ["Gegevens bewaren", "Enregistrer", "Angaben speichern"],
+  "Close": ["Sluiten", "Fermer", "Schließen"],
+  "Edit service details": [
+    "Onderhoudsgegevens wijzigen",
+    "Modifier les données d’entretien",
+    "Servicedaten ändern"
+  ],
+  "Vehicle health & notices": [
+    "Voertuigconditie en meldingen",
+    "État du véhicule et alertes",
+    "Fahrzeugzustand und Hinweise"
+  ],
+  "Tyre warning reported by Audi.": [
+    "Audi meldt een bandenwaarschuwing.",
+    "Alerte pneumatiques signalée par Audi.",
+    "Audi meldet eine Reifenwarnung."
+  ],
+  "No specific warning was returned. This does not establish that the vehicle has no faults or recalls.": [
+    "Geen specifieke waarschuwing ontvangen. Dit bewijst niet dat er geen defecten of terugroepacties zijn.",
+    "Aucune alerte précise reçue. Cela ne prouve pas l’absence de défauts ou de rappels.",
+    "Keine konkrete Warnung erhalten. Das beweist nicht, dass keine Fehler oder Rückrufe vorliegen."
+  ],
+  "Reported vehicle notice": [
+    "Gemelde voertuigmelding",
+    "Avis véhicule signalé",
+    "Gemeldeter Fahrzeughinweis"
+  ],
+  "Capture time unknown": [
+    "Meettijd onbekend",
+    "Heure de mesure inconnue",
+    "Messzeit unbekannt"
+  ],
+  "Connected services": [
+    "Verbonden diensten",
+    "Services connectés",
+    "Vernetzte Dienste"
+  ],
+  "Reported by Audi": [
+    "Gemeld door Audi",
+    "Signalé par Audi",
+    "Von Audi gemeldet"
+  ],
+  "Expires": ["Vervalt", "Expire", "Läuft ab"],
+  "Expiry not reported": [
+    "Vervaldatum niet gemeld",
+    "Expiration non communiquée",
+    "Ablaufdatum nicht gemeldet"
+  ],
+  "No service records returned.": [
+    "Geen dienstgegevens ontvangen.",
+    "Aucune donnée de service reçue.",
+    "Keine Dienstdaten erhalten."
+  ],
+  "Vehicle identity": [
+    "Voertuigidentiteit",
+    "Identité du véhicule",
+    "Fahrzeugidentität"
+  ],
+  "Model year unknown": [
+    "Modeljaar onbekend",
+    "Année-modèle inconnue",
+    "Modelljahr unbekannt"
+  ],
+  "Powertrain unknown": [
+    "Aandrijving onbekend",
+    "Motorisation inconnue",
+    "Antrieb unbekannt"
+  ],
+  "Last known manufacturer identity": [
+    "Laatst bekende fabrikantidentiteit",
+    "Dernière identité constructeur connue",
+    "Zuletzt bekannte Herstelleridentität"
+  ],
+  "Last known registry identity": [
+    "Laatst bekende registratie-identiteit",
+    "Dernière identité enregistrée connue",
+    "Zuletzt bekannte Registry-Identität"
+  ],
+  "Manufacturer information when reported": [
+    "Fabrikantgegevens indien gemeld",
+    "Données constructeur si disponibles",
+    "Herstellerangaben soweit gemeldet"
+  ],
+  "Official documents & information": [
+    "Officiële documenten en informatie",
+    "Documents et informations officiels",
+    "Offizielle Dokumente und Informationen"
+  ],
+  "Open the official Audi services for your vehicle.": [
+    "Open de officiële Audi-diensten voor jouw voertuig.",
+    "Ouvrez les services Audi officiels pour votre véhicule.",
+    "Öffnen Sie die offiziellen Audi-Dienste für Ihr Fahrzeug."
+  ],
+  "Owner's Manual": [
+    "Instructieboekje",
+    "Manuel du propriétaire",
+    "Betriebsanleitung"
+  ],
+  "Manage service details": [
+    "Onderhoudsgegevens beheren",
+    "Gérer les données d’entretien",
+    "Servicedaten verwalten"
+  ],
+  "Open Audi Connect configuration": [
+    "Open Audi Connect-configuratie",
+    "Ouvrir la configuration Audi Connect",
+    "Audi Connect konfigurieren"
+  ],
+  "Edit local dealer, warranty and appointment information in Service & maintenance.": [
+    "Wijzig lokale dealer-, garantie- en afspraakgegevens bij Service en onderhoud.",
+    "Modifiez les données locales de concessionnaire, garantie et rendez-vous dans Service et entretien.",
+    "Lokale Händler-, Garantie- und Termindaten unter Service und Wartung ändern."
+  ],
+  "Configuration": ["Configuratie", "Configuration", "Konfiguration"],
+  "Manage your account, vehicle preferences, service details and connected data sources.": [
+    "Beheer je account, voertuigvoorkeuren, onderhoudsgegevens en verbonden databronnen.",
+    "Gérez votre compte, vos préférences, vos données d’entretien et les sources connectées.",
+    "Verwalten Sie Konto, Fahrzeugeinstellungen, Servicedaten und verbundene Datenquellen."
+  ],
+  "Manage account & preferences": [
+    "Account en voorkeuren beheren",
+    "Gérer le compte et les préférences",
+    "Konto und Einstellungen verwalten"
+  ],
+  "Vehicle device & entities": [
+    "Home Assistant-voertuiginstellingen",
+    "Paramètres du véhicule dans Home Assistant",
+    "Fahrzeugeinstellungen in Home Assistant"
+  ],
+  "Account configuration requires a Home Assistant administrator. You can manage permitted vehicle controls on the function tabs.": [
+    "Accountconfiguratie vereist een Home Assistant-beheerder. Gebruik de toegestane bediening op de functietabs.",
+    "La configuration du compte nécessite un administrateur Home Assistant. Utilisez les commandes autorisées dans les onglets.",
+    "Die Kontokonfiguration erfordert einen Home Assistant-Administrator. Erlaubte Fahrzeugsteuerungen finden Sie in den Funktionsreitern."
+  ],
+  "Check that your Audi account is connected and that you have access to a vehicle.": [
+    "Controleer je Audi-account en toegang tot een voertuig.",
+    "Vérifiez votre compte Audi et l’accès à un véhicule.",
+    "Prüfen Sie Ihr Audi-Konto und den Fahrzeugzugriff."
+  ],
+  "Loading vehicles…": [
+    "Voertuigen laden…",
+    "Chargement des véhicules…",
+    "Fahrzeuge werden geladen…"
+  ],
+  "No accessible Audi vehicles": [
+    "Geen toegankelijke Audi-voertuigen",
+    "Aucun véhicule Audi accessible",
+    "Keine zugänglichen Audi-Fahrzeuge"
+  ],
+  "Request pending": [
+    "Aanvraag loopt",
+    "Demande en cours",
+    "Anfrage ausstehend"
+  ],
+  "Request accepted · awaiting vehicle": [
+    "Aanvraag aanvaard · wacht op voertuig",
+    "Demande acceptée · en attente du véhicule",
+    "Anfrage angenommen · warte auf Fahrzeug"
+  ],
+  "Audi reports completion · check vehicle": [
+    "Audi meldt voltooiing · controleer voertuig",
+    "Audi signale la fin · vérifier le véhicule",
+    "Audi meldet Abschluss · Fahrzeug prüfen"
+  ],
+  "Matching vehicle observation": [
+    "Overeenstemmende voertuigmeting",
+    "Observation correspondante du véhicule",
+    "Übereinstimmende Fahrzeugbeobachtung"
+  ],
+  "Request rejected": [
+    "Aanvraag geweigerd",
+    "Demande refusée",
+    "Anfrage abgelehnt"
+  ],
+  "Outcome uncertain · check before retrying": [
+    "Uitkomst onzeker · controleer vóór herhaling",
+    "Résultat incertain · vérifier avant de réessayer",
+    "Ergebnis ungewiss · vor erneutem Versuch prüfen"
+  ],
+  "Check request status": [
+    "Controleer de aanvraagstatus",
+    "Vérifier l’état de la demande",
+    "Anfragestatus prüfen"
+  ],
+  "Vehicle list unavailable. Refresh to try again.": [
+    "Voertuiglijst niet beschikbaar. Vernieuw om opnieuw te proberen.",
+    "Liste des véhicules indisponible. Actualisez pour réessayer.",
+    "Fahrzeugliste nicht verfügbar. Aktualisieren und erneut versuchen."
+  ],
+  "Sending request…": [
+    "Aanvraag versturen…",
+    "Envoi de la demande…",
+    "Anfrage wird gesendet…"
+  ],
+  "Request returned. Check the reported vehicle state; physical execution is not confirmed.": [
+    "Aanvraag beantwoord. Controleer de voertuigstatus; fysieke uitvoering is niet bevestigd.",
+    "Réponse reçue. Vérifiez l’état du véhicule ; l’exécution physique n’est pas confirmée.",
+    "Antwort erhalten. Fahrzeugstatus prüfen; physische Ausführung nicht bestätigt."
+  ],
+  "Request failed or outcome is uncertain. Check vehicle status before trying again.": [
+    "Aanvraag mislukt of uitkomst onzeker. Controleer het voertuig vóór herhaling.",
+    "Échec ou résultat incertain. Vérifiez le véhicule avant de réessayer.",
+    "Anfrage fehlgeschlagen oder Ergebnis ungewiss. Fahrzeug vor erneutem Versuch prüfen."
+  ],
+  "Choose a value within the available range.": [
+    "Kies een waarde binnen het beschikbare bereik.",
+    "Choisissez une valeur dans la plage autorisée.",
+    "Wählen Sie einen Wert im verfügbaren Bereich."
+  ],
+  "Settings request returned. Check the reported value before relying on the change.": [
+    "Instellingsaanvraag beantwoord. Controleer de gemelde waarde.",
+    "Réponse reçue. Vérifiez la valeur signalée avant de vous fier au changement.",
+    "Einstellungsanfrage beantwortet. Gemeldeten Wert prüfen."
+  ],
+  "Settings request failed or is uncertain. Your edit is retained.": [
+    "Instellingsaanvraag mislukt of onzeker. Je wijziging blijft bewaard.",
+    "Échec ou résultat incertain. Votre modification est conservée.",
+    "Einstellungsanfrage fehlgeschlagen oder ungewiss. Änderung bleibt erhalten."
+  ],
+  "Trip archive unavailable.": [
+    "Rittenhistoriek niet beschikbaar.",
+    "Historique des trajets indisponible.",
+    "Fahrtenhistorie nicht verfügbar."
+  ],
+  "Service details saved in Home Assistant.": [
+    "Onderhoudsgegevens bewaard in Home Assistant.",
+    "Données d’entretien enregistrées dans Home Assistant.",
+    "Servicedaten in Home Assistant gespeichert."
+  ],
+  "Service details could not be saved or loaded. Check the entries and access.": [
+    "Onderhoudsgegevens konden niet worden geladen of bewaard. Controleer invoer en toegang.",
+    "Impossible de charger ou enregistrer les données d’entretien. Vérifiez les données et l’accès.",
+    "Servicedaten konnten nicht geladen oder gespeichert werden. Eingaben und Zugriff prüfen."
+  ],
+  "Send {action} to {vehicle} ({control})?": [
+    "{action} sturen naar {vehicle} ({control})?",
+    "Envoyer {action} à {vehicle} ({control}) ?",
+    "{action} an {vehicle} senden ({control})?"
+  ],
+  "Apply {control} to {vehicle}?": [
+    "{control} toepassen op {vehicle}?",
+    "Appliquer {control} à {vehicle} ?",
+    "{control} für {vehicle} übernehmen?"
+  ],
+  "Request reviewed": [
+    "Aanvraag beoordeeld",
+    "Demande examinée",
+    "Anfrage geprüft"
+  ],
+  "Physical action failed": [
+    "Fysieke actie mislukt",
+    "Échec de l’action physique",
+    "Physische Aktion fehlgeschlagen"
+  ],
+  "Vehicle reported a different state": [
+    "Voertuig meldt een andere toestand",
+    "Le véhicule signale un état différent",
+    "Fahrzeug meldet einen anderen Zustand"
+  ],
+  "Service contact": ["Servicecontact", "Contact entretien", "Servicekontakt"],
+  "Short-term statistics": [
+    "Statistieken korte termijn",
+    "Statistiques à court terme",
+    "Kurzzeitstatistik"
+  ],
+  "Long-term statistics": [
+    "Statistieken lange termijn",
+    "Statistiques à long terme",
+    "Langzeitstatistik"
+  ]
+}
